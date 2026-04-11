@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/26647944/README.md)
 ---
 
 # 🧰 ComfyUI XB-BOX (小白工具箱)
