@@ -56,7 +56,7 @@ Furthermore, through **"Spatiotemporal Chunk Hijacking"**, **"Dynamic VRAM Offlo
 Navigate to your ComfyUI `custom_nodes` directory and run the following command:
 
 ```bash
-git clone [https://github.com/wjluoxiao/XB_ToolBox.git](https://github.com/wjluoxiao/XB_ToolBox.git)
+git clone https://github.com/wjluoxiao/XB_ToolBox.git
 ```
 
 *(Note: This plugin relies purely on the native ComfyUI ecosystem. Implemented through an elegant Python/JS architecture, **no additional pip dependencies are required!** Plug and play.)*
@@ -118,7 +118,7 @@ This project is open-sourced under the **Apache-2.0 License**. While embracing e
 Bash
 
 ```
-git clone [https://github.com/wjluoxiao/XB_ToolBox.git](https://github.com/wjluoxiao/XB_ToolBox.git)
+git clone https://github.com/wjluoxiao/XB_ToolBox.git
 ```
 
 *(注：本插件纯粹依赖 ComfyUI 原生生态，通过精妙的 Python/JS 架构实现，**无需安装任何额外 pip 依赖！** 即插即用。)*
