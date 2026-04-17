@@ -16,8 +16,9 @@ class XB_VideoParamsMaster:
             }
         }
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT", "FLOAT")
-    RETURN_NAMES = ("宽度", "高度", "总帧数", "帧率", "帧率_浮点")
+    # 👇 增加了一个 INT 类型的输出，名称为 "缩放尺寸"
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "FLOAT", "INT")
+    RETURN_NAMES = ("宽度", "高度", "总帧数", "帧率", "帧率_浮点", "缩放尺寸")
     FUNCTION = "process"
     CATEGORY = "小白工具箱/图像参数"
 
@@ -26,7 +27,8 @@ class XB_VideoParamsMaster:
         # 1. 自由模式：原样输出，完全解封
         # ==========================================
         if "自由" in model_type:
-            return (width, height, length, int(round(fps)), float(fps))
+            # 👇 返回值最后增加 max(width, height)
+            return (width, height, length, int(round(fps)), float(fps), max(width, height))
 
         # ==========================================
         # 2. 视频模式的特殊守护：黄金档位强劫持
@@ -43,7 +45,8 @@ class XB_VideoParamsMaster:
                 safe_w, safe_h = closest[0], closest[1]
                 safe_len = max(1, ((length - 1) // 8) * 8 + 1)
                 final_fps = int(round(fps))
-                return (safe_w, safe_h, safe_len, final_fps, float(final_fps))
+                # 👇 返回值最后增加 max(safe_w, safe_h)
+                return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
 
         # ==========================================
         # 3. 图片及其他常规模式：16步长安全兜底
@@ -58,4 +61,5 @@ class XB_VideoParamsMaster:
             safe_len = max(1, ((length - 1) // 8) * 8 + 1)
             
         final_fps = int(round(fps))
-        return (safe_w, safe_h, safe_len, final_fps, float(final_fps))
+        # 👇 返回值最后增加 max(safe_w, safe_h)
+        return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
