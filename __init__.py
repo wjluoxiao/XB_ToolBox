@@ -1,4 +1,25 @@
 import traceback
+import tkinter as tk
+from tkinter import filedialog
+from server import PromptServer
+from aiohttp import web
+
+# ==========================================
+# 🛠️ 注册专属后端 API：召唤 Windows 原生文件夹窗口
+# ==========================================
+@PromptServer.instance.routes.post("/xb_toolbox/choose_folder")
+async def choose_folder(request):
+    # 隐藏主窗口
+    root = tk.Tk()
+    root.withdraw()
+    # 强制窗口置顶，防止被浏览器挡住
+    root.attributes('-topmost', True)
+    # 弹出文件夹选择器
+    folder_path = filedialog.askdirectory()
+    root.destroy()
+    
+    # 将获取到的绝对路径返回给前端
+    return web.json_response({"path": folder_path})
 
 # ==========================================
 # 🎨 定义终端彩色输出函数，让提示在黑框里极其醒目
@@ -26,6 +47,9 @@ try:
     from .nodes_wiring import XB_DynamicBus
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
+    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo
+    from .nodes_batch import XB_BatchFolderLoader
+
 
     # 如果全部导入成功，则注册节点
     NODE_CLASS_MAPPINGS = { 
@@ -38,7 +62,10 @@ try:
         "XB_CheckpointBlockSwap": XB_CheckpointBlockSwap,
         "XB_DynamicBus": XB_DynamicBus,
         "XB_Dashboard_Zen": XB_Dashboard_Zen,
-        "XB_SamplerChunkMaster": XB_SamplerChunkMaster 
+        "XB_SamplerChunkMaster": XB_SamplerChunkMaster,
+        "XB_WanImageToVideo": XB_WanImageToVideo,
+        "XB_WanFirstLastFrameToVideo": XB_WanFirstLastFrameToVideo,
+        "XB_BatchFolderLoader": XB_BatchFolderLoader
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -50,8 +77,11 @@ try:
         "XB_UNetBlockSwap": "XB-BOX - ✂️ 模型分块交换（UNet）",
         "XB_CheckpointBlockSwap": "XB-BOX - ✂️ 模型分块交换（checkpoints）",
         "XB_DynamicBus": "XB-BOX - 🎛️ 动态总线 (极客版)",
-        "XB_Dashboard_Zen": "XB-BOX - 🪄 XB 远程控制中心",
-        "XB_SamplerChunkMaster": "XB-BOX - 🧊 采样分块大师" 
+        "XB_Dashboard_Zen": "XB-BOX - 🪄 远程控制中心",
+        "XB_SamplerChunkMaster": "XB-BOX - 🧊 采样分块大师",
+        "XB_WanImageToVideo": "XB-BOX - 🖼️ 单图转视频分块 (Wan)",
+        "XB_WanFirstLastFrameToVideo": "XB-BOX - 🎞️ 首尾帧视频分块(Wan)",
+        "XB_BatchFolderLoader": "XB-BOX - 📂 图片批量加载"
     }
     
     # 打印超级醒目的成功提示
