@@ -4,45 +4,35 @@ from tkinter import filedialog
 from server import PromptServer
 from aiohttp import web
 
-# ==========================================
-# 🛠️ 注册专属后端 API：召唤 Windows 原生文件夹窗口
-# ==========================================
 @PromptServer.instance.routes.post("/xb_toolbox/choose_folder")
 async def choose_folder(request):
-    # 隐藏主窗口
+
     root = tk.Tk()
     root.withdraw()
-    # 强制窗口置顶，防止被浏览器挡住
     root.attributes('-topmost', True)
-    # 弹出文件夹选择器
     folder_path = filedialog.askdirectory()
     root.destroy()
     
-    # 将获取到的绝对路径返回给前端
     return web.json_response({"path": folder_path})
 
-# ==========================================
-# 🎨 定义终端彩色输出函数，让提示在黑框里极其醒目
-# ==========================================
 def print_success(msg):
-    print(f"\033[92m{msg}\033[0m")  # 亮绿色
+    print(f"\033[92m{msg}\033[0m")  
 
 def print_error(msg):
-    print(f"\033[91m{msg}\033[0m")  # 亮红色
+    print(f"\033[91m{msg}\033[0m")  
 
 def print_warning(msg):
-    print(f"\033[93m{msg}\033[0m")  # 亮黄色
+    print(f"\033[93m{msg}\033[0m")  
 
-# 初始化空字典，防止报错时 ComfyUI 找不到变量而二次崩溃
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = "./js"
 
 try:
-    # 尝试导入所有节点
+
     from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
     from .nodes_vram import XTX_VRAM_Cleaner, XTX_Data_Radar
-    from .nodes_video import XB_VideoParamsMaster
+    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster 
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes_wiring import XB_DynamicBus
     from .nodes_dashboard import XB_Dashboard_Zen
@@ -50,14 +40,13 @@ try:
     from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo
     from .nodes_batch import XB_BatchFolderLoader
 
-
-    # 如果全部导入成功，则注册节点
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
         "XB_ChunkVisualization": XB_ChunkVisualization,
         "XTX_VRAM_Cleaner": XTX_VRAM_Cleaner,
         "XTX_Data_Radar": XTX_Data_Radar,
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
+        "XB_ImageParamsMaster": XB_ImageParamsMaster, 
         "XB_UNetBlockSwap": XB_UNetBlockSwap,
         "XB_CheckpointBlockSwap": XB_CheckpointBlockSwap,
         "XB_DynamicBus": XB_DynamicBus,
@@ -73,7 +62,11 @@ try:
         "XB_ChunkVisualization": "XB-BOX - 🧊 时空分块预览",
         "XTX_VRAM_Cleaner": "XB-BOX- 🧹 显存清理大师",
         "XTX_Data_Radar": "XB-BOX - 🪞 生成数据预览",
-        "XB_VideoParamsMaster": "XB-BOX - 🎬 图像参数大全",
+        
+        # ✅ 精准的中文命名分类
+        "XB_VideoParamsMaster": "XB-BOX - 🎬 视频参数大全", 
+        "XB_ImageParamsMaster": "XB-BOX - 🖼️ 图片参数大全",
+        
         "XB_UNetBlockSwap": "XB-BOX - ✂️ 模型分块交换（UNet）",
         "XB_CheckpointBlockSwap": "XB-BOX - ✂️ 模型分块交换（checkpoints）",
         "XB_DynamicBus": "XB-BOX - 🎛️ 动态总线 (极客版)",
