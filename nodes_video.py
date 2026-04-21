@@ -49,11 +49,9 @@ class XB_VideoParamsMaster:
     CATEGORY = "小白工具箱/图像参数"
 
     def process(self, aspect_ratio, duration_display, width, height, length, fps, fps_float):
-        # 自由模式：原样输出
         if "自由" in aspect_ratio:
             return (width, height, length, int(round(fps)), float(fps), max(width, height))
 
-        # 视频专属守护：黄金档位强劫持
         golden_buckets = {
             "16:9": [(832, 480), (960, 544), (1280, 720), (1920, 1088)],
             "9:16": [(480, 832), (544, 960), (720, 1280), (1088, 1920)]
@@ -64,13 +62,48 @@ class XB_VideoParamsMaster:
             closest = min(buckets, key=lambda b: abs(b[0] - width))
             safe_w, safe_h = closest[0], closest[1]
         else:
-            # 其他常规比例 16 步长对齐
             step = 16
             safe_w = max(step, (width // step) * step)
             safe_h = max(step, (height // step) * step)
 
-        # 视频帧数必须满足 1 + 8N
         safe_len = max(1, ((length - 1) // 8) * 8 + 1)
         final_fps = int(round(fps))
         
         return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
+
+
+# ==========================================
+# 🎛️ 新增：全能参数控制节点
+# ==========================================
+class XB_MasterParameter:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mode": (["自由模式", "模型模式", "编码模式", "解码模式", "比例模式", "其他模式"], {"default": "自由模式"}),
+                # 🟢 恢复最纯正的 0-9999 范围，默认步长 0.01
+                "value": ("FLOAT", {"default": 1024.0, "min": 0.0, "max": 9999.0, "step": 0.01}),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "FLOAT")
+    RETURN_NAMES = ("整数 (INT)", "浮点 (FLOAT)")
+    FUNCTION = "get_value"
+    CATEGORY = "小白工具箱/参数控制"
+
+    def get_value(self, mode, value):
+        if mode == "自由模式":
+            val = max(0.0, min(9999.0, value))
+        elif mode == "模型模式":
+            val = max(0.0, min(50.0, value))
+        elif mode in ["编码模式", "解码模式"]:
+            val = max(64.0, min(3840.0, value))
+            val = round(val / 32) * 32
+        elif mode == "比例模式":
+            val = max(0.0, min(1.0, value))
+        elif mode == "其他模式":
+            val = max(0.0, min(9999.0, value))
+        else:
+            val = value
+
+        return (int(round(val)), float(val))

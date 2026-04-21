@@ -4,7 +4,7 @@ import numpy as np
 import re
 from PIL import Image, ImageOps
 import folder_paths
-import datetime  # 👇 新增：引入 Python 原生时间模块
+import datetime 
 
 class XB_BatchFolderLoader:
     """
@@ -54,7 +54,7 @@ class XB_BatchFolderLoader:
         formatted_file_name = f"图片/批量处理/{today_str}/{raw_name}"
 
         # 4. 构造友好的数量提示字符串
-        total_count_display = f"检测到图片总数为：{total_count}"
+        total_count_display = f"识别到图片总数为：{total_count}"
 
         img = Image.open(file_path)
         img = ImageOps.exif_transpose(img)
