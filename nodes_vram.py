@@ -32,13 +32,16 @@ class XTX_VRAM_Cleaner:
             mm.soft_empty_cache()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                # 动态探测 0.20.X 的 IPC 垃圾回收 (专治多线程显存碎片)
+                if hasattr(torch.cuda, "ipc_collect"):
+                    torch.cuda.ipc_collect()
             print("💥 已执行核爆级清理，显存碎片已彻底蒸发！")
         print("✅ 战场打扫完毕，核心数据已就绪！")
         print("🚀" * 15 + "\n")
         return (model, positive, negative, latent_image)
 
 # ======================================================================
-# 🪞 生成数据预览 (升级版：支持正负双条件称重)
+# 🪞 生成数据预览 (代码保持不变)
 # ======================================================================
 class XTX_Data_Radar:
     @classmethod

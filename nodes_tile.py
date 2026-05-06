@@ -42,7 +42,8 @@ class XB_SamplerChunkMaster:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-                torch.cuda.ipc_collect() # 针对多线程显存碎片
+                if hasattr(torch.cuda, "ipc_collect"): # 安全防护
+                    torch.cuda.ipc_collect() 
 
         # 📊 自动推算显示参数
         width = 1280

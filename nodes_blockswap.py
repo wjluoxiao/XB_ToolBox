@@ -1,6 +1,7 @@
 import comfy.model_management as mm
 import gc
 import torch
+import sys
 from comfy.patcher_extension import CallbacksMP
 from comfy.model_patcher import ModelPatcher
 from tqdm import tqdm
@@ -10,14 +11,28 @@ class AnyType(str):
         return False
 anyType = AnyType("*")
 
+def is_dynamic_vram_flag_used():
+    """嗅探用户是否在启动参数中显式使用了 --enable-dynamic-vram"""
+    return "--enable-dynamic-vram" in sys.argv
+
+def smart_module_transfer(module, target_device, use_non_blocking=True):
+    """底层轨道桥接：动态接管 0.20.X 的异步显存流"""
+    if hasattr(mm, "get_offload_stream") and hasattr(mm, "sync_stream"):
+        stream = mm.get_offload_stream(target_device)
+        if stream is not None:
+            wf_context = stream
+            if hasattr(wf_context, "as_context"):
+                wf_context = wf_context.as_context(stream)
+            with wf_context:
+                module.to(target_device, non_blocking=use_non_blocking)
+            mm.sync_stream(target_device, stream)
+            return
+    module.to(target_device, non_blocking=use_non_blocking)
+
 # ==============================================================================
-# 节点 1：UNet/DiT 纯净版切割
+# 节点 1：UNet/DiT 纯净版切割 (JIT 钩子引擎)
 # ==============================================================================
 class XB_UNetBlockSwap:
-    """
-    极简、纯净的 UNet/DiT 专用块交换节点。
-    严格遵守单一职责，剥离所有与 CLIP/VAE 相关的逻辑，专精于处理去噪主干的显存溢出。
-    """
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -40,45 +55,62 @@ class XB_UNetBlockSwap:
 
     def set_callback(self, unet_model: ModelPatcher, blocks_to_swap):
         if not isinstance(unet_model, ModelPatcher):
-            print("\033[31m[XB UNet块交换]\033[0m: 拦截失败！输入的数据流不是合法的模型对象。")
+            return (unet_model,)
+
+        # 🚨 嗅探与休眠机制
+        if is_dynamic_vram_flag_used():
+            print("\n\033[93m[XB UNet块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = torch.device('cuda')
+            main_device = mm.get_torch_device()
+            offload_device = model_patcher.offload_device
             
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
                 return
 
             all_blocks = []
-            block_paths = [
-                'transformer_blocks', 
-                'blocks',             
-                'down_blocks',        
-                'up_blocks',          
-                'mid_block'
-            ]
+            block_paths = ['transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block']
             
-            found_path = None
             for path in block_paths:
                 if hasattr(diffusion_model, path):
                     attr = getattr(diffusion_model, path)
                     if isinstance(attr, (list, torch.nn.ModuleList)):
                         all_blocks.extend(attr)
-                        found_path = path
                         break 
             
             if not all_blocks:
                 return
 
-            print(f"\033[36m[XB UNet块交换]\033[0m: 精确锁定 {len(all_blocks)} 个引擎模块 (路径: {found_path})")
+            # 正常分块亮蓝色提示
+            print(f"\033[96m[XB UNet块交换]\033[0m: 启动 JIT 钩子引擎，锁定 {len(all_blocks)} 个模块")
 
-            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 UNet 流水线"):
-                if b > blocks_to_swap:
-                    block.to(main_device)
+            # 🚀 核心：定义即时拉取与即时卸载的钩子
+            def make_pre_hook():
+                def pre_hook(module, args):
+                    # 数据流抵达，瞬间拉入 GPU 计算
+                    smart_module_transfer(module, main_device)
+                    return args
+                return pre_hook
+
+            def make_post_hook():
+                def post_hook(module, args, output):
+                    # 计算完成，瞬间踢回 CPU 内存
+                    smart_module_transfer(module, offload_device)
+                    return output
+                return post_hook
+
+            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在部署 JIT 显存钩子"):
+                if b <= blocks_to_swap:
+                    # 为需要下放的块挂载 JIT 拦截器
+                    block.register_forward_pre_hook(make_pre_hook())
+                    block.register_forward_hook(make_post_hook())
+                    # 初始状态压入内存
+                    smart_module_transfer(block, offload_device)
                 else:
-                    block.to(model_patcher.offload_device)
+                    smart_module_transfer(block, main_device)
                         
             mm.soft_empty_cache()
             gc.collect()
@@ -89,37 +121,18 @@ class XB_UNetBlockSwap:
         return (unet_model, )
 
 # ==============================================================================
-# 节点 2：Checkpoint 混合包裹切割
+# 节点 2：Checkpoint 混合包裹切割 (JIT 钩子引擎)
 # ==============================================================================
 class XB_CheckpointBlockSwap:
-    """
-    用于 Checkpoint 大包裹 (包含 UNet + CLIP/VAE 等) 的通用分块交换节点。
-    已彻底修复离线设备指针作用域 Bug 及 NoneType 空载报错。
-    """
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
                 "checkpoint_model": (anyType, {"tooltip": "接受任何模型输入 (含 CLIP/VAE 等完整架构)。"}),
-                "blocks_to_swap": ("INT", {
-                    "default": 15,
-                    "min": 0,
-                    "max": 1000,
-                    "step": 1,
-                    "tooltip": "要交换的模型核心块数量。这些块将被保留在系统内存中。"
-                }),
-                "offload_img_emb": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": "是否将图像嵌入层(如存在)也强制卸载到内存中。"
-                }),
-                "offload_txt_emb": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": "是否将文本嵌入层(CLIP/T5等)也强制卸载到内存中以节省显存。"
-                }),
-                "use_non_blocking": ("BOOLEAN", {
-                    "default": False,
-                    "tooltip": "使用非阻塞内存传输。可加快转移速度，但会极大地增加 CPU 与内存瞬间压力。"
-                }),
+                "blocks_to_swap": ("INT", {"default": 15, "min": 0, "max": 1000, "step": 1}),
+                "offload_img_emb": ("BOOLEAN", {"default": True}),
+                "offload_txt_emb": ("BOOLEAN", {"default": True}),
+                "use_non_blocking": ("BOOLEAN", {"default": False}),
             },
         }
 
@@ -130,66 +143,70 @@ class XB_CheckpointBlockSwap:
 
     def set_callback(self, checkpoint_model: ModelPatcher, blocks_to_swap, offload_txt_emb, offload_img_emb, use_non_blocking):
         if not isinstance(checkpoint_model, ModelPatcher):
-            print("\033[31m[XB Checkpoint块交换]\033[0m: 拦截失败！输入的数据流不是合法的模型对象。")
+            return (checkpoint_model,)
+
+        # 🚨 嗅探与休眠机制
+        if is_dynamic_vram_flag_used():
+            print("\n\033[93m[XB Checkpoint块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
             return (checkpoint_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = torch.device('cuda')
+            main_device = mm.get_torch_device()
+            offload_device = model_patcher.offload_device
 
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
                 return
 
             all_blocks = []
-            block_paths = [
-                'transformer_blocks',
-                'blocks',
-                'down_blocks',
-                'up_blocks',
-                'mid_block',
-                'layers',
-                'attention_blocks',
-                'input_blocks',
-                'middle_block',
-                'output_blocks',
-            ]
+            block_paths = ['transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block', 'layers', 'attention_blocks', 'input_blocks', 'middle_block', 'output_blocks']
 
-            found_path = None
             for path in block_paths:
                 if hasattr(diffusion_model, path):
                     attr = getattr(diffusion_model, path)
                     if isinstance(attr, (list, torch.nn.ModuleList)):
                         all_blocks.extend(attr)
-                        found_path = path
                         break
+
+            def make_pre_hook():
+                def pre_hook(module, args):
+                    smart_module_transfer(module, main_device, use_non_blocking)
+                    return args
+                return pre_hook
+
+            def make_post_hook():
+                def post_hook(module, args, output):
+                    smart_module_transfer(module, offload_device, use_non_blocking)
+                    return output
+                return post_hook
 
             if all_blocks:
-                print(f"\033[36m[XB Checkpoint块交换]\033[0m: 从路径 '{found_path}' 找到 {len(all_blocks)} 个块。")
-                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 Checkpoint 流水线"):
-                    if b > blocks_to_swap:
-                        block.to(main_device)
+                # 正常分块亮蓝色提示
+                print(f"\033[96m[XB Checkpoint块交换]\033[0m: 启动 JIT 钩子引擎，锁定 {len(all_blocks)} 个模块")
+                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="部署 Checkpoint JIT 钩子"):
+                    if b <= blocks_to_swap:
+                        block.register_forward_pre_hook(make_pre_hook())
+                        block.register_forward_hook(make_post_hook())
+                        smart_module_transfer(block, offload_device, use_non_blocking)
                     else:
-                        block.to(model_patcher.offload_device) 
+                        smart_module_transfer(block, main_device, use_non_blocking) 
 
-            embedding_paths = {
-                'text': ['text_embedding', 'caption_encoder', 'text_encoder'],
-                'img': ['img_emb', 'image_encoder', 'visual_encoder']
-            }
+            # 对 Embedding 层执行同样的挂载逻辑以彻底防爆
+            def setup_emb_hook(path):
+                if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
+                    emb_module = getattr(diffusion_model, path)
+                    emb_module.register_forward_pre_hook(make_pre_hook())
+                    emb_module.register_forward_hook(make_post_hook())
+                    smart_module_transfer(emb_module, offload_device, use_non_blocking)
 
             if offload_txt_emb:
-                for path in embedding_paths['text']:
-                    if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
-                        getattr(diffusion_model, path).to(model_patcher.offload_device, non_blocking=use_non_blocking)
-                        print(f"\033[36m[XB Checkpoint块交换]\033[0m: 已将文本层 '{path}' 卸载到内存。")
-                        break
+                for path in ['text_embedding', 'caption_encoder', 'text_encoder']:
+                    setup_emb_hook(path)
 
             if offload_img_emb:
-                for path in embedding_paths['img']:
-                    if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
-                        getattr(diffusion_model, path).to(model_patcher.offload_device, non_blocking=use_non_blocking)
-                        print(f"\033[36m[XB Checkpoint块交换]\033[0m: 已将视觉层 '{path}' 卸载到内存。")
-                        break
+                for path in ['img_emb', 'image_encoder', 'visual_encoder']:
+                    setup_emb_hook(path)
 
             mm.soft_empty_cache()
             gc.collect()

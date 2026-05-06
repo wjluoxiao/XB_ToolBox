@@ -96,7 +96,7 @@ app.registerExtension({
                 this.color = "#151e29";
                 this.bgcolor = "#0B1116";
                 // 初始化极度压缩的尺寸
-                this.size = [120, 46]; 
+                this.size = [90, 46]; 
             };
 
             // ==========================================
