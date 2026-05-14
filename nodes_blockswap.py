@@ -15,22 +15,9 @@ def is_dynamic_vram_flag_used():
     """嗅探用户是否在启动参数中显式使用了 --enable-dynamic-vram"""
     return "--enable-dynamic-vram" in sys.argv
 
-def smart_module_transfer(module, target_device, use_non_blocking=True):
-    """底层轨道桥接：动态接管 0.20.X 的异步显存流"""
-    if hasattr(mm, "get_offload_stream") and hasattr(mm, "sync_stream"):
-        stream = mm.get_offload_stream(target_device)
-        if stream is not None:
-            wf_context = stream
-            if hasattr(wf_context, "as_context"):
-                wf_context = wf_context.as_context(stream)
-            with wf_context:
-                module.to(target_device, non_blocking=use_non_blocking)
-            mm.sync_stream(target_device, stream)
-            return
-    module.to(target_device, non_blocking=use_non_blocking)
 
 # ==============================================================================
-# 节点 1：UNet/DiT 纯净版切割 (JIT 钩子引擎)
+# 节点 1：UNet/DiT 纯净版切割 (严格还原第一版的纯物理转移)
 # ==============================================================================
 class XB_UNetBlockSwap:
     @classmethod
@@ -57,15 +44,14 @@ class XB_UNetBlockSwap:
         if not isinstance(unet_model, ModelPatcher):
             return (unet_model,)
 
-        # 🚨 嗅探与休眠机制
+        # 🚨 嗅探与休眠机制 (亮橙色)
         if is_dynamic_vram_flag_used():
             print("\n\033[93m[XB UNet块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = mm.get_torch_device()
-            offload_device = model_patcher.offload_device
+            main_device = torch.device('cuda') # 严格还原第一版的设备指定
             
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
@@ -85,32 +71,14 @@ class XB_UNetBlockSwap:
                 return
 
             # 正常分块亮蓝色提示
-            print(f"\033[96m[XB UNet块交换]\033[0m: 启动 JIT 钩子引擎，锁定 {len(all_blocks)} 个模块")
+            print(f"\033[96m[XB UNet块交换]\033[0m: 静态物理分块已激活！锁定 {len(all_blocks)} 个引擎模块")
 
-            # 🚀 核心：定义即时拉取与即时卸载的钩子
-            def make_pre_hook():
-                def pre_hook(module, args):
-                    # 数据流抵达，瞬间拉入 GPU 计算
-                    smart_module_transfer(module, main_device)
-                    return args
-                return pre_hook
-
-            def make_post_hook():
-                def post_hook(module, args, output):
-                    # 计算完成，瞬间踢回 CPU 内存
-                    smart_module_transfer(module, offload_device)
-                    return output
-                return post_hook
-
-            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在部署 JIT 显存钩子"):
-                if b <= blocks_to_swap:
-                    # 为需要下放的块挂载 JIT 拦截器
-                    block.register_forward_pre_hook(make_pre_hook())
-                    block.register_forward_hook(make_post_hook())
-                    # 初始状态压入内存
-                    smart_module_transfer(block, offload_device)
+            # 🚀 大道至简：完全使用第一版的最原生的转移逻辑！
+            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 UNet 流水线"):
+                if b > blocks_to_swap:
+                    block.to(main_device)
                 else:
-                    smart_module_transfer(block, main_device)
+                    block.to(model_patcher.offload_device)
                         
             mm.soft_empty_cache()
             gc.collect()
@@ -121,7 +89,7 @@ class XB_UNetBlockSwap:
         return (unet_model, )
 
 # ==============================================================================
-# 节点 2：Checkpoint 混合包裹切割 (JIT 钩子引擎)
+# 节点 2：Checkpoint 混合包裹切割 (严格还原第一版的纯物理转移)
 # ==============================================================================
 class XB_CheckpointBlockSwap:
     @classmethod
@@ -145,15 +113,14 @@ class XB_CheckpointBlockSwap:
         if not isinstance(checkpoint_model, ModelPatcher):
             return (checkpoint_model,)
 
-        # 🚨 嗅探与休眠机制
+        # 🚨 嗅探与休眠机制 (亮橙色)
         if is_dynamic_vram_flag_used():
             print("\n\033[93m[XB Checkpoint块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
             return (checkpoint_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = mm.get_torch_device()
-            offload_device = model_patcher.offload_device
+            main_device = torch.device('cuda')
 
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
@@ -169,44 +136,27 @@ class XB_CheckpointBlockSwap:
                         all_blocks.extend(attr)
                         break
 
-            def make_pre_hook():
-                def pre_hook(module, args):
-                    smart_module_transfer(module, main_device, use_non_blocking)
-                    return args
-                return pre_hook
-
-            def make_post_hook():
-                def post_hook(module, args, output):
-                    smart_module_transfer(module, offload_device, use_non_blocking)
-                    return output
-                return post_hook
-
             if all_blocks:
-                # 正常分块亮蓝色提示
-                print(f"\033[96m[XB Checkpoint块交换]\033[0m: 启动 JIT 钩子引擎，锁定 {len(all_blocks)} 个模块")
-                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="部署 Checkpoint JIT 钩子"):
-                    if b <= blocks_to_swap:
-                        block.register_forward_pre_hook(make_pre_hook())
-                        block.register_forward_hook(make_post_hook())
-                        smart_module_transfer(block, offload_device, use_non_blocking)
+                print(f"\033[96m[XB Checkpoint块交换]\033[0m: 静态物理分块已激活！锁定 {len(all_blocks)} 个引擎模块")
+                # 🚀 大道至简：完全使用第一版的最原生的转移逻辑！
+                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 Checkpoint 流水线"):
+                    if b > blocks_to_swap:
+                        block.to(main_device)
                     else:
-                        smart_module_transfer(block, main_device, use_non_blocking) 
+                        block.to(model_patcher.offload_device) 
 
-            # 对 Embedding 层执行同样的挂载逻辑以彻底防爆
-            def setup_emb_hook(path):
-                if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
-                    emb_module = getattr(diffusion_model, path)
-                    emb_module.register_forward_pre_hook(make_pre_hook())
-                    emb_module.register_forward_hook(make_post_hook())
-                    smart_module_transfer(emb_module, offload_device, use_non_blocking)
-
+            # 原生方法处理 Embedding
             if offload_txt_emb:
                 for path in ['text_embedding', 'caption_encoder', 'text_encoder']:
-                    setup_emb_hook(path)
+                    if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
+                        getattr(diffusion_model, path).to(model_patcher.offload_device, non_blocking=use_non_blocking)
+                        break
 
             if offload_img_emb:
                 for path in ['img_emb', 'image_encoder', 'visual_encoder']:
-                    setup_emb_hook(path)
+                    if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:
+                        getattr(diffusion_model, path).to(model_patcher.offload_device, non_blocking=use_non_blocking)
+                        break
 
             mm.soft_empty_cache()
             gc.collect()
