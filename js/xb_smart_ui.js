@@ -1,5 +1,7 @@
 import { app } from "../../scripts/app.js";
 
+const isZH = navigator.language.startsWith("zh");
+
 app.registerExtension({
     name: "XB_ToolBox.SmartUI",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
@@ -7,7 +9,6 @@ app.registerExtension({
             
             nodeType.prototype.updateWidgetState = function () {
                 const optInput = this.inputs?.find(i => i.name === "opt_end_image");
-                // 🔴 核心修复：只认原始名字，绝不乱改名
                 const imgCombo = this.widgets?.find(w => w.name === "end_image_file");
                 
                 let uploadBtn = this.widgets?.find(w => w.type === "button" && !w.name.includes("randomize"));
@@ -16,21 +17,18 @@ app.registerExtension({
                     const isConnected = !!optInput.link; 
                     
                     if (isConnected) {
-                        // 🔒 连线状态：只变灰，绝对不准改 imgCombo.name ！(否则会导致后端报错)
                         imgCombo.disabled = true;
                         
-                        // 按钮可以随意改名，因为它不负责往后端发数据
                         if (!uploadBtn._orig_callback) uploadBtn._orig_callback = uploadBtn.callback;
-                        uploadBtn.name = "🔒 端口已被连线接管"; 
-                        uploadBtn.label = "🔒 端口已被连线接管"; 
+                        uploadBtn.name = isZH ? "🔒 端口已被连线接管" : "Locked by connection"; 
+                        uploadBtn.label = isZH ? "🔒 端口已被连线接管" : "Locked by connection"; 
                         uploadBtn.callback = null; 
 
                     } else {
-                        // 🔓 断线状态：恢复使用
                         imgCombo.disabled = false;
                         
-                        uploadBtn.name = "选择上传尾帧图片"; 
-                        uploadBtn.label = "选择上传尾帧图片"; 
+                        uploadBtn.name = isZH ? "选择上传尾帧图片" : "Select/Upload End Frame"; 
+                        uploadBtn.label = isZH ? "选择上传尾帧图片" : "Select/Upload End Frame"; 
                         if (uploadBtn._orig_callback) uploadBtn.callback = uploadBtn._orig_callback;
                     }
                     this.setDirtyCanvas(true, true);

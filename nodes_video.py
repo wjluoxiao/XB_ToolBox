@@ -3,7 +3,7 @@ class XB_ImageParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["自由 (Free)", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "自由 (Free)"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 1}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
@@ -13,12 +13,12 @@ class XB_ImageParamsMaster:
         }
 
     RETURN_TYPES = ("INT", "INT", "INT", "FLOAT", "INT", "INT")
-    RETURN_NAMES = ("图片宽度", "图片高度", "生成数量", "浮点控制", "整数控制", "缩放尺寸")
+    RETURN_NAMES = ("Image Width", "Image Height", "Batch Size", "Float Control", "Int Control", "Scale Size")
     FUNCTION = "process"
-    CATEGORY = "小白工具箱/图像参数"
+    CATEGORY = "XB_ToolBox/Image_Params"
 
     def process(self, aspect_ratio, width, height, batch_size, strength_float, strength_int):
-        if "自由" in aspect_ratio:
+        if "Free" in aspect_ratio:
             return (width, height, batch_size, float(strength_float), int(strength_int), max(width, height))
 
         step = 16
@@ -27,14 +27,13 @@ class XB_ImageParamsMaster:
         
         return (safe_w, safe_h, batch_size, float(strength_float), int(strength_int), max(safe_w, safe_h))
 
-
 class XB_VideoParamsMaster:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["自由 (Free)", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "自由 (Free)"}),
-                "duration_display": ("STRING", {"default": "视频时长: 0.00 秒", "multiline": False}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
+                "duration_display": ("STRING", {"default": "Video Duration: 0.00 s", "multiline": False}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 1}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 1}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 9999, "step": 1}),
@@ -44,12 +43,12 @@ class XB_VideoParamsMaster:
         }
 
     RETURN_TYPES = ("INT", "INT", "INT", "INT", "FLOAT", "INT")
-    RETURN_NAMES = ("宽度", "高度", "帧数", "帧率", "帧率_浮点", "缩放尺寸")
+    RETURN_NAMES = ("Width", "Height", "Frames", "FPS", "FPS_Float", "Scale Size")
     FUNCTION = "process"
-    CATEGORY = "小白工具箱/图像参数"
+    CATEGORY = "XB_ToolBox/Image_Params"
 
     def process(self, aspect_ratio, duration_display, width, height, length, fps, fps_float):
-        if "自由" in aspect_ratio:
+        if "Free" in aspect_ratio:
             return (width, height, length, int(round(fps)), float(fps), max(width, height))
 
         golden_buckets = {
@@ -71,37 +70,32 @@ class XB_VideoParamsMaster:
         
         return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
 
-
-# ==========================================
-# 🎛️ 新增：全能参数控制节点
-# ==========================================
 class XB_MasterParameter:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "mode": (["自由模式", "模型模式", "编码模式", "解码模式", "比例模式", "其他模式"], {"default": "自由模式"}),
-                # 🟢 恢复最纯正的 0-9999 范围，默认步长 0.01
+                "mode": (["Free Mode", "Model Mode", "Encode Mode", "Decode Mode", "Ratio Mode", "Other Mode"], {"default": "Free Mode"}),
                 "value": ("FLOAT", {"default": 1024.0, "min": 0.0, "max": 9999.0, "step": 0.01}),
             }
         }
 
     RETURN_TYPES = ("INT", "FLOAT")
-    RETURN_NAMES = ("整数 (INT)", "浮点 (FLOAT)")
+    RETURN_NAMES = ("Integer (INT)", "Float (FLOAT)")
     FUNCTION = "get_value"
-    CATEGORY = "小白工具箱/参数控制"
+    CATEGORY = "XB_ToolBox/Params_Control"
 
     def get_value(self, mode, value):
-        if mode == "自由模式":
+        if mode == "Free Mode":
             val = max(0.0, min(9999.0, value))
-        elif mode == "模型模式":
+        elif mode == "Model Mode":
             val = max(0.0, min(50.0, value))
-        elif mode in ["编码模式", "解码模式"]:
+        elif mode in ["Encode Mode", "Decode Mode"]:
             val = max(64.0, min(3840.0, value))
             val = round(val / 32) * 32
-        elif mode == "比例模式":
+        elif mode == "Ratio Mode":
             val = max(0.0, min(1.0, value))
-        elif mode == "其他模式":
+        elif mode == "Other Mode":
             val = max(0.0, min(9999.0, value))
         else:
             val = value

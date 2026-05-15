@@ -3,15 +3,9 @@ import numpy as np
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-# ==========================================
-# 极客魔法：标识数据来源，并携带分层数据的超级浮点数
-# ==========================================
 class CalculatedFloat(float):
     pass
 
-# ==========================================
-# 📟 可用显存计算
-# ==========================================
 class XB_VRAM_Calculator:
     def __init__(self):
         pass
@@ -20,22 +14,22 @@ class XB_VRAM_Calculator:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "显卡总显存_GB": ("INT", {"default": 24, "min": 4, "max": 128, "step": 1, "display": "number"}),
-                "系统及背景开销_GB": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 64.0, "step": 0.5, "display": "number"}),
-                "视频主模型": (["LTX-2.3 (22B)", "WAN2.2-I2V (14B)", "WAN2.2-T2V (14B)", "WAN2.2-Animate (14B)"], {"default": "LTX-2.3 (22B)"}),
-                "模型量化": (["FP16/BF16", "FP8", "GGUF-Q8", "GGUF-Q6", "GGUF-Q4"], {"default": "FP8"}),
-                "主模型总层数": ("INT", {"default": 48, "min": 1, "max": 200, "step": 1, "display": "number"}),
-                "分层交换数值": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1, "display": "number"}),
-                "LoRA及插件总计_GB": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 64.0, "step": 0.1, "display": "number"}),
+                "Total_VRAM_GB": ("INT", {"default": 24, "min": 4, "max": 128, "step": 1, "display": "number"}),
+                "System_Overhead_GB": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 64.0, "step": 0.5, "display": "number"}),
+                "Main_Video_Model": (["LTX-2.3 (22B)", "WAN2.2-I2V (14B)", "WAN2.2-T2V (14B)", "WAN2.2-Animate (14B)"], {"default": "LTX-2.3 (22B)"}),
+                "Model_Quantization": (["FP16/BF16", "FP8", "GGUF-Q8", "GGUF-Q6", "GGUF-Q4"], {"default": "FP8"}),
+                "Total_Model_Layers": ("INT", {"default": 48, "min": 1, "max": 200, "step": 1, "display": "number"}),
+                "Layers_to_Swap": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1, "display": "number"}),
+                "LoRA_Plugin_VRAM_GB": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 64.0, "step": 0.1, "display": "number"}),
             }
         }
 
     RETURN_TYPES = ("FLOAT",)
-    RETURN_NAMES = ("可用显存输出",)
+    RETURN_NAMES = ("Available_VRAM",)
     FUNCTION = "calculate_vram"
-    CATEGORY = "小白工具箱/分块预览"
+    CATEGORY = "XB_ToolBox/Chunk_Preview"
 
-    def calculate_vram(self, 显卡总显存_GB, 系统及背景开销_GB, 视频主模型, 模型量化, 主模型总层数, 分层交换数值, LoRA及插件总计_GB):
+    def calculate_vram(self, Total_VRAM_GB, System_Overhead_GB, Main_Video_Model, Model_Quantization, Total_Model_Layers, Layers_to_Swap, LoRA_Plugin_VRAM_GB):
         vram_map = {
             "LTX-2.3 (22B)": {"FP16/BF16": 44.0, "FP8": 22.5, "GGUF-Q8": 22.8, "GGUF-Q6": 17.8, "GGUF-Q4": 13.5},
             "WAN2.2-I2V (14B)": {"FP16/BF16": 28.0, "FP8": 14.0, "GGUF-Q8": 14.5, "GGUF-Q6": 11.0, "GGUF-Q4": 9.0},
@@ -43,21 +37,18 @@ class XB_VRAM_Calculator:
             "WAN2.2-Animate (14B)": {"FP16/BF16": 28.0, "FP8": 14.0, "GGUF-Q8": 14.5, "GGUF-Q6": 11.0, "GGUF-Q4": 9.0},
         }
         
-        full_model_size = vram_map.get(视频主模型, {}).get(模型量化, 14.0)
-        stay_layers = max(0, 主模型总层数 - 分层交换数值)
-        active_model_vram = (full_model_size / max(1, 主模型总层数)) * stay_layers
-        available_vram = 显卡总显存_GB - 系统及背景开销_GB - active_model_vram - LoRA及插件总计_GB
+        full_model_size = vram_map.get(Main_Video_Model, {}).get(Model_Quantization, 14.0)
+        stay_layers = max(0, Total_Model_Layers - Layers_to_Swap)
+        active_model_vram = (full_model_size / max(1, Total_Model_Layers)) * stay_layers
+        available_vram = Total_VRAM_GB - System_Overhead_GB - active_model_vram - LoRA_Plugin_VRAM_GB
         available_vram = max(0.1, available_vram)
         
         res = CalculatedFloat(available_vram)
         res._stay = stay_layers
-        res._total = 主模型总层数
+        res._total = Total_Model_Layers
         
         return (res,)
 
-# ==========================================
-# 🧊 极简双区浏览器：左 2D 原生镂空 + 右完美重叠圆柱
-# ==========================================
 class XB_ChunkVisualization:
     def __init__(self):
         pass
@@ -66,26 +57,26 @@ class XB_ChunkVisualization:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "统计模式": (["仅画面", "仅时间", "画面与时间"], {"default": "画面与时间"}),
-                "可用显存_GB": ("FLOAT", {"default": 12.0, "min": 0.1, "max": 128.0, "step": 0.1, "display": "number"}),
-                "图像宽度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16, "display": "number"}),
-                "图像高度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16, "display": "number"}),
-                "图像帧数": ("INT", {"default": 1, "min": 1, "max": 10000, "step": 4, "display": "number"}),
-                "当前阶段": (["编码阶段", "解码阶段"], {"default": "解码阶段"}),
-                "图像分块大小": ("INT", {"default": 512, "min": 64, "max": 8192, "step": 32, "display": "number"}),
-                "图像分块重叠": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 32, "display": "number"}),
-                "帧数分段大小": ("INT", {"default": 33, "min": 8, "max": 10000, "step": 4, "display": "number"}),
-                "帧数分段重叠": ("INT", {"default": 4, "min": 0, "max": 1000, "step": 4, "display": "number"}),
+                "Stat_Mode": (["Spatial Only", "Temporal Only", "Spatial & Temporal"], {"default": "Spatial & Temporal"}),
+                "Available_VRAM_GB": ("FLOAT", {"default": 12.0, "min": 0.1, "max": 128.0, "step": 0.1, "display": "number"}),
+                "Image_Width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16, "display": "number"}),
+                "Image_Height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16, "display": "number"}),
+                "Image_Frames": ("INT", {"default": 1, "min": 1, "max": 10000, "step": 4, "display": "number"}),
+                "Current_Stage": (["Encode Stage", "Decode Stage"], {"default": "Decode Stage"}),
+                "Spatial_Tile_Size": ("INT", {"default": 512, "min": 64, "max": 8192, "step": 32, "display": "number"}),
+                "Spatial_Tile_Overlap": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 32, "display": "number"}),
+                "Temporal_Chunk_Size": ("INT", {"default": 33, "min": 8, "max": 10000, "step": 4, "display": "number"}),
+                "Temporal_Chunk_Overlap": ("INT", {"default": 4, "min": 0, "max": 1000, "step": 4, "display": "number"}),
             },
             "optional": { 
-                "图像输入": ("IMAGE",) 
+                "Image_Input": ("IMAGE",) 
             }
         }
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("preview_image",)
     FUNCTION = "visualize_chunks"
-    CATEGORY = "小白工具箱"
+    CATEGORY = "XB_ToolBox"
 
     def get_1d_chunks(self, total_len, chunk_size, overlap):
         chunks = []
@@ -99,28 +90,28 @@ class XB_ChunkVisualization:
             curr += stride
         return chunks
 
-    def visualize_chunks(self, 统计模式, 可用显存_GB, 图像宽度, 图像高度, 图像帧数, 当前阶段, 
-                         图像分块大小, 图像分块重叠, 帧数分段大小, 帧数分段重叠, 图像输入=None):
+    def visualize_chunks(self, Stat_Mode, Available_VRAM_GB, Image_Width, Image_Height, Image_Frames, Current_Stage, 
+                         Spatial_Tile_Size, Spatial_Tile_Overlap, Temporal_Chunk_Size, Temporal_Chunk_Overlap, Image_Input=None):
         
-        active_vram = float(可用显存_GB)
-        is_calc = type(可用显存_GB).__name__ == "CalculatedFloat"
-        stay_info = f" (模型驻留:{可用显存_GB._stay}/{可用显存_GB._total}层)" if (is_calc and hasattr(可用显存_GB, '_stay')) else ""
+        active_vram = float(Available_VRAM_GB)
+        is_calc = type(Available_VRAM_GB).__name__ == "CalculatedFloat"
+        stay_info = f" (Reside:{Available_VRAM_GB._stay}/{Available_VRAM_GB._total}L)" if (is_calc and hasattr(Available_VRAM_GB, '_stay')) else ""
 
-        if 图像输入 is not None:
-            B, H_orig, W_orig, C = 图像输入.shape
-            source_img = Image.fromarray((图像输入[0].cpu().numpy() * 255).astype(np.uint8)).convert("RGBA")
-            res_info = f"【图像尺寸】: {W_orig}x{H_orig} (来自图像输入)"
+        if Image_Input is not None:
+            B, H_orig, W_orig, C = Image_Input.shape
+            source_img = Image.fromarray((Image_Input[0].cpu().numpy() * 255).astype(np.uint8)).convert("RGBA")
+            res_info = f"[Size]: {W_orig}x{H_orig} (Input)"
         else:
-            W_orig, H_orig = 图像宽度, 图像高度
+            W_orig, H_orig = Image_Width, Image_Height
             source_img = Image.new("RGBA", (W_orig, H_orig), (25, 25, 25, 255))
-            res_info = f"【图像尺寸】: {W_orig}x{H_orig} (来自手动参数)"
+            res_info = f"[Size]: {W_orig}x{H_orig} (Param)"
 
-        x_chunks = self.get_1d_chunks(W_orig, 图像分块大小 if "画面" in 统计模式 else 0, 图像分块重叠)
-        y_chunks = self.get_1d_chunks(H_orig, 图像分块大小 if "画面" in 统计模式 else 0, 图像分块重叠)
-        t_chunks = self.get_1d_chunks(图像帧数, 帧数分段大小 if "时间" in 统计模式 else 0, 帧数分段重叠)
+        x_chunks = self.get_1d_chunks(W_orig, Spatial_Tile_Size if "Spatial" in Stat_Mode else 0, Spatial_Tile_Overlap)
+        y_chunks = self.get_1d_chunks(H_orig, Spatial_Tile_Size if "Spatial" in Stat_Mode else 0, Spatial_Tile_Overlap)
+        t_chunks = self.get_1d_chunks(Image_Frames, Temporal_Chunk_Size if "Temporal" in Stat_Mode else 0, Temporal_Chunk_Overlap)
         total_batches = len(x_chunks) * len(y_chunks) * len(t_chunks)
         
-        base_vol = W_orig * H_orig * 图像帧数
+        base_vol = W_orig * H_orig * Image_Frames
         real_vol, max_chunk_vol = 0, 0
         for x1, x2 in x_chunks:
             for y1, y2 in y_chunks:
@@ -141,35 +132,31 @@ class XB_ChunkVisualization:
             return ImageFont.truetype(p, size) if os.path.exists(p) else ImageFont.load_default()
         
         f_info = get_font(22)
-        f_num = get_font(28) # 大号字体用于分区大标题和块标号
+        f_num = get_font(28) 
         temp_draw = ImageDraw.Draw(Image.new("RGBA", (1,1)))
 
-        # ==========================================
-        # 📐 独立区域布局计算
-        # ==========================================
-        show_time = ("时间" in 统计模式 and 图像帧数 > 1)
+        show_time = ("Temporal" in Stat_Mode and Image_Frames > 1)
         sidebar_w = 250 if show_time else 0
         gap = 50 if show_time else 0
-        padding = 70 # 增加顶部 padding 以容纳大标题
+        padding = 70 
         
         draw_W = W_orig + gap + sidebar_w
-        new_W = max(draw_W + 80, 700) # 左右各留 40
+        new_W = max(draw_W + 80, 700) 
         max_txt_w = new_W - 50
 
-        # 数据面板排版
         info_cats = [
-            {"text": f"【统计模式】: {统计模式}  /  【当前阶段】: {当前阶段}", "color": (0, 255, 255)},
+            {"text": f"[Mode]: {Stat_Mode}  /  [Stage]: {Current_Stage}", "color": (0, 255, 255)},
             {"text": res_info, "color": (220, 220, 220)},
-            {"text": f"【加载批次】: {total_batches} 批 (图像:{len(x_chunks)*len(y_chunks)} × 时间:{len(t_chunks)})", "color": (255, 255, 255)},
-            {"text": f"【可用显存】: {active_vram:.1f}G{stay_info} ({'计算参数' if is_calc else '手输参数'})", "color": (150, 200, 255)},
-            {"text": f"【总数据量】: {real_vol/1e6:.1f}M (基准:{base_vol/1e6:.1f}M | 冗余:+{redundancy:.1f}%) [注:M为百万像素点]", "color": (255, 150, 200)},
-            {"text": f"【单批体积】: {max_chunk_vol/1e6:.1f}M / 批  /  【显存压力】: {kappa:.2f}", "color": p_color}
+            {"text": f"[Batches]: {total_batches} (S:{len(x_chunks)*len(y_chunks)} x T:{len(t_chunks)})", "color": (255, 255, 255)},
+            {"text": f"[VRAM]: {active_vram:.1f}G{stay_info}", "color": (150, 200, 255)},
+            {"text": f"[Volume]: {real_vol/1e6:.1f}M (Base:{base_vol/1e6:.1f}M | Redundancy:+{redundancy:.1f}%)", "color": (255, 150, 200)},
+            {"text": f"[Chunk]: {max_chunk_vol/1e6:.1f}M/b  /  [Pressure]: {kappa:.2f}", "color": p_color}
         ]
 
         final_lines = []
         for cat in info_cats:
-            prefix, content = cat["text"].split("】: ", 1) if "】: " in cat["text"] else ("", cat["text"])
-            if prefix: prefix += "】: "
+            prefix, content = cat["text"].split("]: ", 1) if "]: " in cat["text"] else ("", cat["text"])
+            if prefix: prefix += "]: "
             prefix_w = int(temp_draw.textlength(prefix, font=f_info))
             curr, is_first = "", True
             for char in content:
@@ -185,13 +172,12 @@ class XB_ChunkVisualization:
         line_h = 36
         header_H = len(final_lines) * line_h + 80
         
-        # 画布定位
         paste_x = int((new_W - draw_W) / 2)
         paste_y = header_H + padding
         
         full_canvas = Image.new("RGBA", (int(new_W), int(paste_y + H_orig + 40)), (20, 20, 20, 255))
         
-        if 统计模式 != "仅时间":
+        if Stat_Mode != "Temporal Only":
             full_canvas.paste(source_img, (paste_x, paste_y))
         else:
             faded = source_img.copy()
@@ -200,7 +186,6 @@ class XB_ChunkVisualization:
 
         draw = ImageDraw.Draw(full_canvas, "RGBA")
         
-        # 数据区文本
         y = 15
         for txt, clr, x_off in final_lines:
             draw.text((25 + x_off, y), txt, fill=clr, font=f_info)
@@ -211,23 +196,18 @@ class XB_ChunkVisualization:
 
         colors = [(0, 255, 0), (0, 255, 255), (255, 255, 0), (255, 0, 255), (0, 150, 255), (255, 120, 0), (255, 50, 50)]
 
-        # 🚨 绘制分区大标题
         title_y = paste_y - 45
         bar_cx = paste_x + W_orig + gap + sidebar_w // 2 - 40
-        if "画面" in 统计模式:
-            draw.text((paste_x + W_orig//2 - 84, title_y), "【图像分块】", fill=(220,220,220,255), font=f_num)
+        if "Spatial" in Stat_Mode:
+            draw.text((paste_x + W_orig//2 - 84, title_y), "[Spatial]", fill=(220,220,220,255), font=f_num)
         if show_time:
-            draw.text((bar_cx - 84, title_y), "【时间分块】", fill=(220,220,220,255), font=f_num)
+            draw.text((bar_cx - 84, title_y), "[Temporal]", fill=(220,220,220,255), font=f_num)
 
-        # ==========================================
-        # 🖼️ 1. 左侧：绝对原版的镂空 2D 网格
-        # ==========================================
-        if "画面" in 统计模式:
+        if "Spatial" in Stat_Mode:
             spatial_idx = 0
             for y1, y2 in y_chunks:
                 for x1, x2 in x_chunks:
                     c = colors[spatial_idx % len(colors)]
-                    # 绝对镂空，不加任何透明底色
                     rect = [paste_x + x1, paste_y + y1, paste_x + x2, paste_y + y2]
                     draw.rectangle(rect, fill=None, outline=c, width=3)
                     
@@ -237,17 +217,12 @@ class XB_ChunkVisualization:
                     
                     spatial_idx += 1
 
-        # ==========================================
-        # ⏱️ 2. 右侧：完美的 3D 画家算法圆柱堆叠
-        # ==========================================
         if show_time:
             rx = 60  
             ry = 18  
             
-            # 画轨道底线
             draw.line([bar_cx, paste_y, bar_cx, paste_y + H_orig], fill=(70, 70, 70, 255), width=2)
-            
-            scale_y = H_orig / max(1, 图像帧数)
+            scale_y = H_orig / max(1, Image_Frames)
             
             def draw_cylinder(d, cx, cy1, cy2, rx, ry, fill_color, outline_color, line_width):
                 if fill_color:
@@ -262,13 +237,11 @@ class XB_ChunkVisualization:
                     d.line([cx + rx, cy1, cx + rx, cy2], fill=outline_color, width=line_width)
                     d.ellipse([cx - rx, cy1 - ry, cx + rx, cy1 + ry], fill=None, outline=outline_color, width=line_width)
 
-            # 2.1 画家算法排序：从底部的切片开始往上画
             for i in range(len(t_chunks)-1, -1, -1):
                 t1, t2 = t_chunks[i]
                 y1 = paste_y + int(t1 * scale_y)
                 y2 = paste_y + int(t2 * scale_y)
                 
-                # 🚨 修正核心：对称膨胀，保证真理中心绝对不偏移
                 true_mid_y = (y1 + y2) / 2
                 if y2 - y1 < ry * 2: 
                     y1 = true_mid_y - ry
@@ -278,11 +251,9 @@ class XB_ChunkVisualization:
                 body_color = (c[0]//5, c[1]//5, c[2]//5, 200) 
                 draw_cylinder(draw, bar_cx, y1, y2, rx, ry, fill_color=body_color, outline_color=c, line_width=2)
                 
-                # 指示线永远对准 true_mid_y
                 draw.line([bar_cx + rx + 5, true_mid_y, bar_cx + rx + 15, true_mid_y], fill=c, width=3)
                 draw.text((bar_cx + rx + 22, true_mid_y - 15), f"T{i+1}: F{t1}-{t2}", fill=c, font=f_info, stroke_width=3, stroke_fill=(0,0,0,255))
 
-            # 2.2 提取并绘制纯白的“极粗覆盖重叠框”
             overlaps = []
             for i in range(len(t_chunks)):
                 for j in range(i+1, len(t_chunks)):
@@ -296,18 +267,15 @@ class XB_ChunkVisualization:
                 y1 = paste_y + int(o_start * scale_y)
                 y2 = paste_y + int(o_end * scale_y)
                 
-                # 🚨 修正核心：对称膨胀，保证真理中心绝对不偏移
                 true_mid_y = (y1 + y2) / 2
                 if y2 - y1 < ry * 2: 
                     y1 = true_mid_y - ry
                     y2 = true_mid_y + ry
                 
-                # 🚨 使用与彩色圆柱相同的半径，但加粗到 4，完美吞没多余边缘！
                 draw_cylinder(draw, bar_cx, y1, y2, rx, ry, fill_color=None, outline_color=(255, 255, 255, 255), line_width=4)
                 
-                # 🚨 警示黄高亮，彻底解决红底黑字不清晰的问题
-                hl_color = (255, 255, 0, 255) # 纯黄
+                hl_color = (255, 255, 0, 255) 
                 draw.line([bar_cx + rx + 4, true_mid_y, bar_cx + rx + 30, true_mid_y], fill=hl_color, width=3)
-                draw.text((bar_cx + rx + 35, true_mid_y - 15), "重叠区", fill=hl_color, font=f_info, stroke_width=2, stroke_fill=(0,0,0,255))
+                draw.text((bar_cx + rx + 35, true_mid_y - 15), "Overlap", fill=hl_color, font=f_info, stroke_width=2, stroke_fill=(0,0,0,255))
 
         return (torch.from_numpy(np.array(full_canvas.convert("RGB")).astype(np.float32) / 255.0).unsqueeze(0),)

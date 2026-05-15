@@ -12,46 +12,40 @@ class AnyType(str):
 anyType = AnyType("*")
 
 def is_dynamic_vram_flag_used():
-    """嗅探用户是否在启动参数中显式使用了 --enable-dynamic-vram"""
     return "--enable-dynamic-vram" in sys.argv
 
-
-# ==============================================================================
-# 节点 1：UNet/DiT 纯净版切割 (严格还原第一版的纯物理转移)
-# ==============================================================================
 class XB_UNetBlockSwap:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "unet_model": (anyType, {"tooltip": "仅接受纯净的 UNet/DiT 模型输入"}),
+                "unet_model": (anyType, {"tooltip": "Accepts pure UNet/DiT model input only"}),
                 "blocks_to_swap": ("INT", {
                     "default": 10,  
                     "min": 0,       
                     "max": 200,     
                     "step": 1,      
-                    "tooltip": "分配：将前 N 个核心块外包给系统内存。数值越大越省显存，但速度越慢。"
+                    "tooltip": "Number of core blocks to offload to system RAM. Higher values save VRAM but slow down generation."
                 }),
             },
         }
     
     RETURN_TYPES = (anyType,)
     RETURN_NAMES = ("unet_model",)
-    CATEGORY = "小白工具箱/显存特攻"
+    CATEGORY = "XB_ToolBox/VRAM_Hacks"
     FUNCTION = "set_callback"
 
     def set_callback(self, unet_model: ModelPatcher, blocks_to_swap):
         if not isinstance(unet_model, ModelPatcher):
             return (unet_model,)
 
-        # 🚨 嗅探与休眠机制 (亮橙色)
         if is_dynamic_vram_flag_used():
-            print("\n\033[93m[XB UNet块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
+            print("\n\033[92m[XB UNet Block Swap]\033[0m: ⚠️ Detected parameter [--enable-dynamic-vram], block swap node auto-sleeping.")
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = torch.device('cuda') # 严格还原第一版的设备指定
+            main_device = torch.device('cuda')
             
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
@@ -70,11 +64,9 @@ class XB_UNetBlockSwap:
             if not all_blocks:
                 return
 
-            # 正常分块亮蓝色提示
-            print(f"\033[96m[XB UNet块交换]\033[0m: 静态物理分块已激活！锁定 {len(all_blocks)} 个引擎模块")
+            print(f"\033[96m[XB UNet Block Swap]\033[0m: Static physical block swap activated! Locked {len(all_blocks)} engine modules.")
 
-            # 🚀 大道至简：完全使用第一版的最原生的转移逻辑！
-            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 UNet 流水线"):
+            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing UNet pipeline"):
                 if b > blocks_to_swap:
                     block.to(main_device)
                 else:
@@ -88,15 +80,12 @@ class XB_UNetBlockSwap:
         
         return (unet_model, )
 
-# ==============================================================================
-# 节点 2：Checkpoint 混合包裹切割 (严格还原第一版的纯物理转移)
-# ==============================================================================
 class XB_CheckpointBlockSwap:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "checkpoint_model": (anyType, {"tooltip": "接受任何模型输入 (含 CLIP/VAE 等完整架构)。"}),
+                "checkpoint_model": (anyType, {"tooltip": "Accepts any model input (including CLIP/VAE)."}),
                 "blocks_to_swap": ("INT", {"default": 15, "min": 0, "max": 1000, "step": 1}),
                 "offload_img_emb": ("BOOLEAN", {"default": True}),
                 "offload_txt_emb": ("BOOLEAN", {"default": True}),
@@ -106,16 +95,15 @@ class XB_CheckpointBlockSwap:
 
     RETURN_TYPES = (anyType,)
     RETURN_NAMES = ("checkpoint_model",)
-    CATEGORY = "小白工具箱/显存特攻"
+    CATEGORY = "XB_ToolBox/VRAM_Hacks"
     FUNCTION = "set_callback"
 
     def set_callback(self, checkpoint_model: ModelPatcher, blocks_to_swap, offload_txt_emb, offload_img_emb, use_non_blocking):
         if not isinstance(checkpoint_model, ModelPatcher):
             return (checkpoint_model,)
 
-        # 🚨 嗅探与休眠机制 (亮橙色)
         if is_dynamic_vram_flag_used():
-            print("\n\033[93m[XB Checkpoint块交换]\033[0m: ⚠️ 检测到参数 [--enable-dynamic-vram]，分块节点自动休眠退让。")
+            print("\n\033[92m[XB Checkpoint Block Swap]\033[0m: ⚠️ Detected parameter [--enable-dynamic-vram], block swap node auto-sleeping.")
             return (checkpoint_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
@@ -137,15 +125,13 @@ class XB_CheckpointBlockSwap:
                         break
 
             if all_blocks:
-                print(f"\033[96m[XB Checkpoint块交换]\033[0m: 静态物理分块已激活！锁定 {len(all_blocks)} 个引擎模块")
-                # 🚀 大道至简：完全使用第一版的最原生的转移逻辑！
-                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="正在切割 Checkpoint 流水线"):
+                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: Static physical block swap activated! Locked {len(all_blocks)} engine modules.")
+                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing Checkpoint pipeline"):
                     if b > blocks_to_swap:
                         block.to(main_device)
                     else:
                         block.to(model_patcher.offload_device) 
 
-            # 原生方法处理 Embedding
             if offload_txt_emb:
                 for path in ['text_embedding', 'caption_encoder', 'text_encoder']:
                     if hasattr(diffusion_model, path) and getattr(diffusion_model, path) is not None:

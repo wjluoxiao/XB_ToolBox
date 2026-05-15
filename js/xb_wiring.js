@@ -1,8 +1,7 @@
 import { app } from "../../scripts/app.js";
 
-// ==============================================================================
-// 独立模块：深色工业风自定义弹窗 
-// ==============================================================================
+const isZH = navigator.language.startsWith("zh");
+
 function showCustomPrompt(title, defaultValue, callback) {
     const existing = document.getElementById("xb-custom-prompt");
     if (existing) existing.remove();
@@ -40,13 +39,13 @@ function showCustomPrompt(title, defaultValue, callback) {
     btnContainer.style.cssText = "display: flex; justify-content: flex-end; gap: 12px;";
 
     const btnCancel = document.createElement("button");
-    btnCancel.innerText = "取消";
+    btnCancel.innerText = isZH ? "取消" : "Cancel";
     btnCancel.style.cssText = "padding: 8px 16px; background: transparent; border: 1px solid #666; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; transition: 0.2s;";
     btnCancel.onmouseover = () => { btnCancel.style.background = "#333"; };
     btnCancel.onmouseout = () => { btnCancel.style.background = "transparent"; };
 
     const btnOk = document.createElement("button");
-    btnOk.innerText = "确定";
+    btnOk.innerText = isZH ? "确定" : "OK";
     btnOk.style.cssText = "padding: 8px 16px; background: #4CAF50; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; transition: 0.2s;";
     btnOk.onmouseover = () => { btnOk.style.background = "#45a049"; };
     btnOk.onmouseout = () => { btnOk.style.background = "#4CAF50"; };
@@ -95,16 +94,11 @@ app.registerExtension({
                 this.title = ""; 
                 this.color = "#151e29";
                 this.bgcolor = "#0B1116";
-                // 初始化极度压缩的尺寸
                 this.size = [90, 46]; 
             };
 
-            // ==========================================
-            // 【究极榨干法】：高度死锁公式极限压缩
-            // ==========================================
             const getExactHeight = (node) => {
                 const rows = Math.max(node.inputs ? node.inputs.length : 0, node.outputs ? node.outputs.length : 0);
-                // 30(标题高) + 孔位总高 + 16(极限底部留白，原先是28)
                 return 30 + rows * LiteGraph.NODE_SLOT_HEIGHT + 16;
             };
 
@@ -113,8 +107,8 @@ app.registerExtension({
             };
 
             nodeType.prototype.onResize = function(size) {
-                size[1] = getExactHeight(this); // 高度绝对死锁
-                if (size[0] < 90) size[0] = 90; // 宽度防崩
+                size[1] = getExactHeight(this);
+                if (size[0] < 90) size[0] = 90;
             };
 
             const onConnectionsChange = nodeType.prototype.onConnectionsChange;
@@ -165,11 +159,9 @@ app.registerExtension({
                 ctx.textBaseline = "middle";
 
                 const centerX = this.size[0] / 2;    
-                // 按钮核心位置极限上提！距底部仅 10 像素
                 const btnY = this.size[1] - 10;      
                 const btnInterval = 28;              
 
-                // 深色护盾也同步压缩高度 (18像素高，完美包裹字体)
                 const baseW = btnInterval * 2 + 28;
                 ctx.fillStyle = "#0B1116";
                 ctx.beginPath();
@@ -177,7 +169,6 @@ app.registerExtension({
                 ctx.fill();
 
                 ctx.font = "16px Arial"; 
-                // 调整视觉重心，让 emoji 看起来在护盾的正中央
                 ctx.fillStyle = "#4CAF50"; ctx.fillText("➕", centerX - btnInterval, btnY);
                 ctx.fillStyle = "#FFC107"; ctx.fillText("⭕", centerX,               btnY);
                 ctx.fillStyle = "#F44336"; ctx.fillText("➖", centerX + btnInterval, btnY);
@@ -188,7 +179,6 @@ app.registerExtension({
             const onMouseDown = nodeType.prototype.onMouseDown;
             nodeType.prototype.onMouseDown = function(e, pos, canvas) {
                 const centerX = this.size[0] / 2;
-                // Hitbox 同步极限上提
                 const btnY = this.size[1] - 10;
                 const btnInterval = 28;
                 
@@ -216,7 +206,7 @@ app.registerExtension({
                         const idx = this.portCount - 1;
                         if ((this.inputs[idx] && this.inputs[idx].link !== null) ||
                             (this.outputs[idx] && this.outputs[idx].links && this.outputs[idx].links.length > 0)) {
-                            alert("【防呆设计】该通道上还有连线，请拔除线缆后再移除通道！");
+                            alert(isZH ? "【防呆设计】该通道上还有连线，请拔除线缆后再移除通道！" : "[Safety] Wires are still connected to this channel. Please disconnect before removing!");
                         } else {
                             this.removeInput(idx);
                             this.removeOutput(idx);
@@ -250,8 +240,9 @@ app.registerExtension({
 
                     if (clickedRow >= 0) {
                         const currentType = this.inputs[clickedRow].customType || "*";
+                        const promptTitle = isZH ? `📌 修改通道 ${clickedRow + 1} 的自定义类型:\n(留空则恢复为通配符 ANY)` : `[Edit Type] Channel ${clickedRow + 1}:\n(Leave blank to restore ANY wildcard)`;
                         showCustomPrompt(
-                            `📌 修改通道 ${clickedRow + 1} 的自定义类型:\n(留空则恢复为通配符 ANY)`, 
+                            promptTitle, 
                             currentType === "*" ? "" : currentType, 
                             (newType) => {
                                 const t = newType.trim() === "" ? "*" : newType.toUpperCase();

@@ -1,8 +1,7 @@
 import { app } from "../../scripts/app.js";
 
-console.log("🚀 XB-Tools: 媒体参数节点 JS (原版交互逻辑 100% 保留 + 0.20.X 兼容版) 已加载！");
+const isZH = navigator.language.startsWith("zh");
 
-// 🟢 0.20.X 兼容层：新版 UI 渲染引擎改动了 DOM 结构，这里做静默兼容，绝不干预任何逻辑！
 const xb_dispatch = (w, val) => {
     if (w.inputEl) { 
         w.inputEl.value = val; 
@@ -22,10 +21,6 @@ app.registerExtension({
             if (!app.graph || !app.graph._nodes) return;
             
             for (const node of app.graph._nodes) {
-                
-                // ==========================================
-                // 🎬 核心 1：视频参数大全 (XB_VideoParamsMaster)
-                // ==========================================
                 if (node.comfyClass === "XB_VideoParamsMaster" && node.widgets) {
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
                     const wDisp = node.widgets.find(w => w.name === "duration_display");
@@ -36,8 +31,6 @@ app.registerExtension({
                     const wHeight = node.widgets.find(w => w.name === "height");
                     
                     if (wDisp && wLen && wFps && wFpsF && wWidth && wHeight && wRatio) {
-                        
-                        // 1. 样式与初始化 (加入 .element 兼容)
                         let dispEl = wDisp.inputEl || wDisp.element;
                         if (dispEl && dispEl.style && dispEl.style.backgroundColor !== "rgb(34, 34, 34)") {
                             dispEl.readOnly = true;
@@ -59,11 +52,10 @@ app.registerExtension({
                         
                         let needsUpdate = false;
                         let valRatio = wRatio.value;
-                        let isFree = valRatio.includes("自由");
+                        let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
                         let isGoldenZone = (valRatio === "16:9" || valRatio === "9:16");
                         
-                        // 2. 视频档位与步长吸附
                         let currentStep = isGoldenZone ? 1 : (isFree ? 1 : 16);
                         wWidth.options.step = currentStep; wHeight.options.step = currentStep;
                         if (wWidth.inputEl) wWidth.inputEl.step = currentStep; else if (wWidth.element) wWidth.element.step = currentStep;
@@ -144,7 +136,6 @@ app.registerExtension({
                             needsUpdate = true;
                         }
 
-                        // 3. FPS 与视频时长联动
                         if (wFps.value !== node._xb_last_fps) {
                             let val = Math.round(Number(wFps.value)); wFps.value = val; wFpsF.value = val;
                             node._xb_last_fps = val; node._xb_last_fps_float = val;
@@ -179,7 +170,7 @@ app.registerExtension({
 
                         let fps = parseInt(wFps.value, 10) || 1;
                         let seconds = ((safeLen - 1) / fps).toFixed(2);
-                        let expectedText = `视频时长: ${seconds} 秒`;
+                        let expectedText = isZH ? `视频时长: ${seconds} 秒` : `Video Duration: ${seconds} s`;
                         if (wDisp.value !== expectedText) {
                             wDisp.value = expectedText;
                             xb_dispatch(wDisp, expectedText);
@@ -192,9 +183,6 @@ app.registerExtension({
                     }
                 }
 
-                // ==========================================
-                // 🖼️ 核心 2：图片参数大全 (XB_ImageParamsMaster)
-                // ==========================================
                 if (node.comfyClass === "XB_ImageParamsMaster" && node.widgets) {
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
                     const wWidth = node.widgets.find(w => w.name === "width");
@@ -210,10 +198,9 @@ app.registerExtension({
 
                         let needsUpdate = false;
                         let valRatio = wRatio.value;
-                        let isFree = valRatio.includes("自由");
+                        let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
 
-                        // 1. 宽高步长安全引擎
                         let currentStep = isFree ? 1 : 16;
                         wWidth.options.step = currentStep; wHeight.options.step = currentStep;
                         if (wWidth.inputEl) wWidth.inputEl.step = currentStep; else if (wWidth.element) wWidth.element.step = currentStep;

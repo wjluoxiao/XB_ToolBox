@@ -1,8 +1,5 @@
 import { app } from "../../scripts/app.js";
 
-// ==============================================================================
-// 🛠️ 核心工具：深度比较，防死循环
-// ==============================================================================
 function isValEqual(v1, v2) {
     if (v1 === v2) return true;
     if (typeof v1 === 'object' && typeof v2 === 'object') {
@@ -12,27 +9,20 @@ function isValEqual(v1, v2) {
     return false;
 }
 
-// ==============================================================================
-// 🚨 存档清洗协议：清除上一版的魔改残留，恢复 100% 原生 Group 功能
-// ==============================================================================
 function cleanCorruptedGroups() {
     if (!app.graph) return;
-    const group = app.graph._groups.find(g => g.title === "🎮 XB 远程控制中心");
+    const group = app.graph._groups.find(g => g.title === "🎮 XB Dashboard Zen");
     if (group) {
-        // 删除我们之前强加的自定义绘画和属性，让引擎接管
         if (group._xb_patched) {
             delete group.draw;
             delete group._xb_patched;
         }
         if (group.hasOwnProperty('recomputeInsideNodes')) {
-            delete group.recomputeInsideNodes; // 恢复原生拖拽抓取能力
+            delete group.recomputeInsideNodes; 
         }
     }
 }
 
-// ==============================================================================
-// 🛠️ 终极同步引擎：大动脉直连 + 强制继承
-// ==============================================================================
 function applyMirrorSyncLogic(proxyNode) {
     if (proxyNode._xb_sync_interval) return; 
 
@@ -41,7 +31,6 @@ function applyMirrorSyncLogic(proxyNode) {
     
     if (!realTarget) return;
 
-    // 强制继承初始值
     if (proxyNode.widgets && realTarget.widgets) {
         for (let i = 0; i < proxyNode.widgets.length; i++) {
             let pw = proxyNode.widgets[i];
@@ -63,13 +52,13 @@ function applyMirrorSyncLogic(proxyNode) {
             const currentTarget = app.graph.getNodeById(targetId);
             
             if (!currentTarget) {
-                if (proxyNode.title !== "⚠️ 母节点已断开") {
-                    proxyNode.title = "⚠️ 母节点已断开";
+                if (proxyNode.title !== "⚠️ Mother Node Disconnected") {
+                    proxyNode.title = "⚠️ Mother Node Disconnected";
                     proxyNode.color = "#880000";
                     proxyNode.setDirtyCanvas(true, true);
                 }
                 return;
-            } else if (proxyNode.title === "⚠️ 母节点已断开") {
+            } else if (proxyNode.title === "⚠️ Mother Node Disconnected") {
                 proxyNode.title = "🪞 " + (currentTarget.title || currentTarget.type);
                 if (currentTarget.color) proxyNode.color = currentTarget.color;
                 else delete proxyNode.color;
@@ -80,7 +69,6 @@ function applyMirrorSyncLogic(proxyNode) {
 
             let needRedraw = false;
 
-            // 大动脉直连出图
             if (app.nodeOutputs && app.nodeOutputs[targetId]) {
                 const motherOutput = app.nodeOutputs[targetId];
                 const proxyOutput = app.nodeOutputs[proxyNode.id];
@@ -93,7 +81,6 @@ function applyMirrorSyncLogic(proxyNode) {
                 }
             }
 
-            // 图像指纹雷达
             const getImgFingerprint = (imgs) => imgs ? imgs.map(img => img.src || "").join('|') + '|' + imgs.length : "null";
             const currentImgState = getImgFingerprint(currentTarget.imgs);
             if (proxyNode._xb_last_img_state !== currentImgState) {
@@ -105,7 +92,6 @@ function applyMirrorSyncLogic(proxyNode) {
             if (proxyNode.imageIndex !== currentTarget.imageIndex) { proxyNode.imageIndex = currentTarget.imageIndex; needRedraw = true; }
             if (proxyNode.animatedImages !== currentTarget.animatedImages) { proxyNode.animatedImages = currentTarget.animatedImages; needRedraw = true; }
 
-            // 参数双向绑定
             if (proxyNode.widgets && currentTarget.widgets) {
                 for (let i = 0; i < proxyNode.widgets.length; i++) {
                     let pw = proxyNode.widgets[i];
@@ -167,7 +153,6 @@ function applyMirrorSyncLogic(proxyNode) {
     };
 }
 
-// 读档拦截恢复影子
 const origOnNodeAdded = LGraph.prototype.add;
 LGraph.prototype.add = function(node, skip_compute_order) {
     origOnNodeAdded.apply(this, arguments);
@@ -179,9 +164,6 @@ LGraph.prototype.add = function(node, skip_compute_order) {
     }
 };
 
-// ==============================================================================
-// 📦 原生组件选择弹窗
-// ==============================================================================
 function showMultiPickerModal(validNodes, onConfirmCallback) {
     const existing = document.getElementById("xb-picker-modal");
     if (existing) existing.remove();
@@ -208,7 +190,7 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
 
     const header = document.createElement("div");
     header.style.cssText = "padding: 15px 20px; background: #1c232d; border-bottom: 1px solid #334; display: flex; justify-content: space-between; align-items: center;";
-    header.innerHTML = `<span style="color: #fff; font-weight: bold; font-size: 16px;">📦 批量选择要克隆的组件</span>`;
+    header.innerHTML = `<span style="color: #fff; font-weight: bold; font-size: 16px;">📦 Batch Select Components to Clone</span>`;
     
     const closeBtn = document.createElement("button");
     closeBtn.innerText = "✖";
@@ -222,7 +204,7 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
     const checkboxes = [];
 
     if (validNodes.length === 0) {
-        listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #666;">当前工作流无可用节点。</div>`;
+        listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #666;">No available nodes in current workflow.</div>`;
     } else {
         validNodes.forEach(node => {
             const label = document.createElement("label");
@@ -241,7 +223,7 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
             textDiv.style.cssText = "display: flex; flex-direction: column;";
             textDiv.innerHTML = `
                 <span style="font-weight: bold; font-size: 14px; color: #fff;">${node.title || node.type}</span>
-                <span style="font-size: 11px; color: #667; margin-top: 4px;">ID: ${node.id} | 类型: ${node.type}</span>
+                <span style="font-size: 11px; color: #667; margin-top: 4px;">ID: ${node.id} | Type: ${node.type}</span>
             `;
 
             label.appendChild(cb);
@@ -257,7 +239,7 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
     footer.style.cssText = "padding: 15px 20px; background: #1c232d; border-top: 1px solid #334; display: flex; justify-content: space-between; align-items: center;";
     
     const selectAllBtn = document.createElement("button");
-    selectAllBtn.innerText = "☑ 全选 / 反选";
+    selectAllBtn.innerText = "☑ Select All / Invert";
     selectAllBtn.style.cssText = "padding: 8px 15px; background: #2a3441; color: white; border: none; border-radius: 4px; cursor: pointer;";
     selectAllBtn.onclick = (e) => {
         e.preventDefault();
@@ -266,7 +248,7 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
     };
 
     const confirmBtn = document.createElement("button");
-    confirmBtn.innerText = "🚀 执行克隆";
+    confirmBtn.innerText = "🚀 Execute Clone";
     confirmBtn.style.cssText = "padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;";
     
     confirmBtn.onclick = (e) => {
@@ -290,9 +272,6 @@ function showMultiPickerModal(validNodes, onConfirmCallback) {
     document.body.appendChild(overlay);
 }
 
-// ==============================================================================
-// 🚀 核心控制台：100% 拥抱原生 API，拒绝任何底层魔改
-// ==============================================================================
 app.registerExtension({
     name: "XB_ToolBox.Dashboard",
 
@@ -313,7 +292,6 @@ app.registerExtension({
                 if (info && info.widgets_values) info.widgets_values = []; 
                 if (origConfigure) origConfigure.apply(this, arguments);
                 
-                // 启动清洗协议：把旧存档里被污染的组洗白
                 setTimeout(() => cleanCorruptedGroups(), 200);
             };
 
@@ -321,14 +299,14 @@ app.registerExtension({
             nodeType.prototype.onNodeCreated = function () {
                 if (onNodeCreated) onNodeCreated.apply(this, arguments);
                 
-                this.title = "🪄 XB 远程控制中心";
+                this.title = "🪄 XB Dashboard Zen";
                 this.properties = this.properties || {};
                 
-                this.addWidget("button", "➕ 克隆组件", "extract", () => {
+                this.addWidget("button", "➕ Clone Component", "extract", () => {
                     setTimeout(() => this.openExtractModal(), 15);
                 });
 
-                this.addWidget("button", "🧹 清除组件", "clear", () => {
+                this.addWidget("button", "🧹 Clear Components", "clear", () => {
                     setTimeout(() => this.destroyAllMirrors(), 15);
                 });
                 
@@ -349,15 +327,13 @@ app.registerExtension({
             };
 
             nodeType.prototype.createMirrorsInPlace = function(nodesToClone) {
-                // 1. 完全调用官方 API 创建原生组
-                let group = app.graph._groups.find(g => g.title === "🎮 XB 远程控制中心");
+                let group = app.graph._groups.find(g => g.title === "🎮 XB Dashboard Zen");
                 if (!group) {
                     group = new LiteGraph.LGraphGroup();
-                    group.title = "🎮 XB 远程控制中心";
+                    group.title = "🎮 XB Dashboard Zen";
                     app.graph.add(group);
                 }
 
-                // 2. 根据中枢节点计算坐标
                 let newGroupX = this.pos[0] - 40;
                 let newGroupY = this.pos[1] - 100;
 
@@ -378,7 +354,6 @@ app.registerExtension({
                     });
                 }
 
-                // 3. 克隆节点
                 nodesToClone.forEach(target => {
                     const existingProxy = existingProxies.find(n => n.properties.xb_mirror_target_id === target.id);
                     if (existingProxy) return;
@@ -392,7 +367,6 @@ app.registerExtension({
                     proxy.isVirtualNode = true;
                     proxy.title = "🪞 " + (target.title || target.type);
                     
-                    // 完全继承原生颜色
                     if (target.color) proxy.color = target.color;
                     if (target.bgcolor) proxy.bgcolor = target.bgcolor;
                     
@@ -412,11 +386,9 @@ app.registerExtension({
                     applyMirrorSyncLogic(proxy);
                 });
 
-                // 4. 给原生组赋值尺寸
                 group.pos = [newGroupX, newGroupY];
                 group.size = [maxRightEdge - newGroupX + 40, maxBottomEdge - newGroupY + 40];
 
-                // 5. 🚨 终极原生奥义：直接调用 LiteGraph 原生的重算方法，让引擎自己去抓节点、写内存！
                 if (group.recomputeInsideNodes) {
                     group.recomputeInsideNodes();
                 }
@@ -426,11 +398,11 @@ app.registerExtension({
             };
 
             nodeType.prototype.destroyAllMirrors = function() {
-                if (confirm("确定要销毁所有克隆组件吗？（原工作流完全不受影响）")) {
+                if (confirm("Are you sure you want to destroy all cloned components? (Original workflow remains unaffected)")) {
                     const proxies = app.graph._nodes.filter(n => n.properties && n.properties.xb_mirror_target_id);
                     proxies.forEach(p => app.graph.remove(p));
 
-                    const group = app.graph._groups.find(g => g.title === "🎮 XB 远程控制中心");
+                    const group = app.graph._groups.find(g => g.title === "🎮 XB Dashboard Zen");
                     if (group) app.graph.remove(group);
 
                     app.graph.change();

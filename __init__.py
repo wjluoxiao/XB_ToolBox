@@ -6,13 +6,11 @@ from aiohttp import web
 
 @PromptServer.instance.routes.post("/xb_toolbox/choose_folder")
 async def choose_folder(request):
-
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
     folder_path = filedialog.askdirectory()
     root.destroy()
-    
     return web.json_response({"path": folder_path})
 
 def print_success(msg):
@@ -29,7 +27,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = "./js"
 
 try:
-
     from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
     from .nodes_vram import XTX_VRAM_Cleaner, XTX_Data_Radar
     from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter 
@@ -40,6 +37,7 @@ try:
     from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Video_Merger, XB_StoryboardSlicer
+    from .nodes_sageatt import XB_SageAttentionAccelerator
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -62,43 +60,43 @@ try:
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
         "XB_Video_Merger": XB_Video_Merger,
-        "XB_StoryboardSlicer": XB_StoryboardSlicer
+        "XB_StoryboardSlicer": XB_StoryboardSlicer,
+        "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
-        "XB_VRAM_Calculator": "XB-BOX - 📟 可用显存计算",
-        "XB_ChunkVisualization": "XB-BOX - 🧊 时空分块预览",
-        "XTX_VRAM_Cleaner": "XB-BOX- 🧹 显存清理大师",
-        "XTX_Data_Radar": "XB-BOX - 🪞 生成数据预览",
-        "XB_VideoParamsMaster": "XB-BOX - 🎬 视频参数大全", 
-        "XB_ImageParamsMaster": "XB-BOX - 🖼️ 图片参数大全",
-        "XB_MasterParameter": "XB-BOX - 🎛️ 全能参数控制",
-        "XB_UNetBlockSwap": "XB-BOX - ✂️ 模型分块交换（UNet）",
-        "XB_CheckpointBlockSwap": "XB-BOX - ✂️ 模型分块交换（checkpoints）",
-        "XB_DynamicBus": "XB-BOX - 🎛️ 动态总线插排",
-        "XB_UNetNameBroadcaster": "XB-BOX - 🗂️ UNet 名称分发",
-        "XB_CLIPNameBroadcaster": "XB-BOX - 🗂️ CLIP 名称分发",
-        "XB_Dashboard_Zen": "XB-BOX - 🪄 远程控制中心",
-        "XB_SamplerChunkMaster": "XB-BOX - 🧊 采样分块大师",
-        "XB_WanImageToVideo": "XB-BOX - 🖼️ 单图转视频分块 (Wan)",
-        "XB_WanFirstLastFrameToVideo": "XB-BOX - 🎞️ 首尾帧视频分块(Wan)",
-        "XB_BatchFolderLoader": "XB-BOX - 📂 图片批量加载",
-        "XB_Wan_ParamBus": "XB-BOX - 📦 视频参数总线",
-        "XB_Wan_RelayNode": "XB-BOX - 🏃 首尾帧接力点",
-        "XB_Video_Merger": "XB-BOX - 🧩 视频无缝拼接",
-        "XB_StoryboardSlicer": "XB-BOX - 🧊 分镜图片切割"
+        "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
+        "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
+        "XTX_VRAM_Cleaner": "XB-BOX - VRAM Cleaner",
+        "XTX_Data_Radar": "XB-BOX - Data Radar",
+        "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
+        "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
+        "XB_MasterParameter": "XB-BOX - Master Parameter",
+        "XB_UNetBlockSwap": "XB-BOX - UNet Block Swap",
+        "XB_CheckpointBlockSwap": "XB-BOX - Checkpoint Block Swap",
+        "XB_DynamicBus": "XB-BOX - Dynamic Bus",
+        "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
+        "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
+        "XB_Dashboard_Zen": "XB-BOX - Dashboard Zen",
+        "XB_SamplerChunkMaster": "XB-BOX - Sampler Chunk Master",
+        "XB_WanImageToVideo": "XB-BOX - Wan Image2Video",
+        "XB_WanFirstLastFrameToVideo": "XB-BOX - Wan First/Last Frame2Video",
+        "XB_BatchFolderLoader": "XB-BOX - Batch Folder Loader",
+        "XB_Wan_ParamBus": "XB-BOX - Wan Param Bus",
+        "XB_Wan_RelayNode": "XB-BOX - Wan Relay Node",
+        "XB_Video_Merger": "XB-BOX - Video Merger",
+        "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
+        "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator"
     }
     
-    # 打印超级醒目的成功提示
     print_success("\n" + "="*50)
-    print_success("🚀 [XB-BOX] 小白工具箱 核心模块加载成功！")
+    print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")
     print_success("="*50 + "\n")
 
 except Exception as e:
     print_error("\n" + "="*50)
-    print_error("🚨 [XB-BOX] 致命错误：小白工具箱 加载失败！")
-    print_error(f"❌ 错误简述: {str(e)}")
-    print_warning("🔍 详细追踪信息如下 (请根据此处排查 Bug)：")
+    print_error("🚨 [XB-BOX] FATAL ERROR: XB_ToolBox Loading Failed!")
+    print_error(f"❌ Error Detail: {str(e)}")
     traceback.print_exc()  
     print_error("="*50 + "\n")
 

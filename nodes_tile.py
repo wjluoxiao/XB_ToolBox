@@ -9,7 +9,7 @@ class XB_SamplerChunkMaster:
         return {
             "required": {
                 "model": ("MODEL",),
-                "stat_mode": (["完整预览", "仅显示分块"], {"default": "完整预览"}),
+                "stat_mode": (["Full Preview", "Chunks Only"], {"default": "Full Preview"}),
                 "tile_size": ("INT", {"default": 448, "min": 128, "max": 1024, "step": 32}),
                 "tile_overlap": ("INT", {"default": 32, "min": 0, "max": 128, "step": 8}),
                 "frame_chunk_size": ("INT", {"default": 17, "min": 1, "max": 129, "step": 8}),
@@ -24,28 +24,24 @@ class XB_SamplerChunkMaster:
     RETURN_TYPES = ("MODEL", "IMAGE")
     RETURN_NAMES = ("model", "preview_image")
     FUNCTION = "apply_and_preview"
-    CATEGORY = "小白工具箱/分块工具"
+    CATEGORY = "XB_ToolBox/Tile_Tools"
 
     def apply_and_preview(self, model, stat_mode, tile_size, tile_overlap, frame_chunk_size, frame_chunk_overlap, rocm_optimized, latent_info=None):
-        # 🚨 架构级修复：绝对禁止使用 clone()！直接原地暴力注入，确保底层 C++/HIP 钩子能抓取到内存地址！
         model.model_options["wan_tile_size"] = tile_size
         model.model_options["wan_tile_overlap"] = tile_overlap
         model.model_options["wan_frame_chunk"] = frame_chunk_size
-        model_copy = model # 返回原对象引用
+        model_copy = model 
 
-        # 针对 ROCm 的激进策略适配
         if rocm_optimized:
             model.model_options["wan_frame_overlap"] = frame_chunk_overlap
             model.model_options["rocm_optimized"] = True
             
-            # 🧹 执行分块注入前，强制进行一次深度垃圾回收，打破 PyTorch 显存缓存池假象
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-                if hasattr(torch.cuda, "ipc_collect"): # 安全防护
+                if hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect() 
 
-        # 📊 自动推算显示参数
         width = 1280
         height = 720
         total_frames = 81
@@ -59,7 +55,6 @@ class XB_SamplerChunkMaster:
                 height = samples.shape[2] * 8
                 width = samples.shape[3] * 8
 
-        # 🎨 绘制高级可视化面板
         preview_img = self.draw_complex_preview(
             stat_mode, width, height, total_frames, 
             tile_size, tile_overlap, 
