@@ -269,6 +269,7 @@
       "positive_prompt": { "name": "段落正向提示词" },
       "seed": { "name": "随机种" },
       "cut_first_frame": { "name": "去除首帧(接力去重)" },
+      "use_end_frame": { "name": "启用尾帧控制" }, 
       "end_image_file": { "name": "选择尾图" },
       "opt_end_image": { "name": "可选尾图连线" },
       "prev_video": { "name": "前段视频" }

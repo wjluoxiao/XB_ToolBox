@@ -45,5 +45,9 @@
   "Locked by connection": "🔒 端口已被连线接管",
   "Select/Upload End Frame": "选择上传尾帧图片",
   "Cancel": "取消",
-  "OK": "确定"
+  "OK": "确定",
+  "Yes (Use End Frame)": "是 (启用尾帧控制)",
+  "No (Start Frame Only)": "否 (仅顺着首帧延展)",
+  "Yes (Relay Deduplication)": "是 (接力去重)",
+  "No (Keep First Frame)": "否 (保留首帧)"
 }

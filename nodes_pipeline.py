@@ -5,8 +5,11 @@ from PIL import Image, ImageOps
 import nodes
 import comfy.samplers  
 import folder_paths  
-from .nodes_wan_vae import XB_WanFirstLastFrameToVideo
+from .nodes_wan_vae import XB_WanFirstLastFrameToVideo, XB_WanImageToVideo
 
+# ==============================================================================
+# 1. 视频参数总线
+# ==============================================================================
 class XB_Wan_ParamBus:
     @classmethod
     def INPUT_TYPES(cls):
@@ -38,6 +41,9 @@ class XB_Wan_ParamBus:
     def pack_bus(self, **kwargs):
         return (kwargs,)
 
+# ==============================================================================
+# 2. 首尾帧接力点 (纯净版，不包含自作聪明的缩放)
+# ==============================================================================
 class XB_Wan_RelayNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -55,6 +61,7 @@ class XB_Wan_RelayNode:
                 "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the specific action for this segment..."}),
                 "seed": ("INT", {"default": 123456789}),
                 "cut_first_frame": ("BOOLEAN", {"default": True, "label_on": "Yes (Relay Deduplication)", "label_off": "No (Keep First Frame)"}),
+                "use_end_frame": ("BOOLEAN", {"default": True, "label_on": "Yes (Use End Frame)", "label_off": "No (Start Frame Only)"}),
                 "end_image_file": (files, {"image_upload": True})
             },
             "optional": {
@@ -68,38 +75,53 @@ class XB_Wan_RelayNode:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_bus, start_image, positive_prompt, seed, cut_first_frame, end_image_file, opt_end_image=None, prev_video=None):
-        print("\n🏃 [XB-BOX] Executing single-batch first/last frame generation task...")
+    def execute_relay(self, wan_bus, start_image, positive_prompt, seed, cut_first_frame, use_end_frame, end_image_file, opt_end_image=None, prev_video=None):
+        print(f"\n🏃 [XB-BOX] Executing relay task (Use End Frame: {use_end_frame})...")
         b = wan_bus
+        end_image = None
 
-        if opt_end_image is not None:
-            end_image = opt_end_image
-            print(f"🖼️ [XB-BOX] Connection detected, prioritizing end frame from opt_end_image endpoint.")
-        else:
-            if end_image_file == "[Folder empty_Please connect or upload]":
-                raise ValueError("🚨 [XB-BOX] End frame missing! Connect image to opt_end_image or upload via panel!")
+        if use_end_frame:
+            if opt_end_image is not None:
+                end_image = opt_end_image
+                print(f"🖼️ [XB-BOX] Connection detected, prioritizing end frame from opt_end_image endpoint.")
+            else:
+                if end_image_file == "[Folder empty_Please connect or upload]":
+                    raise ValueError("🚨 [XB-BOX] End frame missing! Connect image to opt_end_image or upload via panel!")
+                    
+                image_path = folder_paths.get_annotated_filepath(end_image_file)
+                if not os.path.exists(image_path):
+                     raise ValueError(f"🚨 [XB-BOX] Image file not found: {image_path}")
                 
-            image_path = folder_paths.get_annotated_filepath(end_image_file)
-            if not os.path.exists(image_path):
-                 raise ValueError(f"🚨 [XB-BOX] Image file not found: {image_path}")
-            
-            i = Image.open(image_path)
-            i = ImageOps.exif_transpose(i)
-            image_data = i.convert("RGB")
-            image_data = np.array(image_data).astype(np.float32) / 255.0
-            end_image = torch.from_numpy(image_data)[None,]
-            print(f"🖼️ [XB-BOX] Successfully loaded panel preview image: {end_image_file}")
+                i = Image.open(image_path)
+                i = ImageOps.exif_transpose(i)
+                image_data = i.convert("RGB")
+                image_data = np.array(image_data).astype(np.float32) / 255.0
+                end_image = torch.from_numpy(image_data)[None,]
+                print(f"🖼️ [XB-BOX] Successfully loaded panel preview image: {end_image_file}")
+        else:
+            print(f"⏩ [XB-BOX] End frame control is OFF. Generating free-flow video from start frame...")
 
         pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], positive_prompt)
         neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b["negative_prompt"])
 
-        pos, neg, latent = XB_WanFirstLastFrameToVideo().process(
-            positive=pos_cond, negative=neg_cond, vae=b["vae"], 
-            clip_vision_start_image=None, clip_vision_end_image=None, 
-            start_image=start_image, end_image=end_image, 
-            width=b["width"], height=b["height"], length=b["length"], 
-            batch_size=1, vae_tile_size=b["vae_tile_size"]
-        )
+        if use_end_frame and end_image is not None:
+            # 纯净调用首尾帧分块节点
+            pos, neg, latent = XB_WanFirstLastFrameToVideo().process(
+                positive=pos_cond, negative=neg_cond, vae=b["vae"], 
+                clip_vision_start_image=None, clip_vision_end_image=None, 
+                start_image=start_image, end_image=end_image, 
+                width=b["width"], height=b["height"], length=b["length"], 
+                batch_size=1, vae_tile_size=b["vae_tile_size"]
+            )
+        else:
+            # 纯净调用单图转视频节点
+            pos, neg, latent = XB_WanImageToVideo().process(
+                positive=pos_cond, negative=neg_cond, vae=b["vae"], 
+                clip_vision_output=None, 
+                start_image=start_image, 
+                width=b["width"], height=b["height"], length=b["length"], 
+                batch_size=1, vae_tile_size=b["vae_tile_size"]
+            )
 
         print(f"🔥 [XB-BOX] Starting high noise engine (0 -> {b['high_noise_steps']} steps)...")
         latent_high, = nodes.KSamplerAdvanced().sample(
@@ -150,6 +172,9 @@ class XB_Wan_RelayNode:
 
         return (wan_bus, last_frame, final_video)
 
+# ==============================================================================
+# 3. 视频拼接
+# ==============================================================================
 class XB_Video_Merger:
     @classmethod
     def INPUT_TYPES(cls):
@@ -183,6 +208,9 @@ class XB_Video_Merger:
         
         return (final_video,)
 
+# ==============================================================================
+# 4. 视频分块切片
+# ==============================================================================
 class XB_StoryboardSlicer:
     @classmethod
     def INPUT_TYPES(cls):
