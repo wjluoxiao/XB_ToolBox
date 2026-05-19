@@ -1,17 +1,33 @@
 import traceback
-import tkinter as tk
-from tkinter import filedialog
 from server import PromptServer
 from aiohttp import web
 
+# ==============================================================================
+# 🚀 核心防爆盾：安全导入 tkinter（专治精简版整合包的依赖缺失）
+# ==============================================================================
+HAS_TKINTER = False
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    HAS_TKINTER = True
+except ImportError:
+    pass  # 静默放行，不要让整个节点加载失败
+
 @PromptServer.instance.routes.post("/xb_toolbox/choose_folder")
 async def choose_folder(request):
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes('-topmost', True)
-    folder_path = filedialog.askdirectory()
-    root.destroy()
-    return web.json_response({"path": folder_path})
+    if not HAS_TKINTER:
+        # 如果是阉割版环境，直接返回错误信息给前端，前端需配合处理此错误
+        return web.json_response({"path": "", "error": "当前整合包环境缺少弹窗依赖，请手动输入或粘贴文件夹路径。"})
+    
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        folder_path = filedialog.askdirectory()
+        root.destroy()
+        return web.json_response({"path": folder_path})
+    except Exception as e:
+        return web.json_response({"path": "", "error": f"弹窗调用失败: {str(e)}"})
 
 def print_success(msg):
     print(f"\033[92m{msg}\033[0m")  
