@@ -54,7 +54,8 @@ class XB_BatchFolderLoader:
         if 'A' in img.getbands():
             mask = np.array(img.getchannel('A')).astype(np.float32) / 255.0
             mask = 1. - torch.from_numpy(mask)
+            mask = mask.unsqueeze(0)  # (H, W) → (1, H, W)
         else:
-            mask = torch.zeros((64, 64), dtype=torch.float32)
+            mask = torch.zeros((1, image.shape[1], image.shape[2]), dtype=torch.float32)
 
         return (image, mask, formatted_file_name, total_count_display)

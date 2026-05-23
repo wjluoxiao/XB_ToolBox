@@ -1,10 +1,8 @@
+import os
 import traceback
 from server import PromptServer
 from aiohttp import web
 
-# ==============================================================================
-# 🚀 核心防爆盾：安全导入 tkinter（专治精简版整合包的依赖缺失）
-# ==============================================================================
 HAS_TKINTER = False
 try:
     import tkinter as tk
@@ -16,7 +14,6 @@ except ImportError:
 @PromptServer.instance.routes.post("/xb_toolbox/choose_folder")
 async def choose_folder(request):
     if not HAS_TKINTER:
-        # 如果是阉割版环境，直接返回错误信息给前端，前端需配合处理此错误
         return web.json_response({"path": "", "error": "当前整合包环境缺少弹窗依赖，请手动输入或粘贴文件夹路径。"})
     
     try:
@@ -40,25 +37,29 @@ def print_warning(msg):
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-WEB_DIRECTORY = "./js"
+WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "js")
 
 try:
     from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
-    from .nodes_vram import XTX_VRAM_Cleaner, XTX_Data_Radar
+    from .nodes_vram import XTX_Data_Radar
     from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter 
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo
+    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo
     from .nodes_batch import XB_BatchFolderLoader
-    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Video_Merger, XB_StoryboardSlicer
+    # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
+    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer
     from .nodes_sageatt import XB_SageAttentionAccelerator
+
+    # --- ROCm 节点：5个自包含节点 ---
+    from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmVAEDecode, XB_ROCmVAEEncode,
+                              XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
         "XB_ChunkVisualization": XB_ChunkVisualization,
-        "XTX_VRAM_Cleaner": XTX_VRAM_Cleaner,
         "XTX_Data_Radar": XTX_Data_Radar,
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
         "XB_ImageParamsMaster": XB_ImageParamsMaster, 
@@ -72,18 +73,26 @@ try:
         "XB_SamplerChunkMaster": XB_SamplerChunkMaster,
         "XB_WanImageToVideo": XB_WanImageToVideo,
         "XB_WanFirstLastFrameToVideo": XB_WanFirstLastFrameToVideo,
+        "XB_WanFunControlToVideo": XB_WanFunControlToVideo,
+        "XB_Wan22FunControlToVideo": XB_Wan22FunControlToVideo,
+        "XB_WanSoundImageToVideo": XB_WanSoundImageToVideo,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
+        "XB_Wan_InfiniteRelayNode": XB_Wan_InfiniteRelayNode,
         "XB_Video_Merger": XB_Video_Merger,
         "XB_StoryboardSlicer": XB_StoryboardSlicer,
-        "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator
+        "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
+        "XB_ROCmKSampler": XB_ROCmKSampler,
+        "XB_ROCmVAEDecode": XB_ROCmVAEDecode,
+        "XB_ROCmVAEEncode": XB_ROCmVAEEncode,
+        "XB_ROCmVAEDecodeTemporal": XB_ROCmVAEDecodeTemporal,
+        "XB_ROCmMemCleaner": XB_ROCmMemCleaner,
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
         "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
         "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
-        "XTX_VRAM_Cleaner": "XB-BOX - VRAM Cleaner",
         "XTX_Data_Radar": "XB-BOX - Data Radar",
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
@@ -100,10 +109,18 @@ try:
         "XB_BatchFolderLoader": "XB-BOX - Batch Folder Loader",
         "XB_Wan_ParamBus": "XB-BOX - Wan Param Bus",
         "XB_Wan_RelayNode": "XB-BOX - Wan Relay Node",
+        "XB_Wan_InfiniteRelayNode": "XB-BOX - Wan Infinite Relay Node",
         "XB_Video_Merger": "XB-BOX - Video Merger",
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
-        "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator"
+        "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator",
+        "XB_ROCmKSampler": "XB-BOX - 🚀 ROCm 采样器",
+        "XB_ROCmVAEDecode": "XB-BOX - 🖼️ ROCm VAE 解码",
+        "XB_ROCmVAEEncode": "XB-BOX - 📦 ROCm VAE 编码",
+        "XB_ROCmVAEDecodeTemporal": "XB-BOX - 🎬 ROCm VAE 时空解码",
+        "XB_ROCmMemCleaner": "XB-BOX - 🧹 ROCm 显存清理",
     }
+
+    print_success("   🚀 ROCm: KSampler | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
     
     print_success("\n" + "="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")

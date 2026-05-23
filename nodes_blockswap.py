@@ -4,7 +4,12 @@ import torch
 import sys
 from comfy.patcher_extension import CallbacksMP
 from comfy.model_patcher import ModelPatcher
-from tqdm import tqdm
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 class AnyType(str):
     def __ne__(self, __value: object) -> bool:
@@ -13,6 +18,18 @@ anyType = AnyType("*")
 
 def is_dynamic_vram_flag_used():
     return "--enable-dynamic-vram" in sys.argv
+
+# ==============================================================================
+# 🛡️ 核心防爆雷达：判定是否为不可分块的异常/强耦合模型
+# ==============================================================================
+def is_unsupported_model(diffusion_model):
+    model_type = type(diffusion_model).__name__
+    # 黑名单列表：遇到这些底层架构，直接静默放行，拒绝分块
+    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT"] 
+    for b in blacklist:
+        if b in model_type:
+            return model_type
+    return None
 
 class XB_UNetBlockSwap:
     @classmethod
@@ -51,15 +68,27 @@ class XB_UNetBlockSwap:
             if not diffusion_model:
                 return
 
+            # 🚀 侦测并拦截不支持的模型
+            unsupported_name = is_unsupported_model(diffusion_model)
+            if unsupported_name:
+                print(f"\033[93m[XB-BOX 拦截盾]\033[0m: 模型 ({unsupported_name}) 属于高耦合架构，不支持物理分块。已自动跳过！")
+                return
+
             all_blocks = []
-            block_paths = ['transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block']
+            block_paths = [
+                'transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block',
+                'layers', 'attention_blocks', 'input_blocks', 'middle_block', 'output_blocks',
+                'double_blocks', 'single_blocks', 'joint_blocks'
+            ]
             
             for path in block_paths:
                 if hasattr(diffusion_model, path):
                     attr = getattr(diffusion_model, path)
                     if isinstance(attr, (list, torch.nn.ModuleList)):
-                        all_blocks.extend(attr)
-                        break 
+                        for item in attr:
+                            all_blocks.append(item)
+                    elif isinstance(attr, torch.nn.Module) and path in ['mid_block', 'middle_block']:
+                        all_blocks.append(attr)
             
             if not all_blocks:
                 return
@@ -114,15 +143,27 @@ class XB_CheckpointBlockSwap:
             if not diffusion_model:
                 return
 
+            # 🚀 侦测并拦截不支持的模型
+            unsupported_name = is_unsupported_model(diffusion_model)
+            if unsupported_name:
+                print(f"\033[93m[XB-BOX 拦截盾]\033[0m: 模型 ({unsupported_name}) 属于高耦合架构，不支持物理分块。已自动跳过！")
+                return
+
             all_blocks = []
-            block_paths = ['transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block', 'layers', 'attention_blocks', 'input_blocks', 'middle_block', 'output_blocks']
+            block_paths = [
+                'transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block',
+                'layers', 'attention_blocks', 'input_blocks', 'middle_block', 'output_blocks',
+                'double_blocks', 'single_blocks', 'joint_blocks'
+            ]
 
             for path in block_paths:
                 if hasattr(diffusion_model, path):
                     attr = getattr(diffusion_model, path)
                     if isinstance(attr, (list, torch.nn.ModuleList)):
-                        all_blocks.extend(attr)
-                        break
+                        for item in attr:
+                            all_blocks.append(item)
+                    elif isinstance(attr, torch.nn.Module) and path in ['mid_block', 'middle_block']:
+                        all_blocks.append(attr)
 
             if all_blocks:
                 print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: Static physical block swap activated! Locked {len(all_blocks)} engine modules.")

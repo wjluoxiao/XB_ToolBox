@@ -128,8 +128,24 @@ class XB_ChunkVisualization:
         p_color = (0, 255, 0) if p_percent < 60 else ((255, 200, 0) if p_percent < 85 else (255, 50, 50))
 
         def get_font(size):
-            p = os.path.join(os.environ.get('WINDIR', 'C:/Windows'), "Fonts", "msyh.ttc")
-            return ImageFont.truetype(p, size) if os.path.exists(p) else ImageFont.load_default()
+            font_paths = [
+                # Windows
+                os.path.join(os.environ.get('WINDIR', 'C:/Windows'), "Fonts", "msyh.ttc"),
+                os.path.join(os.environ.get('WINDIR', 'C:/Windows'), "Fonts", "simhei.ttf"),
+                # Linux
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+                # macOS
+                "/System/Library/Fonts/STHeiti Medium.ttc",
+                "/System/Library/Fonts/Helvetica.ttc",
+            ]
+            for p in font_paths:
+                if os.path.exists(p):
+                    try:
+                        return ImageFont.truetype(p, size)
+                    except Exception:
+                        continue
+            return ImageFont.load_default()
         
         f_info = get_font(22)
         f_num = get_font(28) 

@@ -21,10 +21,18 @@ class XB_ImageParamsMaster:
         if "Free" in aspect_ratio:
             return (width, height, batch_size, float(strength_float), int(strength_int), max(width, height))
 
+        # 解析宽高比约束，使用 round() 而非 // 避免累积误差
+        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+        target_ratio = ratio_map.get(aspect_ratio, 1.0)
         step = 16
-        safe_w = max(step, (width // step) * step)
-        safe_h = max(step, (height // step) * step)
-        
+
+        if width >= height:
+            safe_w = max(step, round(width / step) * step)
+            safe_h = max(step, round((safe_w / target_ratio) / step) * step)
+        else:
+            safe_h = max(step, round(height / step) * step)
+            safe_w = max(step, round((safe_h * target_ratio) / step) * step)
+
         return (safe_w, safe_h, batch_size, float(strength_float), int(strength_int), max(safe_w, safe_h))
 
 class XB_VideoParamsMaster:
@@ -48,8 +56,10 @@ class XB_VideoParamsMaster:
     CATEGORY = "XB_ToolBox/Image_Params"
 
     def process(self, aspect_ratio, duration_display, width, height, length, fps, fps_float):
+        final_fps = int(round(fps))
+
         if "Free" in aspect_ratio:
-            return (width, height, length, int(round(fps)), float(fps), max(width, height))
+            return (width, height, length, final_fps, float(final_fps), max(width, height))
 
         golden_buckets = {
             "16:9": [(832, 480), (960, 544), (1280, 720), (1920, 1088)],
@@ -61,13 +71,19 @@ class XB_VideoParamsMaster:
             closest = min(buckets, key=lambda b: abs(b[0] - width))
             safe_w, safe_h = closest[0], closest[1]
         else:
+            # 解析宽高比并强制约束，使用 round() 避免累积误差
             step = 16
-            safe_w = max(step, (width // step) * step)
-            safe_h = max(step, (height // step) * step)
+            ratio_map = {"1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+            target_ratio = ratio_map.get(aspect_ratio, 1.0)
+            if width >= height:
+                safe_w = max(step, round(width / step) * step)
+                safe_h = max(step, round((safe_w / target_ratio) / step) * step)
+            else:
+                safe_h = max(step, round(height / step) * step)
+                safe_w = max(step, round((safe_h * target_ratio) / step) * step)
 
-        safe_len = max(1, ((length - 1) // 8) * 8 + 1)
-        final_fps = int(round(fps))
-        
+        safe_len = max(1, round((length - 1) / 8) * 8 + 1)
+
         return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
 
 class XB_MasterParameter:

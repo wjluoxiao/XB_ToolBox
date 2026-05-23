@@ -2,39 +2,6 @@ import torch
 import gc
 import comfy.model_management as mm
 
-class XTX_VRAM_Cleaner:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "positive": ("CONDITIONING",),
-                "negative": ("CONDITIONING",),
-                "latent_image": ("LATENT",),
-                "Nuclear_Cleanup": ("BOOLEAN", {"default": True}),
-            }
-        }
-    
-    RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT")
-    RETURN_NAMES = ("model", "positive", "negative", "latent")
-    FUNCTION = "clean_vram"
-    CATEGORY = "XB_ToolBox/VRAM_Hacks"
-
-    def clean_vram(self, model, positive, negative, latent_image, Nuclear_Cleanup):
-        print("\n" + "🚀" * 15)
-        print("🧹 [XB-BOX] VRAM Cleaner: Executing pre-generation sweep...")
-        mm.unload_all_models() 
-        gc.collect()
-        if Nuclear_Cleanup:
-            mm.soft_empty_cache()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                if hasattr(torch.cuda, "ipc_collect"):
-                    torch.cuda.ipc_collect()
-            print("☢️ [XB-BOX] Nuclear VRAM Cleanup completed.")
-        print("🚀" * 15 + "\n")
-        return (model, positive, negative, latent_image)
-
 class XTX_Data_Radar:
     @classmethod
     def INPUT_TYPES(s):

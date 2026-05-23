@@ -27,14 +27,14 @@ class XB_SamplerChunkMaster:
     CATEGORY = "XB_ToolBox/Tile_Tools"
 
     def apply_and_preview(self, model, stat_mode, tile_size, tile_overlap, frame_chunk_size, frame_chunk_overlap, rocm_optimized, latent_info=None):
-        model.model_options["wan_tile_size"] = tile_size
-        model.model_options["wan_tile_overlap"] = tile_overlap
-        model.model_options["wan_frame_chunk"] = frame_chunk_size
-        model_copy = model 
+        model_copy = model.clone()
+        model_copy.model_options["wan_tile_size"] = tile_size
+        model_copy.model_options["wan_tile_overlap"] = tile_overlap
+        model_copy.model_options["wan_frame_chunk"] = frame_chunk_size
 
         if rocm_optimized:
-            model.model_options["wan_frame_overlap"] = frame_chunk_overlap
-            model.model_options["rocm_optimized"] = True
+            model_copy.model_options["wan_frame_overlap"] = frame_chunk_overlap
+            model_copy.model_options["rocm_optimized"] = True
             
             gc.collect()
             if torch.cuda.is_available():

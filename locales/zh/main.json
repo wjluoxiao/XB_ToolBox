@@ -4,11 +4,13 @@
     "Pipeline": "流水线架构",
     "Wiring": "布线整理",
     "VRAM_Hacks": "显存特攻",
+    "Chunk_Preview": "分块预览",
     "Dashboard": "总控中心",
     "Image_Params": "图像参数",
     "Params_Control": "参数控制",
     "Tile_Tools": "分块工具",
-    "Batch_Process": "批量处理"
+    "Batch_Process": "批量处理",
+    "ROCm": "ROCm加速"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",
@@ -49,5 +51,8 @@
   "Yes (Use End Frame)": "是 (启用尾帧控制)",
   "No (Start Frame Only)": "否 (仅顺着首帧延展)",
   "Yes (Relay Deduplication)": "是 (接力去重)",
-  "No (Keep First Frame)": "否 (保留首帧)"
+  "No (Keep First Frame)": "否 (保留首帧)",
+  "gentle": "温和清理",
+  "deep": "深度清理",
+  "nuclear": "核爆清理"
 }

@@ -1,4 +1,3 @@
-import comfy.model_patcher
 import torch
 
 class XB_SageAttentionAccelerator:
@@ -8,11 +7,14 @@ class XB_SageAttentionAccelerator:
             "required": {
                 "model": ("MODEL",),
                 "preset": ([
-                    "Mode A (128x128x32)", 
-                    "Mode B (128x64x96)", 
-                    "Mode C (128x16x16)", 
-                    "Mode D (64x64x16)", 
-                ], {"default": "Mode C (128x16x16)"}),
+                    "内置模式 A (128x128x32)", 
+                    "内置模式 B (128x64x96)", 
+                    "内置模式 C (128x16x16)", 
+                    "内置模式 D (64x64x16)", 
+                    "自定模式 A (机智启动器)",
+                    "自定模式 B (机智启动器)",
+                    "自定模式 C (机智启动器)",
+                ], {"default": "内置模式 C (128x16x16)"}),
             }
         }
 
@@ -22,10 +24,13 @@ class XB_SageAttentionAccelerator:
 
     def patch(self, model, preset):
         configs = {
-            "Mode A (128x128x32)":     {'M': 128,  'N': 128, 'GROUP': 32, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 1},
-            "Mode B (128x64x96)":     {'M': 128,  'N': 64, 'GROUP': 96, 'WAVE': 3, 'WARP': 8, 'NSTAGES': 2},
-            "Mode C (128x16x16)":     {'M': 128,  'N': 16, 'GROUP': 16, 'WAVE': 2, 'WARP': 4, 'NSTAGES': 2},
-            "Mode D (64x64x16)":     {'M': 64,  'N': 64, 'GROUP': 16, 'WAVE': 4, 'WARP': 4, 'NSTAGES': 2},
+            "内置模式 A (128x128x32)": {'M': 128,  'N': 128, 'GROUP': 32, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 1},
+            "内置模式 B (128x64x96)": {'M': 128,  'N': 64, 'GROUP': 96, 'WAVE': 3, 'WARP': 8, 'NSTAGES': 2},
+            "内置模式 C (128x16x16)": {'M': 128,  'N': 16, 'GROUP': 16, 'WAVE': 2, 'WARP': 4, 'NSTAGES': 2},
+            "内置模式 D (64x64x16)": {'M': 64,  'N': 64, 'GROUP': 16, 'WAVE': 4, 'WARP': 4, 'NSTAGES': 2},
+            "自定模式 A (机智启动器)": {'M': 128, 'N': 128, 'GROUP': 32, 'WAVE': 4, 'WARP': 8, 'NSTAGES': 1},
+            "自定模式 B (机智启动器)": {'M': 128, 'N': 64, 'GROUP': 8, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 2},
+            "自定模式 C (机智启动器)": {'M': 64, 'N': 64, 'GROUP': 16, 'WAVE': 1, 'WARP': 4, 'NSTAGES': 2},
         }
         
         selected_cfg = configs[preset]
