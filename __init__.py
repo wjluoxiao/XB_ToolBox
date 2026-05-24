@@ -53,9 +53,9 @@ try:
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer
     from .nodes_sageatt import XB_SageAttentionAccelerator
 
-    # --- ROCm 节点：5个自包含节点 ---
-    from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmVAEDecode, XB_ROCmVAEEncode,
-                              XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
+    # --- ROCm 节点：6个自包含节点 ---
+    from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced, XB_ROCmVAEDecode,
+                              XB_ROCmVAEEncode, XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -84,6 +84,7 @@ try:
         "XB_StoryboardSlicer": XB_StoryboardSlicer,
         "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
         "XB_ROCmKSampler": XB_ROCmKSampler,
+        "XB_ROCmKSamplerAdvanced": XB_ROCmKSamplerAdvanced,
         "XB_ROCmVAEDecode": XB_ROCmVAEDecode,
         "XB_ROCmVAEEncode": XB_ROCmVAEEncode,
         "XB_ROCmVAEDecodeTemporal": XB_ROCmVAEDecodeTemporal,
@@ -114,13 +115,14 @@ try:
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
         "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator",
         "XB_ROCmKSampler": "XB-BOX - 🚀 ROCm 采样器",
+        "XB_ROCmKSamplerAdvanced": "XB-BOX - 🚀 ROCm 高级采样器",
         "XB_ROCmVAEDecode": "XB-BOX - 🖼️ ROCm VAE 解码",
         "XB_ROCmVAEEncode": "XB-BOX - 📦 ROCm VAE 编码",
         "XB_ROCmVAEDecodeTemporal": "XB-BOX - 🎬 ROCm VAE 时空解码",
         "XB_ROCmMemCleaner": "XB-BOX - 🧹 ROCm 显存清理",
     }
 
-    print_success("   🚀 ROCm: KSampler | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
+    print_success("   🚀 ROCm: KSampler | KSamplerAdvanced | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
     
     print_success("\n" + "="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")

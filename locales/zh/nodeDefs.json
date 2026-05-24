@@ -387,6 +387,27 @@
       "0": { "name": "潜变量" }
     }
   },
+  "XB_ROCmKSamplerAdvanced": {
+    "display_name": "XB-BOX - 🚀 ROCm 高级采样器",
+    "inputs": {
+      "model": { "name": "模型" },
+      "add_noise": { "name": "添加噪声" },
+      "noise_seed": { "name": "噪声种子" },
+      "steps": { "name": "采样步数" },
+      "cfg": { "name": "引导系数(CFG)" },
+      "sampler": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "positive": { "name": "正面提示词" },
+      "negative": { "name": "负面提示词" },
+      "latent": { "name": "潜变量" },
+      "start_at_step": { "name": "起始步数" },
+      "end_at_step": { "name": "结束步数" },
+      "return_with_leftover_noise": { "name": "返回残留噪声" }
+    },
+    "outputs": {
+      "0": { "name": "潜变量" }
+    }
+  },
   "XB_ROCmVAEDecode": {
     "display_name": "XB-BOX - 🖼️ ROCm VAE 解码",
     "inputs": {

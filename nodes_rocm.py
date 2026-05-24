@@ -1,9 +1,10 @@
 """
 XB-ToolBox ROCm 优化节点 (v5.0)
 ================================
-5 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
+6 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
 
   XB_ROCmKSampler          — 采样器（rocBLAS调优 + SDPA修复）
+  XB_ROCmKSamplerAdvanced  — 高级采样器（支持分段采样/加噪控制/残留噪声）
   XB_ROCmVAEDecode         — 空间分块解码器（架构自适应 tile）
   XB_ROCmVAEEncode         — 空间分块编码器（架构自适应 tile）
   XB_ROCmVAEDecodeTemporal — 空间+时间分块解码器（视频专用）
@@ -133,12 +134,18 @@ def _banner(title, g):
 
 def _do_cleanup(stage: str, level: str):
     """执行分级清理。pre=操作前不同步, post=操作后先sync再清"""
-    if level == "不清理":
+    if level == "不做任何清理":
         return
     sync = (stage == "post")
-    if level == "温和清理":
+    if level == "单次缓存清理":
         memclr(sync)
-    elif level == "深度清理":
+    elif level == "双次缓存清理":
+        memclr(sync)
+        memclr(sync)
+        gc.collect()
+    elif level == "卸载显存模型":
+        mm.unload_all_models()
+        mm.soft_empty_cache()
         memclr(sync)
         memclr(sync)
         gc.collect()
@@ -208,6 +215,46 @@ class XB_ROCmKSampler:
 
 
 # ====================================================================
+# 节点 1.5: XB_ROCmKSamplerAdvanced  (高级采样器 ROCm 版)
+# ====================================================================
+
+class XB_ROCmKSamplerAdvanced:
+    """
+    ROCm 优化高级采样器 — 支持分段采样 (start/end step)、加噪控制、残留噪声返回
+    配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）。
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "model": ("MODEL",),
+            "add_noise": (["enable", "disable"], {}),
+            "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
+            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1}),
+            "sampler": (comfy.samplers.KSampler.SAMPLERS,),
+            "scheduler": (comfy.samplers.KSampler.SCHEDULERS,),
+            "positive": ("CONDITIONING",),
+            "negative": ("CONDITIONING",),
+            "latent": ("LATENT",),
+            "start_at_step": ("INT", {"default": 0, "min": 0, "max": 10000}),
+            "end_at_step": ("INT", {"default": 10000, "min": 0, "max": 10000}),
+            "return_with_leftover_noise": (["disable", "enable"], {}),
+        }}
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "go"
+    CATEGORY = "XB_ToolBox/ROCm"
+
+    def go(self, model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
+           positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0):
+        tune()
+        out, = nodes.KSamplerAdvanced().sample(
+            model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
+            positive, negative, latent, start_at_step, end_at_step,
+            return_with_leftover_noise, denoise=denoise)
+        return (out,)
+
+
+# ====================================================================
 # 节点 2: XB_ROCmVAEDecode  (空间分块解码)
 # ====================================================================
 
@@ -226,7 +273,7 @@ class XB_ROCmVAEDecode:
                              "tooltip": "0=根据GPU架构自动选择 手动可覆盖"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动(tile/8)"}),
-            "cleanup": (["不清理", "温和清理", "深度清理"], {"default": "温和清理"}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "go"
@@ -311,7 +358,7 @@ class XB_ROCmVAEDecodeTemporal:
                                "tooltip": "时间分块帧数 0=根据显存自适应"}),
             "t_overlap": ("INT", {"default": 0, "min": 0, "max": 64, "step": 4,
                                   "tooltip": "时间重叠 0=自动(t_tile/16, 最小4)"}),
-            "cleanup": (["不清理", "温和清理", "深度清理"], {"default": "温和清理"}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "go"
@@ -365,6 +412,9 @@ class XB_ROCmVAEDecodeTemporal:
             else:
                 img = vae.decode(lat)
         _do_cleanup("post", cleanup)
+        # 展平 batch+frame 维度, 输出标准 ComfyUI 4D 格式 (N, H, W, C)
+        if img.dim() > 4:
+            img = img.flatten(0, 1)
         return (img,)
 
 
@@ -393,7 +443,7 @@ class XB_ROCmMemCleaner:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "mode": (["温和清理", "深度清理", "核爆清理"], {"default": "深度清理"}),
+                "mode": (["单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "双次缓存清理"}),
             },
             "optional": {
                 "anything": (_any, {}),
@@ -408,54 +458,25 @@ class XB_ROCmMemCleaner:
     def go(self, mode, anything=None):
         g = gpu_info(); tune()
 
-        print(f"\n{'='*55}")
-        print(f"  🧹 ROCm Memory Cleaner + Diagnostics")
-        print(f"{'='*55}")
-        print(f"  GPU: {g['name']}")
-        print(f"  Arch: {g['arch']} ({g['gen']})")
-        print(f"  VRAM: {g['gb']:.1f} GB")
-        print(f"  ROCm: {getattr(torch.version, 'hip', 'N/A')}")
-        print(f"  PyTorch: {torch.__version__}")
-
-        # 清理前
         before = memstat()
-        if before:
-            print(f"\n  --- Before ---")
-            print(f"  allocated: {before['alloc']:.2f} GB")
-            print(f"  reserved:  {before['rsvd']:.2f} GB")
 
         # 执行清理
-        if mode == "核爆清理":
+        if mode == "卸载显存模型":
             mm.unload_all_models()
             mm.soft_empty_cache()
         memclr(sync=True)
-        if mode in ("深度清理", "核爆清理"):
-            memclr(sync=True)  # double pass
+        if mode in ("双次缓存清理", "卸载显存模型"):
+            memclr(sync=True)
             gc.collect()
 
-        # 清理后
         after = memstat()
-        if after and before:
-            freed_alloc = before['alloc'] - after['alloc']
-            freed_rsvd = before['rsvd'] - after['rsvd']
-            print(f"\n  --- After ({mode}) ---")
-            print(f"  allocated: {after['alloc']:.2f} GB")
-            print(f"  reserved:  {after['rsvd']:.2f} GB")
-            if freed_alloc > 0.01 or freed_rsvd > 0.01:
-                print(f"  ✅ freed: alloc={freed_alloc:.2f}GB  reserved={freed_rsvd:.2f}GB")
+        freed_alloc = before['alloc'] - after['alloc'] if before and after else 0
+        freed_rsvd  = before['rsvd']  - after['rsvd']  if before and after else 0
 
-        # 架构建议
-        if g["amd"]:
-            print(f"\n  --- Tuning ---")
-            print(f"  fp16_accumulation: True  (rocBLAS matmul ~5-10% faster)")
-            print(f"  mem_efficient_sdp: True  (stable attention backend)")
-            print(f"  flash_sdp:         False (disabled, unstable on AMD)")
-            print(f"  recommended tile:  {g['tile']}")
-
-        print(f"{'='*55}\n")
+        print(f"\033[92m🧹 ROCm {mode} | {g['name']} {g['gb']:.1f}GB | freed {freed_alloc:.2f}+{freed_rsvd:.2f}GB\033[0m")
         return (anything,)
 
 
 # ====================================================================
-__all__ = ['XB_ROCmKSampler', 'XB_ROCmVAEDecode', 'XB_ROCmVAEEncode',
-           'XB_ROCmVAEDecodeTemporal', 'XB_ROCmMemCleaner']
+__all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmVAEDecode',
+           'XB_ROCmVAEEncode', 'XB_ROCmVAEDecodeTemporal', 'XB_ROCmMemCleaner']
