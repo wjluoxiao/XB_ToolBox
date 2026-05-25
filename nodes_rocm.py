@@ -1,14 +1,16 @@
 """
 XB-ToolBox ROCm 优化节点 (v5.0)
 ================================
-6 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
+8 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
 
-  XB_ROCmKSampler          — 采样器（rocBLAS调优 + SDPA修复）
-  XB_ROCmKSamplerAdvanced  — 高级采样器（支持分段采样/加噪控制/残留噪声）
-  XB_ROCmVAEDecode         — 空间分块解码器（架构自适应 tile）
-  XB_ROCmVAEEncode         — 空间分块编码器（架构自适应 tile）
-  XB_ROCmVAEDecodeTemporal — 空间+时间分块解码器（视频专用）
-  XB_ROCmMemCleaner        — 显存清理+诊断报告
+  XB_ROCmKSampler              — 采样器（rocBLAS调优 + SDPA修复）
+  XB_ROCmKSamplerAdvanced      — 高级采样器（支持分段采样/加噪控制/残留噪声）
+  XB_ROCmSamplerCustom         — 自定义采样器（模块化调度器/采样器/引导器）
+  XB_ROCmSamplerCustomAdvanced — 自定义高级采样器（完全模块化 + 独立噪波注入）
+  XB_ROCmVAEDecode             — 空间分块解码器（架构自适应 tile）
+  XB_ROCmVAEEncode             — 空间分块编码器（架构自适应 tile）
+  XB_ROCmVAEDecodeTemporal     — 空间+时间分块解码器（视频专用）
+  XB_ROCmMemCleaner            — 显存清理+诊断报告
 
 核心机制:
   - tile_size=0 → 自动根据 GPU 架构选择最优分块大小（用户也可手动覆盖）
@@ -20,6 +22,10 @@ XB-ToolBox ROCm 优化节点 (v5.0)
 import torch, gc, time
 import comfy.model_management as mm
 import comfy.samplers
+import comfy.sample
+import comfy.utils
+import comfy.nested_tensor
+import latent_preview
 import nodes
 
 
@@ -141,6 +147,7 @@ def _do_cleanup(stage: str, level: str):
         memclr(sync)
     elif level == "双次缓存清理":
         memclr(sync)
+        mm.soft_empty_cache()
         memclr(sync)
         gc.collect()
     elif level == "卸载显存模型":
@@ -180,6 +187,36 @@ def _even_chunks(total: int, chunk: int):
 
 
 # ====================================================================
+# Noise 辅助类 — 用于自定义采样器
+# ====================================================================
+
+class _Noise_EmptyNoise:
+    """空噪波 — 不加噪"""
+    def __init__(self):
+        self.seed = 0
+
+    def generate_noise(self, input_latent):
+        latent_image = input_latent["samples"]
+        if latent_image.is_nested:
+            tensors = latent_image.unbind()
+            zeros = [torch.zeros(t.shape, dtype=t.dtype, layout=t.layout, device="cpu") for t in tensors]
+            return comfy.nested_tensor.NestedTensor(zeros)
+        else:
+            return torch.zeros(latent_image.shape, dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
+
+
+class _Noise_RandomNoise:
+    """随机噪波"""
+    def __init__(self, seed):
+        self.seed = seed
+
+    def generate_noise(self, input_latent):
+        latent_image = input_latent["samples"]
+        batch_inds = input_latent.get("batch_index", None) if "batch_index" in input_latent else None
+        return comfy.sample.prepare_noise(latent_image, self.seed, batch_inds)
+
+
+# ====================================================================
 # 节点 1: XB_ROCmKSampler
 # ====================================================================
 
@@ -192,25 +229,27 @@ class XB_ROCmKSampler:
     def INPUT_TYPES(s):
         return {"required": {
             "model": ("MODEL",),
-            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
             "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1}),
+            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
             "sampler": (comfy.samplers.KSampler.SAMPLERS,),
             "scheduler": (comfy.samplers.KSampler.SCHEDULERS,),
             "positive": ("CONDITIONING",),
             "negative": ("CONDITIONING",),
             "latent": ("LATENT",),
             "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, model, seed, steps, cfg, sampler, scheduler,
-           positive, negative, latent, denoise):
+           positive, negative, latent, denoise, cleanup="不做任何清理"):
         tune()
         out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
                                         positive, negative, latent, denoise)
+        _do_cleanup("post", cleanup)
         return (out,)
 
 
@@ -228,9 +267,9 @@ class XB_ROCmKSamplerAdvanced:
         return {"required": {
             "model": ("MODEL",),
             "add_noise": (["enable", "disable"], {}),
-            "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
             "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1}),
+            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
             "sampler": (comfy.samplers.KSampler.SAMPLERS,),
             "scheduler": (comfy.samplers.KSampler.SCHEDULERS,),
             "positive": ("CONDITIONING",),
@@ -239,18 +278,20 @@ class XB_ROCmKSamplerAdvanced:
             "start_at_step": ("INT", {"default": 0, "min": 0, "max": 10000}),
             "end_at_step": ("INT", {"default": 10000, "min": 0, "max": 10000}),
             "return_with_leftover_noise": (["disable", "enable"], {}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
-           positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0):
+           positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0, cleanup="不做任何清理"):
         tune()
         out, = nodes.KSamplerAdvanced().sample(
             model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
             positive, negative, latent, start_at_step, end_at_step,
             return_with_leftover_noise, denoise=denoise)
+        _do_cleanup("post", cleanup)
         return (out,)
 
 
@@ -293,6 +334,9 @@ class XB_ROCmVAEDecode:
             print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
             img = vae.decode(lat)
         _do_cleanup("post", cleanup)
+        # 对标官方 VAEDecode: 5D时 reshape 合并 batch+frame
+        if img.dim() == 5:
+            img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
 
 
@@ -314,24 +358,25 @@ class XB_ROCmVAEEncode:
                              "tooltip": "0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动"}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/ROCm"
 
-    def go(self, pixels, vae, tile, overlap):
+    def go(self, pixels, vae, tile, overlap, cleanup="不做任何清理"):
         g = gpu_info(); tune()
 
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
 
-        memclr(False)
+        _do_cleanup("pre", cleanup)
         try:
             lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap)
         except AttributeError:
             print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
             lat = vae.encode(pixels)
-        memclr(True)
+        _do_cleanup("post", cleanup)
         return ({"samples": lat},)
 
 
@@ -375,34 +420,37 @@ class XB_ROCmVAEDecodeTemporal:
         else:
             raise ValueError(f"unsupported latent dim: {lat.dim()}")
 
+        # 空间分块：自动根据GPU架构选
         if tile == 0: tile = g["tile"]
+        spacial_comp = vae.spacial_compression_decode() if hasattr(vae, 'spacial_compression_decode') else 8
+        tile_x = tile // spacial_comp
+        tile_y = tile // spacial_comp
         if overlap == 0: overlap = max(32, tile // 8)
-        if t_tile == 0 and is_vid:
-            if g["gb"] >= 48:   t_tile = 64
-            elif g["gb"] >= 24: t_tile = 32
-            elif g["gb"] >= 16: t_tile = 16
-            else:               t_tile = 8
-        if t_overlap == 0:
-            t_overlap = max(4, t_tile // 16)
+        overlap_xy = overlap // spacial_comp
+
+        # 时间分块：自动根据显存选
+        temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
+        if temporal_comp is not None and is_vid:
+            if t_tile == 0:
+                if g["gb"] >= 48:   t_tile = 64
+                elif g["gb"] >= 24: t_tile = 32
+                elif g["gb"] >= 16: t_tile = 16
+                else:               t_tile = 8
+            t_tile_vae = max(2, t_tile // temporal_comp)
+            if t_overlap == 0:
+                t_overlap = max(4, t_tile // 16)
+            t_overlap_vae = max(1, min(t_tile_vae // 2, t_overlap // temporal_comp))
+        else:
+            t_tile_vae = None
+            t_overlap_vae = None
 
         _do_cleanup("pre", cleanup)
         try:
-            if is_vid and t_tile > 0 and F > t_tile:
-                chunks = []
-                for cs, ce in _even_chunks(F, t_tile):
-                    ch = lat[:, :, cs:ce, :, :]
-                    try:
-                        dc = vae.decode_tiled(ch, tile_x=tile, tile_y=tile, overlap=overlap)
-                    except AttributeError:
-                        Bc, Cc, Fc, Hc, Wc = ch.shape
-                        dc = vae.decode(ch.reshape(Bc * Fc, Cc, Hc, Wc))
-                        dc = dc.reshape(Bc, Fc, *dc.shape[1:])
-                    chunks.append(dc)
-                img = torch.cat(chunks, dim=1)
-            else:
-                img = vae.decode_tiled(lat, tile_x=tile, tile_y=tile, overlap=overlap)
-        except AttributeError:
-            print(f"  ⚠️ ROCm VAE Decode Temporal: tiled not available, fallback")
+            img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y,
+                                   overlap=overlap_xy,
+                                   tile_t=t_tile_vae, overlap_t=t_overlap_vae)
+        except (AttributeError, TypeError):
+            print(f"  ⚠️ ROCm VAE Decode Temporal: decode_tiled not available, fallback")
             if is_vid and F > 1:
                 frames = []
                 for f in range(F):
@@ -412,9 +460,9 @@ class XB_ROCmVAEDecodeTemporal:
             else:
                 img = vae.decode(lat)
         _do_cleanup("post", cleanup)
-        # 展平 batch+frame 维度, 输出标准 ComfyUI 4D 格式 (N, H, W, C)
-        if img.dim() > 4:
-            img = img.flatten(0, 1)
+        # 对标官方：5D时 reshape 合并 batch+frame
+        if img.dim() == 5:
+            img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
 
 
@@ -478,5 +526,132 @@ class XB_ROCmMemCleaner:
 
 
 # ====================================================================
-__all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmVAEDecode',
+# 节点 6: XB_ROCmSamplerCustom  (自定义采样器 ROCm 版)
+# ====================================================================
+
+class XB_ROCmSamplerCustom:
+    """
+    ROCm 优化自定义采样器 — 配合调度器/采样器/引导器模块化使用
+    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "model": ("MODEL",),
+            "add_noise": ("BOOLEAN", {"default": True}),
+            "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
+            "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
+            "positive": ("CONDITIONING",),
+            "negative": ("CONDITIONING",),
+            "sampler": ("SAMPLER",),
+            "sigmas": ("SIGMAS",),
+            "latent_image": ("LATENT",),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理"], {"default": "不做任何清理"}),
+        }}
+    RETURN_TYPES = ("LATENT", "LATENT")
+    RETURN_NAMES = ("output", "denoised_output")
+    FUNCTION = "go"
+    CATEGORY = "XB_ToolBox/ROCm"
+
+    def go(self, model, add_noise, noise_seed, cfg, positive, negative, sampler, sigmas, latent_image, cleanup="不做任何清理"):
+        tune()
+        latent = latent_image
+        latent_image_data = latent["samples"]
+        latent = latent.copy()
+        latent_image_data = comfy.sample.fix_empty_latent_channels(model, latent_image_data, latent.get("downscale_ratio_spacial", None))
+        latent["samples"] = latent_image_data
+
+        if not add_noise:
+            noise = _Noise_EmptyNoise().generate_noise(latent)
+        else:
+            noise = _Noise_RandomNoise(noise_seed).generate_noise(latent)
+
+        noise_mask = None
+        if "noise_mask" in latent:
+            noise_mask = latent["noise_mask"]
+
+        x0_output = {}
+        callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
+
+        disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+        samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+
+        out = latent.copy()
+        out.pop("downscale_ratio_spacial", None)
+        out["samples"] = samples
+        if "x0" in x0_output:
+            x0_out = model.model.process_latent_out(x0_output["x0"].cpu())
+            if samples.is_nested:
+                latent_shapes = [x.shape for x in samples.unbind()]
+                x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
+            out_denoised = latent.copy()
+            out_denoised["samples"] = x0_out
+        else:
+            out_denoised = out
+        _do_cleanup("post", cleanup)
+        return (out, out_denoised)
+
+
+# ====================================================================
+# 节点 7: XB_ROCmSamplerCustomAdvanced  (自定义高级采样器 ROCm 版)
+# ====================================================================
+
+class XB_ROCmSamplerCustomAdvanced:
+    """
+    ROCm 优化自定义高级采样器 — 完全模块化：噪波/引导器/采样器/sigma 独立注入
+    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "noise": ("NOISE",),
+            "guider": ("GUIDER",),
+            "sampler": ("SAMPLER",),
+            "sigmas": ("SIGMAS",),
+            "latent_image": ("LATENT",),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理"], {"default": "不做任何清理"}),
+        }}
+    RETURN_TYPES = ("LATENT", "LATENT")
+    RETURN_NAMES = ("output", "denoised_output")
+    FUNCTION = "go"
+    CATEGORY = "XB_ToolBox/ROCm"
+
+    def go(self, noise, guider, sampler, sigmas, latent_image, cleanup="不做任何清理"):
+        tune()
+        latent = latent_image
+        latent_image_data = latent["samples"]
+        latent = latent.copy()
+        latent_image_data = comfy.sample.fix_empty_latent_channels(guider.model_patcher, latent_image_data, latent.get("downscale_ratio_spacial", None))
+        latent["samples"] = latent_image_data
+
+        noise_mask = None
+        if "noise_mask" in latent:
+            noise_mask = latent["noise_mask"]
+
+        x0_output = {}
+        callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
+
+        disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+        samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
+        samples = samples.to(comfy.model_management.intermediate_device())
+
+        out = latent.copy()
+        out.pop("downscale_ratio_spacial", None)
+        out["samples"] = samples
+        if "x0" in x0_output:
+            x0_out = guider.model_patcher.model.process_latent_out(x0_output["x0"].cpu())
+            if samples.is_nested:
+                latent_shapes = [x.shape for x in samples.unbind()]
+                x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
+            out_denoised = latent.copy()
+            out_denoised["samples"] = x0_out
+        else:
+            out_denoised = out
+        _do_cleanup("post", cleanup)
+        return (out, out_denoised)
+
+
+# ====================================================================
+__all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',
+           'XB_ROCmSamplerCustomAdvanced', 'XB_ROCmVAEDecode',
            'XB_ROCmVAEEncode', 'XB_ROCmVAEDecodeTemporal', 'XB_ROCmMemCleaner']

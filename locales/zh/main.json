@@ -10,7 +10,8 @@
     "Params_Control": "参数控制",
     "Tile_Tools": "分块工具",
     "Batch_Process": "批量处理",
-    "ROCm": "ROCm加速"
+    "ROCm": "ROCm加速",
+    "Wan": "Wan视频"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",

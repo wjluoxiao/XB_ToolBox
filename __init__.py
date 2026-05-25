@@ -52,10 +52,16 @@ try:
     # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer
     from .nodes_sageatt import XB_SageAttentionAccelerator
+    from .nodes_wan_t5 import XB_WanT5Loader
+    from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
+                             XB_WanSampler, XB_WanTextEncode, XB_WanVAELoader, XB_WanDecode,
+                             XB_WanAnimateToVideo)
 
-    # --- ROCm 节点：6个自包含节点 ---
-    from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced, XB_ROCmVAEDecode,
-                              XB_ROCmVAEEncode, XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
+    # --- ROCm 节点：8个自包含节点 ---
+    from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
+                              XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
+                              XB_ROCmVAEDecode, XB_ROCmVAEEncode,
+                              XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -85,10 +91,21 @@ try:
         "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
         "XB_ROCmKSampler": XB_ROCmKSampler,
         "XB_ROCmKSamplerAdvanced": XB_ROCmKSamplerAdvanced,
+        "XB_ROCmSamplerCustom": XB_ROCmSamplerCustom,
+        "XB_ROCmSamplerCustomAdvanced": XB_ROCmSamplerCustomAdvanced,
         "XB_ROCmVAEDecode": XB_ROCmVAEDecode,
         "XB_ROCmVAEEncode": XB_ROCmVAEEncode,
         "XB_ROCmVAEDecodeTemporal": XB_ROCmVAEDecodeTemporal,
         "XB_ROCmMemCleaner": XB_ROCmMemCleaner,
+        "XB_WanT5Loader": XB_WanT5Loader,
+        "XB_WanCompileSettings": XB_WanCompileSettings,
+        "XB_WanModelLoader": XB_WanModelLoader,
+        "XB_WanBlockSwap": XB_WanBlockSwap,
+        "XB_WanSampler": XB_WanSampler,
+        "XB_WanTextEncode": XB_WanTextEncode,
+        "XB_WanVAELoader": XB_WanVAELoader,
+        "XB_WanDecode": XB_WanDecode,
+        "XB_WanAnimateToVideo": XB_WanAnimateToVideo,
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -116,13 +133,24 @@ try:
         "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator",
         "XB_ROCmKSampler": "XB-BOX - 🚀 ROCm 采样器",
         "XB_ROCmKSamplerAdvanced": "XB-BOX - 🚀 ROCm 高级采样器",
+        "XB_ROCmSamplerCustom": "XB-BOX - ⚙️ ROCm 自定义采样器",
+        "XB_ROCmSamplerCustomAdvanced": "XB-BOX - ⚙️ ROCm 自定义高级采样器",
         "XB_ROCmVAEDecode": "XB-BOX - 🖼️ ROCm VAE 解码",
         "XB_ROCmVAEEncode": "XB-BOX - 📦 ROCm VAE 编码",
         "XB_ROCmVAEDecodeTemporal": "XB-BOX - 🎬 ROCm VAE 时空解码",
         "XB_ROCmMemCleaner": "XB-BOX - 🧹 ROCm 显存清理",
+        "XB_WanT5Loader": "XB-BOX - 📝 Wan T5 加载器(FP8)",
+        "XB_WanCompileSettings": "XB-BOX - ⚡ Wan 编译设置",
+        "XB_WanModelLoader": "XB-BOX - 🧠 Wan 模型加载",
+        "XB_WanBlockSwap": "XB-BOX - 🔄 Wan 分块交换",
+        "XB_WanSampler": "XB-BOX - 🎯 Wan 采样器",
+        "XB_WanTextEncode": "XB-BOX - ✍️ Wan 文本编码",
+        "XB_WanVAELoader": "XB-BOX - 🎨 Wan VAE 加载",
+        "XB_WanDecode": "XB-BOX - 🖼️ Wan VAE 解码",
+        "XB_WanAnimateToVideo": "XB-BOX - 🎬 Wan 动画转视频",
     }
 
-    print_success("   🚀 ROCm: KSampler | KSamplerAdvanced | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
+    print_success("   🚀 ROCm: KSampler | KSamplerAdvanced | SamplerCustom | SamplerCustomAdvanced | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
     
     print_success("\n" + "="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")
