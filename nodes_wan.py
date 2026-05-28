@@ -245,6 +245,7 @@ class XB_WanVAELoader:
             "use_cpu_cache": ("BOOLEAN", {"default": False}),
         }}
     RETURN_TYPES = ("WANVAE",)
+    RETURN_NAMES = ("vae",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/Wan"
     def go(self, model_name, precision, compile_args=None, use_cpu_cache=False):
@@ -280,6 +281,7 @@ class XB_WanDecode:
             "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/Wan"
     def go(self, vae, samples, enable_vae_tiling, tile_x, tile_y,
@@ -385,9 +387,12 @@ class XB_WanAnimateToVideo:
         if character_mask is not None:
             if character_mask.shape[0] > video_frame_offset or character_mask.shape[0] == 1:
                 cm = character_mask.repeat((length,) + (1,) * (character_mask.ndim - 1)) if character_mask.shape[0] == 1 else character_mask[video_frame_offset:]
-                if cm.ndim == 3: cm = cm.unsqueeze(1).movedim(0, 1)
-                if cm.ndim == 4: cm = cm.unsqueeze(1)
-                cm = comfy.utils.common_upscale(cm[:, :, :length], concat_latent_image.shape[-1], concat_latent_image.shape[-2], "nearest-exact", "center")
+                # cm: [T, H, W] (3D) → 保持4D传入 common_upscale
+                if cm.ndim == 3:
+                    cm = cm.unsqueeze(1)  # [T, 1, H, W]
+                cm = comfy.utils.common_upscale(cm[:length], concat_latent_image.shape[-1], concat_latent_image.shape[-2], "nearest-exact", "center")
+                # cm: [length, 1, H_lat, W_lat] → 转为 [1, 1, length, H_lat, W_lat]
+                cm = cm.permute(1, 0, 2, 3).unsqueeze(0)
                 if cm.shape[2] > ref_images_num: mask_ref[:, :, ref_images_num:cm.shape[2]] = cm[:, :, ref_images_num:]
         concat_latent_image = torch.cat((concat_latent_image, _enc(image)), dim=2)
         mask_ref = mask_ref.view(1, mask_ref.shape[2] // 4, 4, mask_ref.shape[3], mask_ref.shape[4]).transpose(1, 2)

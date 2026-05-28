@@ -50,7 +50,7 @@ try:
     from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo
     from .nodes_batch import XB_BatchFolderLoader
     # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
-    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer
+    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode
     from .nodes_sageatt import XB_SageAttentionAccelerator
     from .nodes_wan_t5 import XB_WanT5Loader
     from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
@@ -58,6 +58,7 @@ try:
                              XB_WanAnimateToVideo)
 
     # --- ROCm 节点：8个自包含节点 ---
+    from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
                               XB_ROCmVAEDecode, XB_ROCmVAEEncode,
@@ -106,6 +107,10 @@ try:
         "XB_WanVAELoader": XB_WanVAELoader,
         "XB_WanDecode": XB_WanDecode,
         "XB_WanAnimateToVideo": XB_WanAnimateToVideo,
+        "XB_WanAnimate_ParamBus": XB_WanAnimate_ParamBus,
+        "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
+        "XB_HumanSegmentation": XB_HumanSegmentation,
+        "XB_HumanSegModelLoader": XB_HumanSegModelLoader
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -148,6 +153,10 @@ try:
         "XB_WanVAELoader": "XB-BOX - 🎨 Wan VAE 加载",
         "XB_WanDecode": "XB-BOX - 🖼️ Wan VAE 解码",
         "XB_WanAnimateToVideo": "XB-BOX - 🎬 Wan 动画转视频",
+        "XB_WanAnimate_ParamBus": "XB-BOX - 🎬 Animate 动作迁移总线",
+        "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
+        "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
+        "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载"
     }
 
     print_success("   🚀 ROCm: KSampler | KSamplerAdvanced | SamplerCustom | SamplerCustomAdvanced | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")

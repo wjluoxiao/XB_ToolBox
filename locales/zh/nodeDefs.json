@@ -496,7 +496,7 @@
     }
   },
   "XB_WanT5Loader": {
-    "display_name": "XB-BOX - 📝 Wan T5 加载器(FP8)",
+    "display_name": "XB-BOX - � Wan T5 加载器(FP8)",
     "inputs": {
       "model_name": { "name": "模型名称" },
       "precision": { "name": "精度" },
@@ -522,7 +522,7 @@
     }
   },
   "XB_WanModelLoader": {
-    "display_name": "XB-BOX - 🧠 Wan 模型加载",
+    "display_name": "XB-BOX - 🔗 Wan 模型加载",
     "inputs": {
       "model": { "name": "模型" },
       "base_precision": { "name": "基础精度" },
@@ -552,7 +552,7 @@
     }
   },
   "XB_WanSampler": {
-    "display_name": "XB-BOX - 🎯 Wan 采样器",
+    "display_name": "XB-BOX - 🔗 Wan 采样器",
     "inputs": {
       "model": { "name": "模型" },
       "steps": { "name": "步数" },
@@ -575,7 +575,7 @@
     }
   },
   "XB_WanTextEncode": {
-    "display_name": "XB-BOX - ✍️ Wan 文本编码",
+    "display_name": "XB-BOX - 🔗 Wan 文本编码",
     "inputs": {
       "t5_model": { "name": "T5模型" },
       "positive_prompt": { "name": "正面提示词" },
@@ -588,7 +588,7 @@
     }
   },
   "XB_WanVAELoader": {
-    "display_name": "XB-BOX - 🎨 Wan VAE 加载",
+    "display_name": "XB-BOX - 🔗 Wan VAE 加载",
     "inputs": {
       "model_name": { "name": "模型名称" },
       "precision": { "name": "精度" },
@@ -600,7 +600,7 @@
     }
   },
   "XB_WanDecode": {
-    "display_name": "XB-BOX - 🖼️ Wan VAE 解码",
+    "display_name": "XB-BOX - � Wan VAE 解码",
     "inputs": {
       "vae": { "name": "VAE模型" },
       "samples": { "name": "潜变量" },
@@ -643,6 +643,74 @@
       "3": { "name": "修剪潜变量" },
       "4": { "name": "修剪图像" },
       "5": { "name": "视频帧偏移" }
+    }
+  },
+  "XB_WanAnimate_ParamBus": {
+    "display_name": "XB-BOX - 🎬 Animate 动作迁移总线",
+    "inputs": {
+      "model": { "name": "模型" },
+      "clip": { "name": "CLIP模型" },
+      "vae": { "name": "VAE模型" },
+      "negative_prompt": { "name": "负面提示词" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "fps": { "name": "帧率" },
+      "vae_encode_tile_size": { "name": "VAE编码分块" },
+      "vae_decode_tile_size": { "name": "VAE解码分块" },
+      "spatial_overlap": { "name": "画面重叠" },
+      "temporal_chunk_size": { "name": "时间分块" },
+      "temporal_overlap": { "name": "时间重叠" },
+      "steps": { "name": "总步数" },
+      "cfg": { "name": "引导系数" },
+      "sampler_name": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "seed": { "name": "随机种" },
+      "continue_motion_max_frames": { "name": "衔接重叠过渡帧" },
+      "cleanup": { "name": "显存清理" },
+      "clip_vision": { "name": "CLIP视觉模型" },
+      "global_ref_image": { "name": "全局参考图" },
+      "pose_video": { "name": "源姿态长视频" },
+      "face_video": { "name": "源面部长视频" },
+      "background_video": { "name": "源背景长视频" },
+      "character_mask": { "name": "角色遮罩" }
+    },
+    "outputs": {
+      "0": { "name": "📦 WAN_ANIMATE_BUS (动画总线)" }
+    }
+  },
+  "XB_WanAnimate_RelayNode": {
+    "display_name": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
+    "inputs": {
+      "wan_animate_bus": { "name": "WAN动画总线" },
+      "segment_length": { "name": "本段生成帧数" },
+      "positive_prompt": { "name": "动作提示词" },
+      "use_local_ref_image": { "name": "独立参考图输入" },
+      "ref_image_file": { "name": "选择上传参考图" },
+      "prev_video": { "name": "前段视频" }
+    },
+    "outputs": {
+      "0": { "name": "📦 WAN_ANIMATE_BUS (传给下段)" },
+      "1": { "name": "🎞️ 累加视频流" }
+    }
+  },
+  "XB_HumanSegmentation": {
+    "display_name": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
+    "inputs": {
+      "seg_model": { "name": "分割模型" },
+      "image": { "name": "图像" }
+    },
+    "outputs": {
+      "0": { "name": "人物蒙版" },
+      "1": { "name": "人物抠图" }
+    }
+  },
+  "XB_HumanSegModelLoader": {
+    "display_name": "XB-BOX - 📥 人物分割模型加载",
+    "inputs": {
+      "model": { "name": "ONNX模型" }
+    },
+    "outputs": {
+      "0": { "name": "分割模型" }
     }
   }
 }
