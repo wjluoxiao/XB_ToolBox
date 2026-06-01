@@ -1,0 +1,11 @@
+[project]
+name = "XB_ToolBox"
+description = "XB-BOX: ComfyUI custom node toolbox - Wan video generation, ROCm acceleration, pipeline tools, and more"
+version = "0.05.31"
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.comfy]
+# ComfyUI Manager 使用此段来显示节点信息
+DisplayName = "XB-BOX ToolBox"
