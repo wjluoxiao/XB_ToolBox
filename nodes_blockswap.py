@@ -16,8 +16,12 @@ class AnyType(str):
         return False
 anyType = AnyType("*")
 
-def is_dynamic_vram_flag_used():
-    return "--enable-dynamic-vram" in sys.argv
+def is_dynamic_vram_active():
+    """仅当用户显式传参 --enable-dynamic-vram 时视为动态显存激活，分块节点休眠。"""
+    if "--enable-dynamic-vram" in sys.argv:
+        print("\n\033[93m[XB Block Swap]\033[0m: ⚠️ 检测到 --enable-dynamic-vram，动态显存已启用。分块节点自动休眠。")
+        return True
+    return False
 
 # ==============================================================================
 # 🛡️ 核心防爆雷达：判定是否为不可分块的异常/强耦合模型
@@ -56,8 +60,7 @@ class XB_UNetBlockSwap:
         if not isinstance(unet_model, ModelPatcher):
             return (unet_model,)
 
-        if is_dynamic_vram_flag_used():
-            print("\n\033[92m[XB UNet Block Swap]\033[0m: ⚠️ Detected parameter [--enable-dynamic-vram], block swap node auto-sleeping.")
+        if is_dynamic_vram_active():
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
@@ -93,7 +96,7 @@ class XB_UNetBlockSwap:
             if not all_blocks:
                 return
 
-            print(f"\033[96m[XB UNet Block Swap]\033[0m: Static physical block swap activated! Locked {len(all_blocks)} engine modules.")
+            print(f"\033[96m[XB UNet Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块。")
 
             for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing UNet pipeline"):
                 if b > blocks_to_swap:
@@ -131,8 +134,7 @@ class XB_CheckpointBlockSwap:
         if not isinstance(checkpoint_model, ModelPatcher):
             return (checkpoint_model,)
 
-        if is_dynamic_vram_flag_used():
-            print("\n\033[92m[XB Checkpoint Block Swap]\033[0m: ⚠️ Detected parameter [--enable-dynamic-vram], block swap node auto-sleeping.")
+        if is_dynamic_vram_active():
             return (checkpoint_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
@@ -166,12 +168,12 @@ class XB_CheckpointBlockSwap:
                         all_blocks.append(attr)
 
             if all_blocks:
-                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: Static physical block swap activated! Locked {len(all_blocks)} engine modules.")
+                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块。")
                 for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing Checkpoint pipeline"):
                     if b > blocks_to_swap:
                         block.to(main_device)
                     else:
-                        block.to(model_patcher.offload_device) 
+                        block.to(model_patcher.offload_device)
 
             if offload_txt_emb:
                 for path in ['text_embedding', 'caption_encoder', 'text_encoder']:

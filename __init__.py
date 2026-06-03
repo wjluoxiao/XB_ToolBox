@@ -1,5 +1,8 @@
 import os
 import traceback
+
+__version__ = "0.05.31"
+
 from server import PromptServer
 from aiohttp import web
 
@@ -58,6 +61,7 @@ try:
                              XB_WanAnimateToVideo)
 
     # --- ROCm 节点：8个自包含节点 ---
+    from .nodes_label import XB_CanvasLabel
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
@@ -110,7 +114,8 @@ try:
         "XB_WanAnimate_ParamBus": XB_WanAnimate_ParamBus,
         "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
         "XB_HumanSegmentation": XB_HumanSegmentation,
-        "XB_HumanSegModelLoader": XB_HumanSegModelLoader
+        "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
+        "XB_CanvasLabel": XB_CanvasLabel
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -156,11 +161,10 @@ try:
         "XB_WanAnimate_ParamBus": "XB-BOX - 🎬 Animate 动作迁移总线",
         "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
-        "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载"
+        "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
+        "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)"
     }
 
-    print_success("   🚀 ROCm: KSampler | KSamplerAdvanced | SamplerCustom | SamplerCustomAdvanced | VAE Decode | VAE Encode | VAE Decode Temporal | MemCleaner")
-    
     print_success("\n" + "="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")
     print_success("="*50 + "\n")
