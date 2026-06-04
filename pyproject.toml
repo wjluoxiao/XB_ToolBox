@@ -6,6 +6,10 @@ license = {file = "LICENSE"}
 readme = "README.md"
 requires-python = ">=3.10"
 
+[project.urls]
+Repository = "https://github.com/wjluoxiao/XB_ToolBox"
+
 [tool.comfy]
-# ComfyUI Manager 使用此段来显示节点信息
+PublisherId = "wjluoxiao"
 DisplayName = "XB-BOX ToolBox"
+Icon = ""
