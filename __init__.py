@@ -1,8 +1,6 @@
 import os
 import traceback
 
-__version__ = "0.06.01"
-
 from server import PromptServer
 from aiohttp import web
 

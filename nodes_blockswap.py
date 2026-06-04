@@ -29,7 +29,7 @@ def is_dynamic_vram_active():
 def is_unsupported_model(diffusion_model):
     model_type = type(diffusion_model).__name__
     # 黑名单列表：遇到这些底层架构，直接静默放行，拒绝分块
-    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT"] 
+    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT", "ErnieImageModel"] 
     for b in blacklist:
         if b in model_type:
             return model_type
