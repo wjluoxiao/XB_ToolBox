@@ -3,8 +3,6 @@ name = "XB_ToolBox"
 description = "XB-BOX: ComfyUI custom node toolbox - Wan video generation, ROCm acceleration, pipeline tools, and more"
 version = "0.06.06"
 license = {file = "LICENSE"}
-readme = "README.md"
-requires-python = ">=3.10"
 
 [project.urls]
 Repository = "https://github.com/wjluoxiao/XB_ToolBox"
