@@ -27,6 +27,14 @@ async def choose_folder(request):
     except Exception as e:
         return web.json_response({"path": "", "error": f"弹窗调用失败: {str(e)}"})
 
+
+from .nodes_audio_slicer import handle_audio_waveform
+
+@PromptServer.instance.routes.post("/xb_toolbox/audio_waveform")
+async def get_audio_waveform(request):
+    return await handle_audio_waveform(request)
+
+
 def print_success(msg):
     print(f"\033[92m{msg}\033[0m")  
 
@@ -48,7 +56,7 @@ try:
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo
+    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo
     from .nodes_batch import XB_BatchFolderLoader
     # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode
@@ -60,6 +68,7 @@ try:
 
     # --- ROCm 节点：8个自包含节点 ---
     from .nodes_label import XB_CanvasLabel
+    from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
@@ -85,6 +94,7 @@ try:
         "XB_WanFunControlToVideo": XB_WanFunControlToVideo,
         "XB_Wan22FunControlToVideo": XB_Wan22FunControlToVideo,
         "XB_WanSoundImageToVideo": XB_WanSoundImageToVideo,
+        "XB_WanInfiniteTalkToVideo": XB_WanInfiniteTalkToVideo,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
@@ -113,7 +123,10 @@ try:
         "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
-        "XB_CanvasLabel": XB_CanvasLabel
+        "XB_CanvasLabel": XB_CanvasLabel,
+        "XB_AudioSlicer": XB_AudioSlicer,
+        "XB_AudioSlicerV1": XB_AudioSlicerV1,
+        "XB_AudioSlicerV2": XB_AudioSlicerV2
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -160,7 +173,11 @@ try:
         "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
-        "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)"
+        "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
+        "XB_AudioSlicer": "XB-BOX - 🎵 音频切片（基础）",
+        "XB_AudioSlicerV1": "XB-BOX - 🎵 音频切片V1（单人）",
+        "XB_AudioSlicerV2": "XB-BOX - 🎵 音频切片V2（双人）",
+        "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块"
     }
 
     print_success("\n" + "="*50)

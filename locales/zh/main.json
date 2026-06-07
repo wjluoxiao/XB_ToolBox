@@ -11,7 +11,8 @@
     "Tile_Tools": "分块工具",
     "Batch_Process": "批量处理",
     "ROCm": "ROCm加速",
-    "Wan": "Wan视频"
+    "Wan": "Wan视频",
+    "Audio": "音频工具"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",

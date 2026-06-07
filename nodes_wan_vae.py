@@ -1,6 +1,7 @@
 import torch
 import comfy.model_management
 import comfy.utils
+import comfy.patcher_extension
 import node_helpers
 import comfy.clip_vision
 import math
@@ -412,3 +413,157 @@ class XB_WanSoundImageToVideo:
             ref_image=ref_image, audio_encoder_output=audio_encoder_output,
             control_video=control_video, ref_motion=ref_motion)
         return (positive, negative, out_latent)
+
+
+# ==============================================================================
+# 6. 双人对话视频分块 — 完整复刻 WanInfiniteTalkToVideo + VAE分块
+# ==============================================================================
+from comfy.ldm.wan.model_multitalk import InfiniteTalkOuterSampleWrapper, MultiTalkCrossAttnPatch, project_audio_features
+
+def _linear_interp(features, input_fps, output_fps, output_len=None):
+    features = features.transpose(1, 2)
+    seq_len = features.shape[2] / float(input_fps)
+    if output_len is None:
+        output_len = int(seq_len * output_fps)
+    output_features = torch.nn.functional.interpolate(features, size=output_len, align_corners=True, mode='linear')
+    return output_features.transpose(1, 2)
+
+class XB_WanInfiniteTalkToVideo:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "model_patch": ("MODEL_PATCH",),
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "mode": (["single_speaker", "two_speakers"], {"default": "two_speakers"}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1}),
+                "audio_scale": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "audio_encoder_output_2": ("AUDIO_ENCODER_OUTPUT",),
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "previous_frames": ("IMAGE",),
+                "mask_1": ("MASK",),
+                "mask_2": ("MASK",),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "INT")
+    RETURN_NAMES = ("model", "positive", "negative", "latent", "trim_image")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, model, model_patch, positive, negative, vae, mode, width, height, length,
+                audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+                clip_vision_output=None, start_image=None,
+                audio_encoder_output_2=None, previous_frames=None,
+                mask_1=None, mask_2=None):
+
+        if previous_frames is not None and previous_frames.shape[0] < motion_frame_count:
+            raise ValueError("Not enough previous frames provided.")
+
+        if audio_encoder_output_2 is not None:
+            if mask_1 is None or mask_2 is None:
+                raise ValueError("Masks must be provided if two audio encoder outputs are used.")
+
+        ref_masks = None
+        if mask_1 is not None and mask_2 is not None:
+            if audio_encoder_output_2 is None:
+                raise ValueError("Second audio encoder output must be provided if two masks are used.")
+            ref_masks = torch.cat([mask_1, mask_2])
+
+        latent = torch.zeros([1, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
+                            device=comfy.model_management.intermediate_device())
+
+        concat_latent_image = None
+        if start_image is not None:
+            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            image = torch.ones((length, height, width, start_image.shape[-1]), device=start_image.device, dtype=start_image.dtype) * 0.5
+            image[:start_image.shape[0]] = start_image
+
+            concat_latent_image = _encode_vae(vae, image, vae_tile_size)
+            concat_mask = torch.ones((1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
+                                     device=start_image.device, dtype=start_image.dtype)
+            concat_mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
+
+            positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+            negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+        # === 完整音频处理管线（复刻原始 WanInfiniteTalkToVideo）===
+        # 直接在入参 model 上打补丁（不 clone，保留 XB_WanBlockSwap 的回调）
+
+        encoded_audio_list = []
+        seq_lengths = []
+        for audio_encoder_output in [audio_encoder_output_1, audio_encoder_output_2]:
+            if audio_encoder_output is None:
+                continue
+            all_layers = audio_encoder_output["encoded_audio_all_layers"]
+            encoded_audio = torch.stack(all_layers, dim=0).squeeze(1)[1:]
+            encoded_audio = _linear_interp(encoded_audio, input_fps=50, output_fps=25).movedim(0, 1)
+            encoded_audio_list.append(encoded_audio)
+            seq_lengths.append(encoded_audio.shape[0])
+
+        multi_audio_type = "add"
+        if len(encoded_audio_list) > 1:
+            if multi_audio_type == "para":
+                max_len = max(seq_lengths)
+                padded = []
+                for emb in encoded_audio_list:
+                    if emb.shape[0] < max_len:
+                        pad = torch.zeros(max_len - emb.shape[0], *emb.shape[1:], dtype=emb.dtype)
+                        emb = torch.cat([emb, pad], dim=0)
+                    padded.append(emb)
+                encoded_audio_list = padded
+            elif multi_audio_type == "add":
+                total_len = sum(seq_lengths)
+                full_list = []
+                offset = 0
+                for emb, seq_len in zip(encoded_audio_list, seq_lengths):
+                    full = torch.zeros(total_len, *emb.shape[1:], dtype=emb.dtype)
+                    full[offset:offset + seq_len] = emb
+                    full_list.append(full)
+                    offset += seq_len
+                encoded_audio_list = full_list
+
+        token_ref_target_masks = None
+        if ref_masks is not None:
+            token_ref_target_masks = torch.nn.functional.interpolate(
+                ref_masks.unsqueeze(0), size=(latent.shape[-2] // 2, latent.shape[-1] // 2), mode='nearest')[0]
+            token_ref_target_masks = (token_ref_target_masks > 0).view(token_ref_target_masks.shape[0], -1)
+
+        if previous_frames is not None:
+            motion_frames = comfy.utils.common_upscale(previous_frames[-motion_frame_count:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            frame_offset = previous_frames.shape[0] - motion_frame_count
+            audio_start = frame_offset
+            audio_end = audio_start + length
+            motion_frames_latent = _encode_vae(vae, motion_frames[:, :, :, :3], vae_tile_size)
+            trim_image = motion_frame_count
+        else:
+            audio_start = trim_image = 0
+            audio_end = length
+            motion_frames_latent = concat_latent_image[:, :, :1] if concat_latent_image is not None else torch.zeros((1, 16, 1, height // 8, width // 8), device=latent.device)
+
+        audio_embed = project_audio_features(model_patch.model.audio_proj, encoded_audio_list, audio_start, audio_end).to(model.model_dtype())
+        model.model_options["transformer_options"]["audio_embeds"] = audio_embed
+
+        model.add_wrapper_with_key(
+            comfy.patcher_extension.WrappersMP.OUTER_SAMPLE,
+            "infinite_talk_outer_sample",
+            InfiniteTalkOuterSampleWrapper(motion_frames_latent, model_patch, is_extend=previous_frames is not None))
+        model.set_model_patch(MultiTalkCrossAttnPatch(model_patch, audio_scale), "attn2_patch")
+
+        out_latent = {"samples": latent}
+        return (model, positive, negative, out_latent, trim_image)
