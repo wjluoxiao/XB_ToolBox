@@ -7,6 +7,13 @@ import comfy.clip_vision
 import math
 import numpy as np
 
+_SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
+_CROP_MODES = ["center", "disabled"]
+
+def _upscale(img, w, h, method="lanczos", crop="center"):
+    """统一图片缩放入口，所有节点共用"""
+    return comfy.utils.common_upscale(img.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
+
 def _encode_vae(vae, pixels, tile_size):
     # 确保输入至少4维 (B, H, W, C)，防止3D输入直接索引崩溃
     if pixels.dim() == 3:
@@ -27,7 +34,7 @@ class XB_WanImageToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 480, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1}),
@@ -36,6 +43,8 @@ class XB_WanImageToVideo:
             "optional": {
                 "clip_vision_output": ("CLIP_VISION_OUTPUT",),
                 "start_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -44,13 +53,13 @@ class XB_WanImageToVideo:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, clip_vision_output=None, start_image=None):
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, clip_vision_output=None, start_image=None, scale_method="lanczos", crop_mode="center"):
         spacial_scale = vae.spacial_compression_encode()
         latent_channels = vae.latent_channels
         latent = torch.zeros([batch_size, latent_channels, ((length - 1) // 4) + 1, height // spacial_scale, width // spacial_scale], device=comfy.model_management.intermediate_device())
 
         if start_image is not None:
-            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
             image = torch.ones((length, height, width, start_image.shape[-1]), device=start_image.device, dtype=start_image.dtype) * 0.5
             image[:start_image.shape[0]] = start_image
 
@@ -78,7 +87,7 @@ class XB_WanFirstLastFrameToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 480, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1}),
@@ -89,6 +98,8 @@ class XB_WanFirstLastFrameToVideo:
                 "clip_vision_end_image": ("CLIP_VISION_OUTPUT",),
                 "start_image": ("IMAGE",),
                 "end_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -97,17 +108,17 @@ class XB_WanFirstLastFrameToVideo:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, clip_vision_start_image=None, clip_vision_end_image=None, start_image=None, end_image=None):
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, clip_vision_start_image=None, clip_vision_end_image=None, start_image=None, end_image=None, scale_method="lanczos", crop_mode="center"):
         spacial_scale = vae.spacial_compression_encode()
         latent = torch.zeros([batch_size, vae.latent_channels, ((length - 1) // 4) + 1, height // spacial_scale, width // spacial_scale], device=comfy.model_management.intermediate_device())
         
         if start_image is not None:
-            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
         if end_image is not None:
-            end_image = comfy.utils.common_upscale(end_image[-length:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            end_image = _upscale(end_image[-length:], width, height, scale_method, crop_mode)
 
-        image = torch.ones((length, height, width, 3)) * 0.5
-        mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]))
+        image = torch.ones((length, height, width, 3), device=latent.device) * 0.5
+        mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]), device=latent.device)
 
         if start_image is not None:
             image[:start_image.shape[0]] = start_image
@@ -151,7 +162,7 @@ class XB_WanFunControlToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -161,6 +172,8 @@ class XB_WanFunControlToVideo:
                 "clip_vision_output": ("CLIP_VISION_OUTPUT",),
                 "start_image": ("IMAGE",),
                 "control_video": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -169,7 +182,7 @@ class XB_WanFunControlToVideo:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, start_image=None, clip_vision_output=None, control_video=None):
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, start_image=None, clip_vision_output=None, control_video=None, scale_method="lanczos", crop_mode="center"):
         spacial_scale = vae.spacial_compression_encode()
         latent_channels = vae.latent_channels
         latent = torch.zeros([batch_size, latent_channels, ((length - 1) // 4) + 1, height // spacial_scale, width // spacial_scale], device=comfy.model_management.intermediate_device())
@@ -178,12 +191,12 @@ class XB_WanFunControlToVideo:
         concat_latent = concat_latent.repeat(1, 2, 1, 1, 1)
 
         if start_image is not None:
-            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
             concat_latent_image = _encode_vae(vae, start_image, vae_tile_size)
             concat_latent[:,latent_channels:,:concat_latent_image.shape[2]] = concat_latent_image[:,:,:concat_latent.shape[2]]
 
         if control_video is not None:
-            control_video = comfy.utils.common_upscale(control_video[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            control_video = _upscale(control_video[:length], width, height, scale_method, crop_mode)
             concat_latent_image = _encode_vae(vae, control_video, vae_tile_size)
             concat_latent[:,:latent_channels,:concat_latent_image.shape[2]] = concat_latent_image[:,:,:concat_latent.shape[2]]
 
@@ -209,7 +222,7 @@ class XB_Wan22FunControlToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -388,7 +401,7 @@ class XB_WanSoundImageToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 77, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -416,7 +429,7 @@ class XB_WanSoundImageToVideo:
 
 
 # ==============================================================================
-# 6. 双人对话视频分块 — 完整复刻 WanInfiniteTalkToVideo + VAE分块
+# 6. 单人语音转视频分块 — VAE分块版 WanInfiniteTalkToVideo (single_speaker)
 # ==============================================================================
 from comfy.ldm.wan.model_multitalk import InfiniteTalkOuterSampleWrapper, MultiTalkCrossAttnPatch, project_audio_features
 
@@ -428,7 +441,130 @@ def _linear_interp(features, input_fps, output_fps, output_len=None):
     output_features = torch.nn.functional.interpolate(features, size=output_len, align_corners=True, mode='linear')
     return output_features.transpose(1, 2)
 
-class XB_WanInfiniteTalkToVideo:
+def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, width, height, length,
+                                  audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+                                  clip_vision_output=None, start_image=None,
+                                  audio_encoder_output_2=None, previous_frames=None,
+                                  mask_1=None, mask_2=None, segment_audio=False,
+                                  scale_method="lanczos", crop_mode="center"):
+    """共用音频处理 + 模型补丁核心逻辑（单人/双人复用）
+    scale_method/crop_mode 控制 start_image 缩放到视频尺寸的算法"""
+
+    if previous_frames is not None and previous_frames.shape[0] < motion_frame_count:
+        raise ValueError("Not enough previous frames provided.")
+
+    if audio_encoder_output_2 is not None:
+        if mask_1 is None or mask_2 is None:
+            raise ValueError("Masks must be provided if two audio encoder outputs are used.")
+
+    ref_masks = None
+    if mask_1 is not None and mask_2 is not None:
+        if audio_encoder_output_2 is None:
+            raise ValueError("Second audio encoder output must be provided if two masks are used.")
+        ref_masks = torch.cat([mask_1, mask_2])
+
+    latent = torch.zeros([1, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
+                        device=comfy.model_management.intermediate_device())
+
+    concat_latent_image = None
+    if start_image is not None:
+        start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
+        image = torch.ones((length, height, width, start_image.shape[-1]), device=start_image.device, dtype=start_image.dtype) * 0.5
+        image[:start_image.shape[0]] = start_image
+
+        concat_latent_image = _encode_vae(vae, image, vae_tile_size)
+        concat_mask = torch.ones((1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
+                                 device=start_image.device, dtype=start_image.dtype)
+        concat_mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
+
+        positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+        negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+
+    if clip_vision_output is not None:
+        positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+        negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+    # === 音频处理管线 ===
+    encoded_audio_list = []
+    seq_lengths = []
+    for audio_encoder_output in [audio_encoder_output_1, audio_encoder_output_2]:
+        if audio_encoder_output is None:
+            continue
+        all_layers = audio_encoder_output["encoded_audio_all_layers"]
+        encoded_audio = torch.stack(all_layers, dim=0).squeeze(1)[1:]
+        encoded_audio = _linear_interp(encoded_audio, input_fps=50, output_fps=25).movedim(0, 1)
+        encoded_audio_list.append(encoded_audio)
+        seq_lengths.append(encoded_audio.shape[0])
+
+    multi_audio_type = "add"
+    if len(encoded_audio_list) > 1:
+        if multi_audio_type == "para":
+            max_len = max(seq_lengths)
+            padded = []
+            for emb in encoded_audio_list:
+                if emb.shape[0] < max_len:
+                    pad = torch.zeros(max_len - emb.shape[0], *emb.shape[1:], dtype=emb.dtype)
+                    emb = torch.cat([emb, pad], dim=0)
+                padded.append(emb)
+            encoded_audio_list = padded
+        elif multi_audio_type == "add":
+            total_len = sum(seq_lengths)
+            full_list = []
+            offset = 0
+            for emb, seq_len in zip(encoded_audio_list, seq_lengths):
+                full = torch.zeros(total_len, *emb.shape[1:], dtype=emb.dtype)
+                full[offset:offset + seq_len] = emb
+                full_list.append(full)
+                offset += seq_len
+            encoded_audio_list = full_list
+
+    token_ref_target_masks = None
+    if ref_masks is not None:
+        token_ref_target_masks = torch.nn.functional.interpolate(
+            ref_masks.unsqueeze(0), size=(latent.shape[-2] // 2, latent.shape[-1] // 2), mode='nearest')[0]
+        token_ref_target_masks = (token_ref_target_masks > 0).view(token_ref_target_masks.shape[0], -1)
+
+    if previous_frames is not None:
+        motion_frames = comfy.utils.common_upscale(previous_frames[-motion_frame_count:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+        frame_offset = previous_frames.shape[0] - motion_frame_count
+        if segment_audio:
+            audio_start = 0  # 接力点：每段音频独立，始终从头开始
+        else:
+            audio_start = frame_offset
+        audio_end = audio_start + length
+        motion_frames_latent = _encode_vae(vae, motion_frames[:, :, :, :3], vae_tile_size)
+        trim_image = motion_frame_count
+    else:
+        audio_start = trim_image = 0
+        audio_end = length
+        motion_frames_latent = concat_latent_image[:, :, :1] if concat_latent_image is not None else torch.zeros((1, 16, 1, height // 8, width // 8), device=latent.device)
+
+    audio_embed = project_audio_features(model_patch.model.audio_proj, encoded_audio_list, audio_start, audio_end).to(model.model_dtype())
+
+    # 直接打补丁（不 clone，保留 BlockSwap 分块缓存；先清理旧补丁防累积）
+    for key in ("infinite_talk_outer_sample",):
+        if hasattr(model, "wrappers") and key in model.wrappers:
+            del model.wrappers[key]
+    for key in ("attn2_patch",):
+        if hasattr(model, "object_patches") and key in model.object_patches:
+            del model.object_patches[key]
+    top = model.model_options.setdefault("transformer_options", {})
+    top.pop("audio_embeds", None)
+
+    top["audio_embeds"] = audio_embed
+
+    model.add_wrapper_with_key(
+        comfy.patcher_extension.WrappersMP.OUTER_SAMPLE,
+        "infinite_talk_outer_sample",
+        InfiniteTalkOuterSampleWrapper(motion_frames_latent, model_patch, is_extend=previous_frames is not None))
+    model.set_model_patch(MultiTalkCrossAttnPatch(model_patch, audio_scale), "attn2_patch")
+
+    out_latent = {"samples": latent}
+    return model, positive, negative, out_latent, trim_image
+
+
+class XB_WanInfiniteTalkToVideo_Single:
+    """单人语音转视频分块 — 对应 WanInfiniteTalkToVideo (single_speaker) + VAE tiling"""
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -438,8 +574,99 @@ class XB_WanInfiniteTalkToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "mode": (["single_speaker", "two_speakers"], {"default": "two_speakers"}),
-                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1}),
+                "audio_scale": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "previous_frames": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "INT")
+    RETURN_NAMES = ("model", "positive", "negative", "latent", "trim_image")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, model, model_patch, positive, negative, vae, width, height, length,
+                audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+                clip_vision_output=None, start_image=None, previous_frames=None, segment_audio=False,
+                scale_method="lanczos", crop_mode="center"):
+        return _process_infinite_talk_audio(
+            model, model_patch, positive, negative, vae, width, height, length,
+            audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+            clip_vision_output=clip_vision_output, start_image=start_image,
+            previous_frames=previous_frames, segment_audio=segment_audio)
+
+
+class XB_WanInfiniteTalkToVideo_Dual:
+    """双人语音转视频分块 — 对应 WanInfiniteTalkToVideo (two_speakers) + VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "model_patch": ("MODEL_PATCH",),
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
+                "audio_encoder_output_2": ("AUDIO_ENCODER_OUTPUT",),
+                "mask_1": ("MASK",),
+                "mask_2": ("MASK",),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1}),
+                "audio_scale": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "previous_frames": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "INT")
+    RETURN_NAMES = ("model", "positive", "negative", "latent", "trim_image")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, model, model_patch, positive, negative, vae, width, height, length,
+                audio_encoder_output_1, audio_encoder_output_2, mask_1, mask_2,
+                motion_frame_count, audio_scale, vae_tile_size,
+                clip_vision_output=None, start_image=None, previous_frames=None):
+        return _process_infinite_talk_audio(
+            model, model_patch, positive, negative, vae, width, height, length,
+            audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+            clip_vision_output=clip_vision_output, start_image=start_image,
+            audio_encoder_output_2=audio_encoder_output_2,
+            previous_frames=previous_frames,
+            mask_1=mask_1, mask_2=mask_2)
+
+# ==============================================================================
+# 保留旧的 XB_WanInfiniteTalkToVideo 兼容别名（单人+双人 mode 选择器）
+# ==============================================================================
+class XB_WanInfiniteTalkToVideo:
+    """兼容旧工作流 — 通过 mode 切换单人/双人"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "model_patch": ("MODEL_PATCH",),
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "mode": (["single_speaker", "two_speakers"], {"default": "single_speaker"}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
@@ -467,103 +694,10 @@ class XB_WanInfiniteTalkToVideo:
                 clip_vision_output=None, start_image=None,
                 audio_encoder_output_2=None, previous_frames=None,
                 mask_1=None, mask_2=None):
-
-        if previous_frames is not None and previous_frames.shape[0] < motion_frame_count:
-            raise ValueError("Not enough previous frames provided.")
-
-        if audio_encoder_output_2 is not None:
-            if mask_1 is None or mask_2 is None:
-                raise ValueError("Masks must be provided if two audio encoder outputs are used.")
-
-        ref_masks = None
-        if mask_1 is not None and mask_2 is not None:
-            if audio_encoder_output_2 is None:
-                raise ValueError("Second audio encoder output must be provided if two masks are used.")
-            ref_masks = torch.cat([mask_1, mask_2])
-
-        latent = torch.zeros([1, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
-                            device=comfy.model_management.intermediate_device())
-
-        concat_latent_image = None
-        if start_image is not None:
-            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
-            image = torch.ones((length, height, width, start_image.shape[-1]), device=start_image.device, dtype=start_image.dtype) * 0.5
-            image[:start_image.shape[0]] = start_image
-
-            concat_latent_image = _encode_vae(vae, image, vae_tile_size)
-            concat_mask = torch.ones((1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
-                                     device=start_image.device, dtype=start_image.dtype)
-            concat_mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
-
-            positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
-            negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
-
-        if clip_vision_output is not None:
-            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
-            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
-
-        # === 完整音频处理管线（复刻原始 WanInfiniteTalkToVideo）===
-        # 直接在入参 model 上打补丁（不 clone，保留 XB_WanBlockSwap 的回调）
-
-        encoded_audio_list = []
-        seq_lengths = []
-        for audio_encoder_output in [audio_encoder_output_1, audio_encoder_output_2]:
-            if audio_encoder_output is None:
-                continue
-            all_layers = audio_encoder_output["encoded_audio_all_layers"]
-            encoded_audio = torch.stack(all_layers, dim=0).squeeze(1)[1:]
-            encoded_audio = _linear_interp(encoded_audio, input_fps=50, output_fps=25).movedim(0, 1)
-            encoded_audio_list.append(encoded_audio)
-            seq_lengths.append(encoded_audio.shape[0])
-
-        multi_audio_type = "add"
-        if len(encoded_audio_list) > 1:
-            if multi_audio_type == "para":
-                max_len = max(seq_lengths)
-                padded = []
-                for emb in encoded_audio_list:
-                    if emb.shape[0] < max_len:
-                        pad = torch.zeros(max_len - emb.shape[0], *emb.shape[1:], dtype=emb.dtype)
-                        emb = torch.cat([emb, pad], dim=0)
-                    padded.append(emb)
-                encoded_audio_list = padded
-            elif multi_audio_type == "add":
-                total_len = sum(seq_lengths)
-                full_list = []
-                offset = 0
-                for emb, seq_len in zip(encoded_audio_list, seq_lengths):
-                    full = torch.zeros(total_len, *emb.shape[1:], dtype=emb.dtype)
-                    full[offset:offset + seq_len] = emb
-                    full_list.append(full)
-                    offset += seq_len
-                encoded_audio_list = full_list
-
-        token_ref_target_masks = None
-        if ref_masks is not None:
-            token_ref_target_masks = torch.nn.functional.interpolate(
-                ref_masks.unsqueeze(0), size=(latent.shape[-2] // 2, latent.shape[-1] // 2), mode='nearest')[0]
-            token_ref_target_masks = (token_ref_target_masks > 0).view(token_ref_target_masks.shape[0], -1)
-
-        if previous_frames is not None:
-            motion_frames = comfy.utils.common_upscale(previous_frames[-motion_frame_count:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
-            frame_offset = previous_frames.shape[0] - motion_frame_count
-            audio_start = frame_offset
-            audio_end = audio_start + length
-            motion_frames_latent = _encode_vae(vae, motion_frames[:, :, :, :3], vae_tile_size)
-            trim_image = motion_frame_count
-        else:
-            audio_start = trim_image = 0
-            audio_end = length
-            motion_frames_latent = concat_latent_image[:, :, :1] if concat_latent_image is not None else torch.zeros((1, 16, 1, height // 8, width // 8), device=latent.device)
-
-        audio_embed = project_audio_features(model_patch.model.audio_proj, encoded_audio_list, audio_start, audio_end).to(model.model_dtype())
-        model.model_options["transformer_options"]["audio_embeds"] = audio_embed
-
-        model.add_wrapper_with_key(
-            comfy.patcher_extension.WrappersMP.OUTER_SAMPLE,
-            "infinite_talk_outer_sample",
-            InfiniteTalkOuterSampleWrapper(motion_frames_latent, model_patch, is_extend=previous_frames is not None))
-        model.set_model_patch(MultiTalkCrossAttnPatch(model_patch, audio_scale), "attn2_patch")
-
-        out_latent = {"samples": latent}
-        return (model, positive, negative, out_latent, trim_image)
+        return _process_infinite_talk_audio(
+            model, model_patch, positive, negative, vae, width, height, length,
+            audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
+            clip_vision_output=clip_vision_output, start_image=start_image,
+            audio_encoder_output_2=audio_encoder_output_2,
+            previous_frames=previous_frames,
+            mask_1=mask_1, mask_2=mask_2)

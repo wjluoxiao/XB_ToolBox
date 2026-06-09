@@ -18,6 +18,7 @@ app.registerExtension({
             const node = this;
 
             const wAudio = node.widgets.find(w => w.name === "audio");
+            const wFps   = node.widgets.find(w => w.name === "fps");
             const wStart = node.widgets.find(w => w.name === "start_time");
             const wEnd   = node.widgets.find(w => w.name === "end_time");
             const wDur   = node.widgets.find(w => w.name === "duration_display");
@@ -116,8 +117,10 @@ app.registerExtension({
 
             const syncWidgets = () => {
                 let s = getS(), e = getE();
-                // 防止 end_time < start_time
-                if (e < s + 0.01) e = s + 0.01;
+                const fps = parseFloat(wFps?.value) || 25;
+                const fDur = 1.0 / fps;
+                // 防止 end_time < start_time + 1帧
+                if (e < s + fDur) e = s + fDur;
                 const dur = getDur();
                 if (e > dur) e = dur;
                 if (wStart.value !== s) wStart.value = s;
@@ -126,10 +129,12 @@ app.registerExtension({
                 if (wEnd.inputEl)   wEnd.inputEl.value   = e;
                 if (wStart.element) wStart.element.value = s;
                 if (wEnd.element)   wEnd.element.value   = e;
-                // 同步 duration_display
+                // 同步 duration_display（帧数+秒数，对齐 4N+1）
                 if (wDur) {
-                    const d = Math.max(0, e - s).toFixed(2);
-                    const txt = d + " s";
+                    const durSec = Math.max(0, e - s);
+                    const rawFrames = Math.round(durSec * fps);
+                    const frames = Math.max(1, Math.floor((rawFrames + 2) / 4) * 4 + 1);
+                    const txt = frames + " 帧 (" + durSec.toFixed(2) + "s)";
                     if (wDur.value !== txt) {
                         wDur.value = txt;
                         if (wDur.inputEl) wDur.inputEl.value = txt;
@@ -191,12 +196,15 @@ app.registerExtension({
                     ctx.beginPath(); ctx.moveTo(x, H - 3); ctx.lineTo(x - 7, H + 6); ctx.lineTo(x + 7, H + 6); ctx.closePath(); ctx.fill();
                 });
 
-                // 时长数字
-                const outDur = Math.max(0, e - s).toFixed(2);
+                // 时长数字（帧数+秒数，对齐 4N+1）
+                const fps = parseFloat(wFps?.value) || 25;
+                const durSec = Math.max(0, e - s);
+                const rawFrames = Math.round(durSec * fps);
+                const outFrames = Math.max(1, Math.floor((rawFrames + 2) / 4) * 4 + 1);
                 ctx.fillStyle = "#00E676";
                 ctx.font = "bold 13px sans-serif";
                 ctx.textAlign = "right";
-                ctx.fillText(outDur + " s", W - PAD, 16);
+                ctx.fillText(outFrames + " 帧 (" + durSec.toFixed(2) + "s)", W - PAD, 16);
 
                 ctx.setTransform(1, 0, 0, 1, 0, 0); // 恢复
             };
@@ -221,18 +229,22 @@ app.registerExtension({
                 if (dragging) {
                     const t = xToTime(mouseToCanvasX(ev.clientX));
                     const s = getS(), e = getE(), dur = getDur();
+                    const fps = parseFloat(wFps?.value) || 25;
+                    const fDur = 1.0 / fps;
+                    // 对齐到 1帧 边界 (0.01精度，最终帧数由 _snap_4n1 对齐)
+                    const snap = (v) => Math.round(v * fps) / fps;
 
                     if (dragging === "start")
-                        wStart.value = Math.round(Math.max(0, Math.min(t, e - 0.01)) * 100) / 100;
+                        wStart.value = snap(Math.max(0, Math.min(t, e - fDur)));
                     else if (dragging === "end")
-                        wEnd.value = Math.round(Math.min(dur, Math.max(t, s + 0.01)) * 100) / 100;
+                        wEnd.value = snap(Math.min(dur, Math.max(t, s + fDur)));
                     else if (dragging === "range") {
                         const dx = t - (dragRS + dragRE) / 2;
                         let ns = dragRS + dx, ne = dragRE + dx;
                         if (ns < 0) { ne -= ns; ns = 0; }
                         if (ne > dur) { ns -= ne - dur; ne = dur; }
-                        wStart.value = Math.round(Math.max(0, ns) * 100) / 100;
-                        wEnd.value = Math.round(Math.min(dur, ne) * 100) / 100;
+                        wStart.value = snap(Math.max(0, ns));
+                        wEnd.value = snap(Math.min(dur, ne));
                     }
                     syncWidgets(); draw();
                 } else {
@@ -259,8 +271,9 @@ app.registerExtension({
 
             audioEl.addEventListener("loadedmetadata", () => {
                 totalDur = audioEl.duration;
+                const fps = parseFloat(wFps?.value) || 25;
                 if (getE() <= 0 || getE() > totalDur) {
-                    wEnd.value = Math.round(totalDur * 100) / 100;
+                    wEnd.value = Math.round(totalDur * fps) / fps;
                     syncWidgets();
                 }
                 // 跳到 start_time

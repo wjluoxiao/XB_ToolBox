@@ -339,7 +339,7 @@
     }
   },
   "XB_WanInfiniteTalkToVideo": {
-    "display_name": "XB-BOX - 🎵 语音转视频分块",
+    "display_name": "XB-BOX - 🎵 语音转视频分块（兼容）",
     "inputs": {
       "model": { "name": "模型" },
       "model_patch": { "name": "模型补丁" },
@@ -350,16 +350,73 @@
       "width": { "name": "宽度" },
       "height": { "name": "高度" },
       "length": { "name": "长度" },
-      "audio_encoder_output_1": { "name": "音频编码器输出1" },
+      "audio_encoder_output_1": { "name": "音频输入1" },
       "motion_frame_count": { "name": "运动帧数" },
       "audio_scale": { "name": "音频缩放" },
       "vae_tile_size": { "name": "VAE分块大小" },
       "clip_vision_output": { "name": "CLIP视觉输出" },
       "start_image": { "name": "起始图像" },
-      "audio_encoder_output_2": { "name": "音频编码器输出2" },
+      "audio_encoder_output_2": { "name": "音频输入2" },
       "previous_frames": { "name": "前置帧" },
       "mask_1": { "name": "遮罩1" },
       "mask_2": { "name": "遮罩2" }
+    },
+    "outputs": {
+      "0": { "name": "模型" },
+      "1": { "name": "正向提示" },
+      "2": { "name": "负向提示" },
+      "3": { "name": "潜变量" },
+      "4": { "name": "裁剪帧数" }
+    }
+  },
+  "XB_WanInfiniteTalkToVideo_Single": {
+    "display_name": "XB-BOX - 🎵 语音转视频分块（单人）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "model_patch": { "name": "模型补丁" },
+      "positive": { "name": "正向提示" },
+      "negative": { "name": "负向提示" },
+      "vae": { "name": "VAE" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "audio_encoder_output_1": { "name": "音频输入1" },
+      "motion_frame_count": { "name": "运动帧数" },
+      "audio_scale": { "name": "音频缩放" },
+      "vae_tile_size": { "name": "VAE分块大小" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "start_image": { "name": "起始图像" },
+      "previous_frames": { "name": "前置帧" }
+    },
+    "outputs": {
+      "0": { "name": "模型" },
+      "1": { "name": "正向提示" },
+      "2": { "name": "负向提示" },
+      "3": { "name": "潜变量" },
+      "4": { "name": "裁剪帧数" }
+    }
+  },
+  "XB_WanInfiniteTalkToVideo_Dual": {
+    "display_name": "XB-BOX - 🎵 语音转视频分块（双人）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "model_patch": { "name": "模型补丁" },
+      "positive": { "name": "正向提示" },
+      "negative": { "name": "负向提示" },
+      "vae": { "name": "VAE" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "audio_encoder_output_1": { "name": "音频输入1" },
+      "audio_encoder_output_2": { "name": "音频输入2" },
+      "mask_1": { "name": "遮罩1" },
+      "mask_2": { "name": "遮罩2" },
+      "motion_frame_count": { "name": "运动帧数" },
+      "audio_scale": { "name": "音频缩放" },
+      "vae_tile_size": { "name": "VAE分块大小" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "start_image": { "name": "起始图像" },
+      "previous_frames": { "name": "前置帧" }
     },
     "outputs": {
       "0": { "name": "模型" },
@@ -748,47 +805,101 @@
     "display_name": "XB-BOX - 🎵 音频切片（基础）",
     "inputs": {
       "audio": { "name": "音频文件" },
+      "fps": { "name": "视频帧率" },
       "start_time": { "name": "开始时间" },
       "end_time": { "name": "结束时间" },
-      "duration_display": { "name": "输出时长" }
+      "duration_display": { "name": "输出帧数" }
     },
     "outputs": {
       "0": { "name": "音频" },
-      "1": { "name": "时长" }
+      "1": { "name": "帧数" }
     }
   },
   "XB_AudioSlicerV1": {
     "display_name": "XB-BOX - 🎵 音频切片V1（单人）",
     "inputs": {
       "audio": { "name": "音频文件" },
+      "fps": { "name": "视频帧率" },
       "start_time": { "name": "开始时间" },
       "end_time": { "name": "结束时间" },
-      "duration_display": { "name": "输出时长" }
+      "duration_display": { "name": "输出帧数" }
     },
     "outputs": {
       "0": { "name": "音频" },
-      "1": { "name": "时长" }
+      "1": { "name": "帧数" }
     }
   },
   "XB_AudioSlicerV2": {
     "display_name": "XB-BOX - 🎵 音频切片V2（双人）",
     "inputs": {
       "audio1": { "name": "音频文件1" },
+      "fps": { "name": "视频帧率" },
       "start1": { "name": "开始时间1" },
       "end1": { "name": "结束时间1" },
       "audio2": { "name": "音频文件2" },
       "start2": { "name": "开始时间2" },
       "end2": { "name": "结束时间2" },
-      "gap_seconds": { "name": "间隔时长" },
-      "total_display": { "name": "合并时长" }
+      "gap_frames": { "name": "间隔帧数" },
+      "total_display": { "name": "合并帧数" }
     },
     "outputs": {
       "0": { "name": "合并音频" },
-      "1": { "name": "合并时长" },
+      "1": { "name": "合并帧数" },
       "2": { "name": "音频1" },
-      "3": { "name": "时长1" },
+      "3": { "name": "帧数1" },
       "4": { "name": "音频2" },
-      "5": { "name": "时长2" }
+      "5": { "name": "帧数2" }
+    }
+  },
+  "XB_WanInfiniteTalk_ParamBus": {
+    "display_name": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线（单人）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "model_patch": { "name": "模型补丁" },
+      "clip": { "name": "CLIP模型" },
+      "vae": { "name": "VAE模型" },
+      "audio_encoder": { "name": "音频编码器" },
+      "start_image": { "name": "起始参考图" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" },
+      "negative_prompt": { "name": "负面提示词" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "fps": { "name": "帧率" },
+      "vae_encode_tile_size": { "name": "VAE编码分块" },
+      "vae_decode_tile_size": { "name": "VAE解码分块" },
+      "spatial_overlap": { "name": "空间重叠" },
+      "temporal_chunk_size": { "name": "时间分块" },
+      "temporal_overlap": { "name": "时间重叠" },
+      "steps": { "name": "采样步数" },
+      "cfg": { "name": "引导系数" },
+      "sampler_name": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "seed": { "name": "随机种子" },
+      "motion_frame_count": { "name": "运动过渡帧数" },
+      "audio_scale": { "name": "音频强度" },
+      "cleanup": { "name": "显存清理" },
+      "clip_vision": { "name": "CLIP视觉" },
+      "audio_encoder_output_1": { "name": "音频输入1(预编码)" }
+    },
+    "outputs": {
+      "0": { "name": "📦 WAN_INFINITETALK_BUS" }
+    }
+  },
+  "XB_WanInfiniteTalk_RelayNode": {
+    "display_name": "XB-BOX - 🏃 InfiniteTalk 无限对口型接力点",
+    "inputs": {
+      "wan_infinitetalk_bus": { "name": "WAN_INFINITETALK_BUS" },
+      "positive_prompt": { "name": "正面提示词" },
+      "segment_length": { "name": "分段帧数" },
+      "prev_video": { "name": "前置累加视频" },
+      "prev_audio": { "name": "前置累加音频" },
+      "audio": { "name": "音频输入" }
+    },
+    "outputs": {
+      "0": { "name": "📦 WAN_INFINITETALK_BUS (传给下段)" },
+      "1": { "name": "🎞️ 累加视频流" },
+      "2": { "name": "🔊 累加音频流" }
     }
   }
 }

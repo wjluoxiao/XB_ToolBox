@@ -56,10 +56,10 @@ try:
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo
+    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual
     from .nodes_batch import XB_BatchFolderLoader
     # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
-    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode
+    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode
     from .nodes_sageatt import XB_SageAttentionAccelerator
     from .nodes_wan_t5 import XB_WanT5Loader
     from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
@@ -95,6 +95,8 @@ try:
         "XB_Wan22FunControlToVideo": XB_Wan22FunControlToVideo,
         "XB_WanSoundImageToVideo": XB_WanSoundImageToVideo,
         "XB_WanInfiniteTalkToVideo": XB_WanInfiniteTalkToVideo,
+        "XB_WanInfiniteTalkToVideo_Single": XB_WanInfiniteTalkToVideo_Single,
+        "XB_WanInfiniteTalkToVideo_Dual": XB_WanInfiniteTalkToVideo_Dual,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
@@ -121,6 +123,8 @@ try:
         "XB_WanAnimateToVideo": XB_WanAnimateToVideo,
         "XB_WanAnimate_ParamBus": XB_WanAnimate_ParamBus,
         "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
+        "XB_WanInfiniteTalk_ParamBus": XB_WanInfiniteTalk_ParamBus,
+        "XB_WanInfiniteTalk_RelayNode": XB_WanInfiniteTalk_RelayNode,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
         "XB_CanvasLabel": XB_CanvasLabel,
@@ -171,13 +175,17 @@ try:
         "XB_WanAnimateToVideo": "XB-BOX - 🎬 Wan 动画转视频",
         "XB_WanAnimate_ParamBus": "XB-BOX - 🎬 Animate 动作迁移总线",
         "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
+        "XB_WanInfiniteTalk_ParamBus": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线",
+        "XB_WanInfiniteTalk_RelayNode": "XB-BOX - 🏃 InfiniteTalk 无限对口型接力点",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
         "XB_AudioSlicer": "XB-BOX - 🎵 音频切片（基础）",
         "XB_AudioSlicerV1": "XB-BOX - 🎵 音频切片V1（单人）",
         "XB_AudioSlicerV2": "XB-BOX - 🎵 音频切片V2（双人）",
-        "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块"
+        "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块",
+        "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
+        "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
     }
 
     print_success("\n" + "="*50)

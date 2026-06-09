@@ -308,7 +308,7 @@ class XB_WanAnimateToVideo:
         return {
             "required": {
                 "positive": ("CONDITIONING",), "negative": ("CONDITIONING",), "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 16, "max": 16384, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 260, "max": 16384, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 16384, "step": 16}),
                 "length": ("INT", {"default": 77, "min": 1, "max": 16384, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),

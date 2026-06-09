@@ -24,7 +24,8 @@ app.registerExtension({
             const wA2 = node.widgets.find(w => w.name === "audio2");
             const wS2 = node.widgets.find(w => w.name === "start2");
             const wE2 = node.widgets.find(w => w.name === "end2");
-            const wGap = node.widgets.find(w => w.name === "gap_seconds");
+            const wGap = node.widgets.find(w => w.name === "gap_frames");
+            const wFps = node.widgets.find(w => w.name === "fps");
             const wTot = node.widgets.find(w => w.name === "total_display");
 
             // total_display 样式
@@ -102,7 +103,26 @@ app.registerExtension({
                 const s = getS(t), e = getE(t), ws = t === 1 ? wS1 : wS2, we = t === 1 ? wE1 : wE2;
                 if (ws) { ws.value = s; if (ws.inputEl) ws.inputEl.value = s; if (ws.element) ws.element.value = s; }
                 if (we) { we.value = e; if (we.inputEl) we.inputEl.value = e; if (we.element) we.element.value = e; }
-                if (wTot) { const g = parseFloat(wGap?.value) || 0; const tot = Math.max(0, (getE(1) - getS(1)) + g + (getE(2) - getS(2))).toFixed(2) + " s"; if (wTot.value !== tot) { wTot.value = tot; if (wTot.inputEl) wTot.inputEl.value = tot; if (wTot.element) wTot.element.value = tot; } }
+                // 更新音频标签：显示已选秒数
+                const durSec = Math.max(0, e - s);
+                const lbl = t === 1 ? label1 : label2;
+                const tag = t === 1 ? "🎵 音频1" : "🎵 音频2";
+                lbl.textContent = tag + " (已选择 " + durSec.toFixed(2) + "秒)";
+                if (wTot) {
+                    const fps = parseFloat(wFps?.value) || 25;
+                    const g = parseInt(wGap?.value) || 0;
+                    const d1 = Math.max(0, getE(1) - getS(1));
+                    const d2 = Math.max(0, getE(2) - getS(2));
+                    const rf1 = Math.round(d1 * fps);
+                    const rf2 = Math.round(d2 * fps);
+                    const f1 = Math.max(1, Math.floor((rf1 + 2) / 4) * 4 + 1);
+                    const f2 = Math.max(1, Math.floor((rf2 + 2) / 4) * 4 + 1);
+                    const rawTotal = rf1 + g + rf2;
+                    const totalFrames = Math.max(1, Math.floor((rawTotal + 2) / 4) * 4 + 1);
+                    const totalSec = d1 + g / fps + d2;
+                    const tot = totalFrames + " 帧 (" + totalSec.toFixed(2) + "s)";
+                    if (wTot.value !== tot) { wTot.value = tot; if (wTot.inputEl) wTot.inputEl.value = tot; if (wTot.element) wTot.element.value = tot; }
+                }
             };
 
             // ============================================================
@@ -141,9 +161,12 @@ app.registerExtension({
                     if (getD(activeTrack) <= 0) return;
                     if (drag) {
                         const tv = xToT(mouseToX(ev.clientX, cvs), cvs, activeTrack), s = getS(activeTrack), e = getE(activeTrack), d = getD(activeTrack), ws = activeTrack === 1 ? wS1 : wS2, we = activeTrack === 1 ? wE1 : wE2;
-                        if (drag === "start") ws.value = Math.round(Math.max(0, Math.min(tv, e - 0.01)) * 100) / 100;
-                        else if (drag === "end") we.value = Math.round(Math.min(d, Math.max(tv, s + 0.01)) * 100) / 100;
-                        else { const dx = tv - (drs + dre) / 2; let ns = drs + dx, ne = dre + dx; if (ns < 0) { ne -= ns; ns = 0; } if (ne > d) { ns -= ne - d; ne = d; } ws.value = Math.round(Math.max(0, ns) * 100) / 100; we.value = Math.round(Math.min(d, ne) * 100) / 100; }
+                        const fps = parseFloat(wFps?.value) || 25;
+                        const fDur = 1.0 / fps;
+                        const snap = (v) => Math.round(v * fps) / fps;
+                        if (drag === "start") ws.value = snap(Math.max(0, Math.min(tv, e - fDur)));
+                        else if (drag === "end") we.value = snap(Math.min(d, Math.max(tv, s + fDur)));
+                        else { const dx = tv - (drs + dre) / 2; let ns = drs + dx, ne = dre + dx; if (ns < 0) { ne -= ns; ns = 0; } if (ne > d) { ns -= ne - d; ne = d; } ws.value = snap(Math.max(0, ns)); we.value = snap(Math.min(d, ne)); }
                         syncW(activeTrack); drawWave(cvs, activeTrack);
                     }
                 };
@@ -162,7 +185,7 @@ app.registerExtension({
                 }
             };
             const bindAudio = (ael, t) => {
-                ael.addEventListener("loadedmetadata", () => { if (t === 1) dur1 = ael.duration; else dur2 = ael.duration; const e = getE(t), d = getD(t); if (e <= 0 || e > d + 1) { const we = t === 1 ? wE1 : wE2; we.value = Math.round(d * 100) / 100; } syncW(t); drawWave(t === 1 ? canvas1 : canvas2, t); ael.currentTime = getS(t); });
+                ael.addEventListener("loadedmetadata", () => { if (t === 1) dur1 = ael.duration; else dur2 = ael.duration; const e = getE(t), d = getD(t); if (e <= 0 || e > d + 1) { const we = t === 1 ? wE1 : wE2; const fps = parseFloat(wFps?.value) || 25; we.value = Math.round(d * fps) / fps; } syncW(t); drawWave(t === 1 ? canvas1 : canvas2, t); ael.currentTime = getS(t); });
                 ael.addEventListener("play", () => { const s = getS(t); if (ael.currentTime < s || ael.currentTime >= getE(t)) ael.currentTime = s; });
                 ael.addEventListener("timeupdate", () => { if (pausing) return; if (ael.currentTime >= getE(t)) { pausing = true; ael.pause(); ael.currentTime = getS(t); setTimeout(() => { pausing = false; }, 100); } });
                 ael.addEventListener("seeking", () => { const s = getS(t), e = getE(t); if (ael.currentTime < s) ael.currentTime = s; if (ael.currentTime > e) ael.currentTime = e; });

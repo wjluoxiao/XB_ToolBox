@@ -16,6 +16,7 @@ app.registerExtension({
             const node = this;
 
             const wAudio = node.widgets.find(w => w.name === "audio");
+            const wFps   = node.widgets.find(w => w.name === "fps");
             const wStart = node.widgets.find(w => w.name === "start_time");
             const wEnd   = node.widgets.find(w => w.name === "end_time");
             const wDur   = node.widgets.find(w => w.name === "duration_display");
@@ -104,11 +105,12 @@ app.registerExtension({
                 if (st > 0 && st < audioEl.duration) {
                     audioEl.currentTime = st;
                 }
-                // 首次加载时自动设置 end_time = 全长
+                // 首次加载时自动设置 end_time = 全长（对齐到帧）
                 if (audioEl.duration > 0) {
+                    const fps = parseFloat(wFps?.value) || 25;
                     const et = parseFloat(wEnd?.value) || 0;
                     if (et <= 0 || et > audioEl.duration + 1) {
-                        const r = Math.round(audioEl.duration * 100) / 100;
+                        const r = Math.round(audioEl.duration * fps) / fps;
                         wEnd.value = r;
                         if (wEnd.inputEl) wEnd.inputEl.value = r;
                         if (wEnd.element) wEnd.element.value = r;
@@ -155,20 +157,24 @@ app.registerExtension({
             };
 
             // ============================================================
-            // 4. 时长自动计算
+            // 4. 帧数自动计算
             // ============================================================
             const updateDuration = () => {
                 let s = parseFloat(wStart?.value) || 0;
                 let e = parseFloat(wEnd?.value) || 0;
-                // 防止 end_time < start_time
-                if (e < s + 0.01) {
-                    e = s + 0.01;
+                const fps = parseFloat(wFps?.value) || 25;
+                const fDur = 1.0 / fps;
+                // 防止 end_time < start_time + 1帧
+                if (e < s + fDur) {
+                    e = s + fDur;
                     wEnd.value = e;
                     if (wEnd.inputEl) wEnd.inputEl.value = e;
                     if (wEnd.element) wEnd.element.value = e;
                 }
-                const dur = Math.max(0, e - s);
-                const txt = dur.toFixed(2) + " s";
+                const durSec = Math.max(0, e - s);
+                const rawFrames = Math.round(durSec * fps);
+                const frames = Math.max(1, Math.floor((rawFrames + 2) / 4) * 4 + 1);
+                const txt = frames + " 帧 (" + durSec.toFixed(2) + "s)";
                 if (wDur && wDur.value !== txt) {
                     wDur.value = txt;
                     if (wDur.inputEl) wDur.inputEl.value = txt;
@@ -178,11 +184,13 @@ app.registerExtension({
 
             // --- start/end 变化 → 同步播放器位置 ---
             const onTimeWidgetChange = () => {
-                // 防止 end < start
+                // 防止 end < start + 1帧
                 let s = parseFloat(wStart?.value) || 0;
                 let e = parseFloat(wEnd?.value) || 0;
-                if (e < s + 0.01) {
-                    e = s + 0.01;
+                const fps = parseFloat(wFps?.value) || 25;
+                const fDur = 1.0 / fps;
+                if (e < s + fDur) {
+                    e = s + fDur;
                     wEnd.value = e;
                     if (wEnd.inputEl) wEnd.inputEl.value = e;
                     if (wEnd.element) wEnd.element.value = e;
