@@ -12,6 +12,9 @@ import importlib.util
 import comfy.model_management as mm
 import folder_paths
 
+_SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
+_CROP_MODES = ["disabled", "center"]
+
 # ROCm 全局补丁（纯 torch，零依赖）
 if not hasattr(torch.backends.cuda, "matmul"):
     class _FM: allow_fp16_accumulation = False
@@ -308,7 +311,7 @@ class XB_WanAnimateToVideo:
         return {
             "required": {
                 "positive": ("CONDITIONING",), "negative": ("CONDITIONING",), "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 16384, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 16384, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 16384, "step": 16}),
                 "length": ("INT", {"default": 77, "min": 1, "max": 16384, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -321,6 +324,8 @@ class XB_WanAnimateToVideo:
                 "reference_image": ("IMAGE",), "face_video": ("IMAGE",),
                 "pose_video": ("IMAGE",), "background_video": ("IMAGE",),
                 "character_mask": ("MASK",), "continue_motion": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             },
         }
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "INT", "INT", "INT")
@@ -331,7 +336,8 @@ class XB_WanAnimateToVideo:
     def go(self, positive, negative, vae, width, height, length, batch_size,
            continue_motion_max_frames, video_frame_offset, vae_tile_size=256,
            reference_image=None, clip_vision_output=None, face_video=None,
-           pose_video=None, continue_motion=None, background_video=None, character_mask=None):
+           pose_video=None, continue_motion=None, background_video=None, character_mask=None,
+           scale_method="lanczos", crop_mode="center"):
         import comfy.utils
         import node_helpers
         def _enc(pixels):
@@ -345,7 +351,7 @@ class XB_WanAnimateToVideo:
         trim_latent, ref_motion_latent_length = 0, 0
         latent_length = ((length - 1) // 4) + 1
         if reference_image is None: reference_image = torch.zeros((1, height, width, 3))
-        image = comfy.utils.common_upscale(reference_image[:length].movedim(-1, 1), width, height, "area", "center").movedim(1, -1)
+        image = comfy.utils.common_upscale(reference_image[:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
         concat_latent_image = _enc(image)
         mask = torch.zeros((1, 4, concat_latent_image.shape[-3], concat_latent_image.shape[-2], concat_latent_image.shape[-1]), device=concat_latent_image.device, dtype=concat_latent_image.dtype)
         trim_latent += concat_latent_image.shape[2]
@@ -354,7 +360,7 @@ class XB_WanAnimateToVideo:
         else:
             continue_motion = continue_motion[-continue_motion_max_frames:]
             video_frame_offset = max(0, video_frame_offset - continue_motion.shape[0])
-            continue_motion = comfy.utils.common_upscale(continue_motion[-length:].movedim(-1, 1), width, height, "area", "center").movedim(1, -1)
+            continue_motion = comfy.utils.common_upscale(continue_motion[-length:].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
             image = torch.ones((length, height, width, continue_motion.shape[-1]), device=continue_motion.device, dtype=continue_motion.dtype) * 0.5
             image[:continue_motion.shape[0]] = continue_motion
             ref_motion_latent_length += ((continue_motion.shape[0] - 1) // 4) + 1
@@ -365,7 +371,7 @@ class XB_WanAnimateToVideo:
             if pose_video.shape[0] <= video_frame_offset: pose_video = None
             else: pose_video = pose_video[video_frame_offset:]
         if pose_video is not None:
-            pose_video = comfy.utils.common_upscale(pose_video[:length].movedim(-1, 1), width, height, "area", "center").movedim(1, -1)
+            pose_video = comfy.utils.common_upscale(pose_video[:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
             if pose_video.shape[0] < length: pose_video = torch.cat((pose_video,) + (pose_video[-1:],) * (length - pose_video.shape[0]), dim=0)
             pvl = _enc(pose_video)
             positive = node_helpers.conditioning_set_values(positive, {"pose_video_latent": pvl})
@@ -380,7 +386,7 @@ class XB_WanAnimateToVideo:
             negative = node_helpers.conditioning_set_values(negative, {"face_video_pixels": fv * 0.0 - 1.0})
         ref_images_num = max(0, ref_motion_latent_length * 4 - 3)
         if background_video is not None and background_video.shape[0] > video_frame_offset:
-            bg = comfy.utils.common_upscale(background_video[video_frame_offset:][:length].movedim(-1, 1), width, height, "area", "center").movedim(1, -1)
+            bg = comfy.utils.common_upscale(background_video[video_frame_offset:][:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
             if bg.shape[0] > ref_images_num: image[ref_images_num:bg.shape[0]] = bg[ref_images_num:]
         mask_ref = torch.ones((1, 1, latent_length * 4, concat_latent_image.shape[-2], concat_latent_image.shape[-1]), device=mask.device, dtype=mask.dtype)
         if continue_motion is not None: mask_ref[:, :, :ref_motion_latent_length * 4] = 0.0

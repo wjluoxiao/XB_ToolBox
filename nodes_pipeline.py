@@ -174,13 +174,9 @@ class XB_Wan_RelayNode:
             start_at_step=b["high_noise_steps"], end_at_step=10000, return_with_leftover_noise="disable"
         )
 
-        decoded_image, = nodes.VAEDecodeTiled().decode(
+        decoded_image, = nodes.VAEDecode().decode(
             samples=latent_low, 
             vae=b["vae"], 
-            tile_size=decode_tile, 
-            overlap=spat_overlap, 
-            temporal_size=temp_chunk, 
-            temporal_overlap=temp_overlap
         )
 
         is_4d = len(decoded_image.shape) == 4
@@ -204,6 +200,7 @@ class XB_Wan_RelayNode:
         else:
             final_video = decoded_image
 
+        _refresh_models()
         return (wan_bus, last_frame, final_video)
 
 # ==============================================================================
@@ -273,13 +270,9 @@ class XB_Wan_InfiniteRelayNode:
             start_at_step=b["high_noise_steps"], end_at_step=10000, return_with_leftover_noise="disable"
         )
 
-        decoded_image, = nodes.VAEDecodeTiled().decode(
+        decoded_image, = nodes.VAEDecode().decode(
             samples=latent_low, 
             vae=b["vae"], 
-            tile_size=decode_tile, 
-            overlap=spat_overlap, 
-            temporal_size=temp_chunk, 
-            temporal_overlap=temp_overlap
         )
 
         is_4d = len(decoded_image.shape) == 4
@@ -303,6 +296,7 @@ class XB_Wan_InfiniteRelayNode:
         else:
             final_video = decoded_image
 
+        _refresh_models()
         return (wan_bus, last_frame, final_video)
 
 # ==============================================================================
@@ -395,6 +389,7 @@ class XB_WanAnimate_ParamBus:
                 "negative_prompt": ("STRING", {"multiline": True, "default": "vivid colors, overexposed, static, blurry details..."}),
                 "width": ("INT", {"default": 480, "min": 260, "step": 16}),
                 "height": ("INT", {"default": 832, "step": 16}),
+                "total_frames": ("INT", {"default": 0, "min": 0, "max": 999999, "tooltip": "0=自动从源视频取长度；>0=强制截断到此帧数"}),
                 "fps": ("FLOAT", {"default": 16.0}),
                 # --- VAE 时空分块与重叠参数 ---
                 "vae_encode_tile_size": ("INT", {"default": 320, "step": 32}),
@@ -489,20 +484,35 @@ class XB_WanAnimate_RelayNode:
         source_video = b.get("pose_video") if b.get("pose_video") is not None else b.get("face_video")
         total_source_frames = float('inf')
 
-        if source_video is not None:
+        # 优先使用总线 total_frames，其次用源视频长度
+        bus_total = b.get("total_frames", 0)
+        if bus_total > 0:
+            total_source_frames = bus_total
+        elif source_video is not None:
             total_source_frames = source_video.shape[0] if len(source_video.shape) == 4 else source_video.shape[1]
 
         remaining_frames = max(0, total_source_frames - current_offset)
+        cont_max = b.get("continue_motion_max_frames", 5)
 
         if remaining_frames <= 0:
             print(f"\n⏭️ [XB-BOX] 动作视频已耗尽 (已跑到 {current_offset} 帧 / 总 {total_source_frames} 帧)。当前接力点直接跳过！")
             fallback_video = prev_video if prev_video is not None else torch.zeros((1, b.get("height", 832), b.get("width", 480), 3))
             return (b, fallback_video)
 
-        actual_length = min(segment_length, remaining_frames)
-        if actual_length < segment_length:
-            print(f"\n⚠️ [XB-BOX] 帧数截断触发：节点请求 {segment_length} 帧，源动作视频仅剩 {actual_length} 帧。已自动对齐缩减！")
+        if remaining_frames < segment_length:
+            # 最后一段：trim 会吃掉 continue_motion 帧，需补回；再对齐 4N+1
+            if current_offset == 0:
+                need_raw = remaining_frames  # 第一段无 trim
+            else:
+                need_raw = remaining_frames + cont_max
+            actual_length = ((need_raw + 2) // 4) * 4 + 1
+            if actual_length < 1:
+                print(f"⏭️ [XB-BOX] 剩余 {remaining_frames} 帧不足以生成最小段，跳过")
+                fallback_video = prev_video if prev_video is not None else torch.zeros((1, b.get("height", 832), b.get("width", 480), 3))
+                return (b, fallback_video)
+            print(f"\n⚠️ [XB-BOX] 最后一段: 剩余 {remaining_frames} → need_raw={need_raw} → {actual_length} 帧 (4N+1)")
         else:
+            actual_length = segment_length
             print(f"\n🏃‍♀️ [XB-BOX] Executing Wan Animate Relay task... Target segment length: {actual_length}")
 
         # ====================================================================

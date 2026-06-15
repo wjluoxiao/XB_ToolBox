@@ -11,11 +11,11 @@ _SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
 _CROP_MODES = ["center", "disabled"]
 
 def _upscale(img, w, h, method="lanczos", crop="center"):
-    """统一图片缩放入口，所有节点共用"""
+    """Upscale helper for all nodes"""
     return comfy.utils.common_upscale(img.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
 
 def _encode_vae(vae, pixels, tile_size):
-    # 确保输入至少4维 (B, H, W, C)，防止3D输入直接索引崩溃
+
     if pixels.dim() == 3:
         pixels = pixels.unsqueeze(0)
     if tile_size == 0 or tile_size is None:
@@ -24,7 +24,7 @@ def _encode_vae(vae, pixels, tile_size):
         return vae.encode_tiled(pixels[:, :, :, :3], tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=256, overlap_t=8)
 
 # ==============================================================================
-# 1. 基础单图转视频分块
+
 # ==============================================================================
 class XB_WanImageToVideo:
     @classmethod
@@ -34,7 +34,7 @@ class XB_WanImageToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 480, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1}),
@@ -87,7 +87,7 @@ class XB_WanFirstLastFrameToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 480, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1}),
@@ -162,7 +162,7 @@ class XB_WanFunControlToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -211,8 +211,102 @@ class XB_WanFunControlToVideo:
         out_latent["samples"] = latent
         return (positive, negative, out_latent)
 
+# 3.5 Wan VACE video edit (tiled)
 # ==============================================================================
-# 4. 万能控制视频分块 (Wan 2.2)
+class XB_WanVaceToVideo:
+    """Wan VACE to Video - exact port from ComfyUI core with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1000.0, "step": 0.01}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "control_video": ("IMAGE",),
+                "control_masks": ("MASK",),
+                "reference_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "INT")
+    RETURN_NAMES = ("positive", "negative", "latent", "trim_latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, strength, vae_tile_size,
+                control_video=None, control_masks=None, reference_image=None,
+                scale_method="lanczos", crop_mode="center"):
+        latent_length = ((length - 1) // 4) + 1
+
+        if control_video is not None:
+            control_video = comfy.utils.common_upscale(control_video[:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
+            if control_video.shape[0] < length:
+                control_video = torch.nn.functional.pad(control_video, (0, 0, 0, 0, 0, 0, 0, length - control_video.shape[0]), value=0.5)
+        else:
+            control_video = torch.ones((length, height, width, 3)) * 0.5
+
+        if reference_image is not None:
+            reference_image = comfy.utils.common_upscale(reference_image[:1].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
+            reference_image = _encode_vae(vae, reference_image[:, :, :, :3], vae_tile_size)
+            reference_image = torch.cat([reference_image, comfy.latent_formats.Wan21().process_out(torch.zeros_like(reference_image))], dim=1)
+
+        if control_masks is None:
+            mask = torch.ones((length, height, width, 1))
+        else:
+            mask = control_masks
+            if mask.ndim == 3:
+                mask = mask.unsqueeze(1)
+            mask = comfy.utils.common_upscale(mask[:length], width, height, "bilinear", "center").movedim(1, -1)
+            if mask.shape[0] < length:
+                mask = torch.nn.functional.pad(mask, (0, 0, 0, 0, 0, 0, 0, length - mask.shape[0]), value=1.0)
+
+        control_video = control_video - 0.5
+        inactive = (control_video * (1 - mask)) + 0.5
+        reactive = (control_video * mask) + 0.5
+
+        inactive = _encode_vae(vae, inactive[:, :, :, :3], vae_tile_size)
+        reactive = _encode_vae(vae, reactive[:, :, :, :3], vae_tile_size)
+        control_video_latent = torch.cat((inactive, reactive), dim=1)
+        if reference_image is not None:
+            control_video_latent = torch.cat((reference_image, control_video_latent), dim=2)
+
+        vae_stride = 8
+        height_mask = height // vae_stride
+        width_mask = width // vae_stride
+        mask = mask.view(length, height_mask, vae_stride, width_mask, vae_stride)
+        mask = mask.permute(2, 4, 0, 1, 3)
+        mask = mask.reshape(vae_stride * vae_stride, length, height_mask, width_mask)
+        mask = torch.nn.functional.interpolate(mask.unsqueeze(0), size=(latent_length, height_mask, width_mask), mode='nearest-exact').squeeze(0)
+
+        trim_latent = 0
+        if reference_image is not None:
+            mask_pad = torch.zeros_like(mask[:, :reference_image.shape[2], :, :])
+            mask = torch.cat((mask_pad, mask), dim=1)
+            latent_length += reference_image.shape[2]
+            trim_latent = reference_image.shape[2]
+
+        mask = mask.unsqueeze(0)
+
+        positive = node_helpers.conditioning_set_values(positive, {"vace_frames": [control_video_latent], "vace_mask": [mask], "vace_strength": [strength]}, append=True)
+        negative = node_helpers.conditioning_set_values(negative, {"vace_frames": [control_video_latent], "vace_mask": [mask], "vace_strength": [strength]}, append=True)
+
+        latent = torch.zeros([batch_size, 16, latent_length, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+        out_latent = {}
+        out_latent["samples"] = latent
+        return (positive, negative, out_latent, trim_latent)
+
+# ==============================================================================
+# 4. Wan 2.2 FunControl (tiled)
 # ==============================================================================
 class XB_Wan22FunControlToVideo:
     @classmethod
@@ -222,7 +316,7 @@ class XB_Wan22FunControlToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -232,6 +326,8 @@ class XB_Wan22FunControlToVideo:
                 "ref_image": ("IMAGE",),
                 "start_image": ("IMAGE",),
                 "control_video": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -240,7 +336,7 @@ class XB_Wan22FunControlToVideo:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, ref_image=None, start_image=None, control_video=None):
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, ref_image=None, start_image=None, control_video=None, scale_method="lanczos", crop_mode="center"):
         spacial_scale = vae.spacial_compression_encode()
         latent_channels = vae.latent_channels
         latent = torch.zeros([batch_size, latent_channels, ((length - 1) // 4) + 1, height // spacial_scale, width // spacial_scale], device=comfy.model_management.intermediate_device())
@@ -250,21 +346,21 @@ class XB_Wan22FunControlToVideo:
         else:
             concat_latent = comfy.latent_formats.Wan21().process_out(concat_latent)
         concat_latent = concat_latent.repeat(1, 2, 1, 1, 1)
-        mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]))
+        mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]), device=latent.device)
 
         if start_image is not None:
-            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
             concat_latent_image = _encode_vae(vae, start_image, vae_tile_size)
             concat_latent[:,latent_channels:,:concat_latent_image.shape[2]] = concat_latent_image[:,:,:concat_latent.shape[2]]
             mask[:, :, :start_image.shape[0] + 3] = 0.0
 
         ref_latent = None
         if ref_image is not None:
-            ref_image = comfy.utils.common_upscale(ref_image[:1].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            ref_image = _upscale(ref_image[:1], width, height, scale_method, crop_mode)
             ref_latent = _encode_vae(vae, ref_image, vae_tile_size)
 
         if control_video is not None:
-            control_video = comfy.utils.common_upscale(control_video[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            control_video = _upscale(control_video[:length], width, height, scale_method, crop_mode)
             concat_latent_image = _encode_vae(vae, control_video, vae_tile_size)
             concat_latent[:,:latent_channels,:concat_latent_image.shape[2]] = concat_latent_image[:,:,:concat_latent.shape[2]]
 
@@ -282,7 +378,7 @@ class XB_Wan22FunControlToVideo:
 
 
 # ==============================================================================
-# 5. 音频图像转视频分块 (WanSound) - 附带辅助函数
+    """Wan Sound Extend to Video with VAE tiling"""
 # ==============================================================================
 def linear_interpolation(features, input_fps, output_fps, output_len=None):
     features = features.transpose(1, 2)
@@ -336,7 +432,7 @@ def get_audio_embed_bucket_fps(audio_embed, fps=16, batch_frames=81, m=0, video_
     batch_audio_eb = torch.cat([c.unsqueeze(0) for c in batch_audio_eb], dim=0)
     return batch_audio_eb, min_batch_num
 
-def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_size, vae_tile_size, frame_offset=0, ref_image=None, audio_encoder_output=None, control_video=None, ref_motion=None):
+def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_size, vae_tile_size, frame_offset=0, ref_image=None, audio_encoder_output=None, control_video=None, ref_motion=None, ref_motion_latent=None, scale_method="lanczos", crop_mode="center"):
     latent_t = ((length - 1) // 4) + 1
     if audio_encoder_output is not None:
         feat = torch.cat(audio_encoder_output["encoded_audio_all_layers"])
@@ -358,7 +454,7 @@ def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_
             frame_offset += batch_frames
 
     if ref_image is not None:
-        ref_image = comfy.utils.common_upscale(ref_image[:1].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+        ref_image = comfy.utils.common_upscale(ref_image[:1].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
         ref_latent = _encode_vae(vae, ref_image, vae_tile_size)
         positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [ref_latent]}, append=True)
         negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [ref_latent]}, append=True)
@@ -366,7 +462,7 @@ def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_
     if ref_motion is not None:
         if ref_motion.shape[0] > 73:
             ref_motion = ref_motion[-73:]
-        ref_motion = comfy.utils.common_upscale(ref_motion.movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+        ref_motion = comfy.utils.common_upscale(ref_motion.movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
         if ref_motion.shape[0] < 73:
             r = torch.ones([73, height, width, 3]) * 0.5
             r[-ref_motion.shape[0]:] = ref_motion
@@ -382,7 +478,7 @@ def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_
 
     control_video_out = comfy.latent_formats.Wan21().process_out(torch.zeros_like(latent))
     if control_video is not None:
-        control_video = comfy.utils.common_upscale(control_video[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+        control_video = comfy.utils.common_upscale(control_video[:length].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
         control_video = _encode_vae(vae, control_video, vae_tile_size)
         control_video_out[:, :, :control_video.shape[2]] = control_video
 
@@ -401,7 +497,7 @@ class XB_WanSoundImageToVideo:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 77, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
@@ -412,6 +508,8 @@ class XB_WanSoundImageToVideo:
                 "ref_image": ("IMAGE",),
                 "control_video": ("IMAGE",),
                 "ref_motion": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -420,16 +518,17 @@ class XB_WanSoundImageToVideo:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, ref_image=None, audio_encoder_output=None, control_video=None, ref_motion=None):
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size, ref_image=None, audio_encoder_output=None, control_video=None, ref_motion=None, scale_method="lanczos", crop_mode="center"):
         positive, negative, out_latent, frame_offset = xb_wan_sound_to_video(
             positive, negative, vae, width, height, length, batch_size, vae_tile_size, 
             ref_image=ref_image, audio_encoder_output=audio_encoder_output,
-            control_video=control_video, ref_motion=ref_motion)
+            control_video=control_video, ref_motion=ref_motion,
+            scale_method=scale_method, crop_mode=crop_mode)
         return (positive, negative, out_latent)
 
 
 # ==============================================================================
-# 6. 单人语音转视频分块 — VAE分块版 WanInfiniteTalkToVideo (single_speaker)
+
 # ==============================================================================
 from comfy.ldm.wan.model_multitalk import InfiniteTalkOuterSampleWrapper, MultiTalkCrossAttnPatch, project_audio_features
 
@@ -528,7 +627,7 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
         motion_frames = comfy.utils.common_upscale(previous_frames[-motion_frame_count:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
         frame_offset = previous_frames.shape[0] - motion_frame_count
         if segment_audio:
-            audio_start = 0  # 接力点：每段音频独立，始终从头开始
+            audio_start = 0  # [fixed]
         else:
             audio_start = frame_offset
         audio_end = audio_start + length
@@ -541,7 +640,7 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
 
     audio_embed = project_audio_features(model_patch.model.audio_proj, encoded_audio_list, audio_start, audio_end).to(model.model_dtype())
 
-    # 直接打补丁（不 clone，保留 BlockSwap 分块缓存；先清理旧补丁防累积）
+
     for key in ("infinite_talk_outer_sample",):
         if hasattr(model, "wrappers") and key in model.wrappers:
             del model.wrappers[key]
@@ -564,7 +663,7 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
 
 
 class XB_WanInfiniteTalkToVideo_Single:
-    """单人语音转视频分块 — 对应 WanInfiniteTalkToVideo (single_speaker) + VAE tiling"""
+    """单人语音转视频分块 -- 对应 WanInfiniteTalkToVideo (single_speaker) + VAE tiling"""
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -574,7 +673,7 @@ class XB_WanInfiniteTalkToVideo_Single:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
@@ -586,6 +685,8 @@ class XB_WanInfiniteTalkToVideo_Single:
                 "clip_vision_output": ("CLIP_VISION_OUTPUT",),
                 "start_image": ("IMAGE",),
                 "previous_frames": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -606,7 +707,7 @@ class XB_WanInfiniteTalkToVideo_Single:
 
 
 class XB_WanInfiniteTalkToVideo_Dual:
-    """双人语音转视频分块 — 对应 WanInfiniteTalkToVideo (two_speakers) + VAE tiling"""
+    """双人语音转视频分块 --对应 WanInfiniteTalkToVideo (two_speakers) + VAE tiling"""
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -616,7 +717,7 @@ class XB_WanInfiniteTalkToVideo_Dual:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
@@ -631,6 +732,8 @@ class XB_WanInfiniteTalkToVideo_Dual:
                 "clip_vision_output": ("CLIP_VISION_OUTPUT",),
                 "start_image": ("IMAGE",),
                 "previous_frames": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -642,20 +745,22 @@ class XB_WanInfiniteTalkToVideo_Dual:
     def process(self, model, model_patch, positive, negative, vae, width, height, length,
                 audio_encoder_output_1, audio_encoder_output_2, mask_1, mask_2,
                 motion_frame_count, audio_scale, vae_tile_size,
-                clip_vision_output=None, start_image=None, previous_frames=None):
+                clip_vision_output=None, start_image=None, previous_frames=None,
+                scale_method="lanczos", crop_mode="center"):
         return _process_infinite_talk_audio(
             model, model_patch, positive, negative, vae, width, height, length,
             audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
             clip_vision_output=clip_vision_output, start_image=start_image,
             audio_encoder_output_2=audio_encoder_output_2,
             previous_frames=previous_frames,
-            mask_1=mask_1, mask_2=mask_2)
+            mask_1=mask_1, mask_2=mask_2,
+            scale_method=scale_method, crop_mode=crop_mode)
 
 # ==============================================================================
-# 保留旧的 XB_WanInfiniteTalkToVideo 兼容别名（单人+双人 mode 选择器）
+# 保留旧的 XB_WanInfiniteTalkToVideo 兼容别名（单人/双人 mode 选择器）
 # ==============================================================================
 class XB_WanInfiniteTalkToVideo:
-    """兼容旧工作流 — 通过 mode 切换单人/双人"""
+    """兼容旧工作流 --通过 mode 切换单人/双人"""
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -666,7 +771,7 @@ class XB_WanInfiniteTalkToVideo:
                 "negative": ("CONDITIONING",),
                 "vae": ("VAE",),
                 "mode": (["single_speaker", "two_speakers"], {"default": "single_speaker"}),
-                "width": ("INT", {"default": 832, "min": 260, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "audio_encoder_output_1": ("AUDIO_ENCODER_OUTPUT",),
@@ -681,6 +786,8 @@ class XB_WanInfiniteTalkToVideo:
                 "previous_frames": ("IMAGE",),
                 "mask_1": ("MASK",),
                 "mask_2": ("MASK",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -693,11 +800,600 @@ class XB_WanInfiniteTalkToVideo:
                 audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
                 clip_vision_output=None, start_image=None,
                 audio_encoder_output_2=None, previous_frames=None,
-                mask_1=None, mask_2=None):
+                mask_1=None, mask_2=None,
+                scale_method="lanczos", crop_mode="center"):
         return _process_infinite_talk_audio(
             model, model_patch, positive, negative, vae, width, height, length,
             audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
             clip_vision_output=clip_vision_output, start_image=start_image,
             audio_encoder_output_2=audio_encoder_output_2,
             previous_frames=previous_frames,
-            mask_1=mask_1, mask_2=mask_2)
+            mask_1=mask_1, mask_2=mask_2,
+            scale_method=scale_method, crop_mode=crop_mode)
+
+# ==============================================================================
+
+# ==============================================================================
+
+# ==============================================================================
+    """Wan FunInpaint to Video with VAE tiling"""
+# ==============================================================================
+class XB_WanFunInpaintToVideo:
+    """Wan FunInpaint to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "end_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+                start_image=None, end_image=None, clip_vision_output=None,
+                scale_method="lanczos", crop_mode="center"):
+        flfv = XB_WanFirstLastFrameToVideo()
+        return flfv.process(positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+                           start_image=start_image, end_image=end_image,
+                           clip_vision_start_image=clip_vision_output,
+                           scale_method=scale_method, crop_mode=crop_mode)
+
+# ==============================================================================
+    """Wan Camera Control to Video with VAE tiling"""
+# ==============================================================================
+class XB_WanCameraImageToVideo:
+    """Wan Camera Control to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "camera_conditions": ("WAN_CAMERA_EMBEDDING",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+                start_image=None, clip_vision_output=None, camera_conditions=None,
+                scale_method="lanczos", crop_mode="center"):
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+        concat_latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+        concat_latent = comfy.latent_formats.Wan21().process_out(concat_latent)
+
+        if start_image is not None:
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
+            concat_latent_image = _encode_vae(vae, start_image[:, :, :, :3], vae_tile_size)
+            concat_latent[:,:,:concat_latent_image.shape[2]] = concat_latent_image[:,:,:concat_latent.shape[2]]
+            mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]), device=latent.device)
+            mask[:, :, :start_image.shape[0] + 3] = 0.0
+            mask = mask.view(1, mask.shape[2] // 4, 4, mask.shape[3], mask.shape[4]).transpose(1, 2)
+            positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent, "concat_mask": mask})
+            negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent, "concat_mask": mask})
+
+        if camera_conditions is not None:
+            positive = node_helpers.conditioning_set_values(positive, {'camera_conditions': camera_conditions})
+            negative = node_helpers.conditioning_set_values(negative, {'camera_conditions': camera_conditions})
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+        out_latent = {"samples": latent}
+        return (positive, negative, out_latent)
+
+# ==============================================================================
+    """Wan Phantom Subject to Video with VAE tiling"""
+# ==============================================================================
+class XB_WanPhantomSubjectToVideo:
+    """Wan Phantom Subject to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "images": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative_text", "negative_img_text", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+                images=None, scale_method="lanczos", crop_mode="center"):
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+        cond2 = negative
+        if images is not None:
+            images = _upscale(images[:length], width, height, scale_method, crop_mode)
+            latent_images = []
+            for i in images:
+                latent_images += [_encode_vae(vae, i.unsqueeze(0)[:, :, :, :3], vae_tile_size)]
+            concat_latent_image = torch.cat(latent_images, dim=2)
+            positive = node_helpers.conditioning_set_values(positive, {"time_dim_concat": concat_latent_image})
+            cond2 = node_helpers.conditioning_set_values(negative, {"time_dim_concat": concat_latent_image})
+            negative = node_helpers.conditioning_set_values(negative, {"time_dim_concat": comfy.latent_formats.Wan21().process_out(torch.zeros_like(concat_latent_image))})
+
+        out_latent = {"samples": latent}
+        return (positive, cond2, negative, out_latent)
+
+# ==============================================================================
+    """Wan HuMo to Video with VAE tiling"""
+# ==============================================================================
+def _get_audio_emb_window(audio_emb, frame_num, frame0_idx, audio_shift=2):
+    zero_audio_embed = torch.zeros((audio_emb.shape[1], audio_emb.shape[2]), dtype=audio_emb.dtype, device=audio_emb.device)
+    zero_audio_embed_3 = torch.zeros((3, audio_emb.shape[1], audio_emb.shape[2]), dtype=audio_emb.dtype, device=audio_emb.device)
+    iter_ = 1 + (frame_num - 1) // 4
+    audio_emb_wind = []
+    for lt_i in range(iter_):
+        if lt_i == 0:
+            st = frame0_idx + lt_i - 2
+            ed = frame0_idx + lt_i + 3
+            wind_feat = torch.stack([audio_emb[i] if (0 <= i < audio_emb.shape[0]) else zero_audio_embed for i in range(st, ed)], dim=0)
+            wind_feat = torch.cat((zero_audio_embed_3, wind_feat), dim=0)
+        else:
+            st = frame0_idx + 1 + 4 * (lt_i - 1) - audio_shift
+            ed = frame0_idx + 1 + 4 * lt_i + audio_shift
+            wind_feat = torch.stack([audio_emb[i] if (0 <= i < audio_emb.shape[0]) else zero_audio_embed for i in range(st, ed)], dim=0)
+        audio_emb_wind.append(wind_feat)
+    audio_emb_wind = torch.stack(audio_emb_wind, dim=0)
+    return audio_emb_wind, ed - audio_shift
+
+class XB_WanHuMoImageToVideo:
+    """Wan HuMo to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 97, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "audio_encoder_output": ("AUDIO_ENCODER_OUTPUT",),
+                "ref_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+                ref_image=None, audio_encoder_output=None, scale_method="lanczos", crop_mode="center"):
+        latent_t = ((length - 1) // 4) + 1
+        latent = torch.zeros([batch_size, 16, latent_t, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+
+        if ref_image is not None:
+            ref_image = _upscale(ref_image[:1], width, height, scale_method, crop_mode)
+            ref_latent = _encode_vae(vae, ref_image[:, :, :, :3], vae_tile_size)
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [ref_latent]}, append=True)
+            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [torch.zeros_like(ref_latent)]}, append=True)
+        else:
+            zero_latent = torch.zeros([batch_size, 16, 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [zero_latent]}, append=True)
+            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [zero_latent]}, append=True)
+
+        if audio_encoder_output is not None:
+            audio_emb = torch.stack(audio_encoder_output["encoded_audio_all_layers"], dim=2)
+            audio_len = audio_encoder_output["audio_samples"] // 640
+            audio_emb = audio_emb[:, :audio_len * 2]
+            feat0 = linear_interpolation(audio_emb[:, :, 0: 8].mean(dim=2), 50, 25)
+            feat1 = linear_interpolation(audio_emb[:, :, 8: 16].mean(dim=2), 50, 25)
+            feat2 = linear_interpolation(audio_emb[:, :, 16: 24].mean(dim=2), 50, 25)
+            feat3 = linear_interpolation(audio_emb[:, :, 24: 32].mean(dim=2), 50, 25)
+            feat4 = linear_interpolation(audio_emb[:, :, 32], 50, 25)
+            audio_emb = torch.stack([feat0, feat1, feat2, feat3, feat4], dim=2)[0]
+            audio_emb, _ = _get_audio_emb_window(audio_emb, length, frame0_idx=0)
+            audio_emb = audio_emb.unsqueeze(0)
+            audio_emb_neg = torch.zeros_like(audio_emb)
+            positive = node_helpers.conditioning_set_values(positive, {"audio_embed": audio_emb})
+            negative = node_helpers.conditioning_set_values(negative, {"audio_embed": audio_emb_neg})
+        else:
+            zero_audio = torch.zeros([batch_size, latent_t + 1, 8, 5, 1280], device=comfy.model_management.intermediate_device())
+            positive = node_helpers.conditioning_set_values(positive, {"audio_embed": zero_audio})
+            negative = node_helpers.conditioning_set_values(negative, {"audio_embed": zero_audio})
+
+        out_latent = {"samples": latent}
+        return (positive, negative, out_latent)
+
+# ==============================================================================
+# 7.5.5 🎬 Wan22 ImageToVideo Latent 分块
+# ==============================================================================
+class XB_Wan22ImageToVideoLatent:
+    """Wan 2.2 Image to Video Latent with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 1280, "min": 16, "max": 8192, "step": 32}),
+                "height": ("INT", {"default": 704, "min": 32, "max": 8192, "step": 32}),
+                "length": ("INT", {"default": 49, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "start_image": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("LATENT",)
+    RETURN_NAMES = ("latent",)
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, vae, width, height, length, batch_size, vae_tile_size,
+                start_image=None, scale_method="lanczos", crop_mode="center"):
+        latent = torch.zeros([1, 48, ((length - 1) // 4) + 1, height // 16, width // 16], device=comfy.model_management.intermediate_device())
+        mask = torch.ones([latent.shape[0], 1, ((length - 1) // 4) + 1, latent.shape[-2], latent.shape[-1]], device=comfy.model_management.intermediate_device())
+
+        if start_image is not None:
+            start_image = _upscale(start_image[:length], width, height, scale_method, crop_mode)
+            latent_temp = _encode_vae(vae, start_image, vae_tile_size)
+            latent[:, :, :latent_temp.shape[-3]] = latent_temp
+            mask[:, :, :latent_temp.shape[-3]] *= 0.0
+
+        out_latent = {}
+        latent_format = comfy.latent_formats.Wan22()
+        latent = latent_format.process_out(latent) * mask + latent * (1.0 - mask)
+        out_latent["samples"] = latent.repeat((batch_size,) + (1,) * (latent.ndim - 1))
+        out_latent["noise_mask"] = mask.repeat((batch_size,) + (1,) * (mask.ndim - 1))
+        return (out_latent,)
+
+# ==============================================================================
+# 7.5.6 🎬 Wan SoundImage Extend 分块
+# ==============================================================================
+class XB_WanSoundImageToVideoExtend:
+    """Wan Sound Extend to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "length": ("INT", {"default": 77, "min": 1, "max": 8192, "step": 4}),
+                "video_latent": ("LATENT",),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "audio_encoder_output": ("AUDIO_ENCODER_OUTPUT",),
+                "ref_image": ("IMAGE",),
+                "control_video": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, length, video_latent, vae_tile_size,
+                ref_image=None, audio_encoder_output=None, control_video=None,
+                scale_method="lanczos", crop_mode="center"):
+        video_latent_data = video_latent["samples"]
+        width = video_latent_data.shape[-1] * 8
+        height = video_latent_data.shape[-2] * 8
+        batch_size = video_latent_data.shape[0]
+        frame_offset = video_latent_data.shape[-3] * 4
+        positive, negative, out_latent, frame_offset = xb_wan_sound_to_video(
+            positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+            frame_offset=frame_offset, ref_image=ref_image,
+            audio_encoder_output=audio_encoder_output,
+            control_video=control_video, ref_motion=None, ref_motion_latent=video_latent_data,
+            scale_method=scale_method, crop_mode=crop_mode)
+        return (positive, negative, out_latent)
+
+# ==============================================================================
+    """Wan SCAIL Pose to Video with VAE tiling"""
+# ==============================================================================
+class XB_WanSCAILToVideo:
+    """Wan SCAIL Pose to Video with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 32}),
+                "height": ("INT", {"default": 896, "min": 32, "max": 8192, "step": 32}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "pose_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "pose_start": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "pose_end": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "reference_image": ("IMAGE",),
+                "pose_video": ("IMAGE",),
+                "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, pose_strength, pose_start, pose_end, vae_tile_size,
+                reference_image=None, clip_vision_output=None, pose_video=None,
+                scale_method="lanczos", crop_mode="center"):
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+
+        if reference_image is not None:
+            reference_image = _upscale(reference_image[:1], width, height, scale_method, crop_mode)
+            ref_latent = _encode_vae(vae, reference_image[:, :, :, :3], vae_tile_size)
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [ref_latent]}, append=True)
+            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [torch.zeros_like(ref_latent)]}, append=True)
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+        if pose_video is not None:
+            pose_video = _upscale(pose_video[:length], width // 2, height // 2, "area", "center")
+            pose_video_latent = _encode_vae(vae, pose_video[:, :, :, :3], vae_tile_size) * pose_strength
+            positive = node_helpers.conditioning_set_values_with_timestep_range(positive, {"pose_video_latent": pose_video_latent}, pose_start, pose_end)
+            negative = node_helpers.conditioning_set_values_with_timestep_range(negative, {"pose_video_latent": pose_video_latent}, pose_start, pose_end)
+
+        out_latent = {"samples": latent}
+        return (positive, negative, out_latent)
+
+# ==============================================================================
+# 7.5.7 Pro 🎬 Wan SCAIL (pose) 转视频分块 — 高配版
+# ==============================================================================
+# SCAIL-2 mask helper — colored RGB mask → 28-channel binary latent
+# ==============================================================================
+def _scail_extract_mask_to_28ch(rgb_video):
+    """Colored RGB mask (T, H, W, 3) in [0,1] -> SCAIL-2 28-channel binary latent
+    (1, T_lat, 28, H_lat, W_lat). 7 per-color binary channels (white/r/g/b/y/m/c)
+    threshold-extracted at 225/255, 8x spatial downsample, 4-frame temporal stacking."""
+    T, H, W, _ = rgb_video.shape
+    _ON_THRESH = 225.0 / 255.0
+    mask = rgb_video.movedim(-1, 1).float()
+    R = (mask[:, 0:1] > _ON_THRESH).float()
+    G = (mask[:, 1:2] > _ON_THRESH).float()
+    B = (mask[:, 2:3] > _ON_THRESH).float()
+    nR, nG, nB = 1 - R, 1 - G, 1 - B
+    binary_7ch = torch.cat([
+        R * G * B,    # white
+        R * nG * nB,  # red
+        nR * G * nB,  # green
+        nR * nG * B,  # blue
+        R * G * nB,   # yellow
+        R * nG * B,   # magenta
+        nR * G * B,   # cyan
+    ], dim=1)
+    H_lat, W_lat = H, W
+    for _ in range(3):
+        H_lat = (H_lat + 1) // 2
+        W_lat = (W_lat + 1) // 2
+    binary_7ch = torch.nn.functional.interpolate(binary_7ch, size=(H_lat, W_lat), mode='area')
+    T_latent = (T - 1) // 4 + 1
+    padded = torch.cat([binary_7ch[:1].repeat(4, 1, 1, 1), binary_7ch[1:]], dim=0)
+    out = padded.view(T_latent, 28, H_lat, W_lat)
+    return out.unsqueeze(0)
+
+# ==============================================================================
+# 7.5.7 Pro 🎬 Wan SCAIL-2 (pose) 转视频分块 — 完整版
+# ==============================================================================
+class XB_WanSCAILToVideoPro:
+    """Wan SCAIL-2 Pose to Video Pro — exact port from ComfyUI core nodes_scail.py with VAE tiling"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 32}),
+                "height": ("INT", {"default": 896, "min": 32, "max": 8192, "step": 32}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "pose_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "pose_start": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "pose_end": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "replacement_mode": ("BOOLEAN", {"default": False}),
+                "video_frame_offset": ("INT", {"default": 0, "min": 0, "max": 8192, "step": 1}),
+                "previous_frame_count": ("INT", {"default": 5, "min": 1, "max": 8192, "step": 4}),
+                "vae_tile_size": ("INT", {"default": 64, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "pose_video": ("IMAGE",),
+                "pose_video_mask": ("IMAGE",),
+                "reference_image": ("IMAGE",),
+                "reference_image_mask": ("IMAGE",),
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "previous_frames": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "INT")
+    RETURN_NAMES = ("positive", "negative", "latent", "video_frame_offset")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, batch_size, pose_strength, pose_start, pose_end,
+                replacement_mode, video_frame_offset, previous_frame_count, vae_tile_size,
+                pose_video=None, pose_video_mask=None, reference_image=None,
+                reference_image_mask=None, clip_vision_output=None, previous_frames=None):
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
+        noise_mask = None
+
+        # ref_mask_flag: False=Animation Mode, True=Replacement Mode
+        ref_mask_flag = not replacement_mode
+        positive = node_helpers.conditioning_set_values(positive, {"ref_mask_flag": ref_mask_flag})
+        negative = node_helpers.conditioning_set_values(negative, {"ref_mask_flag": ref_mask_flag})
+
+        # --- previous_frames ---
+        prev_trimmed = None
+        if previous_frames is not None and previous_frames.shape[0] > 0:
+            prev_trimmed = previous_frames[-previous_frame_count:]
+            video_frame_offset -= prev_trimmed.shape[0]
+            video_frame_offset = max(0, video_frame_offset)
+
+        # --- reference_image + mask ---
+        if reference_image is not None:
+            reference_image = comfy.utils.common_upscale(reference_image[:1].movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
+            # Replacement Mode: composite ref on black bg using reference_image_mask as alpha matte
+            if replacement_mode and reference_image_mask is not None:
+                rm = comfy.utils.common_upscale(reference_image_mask[:1].movedim(-1, 1), width, height, "nearest-exact", "center").movedim(1, -1)
+                is_char = (rm[..., :3].max(dim=-1, keepdim=True).values > 0.1).to(reference_image.dtype)
+                reference_image = reference_image * is_char
+            ref_latent = _encode_vae(vae, reference_image[:, :, :, :3], vae_tile_size)
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [ref_latent]}, append=True)
+            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [ref_latent]}, append=True)
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+        # --- pose_video (with offset truncation) ---
+        if pose_video is not None:
+            if pose_video.shape[0] <= video_frame_offset:
+                pose_video = None
+            else:
+                pose_video = pose_video[video_frame_offset:]
+        if pose_video_mask is not None:
+            if pose_video_mask.shape[0] <= video_frame_offset:
+                pose_video_mask = None
+            else:
+                pose_video_mask = pose_video_mask[video_frame_offset:]
+
+        # Truncate pose+mask jointly to the shorter of the two, capped at length
+        ts = [v.shape[0] for v in (pose_video, pose_video_mask) if v is not None]
+        if ts:
+            T_kept = ((min(min(ts), length) - 1) // 4) * 4 + 1
+            if pose_video is not None:
+                pose_video = pose_video[:T_kept]
+            if pose_video_mask is not None:
+                pose_video_mask = pose_video_mask[:T_kept]
+
+        if pose_video is not None:
+            pose_video = comfy.utils.common_upscale(pose_video[:length].movedim(-1, 1), width // 2, height // 2, "area", "center").movedim(1, -1)
+            pose_video_latent = _encode_vae(vae, pose_video[:, :, :, :3], vae_tile_size) * pose_strength
+            positive = node_helpers.conditioning_set_values_with_timestep_range(positive, {"pose_video_latent": pose_video_latent}, pose_start, pose_end)
+            negative = node_helpers.conditioning_set_values_with_timestep_range(negative, {"pose_video_latent": pose_video_latent}, pose_start, pose_end)
+
+        if pose_video_mask is not None:
+            mask_video_hw = comfy.utils.common_upscale(pose_video_mask[:length].movedim(-1, 1), width // 2, height // 2, "area", "center").movedim(1, -1)
+            driving_mask_28ch = _scail_extract_mask_to_28ch(mask_video_hw)
+            positive = node_helpers.conditioning_set_values(positive, {"driving_mask_28ch": driving_mask_28ch})
+            negative = node_helpers.conditioning_set_values(negative, {"driving_mask_28ch": driving_mask_28ch})
+
+        if reference_image_mask is not None and replacement_mode:
+            ref_mask_hw = comfy.utils.common_upscale(reference_image_mask[:1].movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
+            ref_mask_1f = _scail_extract_mask_to_28ch(ref_mask_hw)
+            zeros = torch.zeros((1, latent.shape[2], 28, ref_mask_1f.shape[-2], ref_mask_1f.shape[-1]), device=ref_mask_1f.device, dtype=ref_mask_1f.dtype)
+            ref_mask_28ch = torch.cat([ref_mask_1f, zeros], dim=1)
+            positive = node_helpers.conditioning_set_values(positive, {"ref_mask_28ch": ref_mask_28ch})
+            negative = node_helpers.conditioning_set_values(negative, {"ref_mask_28ch": ref_mask_28ch})
+
+        if prev_trimmed is not None:
+            pf = comfy.utils.common_upscale(prev_trimmed.movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
+            prev_latent = _encode_vae(vae, pf[:, :, :, :3], vae_tile_size)
+            prev_latent_frames = min(prev_latent.shape[2], latent.shape[2])
+            latent[:, :, :prev_latent_frames] = prev_latent[:, :, :prev_latent_frames].to(latent.dtype)
+            noise_mask = torch.ones((1, 1, latent.shape[2], latent.shape[-2], latent.shape[-1]), device=latent.device, dtype=latent.dtype)
+            noise_mask[:, :, :prev_latent_frames] = 0.0
+
+        out_latent = {"samples": latent}
+        if noise_mask is not None:
+            out_latent["noise_mask"] = noise_mask
+        return (positive, negative, out_latent, video_frame_offset + length)
+
+# ==============================================================================
+# 8. 🧊 Wan VAE 时空分块解码（独立节点）
+# ==============================================================================
+# 8. 🧊 Wan VAE 时空分块解码（独立节点）
+# ==============================================================================
+class XB_WanVAEDecodeTiled:
+    """Wan 视频 VAE 分块解码——空间+时间分块，降低显存峰值"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "samples": ("LATENT",),
+                "vae": ("VAE",),
+                "tile_size": ("INT", {"default": 256, "min": 64, "max": 2048, "step": 64, "tooltip": "空间分块大小"}),
+                "spatial_overlap": ("INT", {"default": 32, "min": 0, "max": 512, "step": 32, "tooltip": "空间块重叠像素"}),
+                "temporal_chunk": ("INT", {"default": 64, "min": 0, "max": 1024, "step": 4, "tooltip": "时间分块帧数(0=不分块)"}),
+                "temporal_overlap": ("INT", {"default": 8, "min": 0, "max": 256, "step": 4, "tooltip": "时间块重叠帧数"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "decode"
+    CATEGORY = "XB_ToolBox/Wan"
+
+    def decode(self, samples, vae, tile_size, spatial_overlap, temporal_chunk, temporal_overlap):
+        if temporal_chunk <= 0:
+            return nodes.VAEDecode().decode(samples=samples, vae=vae)
+        return nodes.VAEDecodeTiled().decode(
+            samples=samples, vae=vae,
+            tile_size=tile_size, overlap=spatial_overlap,
+            temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)

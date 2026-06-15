@@ -742,6 +742,7 @@
       "negative_prompt": { "name": "负面提示词" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },
+      "total_frames": { "name": "总帧数" },
       "fps": { "name": "帧率" },
       "vae_encode_tile_size": { "name": "VAE编码分块" },
       "vae_decode_tile_size": { "name": "VAE解码分块" },
@@ -865,6 +866,7 @@
       "negative_prompt": { "name": "负面提示词" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },
+      "total_frames": { "name": "总帧数" },
       "fps": { "name": "帧率" },
       "vae_encode_tile_size": { "name": "VAE编码分块" },
       "vae_decode_tile_size": { "name": "VAE解码分块" },
@@ -880,7 +882,8 @@
       "audio_scale": { "name": "音频强度" },
       "cleanup": { "name": "显存清理" },
       "clip_vision": { "name": "CLIP视觉" },
-      "audio_encoder_output_1": { "name": "音频输入1(预编码)" }
+      "start_image": { "name": "起始参考图" },
+      "audio": { "name": "长音频输入" }
     },
     "outputs": {
       "0": { "name": "📦 WAN_INFINITETALK_BUS" }
@@ -900,6 +903,228 @@
       "0": { "name": "📦 WAN_INFINITETALK_BUS (传给下段)" },
       "1": { "name": "🎞️ 累加视频流" },
       "2": { "name": "🔊 累加音频流" }
+    }
+  },
+  "XB_WanVaceToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan VACE视频转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "strength": { "name": "强度" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "control_video": { "name": "控制视频" },
+      "control_masks": { "name": "控制遮罩" },
+      "reference_image": { "name": "参考图像" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" },
+      "3": { "name": "裁剪潜变量" }
+    }
+  },
+  "XB_WanFunInpaintToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan 修补转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "start_image": { "name": "首帧图" },
+      "end_image": { "name": "尾帧图" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "XB_WanCameraImageToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan 相机控制转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "start_image": { "name": "首帧图" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "camera_conditions": { "name": "相机条件" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "XB_WanPhantomSubjectToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan 幻影主体转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "images": { "name": "图像" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件(文本)" },
+      "2": { "name": "负面条件(图像文本)" },
+      "3": { "name": "潜变量" }
+    }
+  },
+  "XB_WanHuMoImageToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan 人物动作转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "audio_encoder_output": { "name": "音频编码输出" },
+      "ref_image": { "name": "参考图像" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "XB_Wan22ImageToVideoLatent": {
+    "display_name": "XB-BOX - 🎬 Wan2.2 潜变量转视频分块",
+    "inputs": {
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "start_image": { "name": "首帧图" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "潜变量" }
+    }
+  },
+  "XB_WanSoundImageToVideoExtend": {
+    "display_name": "XB-BOX - 🎬 Wan 音频扩展转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "length": { "name": "长度" },
+      "video_latent": { "name": "视频潜变量" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "audio_encoder_output": { "name": "音频编码输出" },
+      "ref_image": { "name": "参考图像" },
+      "control_video": { "name": "控制视频" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "XB_WanSCAILToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan SCAIL姿态转视频分块",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "pose_strength": { "name": "姿态强度" },
+      "pose_start": { "name": "姿态起始" },
+      "pose_end": { "name": "姿态结束" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "reference_image": { "name": "参考图像" },
+      "pose_video": { "name": "姿态视频" },
+      "scale_method": { "name": "缩放算法" },
+      "crop_mode": { "name": "裁剪模式" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "XB_WanSCAILToVideoPro": {
+    "display_name": "XB-BOX - 🎬 Wan SCAIL-2姿态转视频分块 Pro",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "length": { "name": "长度" },
+      "batch_size": { "name": "批量大小" },
+      "pose_strength": { "name": "姿态强度" },
+      "pose_start": { "name": "姿态起始" },
+      "pose_end": { "name": "姿态结束" },
+      "replacement_mode": { "name": "替换模式" },
+      "video_frame_offset": { "name": "视频帧偏移" },
+      "previous_frame_count": { "name": "前帧数量" },
+      "vae_tile_size": { "name": "VAE编码分块" },
+      "pose_video": { "name": "姿态视频" },
+      "pose_video_mask": { "name": "姿态遮罩视频" },
+      "reference_image": { "name": "参考图像" },
+      "reference_image_mask": { "name": "参考遮罩图像" },
+      "clip_vision_output": { "name": "CLIP视觉输出" },
+      "previous_frames": { "name": "上一段帧" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" },
+      "3": { "name": "视频帧偏移" }
+    }
+  },
+  "XB_WanVAEDecodeTiled": {
+    "display_name": "XB-BOX - 🧊 Wan VAE 时空分块解码",
+    "inputs": {
+      "samples": { "name": "潜变量" },
+      "vae": { "name": "VAE模型" },
+      "tile_size": { "name": "空间分块大小" },
+      "spatial_overlap": { "name": "空间块重叠" },
+      "temporal_chunk": { "name": "时间分块帧数" },
+      "temporal_overlap": { "name": "时间块重叠" }
+    },
+    "outputs": {
+      "0": { "name": "图像" }
     }
   }
 }

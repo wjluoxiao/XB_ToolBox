@@ -56,7 +56,7 @@ try:
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual
+    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro
     from .nodes_batch import XB_BatchFolderLoader
     # 在 from .nodes_pipeline 这一行，加上 XB_Wan_InfiniteRelayNode
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode
@@ -92,11 +92,21 @@ try:
         "XB_WanImageToVideo": XB_WanImageToVideo,
         "XB_WanFirstLastFrameToVideo": XB_WanFirstLastFrameToVideo,
         "XB_WanFunControlToVideo": XB_WanFunControlToVideo,
+        "XB_WanVaceToVideo": XB_WanVaceToVideo,
         "XB_Wan22FunControlToVideo": XB_Wan22FunControlToVideo,
         "XB_WanSoundImageToVideo": XB_WanSoundImageToVideo,
         "XB_WanInfiniteTalkToVideo": XB_WanInfiniteTalkToVideo,
         "XB_WanInfiniteTalkToVideo_Single": XB_WanInfiniteTalkToVideo_Single,
         "XB_WanInfiniteTalkToVideo_Dual": XB_WanInfiniteTalkToVideo_Dual,
+        "XB_WanVAEDecodeTiled": XB_WanVAEDecodeTiled,
+        "XB_WanFunInpaintToVideo": XB_WanFunInpaintToVideo,
+        "XB_WanCameraImageToVideo": XB_WanCameraImageToVideo,
+        "XB_WanPhantomSubjectToVideo": XB_WanPhantomSubjectToVideo,
+        "XB_WanHuMoImageToVideo": XB_WanHuMoImageToVideo,
+        "XB_Wan22ImageToVideoLatent": XB_Wan22ImageToVideoLatent,
+        "XB_WanSoundImageToVideoExtend": XB_WanSoundImageToVideoExtend,
+        "XB_WanSCAILToVideo": XB_WanSCAILToVideo,
+        "XB_WanSCAILToVideoPro": XB_WanSCAILToVideoPro,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
