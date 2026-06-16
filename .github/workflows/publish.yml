@@ -22,4 +22,4 @@ jobs:
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@v1
         with:
-          token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
