@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_MasterParameter — 万能参数控制器 UI
+// ============================================================
+
 const MODE_CONFIGS = {
     "Free Mode": { min: 0, max: 9999, dragStep: 10, snapRound: 1, precision: 0, def: 0 },
     "Model Mode": { min: 0, max: 50, dragStep: 10, snapRound: 1, precision: 0, def: 0 },

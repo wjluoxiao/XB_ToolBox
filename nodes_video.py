@@ -1,3 +1,6 @@
+# ============================================================
+# XB_ImageParamsMaster — 图像参数主控
+# ============================================================
 class XB_ImageParamsMaster:
     @classmethod
     def INPUT_TYPES(cls):
@@ -35,6 +38,9 @@ class XB_ImageParamsMaster:
 
         return (safe_w, safe_h, batch_size, float(strength_float), int(strength_int), max(safe_w, safe_h))
 
+# ============================================================
+# XB_VideoParamsMaster — 视频参数主控
+# ============================================================
 class XB_VideoParamsMaster:
     @classmethod
     def INPUT_TYPES(cls):
@@ -86,6 +92,9 @@ class XB_VideoParamsMaster:
 
         return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
 
+# ============================================================
+# XB_MasterParameter — 万能参数控制器
+# ============================================================
 class XB_MasterParameter:
     @classmethod
     def INPUT_TYPES(cls):

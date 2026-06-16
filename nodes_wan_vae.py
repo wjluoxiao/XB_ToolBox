@@ -23,9 +23,9 @@ def _encode_vae(vae, pixels, tile_size):
     else:
         return vae.encode_tiled(pixels[:, :, :, :3], tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=256, overlap_t=8)
 
-# ==============================================================================
-
-# ==============================================================================
+# ============================================================
+# XB_WanImageToVideo — Wan 图生视频
+# ============================================================
 class XB_WanImageToVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -76,9 +76,10 @@ class XB_WanImageToVideo:
 
         return (positive, negative, {"samples": latent})
 
-# ==============================================================================
-# 2. 首尾帧转视频分块
-# ==============================================================================
+
+# ============================================================
+# XB_WanFirstLastFrameToVideo — Wan 首尾帧转视频
+# ============================================================
 class XB_WanFirstLastFrameToVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -151,9 +152,10 @@ class XB_WanFirstLastFrameToVideo:
 
         return (positive, negative, {"samples": latent})
 
-# ==============================================================================
-# 3. 万能控制视频分块 (Wan 2.1)
-# ==============================================================================
+
+# ============================================================
+# XB_WanFunControlToVideo — Wan FunControl 转视频
+# ============================================================
 class XB_WanFunControlToVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -211,10 +213,11 @@ class XB_WanFunControlToVideo:
         out_latent["samples"] = latent
         return (positive, negative, out_latent)
 
-# 3.5 Wan VACE video edit (tiled)
-# ==============================================================================
+
+# ============================================================
+# XB_WanVaceToVideo — Wan VACE 视频编辑
+# ============================================================
 class XB_WanVaceToVideo:
-    """Wan VACE to Video - exact port from ComfyUI core with VAE tiling"""
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -305,9 +308,10 @@ class XB_WanVaceToVideo:
         out_latent["samples"] = latent
         return (positive, negative, out_latent, trim_latent)
 
-# ==============================================================================
-# 4. Wan 2.2 FunControl (tiled)
-# ==============================================================================
+
+# ============================================================
+# XB_Wan22FunControlToVideo — Wan 2.2 FunControl 转视频
+# ============================================================
 class XB_Wan22FunControlToVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -377,9 +381,6 @@ class XB_Wan22FunControlToVideo:
         return (positive, negative, out_latent)
 
 
-# ==============================================================================
-    """Wan Sound Extend to Video with VAE tiling"""
-# ==============================================================================
 def linear_interpolation(features, input_fps, output_fps, output_len=None):
     features = features.transpose(1, 2)
     seq_len = features.shape[2] / float(input_fps)
@@ -489,6 +490,9 @@ def xb_wan_sound_to_video(positive, negative, vae, width, height, length, batch_
     out_latent["samples"] = latent
     return positive, negative, out_latent, frame_offset
 
+# ============================================================
+# XB_WanSoundImageToVideo — Wan 音频+图像转视频
+# ============================================================
 class XB_WanSoundImageToVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -527,9 +531,6 @@ class XB_WanSoundImageToVideo:
         return (positive, negative, out_latent)
 
 
-# ==============================================================================
-
-# ==============================================================================
 from comfy.ldm.wan.model_multitalk import InfiniteTalkOuterSampleWrapper, MultiTalkCrossAttnPatch, project_audio_features
 
 def _linear_interp(features, input_fps, output_fps, output_len=None):
@@ -546,8 +547,7 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
                                   audio_encoder_output_2=None, previous_frames=None,
                                   mask_1=None, mask_2=None, segment_audio=False,
                                   scale_method="lanczos", crop_mode="center"):
-    """共用音频处理 + 模型补丁核心逻辑（单人/双人复用）
-    scale_method/crop_mode 控制 start_image 缩放到视频尺寸的算法"""
+    """共用音频处理 + 模型补丁核心逻辑（单人/双人复用）"""
 
     if previous_frames is not None and previous_frames.shape[0] < motion_frame_count:
         raise ValueError("Not enough previous frames provided.")
@@ -662,6 +662,9 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
     return model, positive, negative, out_latent, trim_image
 
 
+# ============================================================
+# XB_WanInfiniteTalkToVideo_Single — Wan 单人语音转视频
+# ============================================================
 class XB_WanInfiniteTalkToVideo_Single:
     """单人语音转视频分块 -- 对应 WanInfiniteTalkToVideo (single_speaker) + VAE tiling"""
     @classmethod
@@ -706,6 +709,9 @@ class XB_WanInfiniteTalkToVideo_Single:
             previous_frames=previous_frames, segment_audio=segment_audio)
 
 
+# ============================================================
+# XB_WanInfiniteTalkToVideo_Dual — Wan 双人语音转视频
+# ============================================================
 class XB_WanInfiniteTalkToVideo_Dual:
     """双人语音转视频分块 --对应 WanInfiniteTalkToVideo (two_speakers) + VAE tiling"""
     @classmethod
@@ -759,6 +765,9 @@ class XB_WanInfiniteTalkToVideo_Dual:
 # ==============================================================================
 # 保留旧的 XB_WanInfiniteTalkToVideo 兼容别名（单人/双人 mode 选择器）
 # ==============================================================================
+# ============================================================
+# XB_WanInfiniteTalkToVideo — Wan 语音转视频分块
+# ============================================================
 class XB_WanInfiniteTalkToVideo:
     """兼容旧工作流 --通过 mode 切换单人/双人"""
     @classmethod
@@ -818,6 +827,9 @@ class XB_WanInfiniteTalkToVideo:
 # ==============================================================================
     """Wan FunInpaint to Video with VAE tiling"""
 # ==============================================================================
+# ============================================================
+# XB_WanFunInpaintToVideo — Wan FunInpaint 转视频
+# ============================================================
 class XB_WanFunInpaintToVideo:
     """Wan FunInpaint to Video with VAE tiling"""
     @classmethod
@@ -859,6 +871,9 @@ class XB_WanFunInpaintToVideo:
 # ==============================================================================
     """Wan Camera Control to Video with VAE tiling"""
 # ==============================================================================
+# ============================================================
+# XB_WanCameraImageToVideo — Wan 相机运镜图生视频
+# ============================================================
 class XB_WanCameraImageToVideo:
     """Wan Camera Control to Video with VAE tiling"""
     @classmethod
@@ -919,6 +934,9 @@ class XB_WanCameraImageToVideo:
 # ==============================================================================
     """Wan Phantom Subject to Video with VAE tiling"""
 # ==============================================================================
+# ============================================================
+# XB_WanPhantomSubjectToVideo — Wan Phantom 主体转视频
+# ============================================================
 class XB_WanPhantomSubjectToVideo:
     """Wan Phantom Subject to Video with VAE tiling"""
     @classmethod
@@ -985,6 +1003,9 @@ def _get_audio_emb_window(audio_emb, frame_num, frame0_idx, audio_shift=2):
     audio_emb_wind = torch.stack(audio_emb_wind, dim=0)
     return audio_emb_wind, ed - audio_shift
 
+# ============================================================
+# XB_WanHuMoImageToVideo — Wan HuMo 图生视频
+# ============================================================
 class XB_WanHuMoImageToVideo:
     """Wan HuMo to Video with VAE tiling"""
     @classmethod
@@ -1054,6 +1075,9 @@ class XB_WanHuMoImageToVideo:
 # ==============================================================================
 # 7.5.5 🎬 Wan22 ImageToVideo Latent 分块
 # ==============================================================================
+# ============================================================
+# XB_Wan22ImageToVideoLatent — Wan 2.2 图生视频 Latent
+# ============================================================
 class XB_Wan22ImageToVideoLatent:
     """Wan 2.2 Image to Video Latent with VAE tiling"""
     @classmethod
@@ -1100,6 +1124,9 @@ class XB_Wan22ImageToVideoLatent:
 # ==============================================================================
 # 7.5.6 🎬 Wan SoundImage Extend 分块
 # ==============================================================================
+# ============================================================
+# XB_WanSoundImageToVideoExtend — Wan 音频+图像扩展视频
+# ============================================================
 class XB_WanSoundImageToVideoExtend:
     """Wan Sound Extend to Video with VAE tiling"""
     @classmethod
@@ -1146,6 +1173,9 @@ class XB_WanSoundImageToVideoExtend:
 # ==============================================================================
     """Wan SCAIL Pose to Video with VAE tiling"""
 # ==============================================================================
+# ============================================================
+# XB_WanSCAILToVideo — Wan SCAIL 转视频
+# ============================================================
 class XB_WanSCAILToVideo:
     """Wan SCAIL Pose to Video with VAE tiling"""
     @classmethod
@@ -1240,6 +1270,9 @@ def _scail_extract_mask_to_28ch(rgb_video):
 # ==============================================================================
 # 7.5.7 Pro 🎬 Wan SCAIL-2 (pose) 转视频分块 — 完整版
 # ==============================================================================
+# ============================================================
+# XB_WanSCAILToVideoPro — Wan SCAIL Pro 转视频
+# ============================================================
 class XB_WanSCAILToVideoPro:
     """Wan SCAIL-2 Pose to Video Pro — exact port from ComfyUI core nodes_scail.py with VAE tiling"""
     @classmethod
@@ -1370,6 +1403,9 @@ class XB_WanSCAILToVideoPro:
 # ==============================================================================
 # 8. 🧊 Wan VAE 时空分块解码（独立节点）
 # ==============================================================================
+# ============================================================
+# XB_WanVAEDecodeTiled — Wan VAE 分块解码
+# ============================================================
 class XB_WanVAEDecodeTiled:
     """Wan 视频 VAE 分块解码——空间+时间分块，降低显存峰值"""
     @classmethod

@@ -107,6 +107,9 @@ def _convert_t5_keys(sd: dict) -> dict:
     return converted
 
 
+# ============================================================
+# XB_WanT5Loader — Wan T5 文本编码器加载器
+# ============================================================
 class XB_WanT5Loader:
     @classmethod
     def INPUT_TYPES(s):

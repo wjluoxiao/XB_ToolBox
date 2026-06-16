@@ -6,6 +6,9 @@ from PIL import Image, ImageOps
 import folder_paths
 import datetime 
 
+# ============================================================
+# XB_BatchFolderLoader — 批量文件夹加载器
+# ============================================================
 class XB_BatchFolderLoader:
     @classmethod
     def INPUT_TYPES(s):

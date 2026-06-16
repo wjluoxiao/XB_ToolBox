@@ -1,6 +1,10 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
+// ============================================================
+// XB_BatchFolderLoader — 文件夹选择器 UI
+// ============================================================
+
 const isZH = navigator.language.startsWith("zh");
 
 app.registerExtension({

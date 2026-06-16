@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_WanAnimate_RelayNode — Animate 无限接力点 UI
+// ============================================================
+
 app.registerExtension({
     name: "xiaobai.animate_relay_ui",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {

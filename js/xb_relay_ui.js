@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_Wan_RelayNode — 首尾帧接力点 UI 交互
+// ============================================================
+
 app.registerExtension({
     name: "xiaobai.relay_node_ui_master",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {

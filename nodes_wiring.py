@@ -7,6 +7,9 @@ anyType = AnyType("*")
 
 MAX_PORTS = 20
 
+# ============================================================
+# XB_DynamicBus — 动态总线 (万能连线中继)
+# ============================================================
 class XB_DynamicBus:
     @classmethod
     def INPUT_TYPES(s):
@@ -22,6 +25,9 @@ class XB_DynamicBus:
         res = [kwargs.get(f"in_{i}") for i in range(1, MAX_PORTS + 1)]
         return tuple(res)
 
+# ============================================================
+# XB_UNetNameBroadcaster — UNet 名称广播器
+# ============================================================
 class XB_UNetNameBroadcaster:
     @classmethod
     def INPUT_TYPES(cls):
@@ -39,6 +45,9 @@ class XB_UNetNameBroadcaster:
     def broadcast(self, unet_name):
         return (unet_name,)
 
+# ============================================================
+# XB_CLIPNameBroadcaster — CLIP 名称广播器
+# ============================================================
 class XB_CLIPNameBroadcaster:
     @classmethod
     def INPUT_TYPES(cls):

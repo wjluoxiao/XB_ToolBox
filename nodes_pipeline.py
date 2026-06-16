@@ -9,18 +9,17 @@ import comfy.model_management
 import folder_paths  
 from .nodes_wan_vae import XB_WanFirstLastFrameToVideo, XB_WanImageToVideo, XB_WanInfiniteTalkToVideo_Single
 
-# ==============================================================================
-# 公共工具：模型状态刷新，防止接力过程中补丁/缓存累积导致质量下滑
-# ==============================================================================
+
 def _refresh_models():
     """清空 GPU 缓存但不卸载模型（BlockSwap 分块模型卸载后重新加载会崩溃）"""
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
 
-# ==============================================================================
-# 1. 视频参数总线 (全面解耦 VAE 编码与解码的时空分块参数)
-# ==============================================================================
+
+# ============================================================
+# XB_Wan_ParamBus — Wan 视频参数总线
+# ============================================================
 class XB_Wan_ParamBus:
     @classmethod
     def INPUT_TYPES(cls):
@@ -41,7 +40,6 @@ class XB_Wan_ParamBus:
                 "spatial_overlap": ("INT", {"default": 32, "min": 0, "max": 3840, "step": 32}),
                 "temporal_chunk_size": ("INT", {"default": 64, "min": 0, "max": 8192, "step": 4}),
                 "temporal_overlap": ("INT", {"default": 8, "min": 0, "max": 8192, "step": 4}),
-                # ------------------------------
                 "steps": ("INT", {"default": 4, "min": 1, "max": 100}),
                 "high_noise_steps": ("INT", {"default": 2, "min": 1, "max": 50}), 
                 "cfg": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.1}),
@@ -78,9 +76,10 @@ class XB_Wan_ParamBus:
             kwargs["clip_vision_output"] = None
         return (kwargs,)
 
-# ==============================================================================
-# 2. 🏃首尾帧接力点
-# ==============================================================================
+
+# ============================================================
+# XB_Wan_RelayNode — Wan 首尾帧接力点
+# ============================================================
 class XB_Wan_RelayNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -120,7 +119,6 @@ class XB_Wan_RelayNode:
         cut_first_frame = b.get("cut_first_frame", True)
         trim_head_frames = b.get("trim_head_frames", 1)
 
-        # 🔄 向后兼容：旧工作流只有 vae_tile_size，新工作流分离了编解码参数
         encode_tile = b.get("vae_encode_tile_size", b.get("vae_tile_size", 64))
         decode_tile = b.get("vae_decode_tile_size", b.get("vae_tile_size", 64))
         spat_overlap = b.get("spatial_overlap", 32)
@@ -183,7 +181,6 @@ class XB_Wan_RelayNode:
         frame_dim = 0 if is_4d else 1
         total_frames = decoded_image.shape[frame_dim]
 
-        # 🛡️ 安全钳：trim_head_frames 不能超过实际帧数，至少保留 1 帧
         if cut_first_frame and total_frames > 1:
             safe_trim = min(trim_head_frames, total_frames - 1)
             if safe_trim > 0:
@@ -203,9 +200,10 @@ class XB_Wan_RelayNode:
         _refresh_models()
         return (wan_bus, last_frame, final_video)
 
-# ==============================================================================
-# 3. 🏃‍♀️Wan无限长接力点
-# ==============================================================================
+
+# ============================================================
+# XB_Wan_InfiniteRelayNode — Wan 无限长接力点
+# ============================================================
 class XB_Wan_InfiniteRelayNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -236,7 +234,6 @@ class XB_Wan_InfiniteRelayNode:
         cut_first_frame = b.get("cut_first_frame", True)
         trim_head_frames = b.get("trim_head_frames", 1)
 
-        # 🔄 向后兼容：旧工作流只有 vae_tile_size，新工作流分离了编解码参数
         encode_tile = b.get("vae_encode_tile_size", b.get("vae_tile_size", 64))
         decode_tile = b.get("vae_decode_tile_size", b.get("vae_tile_size", 64))
         spat_overlap = b.get("spatial_overlap", 32)
@@ -279,7 +276,6 @@ class XB_Wan_InfiniteRelayNode:
         frame_dim = 0 if is_4d else 1
         total_frames = decoded_image.shape[frame_dim]
 
-        # 🛡️ 安全钳：trim_head_frames 不能超过实际帧数，至少保留 1 帧
         if cut_first_frame and total_frames > 1:
             safe_trim = min(trim_head_frames, total_frames - 1)
             if safe_trim > 0:
@@ -299,9 +295,10 @@ class XB_Wan_InfiniteRelayNode:
         _refresh_models()
         return (wan_bus, last_frame, final_video)
 
-# ==============================================================================
-# 4. 视频拼接与分镜切片 
-# ==============================================================================
+
+# ============================================================
+# XB_Video_Merger — 视频拼接器
+# ============================================================
 class XB_Video_Merger:
     @classmethod
     def INPUT_TYPES(cls):
@@ -332,6 +329,9 @@ class XB_Video_Merger:
                     )
         return (torch.cat(videos, dim=concat_dim),)
 
+# ============================================================
+# XB_StoryboardSlicer — 分镜切片器
+# ============================================================
 class XB_StoryboardSlicer:
     @classmethod
     def INPUT_TYPES(cls):
@@ -375,9 +375,10 @@ class XB_StoryboardSlicer:
             sliced_images.append(torch.zeros((1, placeholder_h, placeholder_w, 3), dtype=torch.float32))
         return tuple(sliced_images)
 
-# ==============================================================================
-# 6. 🎬 Wan Animate 动作迁移专用总线 (修正：单模型单轨架构)
-# ==============================================================================
+
+# ============================================================
+# XB_WanAnimate_ParamBus — Wan Animate 动作迁移参数总线
+# ============================================================
 class XB_WanAnimate_ParamBus:
     @classmethod
     def INPUT_TYPES(cls):
@@ -438,9 +439,10 @@ class XB_WanAnimate_ParamBus:
             print(f"👁️ [XB-BOX] Animate CLIP视觉编码 ({ref.shape[1]}×{ref.shape[2]} → {w}×{h}, {m}/{c})")
         return (kwargs,)
 
-# ==============================================================================
-# 7. 🏃‍♀️ Wan Animate 无限接力点 (完全复刻首尾帧接力点的 UI 交互模式)
-# ==============================================================================
+
+# ============================================================
+# XB_WanAnimate_RelayNode — Wan Animate 无限接力点
+# ============================================================
 class XB_WanAnimate_RelayNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -478,9 +480,6 @@ class XB_WanAnimate_RelayNode:
         current_offset = b.get("current_offset", 0)
         seed = b.get("seed", 123456789)
 
-        # ====================================================================
-        # 🛡️ 防呆 1：帧数智能对齐与越界跳过
-        # ====================================================================
         source_video = b.get("pose_video") if b.get("pose_video") is not None else b.get("face_video")
         total_source_frames = float('inf')
 
@@ -515,10 +514,6 @@ class XB_WanAnimate_RelayNode:
             actual_length = segment_length
             print(f"\n🏃‍♀️ [XB-BOX] Executing Wan Animate Relay task... Target segment length: {actual_length}")
 
-        # ====================================================================
-        # 🎨 开关控制：ON=独立选图, OFF=继承总线全局图
-        # ====================================================================
-        # 判断是否使用独立参考图（兼容字符串/布尔/索引）
         is_local = (use_local_ref_image == "独立参考图" or 
                     use_local_ref_image is True or 
                     use_local_ref_image == 1)
@@ -598,8 +593,6 @@ class XB_WanAnimate_RelayNode:
 
         pos, neg, latent, trim_latent, trim_image, new_offset = func(**kwargs)
 
-        # 🛡️ 强制卸载扩散模型到 CPU：防止 ComfyUI 因显存充裕而全量加载模型，
-        # 全量加载后 BlockSwap 回调无法正确分块 → comfy_kitchen 崩溃
         model_obj = b["model"]
         if hasattr(model_obj, "model") and hasattr(model_obj, "offload_device"):
             model_obj.model.to(model_obj.offload_device)
@@ -626,9 +619,6 @@ class XB_WanAnimate_RelayNode:
         if trim_latent_val > 0:
             latent_sampled["samples"] = latent_sampled["samples"][:, :, trim_latent_val:, :, :]
 
-        # ====================================================================
-        # 🚀 核弹升级：ROCm 专属时空解码 (cleanup 从总线继承)
-        # ====================================================================
         try:
             from .nodes_rocm import XB_ROCmVAEDecodeTemporal
         except ImportError:
@@ -669,9 +659,10 @@ class XB_WanAnimate_RelayNode:
 
         return (b, final_video)
 
-# ==============================================================================
-# 8. 🎵 InfiniteTalk 无限对口型总线（单人）—— 重写版
-# ==============================================================================
+
+# ============================================================
+# XB_WanInfiniteTalk_ParamBus — InfiniteTalk 无限对口型参数总线
+# ============================================================
 class XB_WanInfiniteTalk_ParamBus:
     """
     集中管理所有共享参数。内置音频编码器 + CLIP 视觉编码。
@@ -765,9 +756,10 @@ class XB_WanInfiniteTalk_ParamBus:
         kwargs["_global_frame_offset"] = 0
         return (kwargs,)
 
-# ==============================================================================
-# 9. 🎵 InfiniteTalk 无限对口型接力点（单人）—— 重写版
-# ==============================================================================
+
+# ============================================================
+# XB_WanInfiniteTalk_RelayNode — InfiniteTalk 无限对口型接力点
+# ============================================================
 class XB_WanInfiniteTalk_RelayNode:
     """
     每个接力点完成：CLIPTextEncode → WanInfiniteTalkToVideo_Single → KSampler → VAEDecode → trim → 累加。

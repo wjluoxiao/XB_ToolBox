@@ -3,6 +3,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import gc
 
+# ============================================================
+# XB_SamplerChunkMaster — 采样器分块主控
+# ============================================================
 class XB_SamplerChunkMaster:
     @classmethod
     def INPUT_TYPES(s):

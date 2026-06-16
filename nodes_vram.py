@@ -2,6 +2,9 @@ import torch
 import gc
 import comfy.model_management as mm
 
+# ============================================================
+# XTX_Data_Radar — 数据雷达扫描
+# ============================================================
 class XTX_Data_Radar:
     @classmethod
     def INPUT_TYPES(s):

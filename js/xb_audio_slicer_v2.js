@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 // ============================================================
-// XB_AudioSlicerV3 — 双人音频：音频1 + 间隔 + 音频2
+// XB_AudioSlicerV2 — 双人音频切片：音频1 + 间隔 + 音频2
 // ============================================================
 
 const PAD = 10, HANDLE_HIT = 16;

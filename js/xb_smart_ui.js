@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_Wan_RelayNode — 接力点智能 UI
+// ============================================================
+
 const isZH = navigator.language.startsWith("zh");
 
 app.registerExtension({

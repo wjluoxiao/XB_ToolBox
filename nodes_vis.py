@@ -6,6 +6,9 @@ from PIL import Image, ImageDraw, ImageFont
 class CalculatedFloat(float):
     pass
 
+# ============================================================
+# XB_VRAM_Calculator — 显存计算器
+# ============================================================
 class XB_VRAM_Calculator:
     def __init__(self):
         pass
@@ -49,6 +52,9 @@ class XB_VRAM_Calculator:
         
         return (res,)
 
+# ============================================================
+# XB_ChunkVisualization — 分块可视化
+# ============================================================
 class XB_ChunkVisualization:
     def __init__(self):
         pass

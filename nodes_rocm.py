@@ -37,10 +37,6 @@ class AnyType(str):
 _any = AnyType("*")
 
 
-# ====================================================================
-# AMD GPU 架构数据库
-# ====================================================================
-
 _AMD_ARCH_DB = {
     # RDNA4 — RX 9070 系列
     "gfx1201": {"name": "RX 9070 XT",   "tile": 768, "gen": "RDNA4"},
@@ -72,10 +68,6 @@ def _lookup(arch: str):
     return None
 
 
-# ====================================================================
-# 工具函数
-# ====================================================================
-
 def is_rocm() -> bool:
     return torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip
 
@@ -105,11 +97,9 @@ def gpu_info() -> dict:
 
 
 def tune():
-    """ROCm 全局调优 — fp16累积(rocBLAS加速) + mem_efficient SDPA(防崩溃)"""
+    """ROCm 全局调优 — fp16累积 (rocBLAS加速) + mem_efficient SDPA"""
     if not is_rocm(): return
-    # 核心优化: rocBLAS 用 fp16 中间累积 → 矩阵乘法 ~5-10% 加速
     torch.backends.cuda.matmul.allow_fp16_accumulation = True
-    # AMD 稳定 attention 后端
     if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'):
         torch.backends.cuda.enable_mem_efficient_sdp(True)
     if hasattr(torch.backends.cuda, 'enable_flash_sdp'):
@@ -186,10 +176,6 @@ def _even_chunks(total: int, chunk: int):
         return [(i * chunk, min((i + 1) * chunk, total)) for i in range(n_full + 1)]
 
 
-# ====================================================================
-# Noise 辅助类 — 用于自定义采样器
-# ====================================================================
-
 class _Noise_EmptyNoise:
     """空噪波 — 不加噪"""
     def __init__(self):
@@ -216,10 +202,9 @@ class _Noise_RandomNoise:
         return comfy.sample.prepare_noise(latent_image, self.seed, batch_inds)
 
 
-# ====================================================================
-# 节点 1: XB_ROCmKSampler
-# ====================================================================
-
+# ============================================================
+# XB_ROCmKSampler — ROCm 优化采样器
+# ============================================================
 class XB_ROCmKSampler:
     """
     ROCm 优化采样器 — rocBLAS fp16累积 + mem_efficient SDPA
@@ -253,10 +238,9 @@ class XB_ROCmKSampler:
         return (out,)
 
 
-# ====================================================================
-# 节点 1.5: XB_ROCmKSamplerAdvanced  (高级采样器 ROCm 版)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmKSamplerAdvanced — ROCm 优化高级采样器
+# ============================================================
 class XB_ROCmKSamplerAdvanced:
     """
     ROCm 优化高级采样器 — 支持分段采样 (start/end step)、加噪控制、残留噪声返回
@@ -295,10 +279,9 @@ class XB_ROCmKSamplerAdvanced:
         return (out,)
 
 
-# ====================================================================
-# 节点 2: XB_ROCmVAEDecode  (空间分块解码)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmVAEDecode — ROCm VAE 解码器 (空间分块)
+# ============================================================
 class XB_ROCmVAEDecode:
     """
     ROCm VAE 解码器 — 架构自适应空间分块
@@ -334,16 +317,14 @@ class XB_ROCmVAEDecode:
             print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
             img = vae.decode(lat)
         _do_cleanup("post", cleanup)
-        # 对标官方 VAEDecode: 5D时 reshape 合并 batch+frame
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
 
 
-# ====================================================================
-# 节点 3: XB_ROCmVAEEncode  (空间分块编码)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmVAEEncode — ROCm VAE 编码器 (空间分块)
+# ============================================================
 class XB_ROCmVAEEncode:
     """
     ROCm VAE 编码器 — 架构自适应空间分块
@@ -380,10 +361,9 @@ class XB_ROCmVAEEncode:
         return ({"samples": lat},)
 
 
-# ====================================================================
-# 节点 4: XB_ROCmVAEDecodeTemporal  (空间+时间分块)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmVAEDecodeTemporal — ROCm VAE 时空解码器
+# ============================================================
 class XB_ROCmVAEDecodeTemporal:
     """
     ROCm VAE 解码器 (空间+时间分块) — 视频模型专用
@@ -420,7 +400,6 @@ class XB_ROCmVAEDecodeTemporal:
         else:
             raise ValueError(f"unsupported latent dim: {lat.dim()}")
 
-        # 空间分块：自动根据GPU架构选
         if tile == 0: tile = g["tile"]
         spacial_comp = vae.spacial_compression_decode() if hasattr(vae, 'spacial_compression_decode') else 8
         tile_x = tile // spacial_comp
@@ -428,7 +407,6 @@ class XB_ROCmVAEDecodeTemporal:
         if overlap == 0: overlap = max(32, tile // 8)
         overlap_xy = overlap // spacial_comp
 
-        # 时间分块：自动根据显存选
         temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
         if temporal_comp is not None and is_vid:
             if t_tile == 0:
@@ -460,16 +438,14 @@ class XB_ROCmVAEDecodeTemporal:
             else:
                 img = vae.decode(lat)
         _do_cleanup("post", cleanup)
-        # 对标官方：5D时 reshape 合并 batch+frame
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
 
 
-# ====================================================================
-# 节点 5: XB_ROCmMemCleaner  (独立显存清理+诊断)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmMemCleaner — ROCm 显存清理与诊断
+# ============================================================
 class XB_ROCmMemCleaner:
     """
     ROCm 显存清理+诊断 — 独立节点
@@ -508,7 +484,6 @@ class XB_ROCmMemCleaner:
 
         before = memstat()
 
-        # 执行清理
         if mode == "卸载显存模型":
             mm.unload_all_models()
             mm.soft_empty_cache()
@@ -525,10 +500,9 @@ class XB_ROCmMemCleaner:
         return (anything,)
 
 
-# ====================================================================
-# 节点 6: XB_ROCmSamplerCustom  (自定义采样器 ROCm 版)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmSamplerCustom — ROCm 自定义采样器
+# ============================================================
 class XB_ROCmSamplerCustom:
     """
     ROCm 优化自定义采样器 — 配合调度器/采样器/引导器模块化使用
@@ -592,10 +566,9 @@ class XB_ROCmSamplerCustom:
         return (out, out_denoised)
 
 
-# ====================================================================
-# 节点 7: XB_ROCmSamplerCustomAdvanced  (自定义高级采样器 ROCm 版)
-# ====================================================================
-
+# ============================================================
+# XB_ROCmSamplerCustomAdvanced — ROCm 自定义高级采样器
+# ============================================================
 class XB_ROCmSamplerCustomAdvanced:
     """
     ROCm 优化自定义高级采样器 — 完全模块化：噪波/引导器/采样器/sigma 独立注入
@@ -651,7 +624,6 @@ class XB_ROCmSamplerCustomAdvanced:
         return (out, out_denoised)
 
 
-# ====================================================================
 __all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',
            'XB_ROCmSamplerCustomAdvanced', 'XB_ROCmVAEDecode',
            'XB_ROCmVAEEncode', 'XB_ROCmVAEDecodeTemporal', 'XB_ROCmMemCleaner']

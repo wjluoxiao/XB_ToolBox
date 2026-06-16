@@ -73,7 +73,7 @@ def _wan_import(rel_path: str):
 
 
 # ============================================================
-# 节点 1: XB_WanCompileSettings（独立）
+# XB_WanCompileSettings — Wan 编译设置
 # ============================================================
 class XB_WanCompileSettings:
     @classmethod
@@ -96,7 +96,7 @@ class XB_WanCompileSettings:
 
 
 # ============================================================
-# 节点 2: XB_WanModelLoader（需 WanVideoWrapper）
+# XB_WanModelLoader — Wan 模型加载器
 # ============================================================
 class XB_WanModelLoader:
     @classmethod
@@ -138,7 +138,7 @@ class XB_WanModelLoader:
 
 
 # ============================================================
-# 节点 3: XB_WanBlockSwap（独立）
+# XB_WanBlockSwap — Wan 分块交换
 # ============================================================
 class XB_WanBlockSwap:
     @classmethod
@@ -158,7 +158,7 @@ class XB_WanBlockSwap:
 
 
 # ============================================================
-# 节点 4: XB_WanSampler（需 WanVideoWrapper）
+# XB_WanSampler — Wan 采样器
 # ============================================================
 class XB_WanSampler:
     @classmethod
@@ -212,7 +212,7 @@ class XB_WanSampler:
 
 
 # ============================================================
-# 节点 5: XB_WanTextEncode（需 WanVideoWrapper）
+# XB_WanTextEncode — Wan 文本编码
 # ============================================================
 class XB_WanTextEncode:
     @classmethod
@@ -235,7 +235,7 @@ class XB_WanTextEncode:
 
 
 # ============================================================
-# 节点 6: XB_WanVAELoader（需 WanVideoWrapper）
+# XB_WanVAELoader — Wan VAE 加载器
 # ============================================================
 class XB_WanVAELoader:
     @classmethod
@@ -269,7 +269,7 @@ class XB_WanVAELoader:
 
 
 # ============================================================
-# 节点 7: XB_WanDecode（需 WanVideoWrapper）
+# XB_WanDecode — Wan VAE 解码
 # ============================================================
 class XB_WanDecode:
     @classmethod
@@ -303,7 +303,7 @@ class XB_WanDecode:
 
 
 # ============================================================
-# 节点 8: XB_WanAnimateToVideo（独立，对标官方 WanAnimateToVideo）
+# XB_WanAnimateToVideo — Wan 动画转视频
 # ============================================================
 class XB_WanAnimateToVideo:
     @classmethod

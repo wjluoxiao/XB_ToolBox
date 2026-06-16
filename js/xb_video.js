@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_VideoParamsMaster / XB_ImageParamsMaster / XB_MasterParameter — 参数主控 UI
+// ============================================================
+
 const isZH = navigator.language.startsWith("zh");
 
 const xb_dispatch = (w, val) => {

@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_Dashboard_Zen — 仪表板展示 UI
+// ============================================================
+
 function isValEqual(v1, v2) {
     if (v1 === v2) return true;
     if (typeof v1 === 'object' && typeof v2 === 'object') {

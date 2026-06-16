@@ -1,5 +1,8 @@
 import torch
 
+# ============================================================
+# XB_SageAttentionAccelerator — SageAttention 加速器
+# ============================================================
 class XB_SageAttentionAccelerator:
     @classmethod
     def INPUT_TYPES(s):

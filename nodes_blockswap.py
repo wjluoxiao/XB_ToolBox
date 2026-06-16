@@ -23,9 +23,6 @@ def is_dynamic_vram_active():
         return True
     return False
 
-# ==============================================================================
-# 🛡️ 核心防爆雷达：判定是否为不可分块的异常/强耦合模型
-# ==============================================================================
 def is_unsupported_model(diffusion_model):
     model_type = type(diffusion_model).__name__
     # 黑名单列表：遇到这些底层架构，直接静默放行，拒绝分块
@@ -35,6 +32,9 @@ def is_unsupported_model(diffusion_model):
             return model_type
     return None
 
+# ============================================================
+# XB_UNetBlockSwap — UNet 分块交换 (显存优化)
+# ============================================================
 class XB_UNetBlockSwap:
     @classmethod
     def INPUT_TYPES(s):
@@ -71,7 +71,6 @@ class XB_UNetBlockSwap:
             if not diffusion_model:
                 return
 
-            # 🚀 侦测并拦截不支持的模型
             unsupported_name = is_unsupported_model(diffusion_model)
             if unsupported_name:
                 print(f"\033[93m[XB-BOX 拦截盾]\033[0m: 模型 ({unsupported_name}) 属于高耦合架构，不支持物理分块。已自动跳过！")
@@ -112,6 +111,9 @@ class XB_UNetBlockSwap:
         
         return (unet_model, )
 
+# ============================================================
+# XB_CheckpointBlockSwap — Checkpoint 分块交换 (显存优化)
+# ============================================================
 class XB_CheckpointBlockSwap:
     @classmethod
     def INPUT_TYPES(s):
@@ -145,7 +147,6 @@ class XB_CheckpointBlockSwap:
             if not diffusion_model:
                 return
 
-            # 🚀 侦测并拦截不支持的模型
             unsupported_name = is_unsupported_model(diffusion_model)
             if unsupported_name:
                 print(f"\033[93m[XB-BOX 拦截盾]\033[0m: 模型 ({unsupported_name}) 属于高耦合架构，不支持物理分块。已自动跳过！")

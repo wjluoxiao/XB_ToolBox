@@ -1,5 +1,9 @@
 import { app } from "../../scripts/app.js";
 
+// ============================================================
+// XB_DynamicBus — 动态总线 UI 交互
+// ============================================================
+
 const isZH = navigator.language.startsWith("zh");
 
 function showCustomPrompt(title, defaultValue, callback) {

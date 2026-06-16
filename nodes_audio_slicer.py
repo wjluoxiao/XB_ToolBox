@@ -44,17 +44,13 @@ def _load_audio_file(filepath: str):
 
 
 def _make_audio(waveform, sample_rate):
-    """确保输出 shape (1, channels, N)，与 VHS 完全一致"""
     if waveform.dim() == 1:
-        waveform = waveform.unsqueeze(0).unsqueeze(0)  # (N)→(1,1,N)
+        waveform = waveform.unsqueeze(0).unsqueeze(0)
     elif waveform.dim() == 2:
-        waveform = waveform.unsqueeze(0)                # (C,N)→(1,C,N)
+        waveform = waveform.unsqueeze(0)
     return {"waveform": waveform, "sample_rate": sample_rate}
 
 
-# ============================================================
-# 波形数据 API
-# ============================================================
 async def handle_audio_waveform(request):
     """返回音频文件的波形峰值数据"""
     try:
@@ -102,15 +98,13 @@ async def handle_audio_waveform(request):
         return web.json_response({"error": str(e)})
 
 
-# ============================================================
-# 音频帧数工具：对齐 InfiniteTalk 的 4N+1 硬性要求
-# ============================================================
 def _snap_4n1(frames):
-    """将帧数对齐到最近的 4N+1（1, 5, 9, 13, 17, 21, 25, 29, ...81, 85...）"""
+    """将帧数对齐到 4N+1（满足 InfiniteTalk 的硬性要求）"""
     return max(1, ((frames + 2) // 4) * 4 + 1)
 
+
 # ============================================================
-# XB_AudioSlicer 节点
+# XB_AudioSlicer — 音频切片（基础版）
 # ============================================================
 class XB_AudioSlicer:
     """音频加载与切片节点 — 支持频谱可视化 + 拖拽分割线截取
@@ -153,18 +147,15 @@ class XB_AudioSlicer:
             return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0)
 
         waveform, sample_rate = result
-        # 转单声道
         if waveform.shape[0] > 1:
             waveform = waveform.mean(dim=0, keepdim=True)
 
         total_duration = waveform.shape[1] / sample_rate
         frame_duration = 1.0 / fps
 
-        # 钳制时间范围（最小 1 帧，防止零长度）
         start_time = max(0.0, min(start_time, total_duration))
         end_time = max(start_time + frame_duration, min(end_time, total_duration))
 
-        # 切片
         start_sample = int(start_time * sample_rate)
         end_sample = int(end_time * sample_rate)
 
@@ -181,7 +172,7 @@ class XB_AudioSlicer:
 
 
 # ============================================================
-# XB_AudioSlicerV1 — 可视化音频切片节点（波形频谱 + 拖拽分割线）
+# XB_AudioSlicerV1 — 可视化音频切片（波形+拖拽分割线）
 # ============================================================
 class XB_AudioSlicerV1:
     """音频切片节点 V1 — 可视化波形窗口 + 拖拽分割线截取

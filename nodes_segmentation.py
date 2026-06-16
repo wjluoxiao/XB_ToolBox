@@ -62,7 +62,7 @@ def _postprocess(output: np.ndarray, orig_h: int, orig_w: int) -> torch.Tensor:
 
 
 # ============================================================
-# 节点 1: 模型加载器
+# XB_HumanSegModelLoader — 人物分割模型加载器
 # ============================================================
 class XB_HumanSegModelLoader:
     """加载 u2net ONNX 模型，输出给分割节点使用"""
@@ -88,7 +88,7 @@ class XB_HumanSegModelLoader:
 
 
 # ============================================================
-# 节点 2: 人物分割
+# XB_HumanSegmentation — 人物分割
 # ============================================================
 class XB_HumanSegmentation:
     """输入图像 + 分割模型，输出人物蒙版和抠图"""
