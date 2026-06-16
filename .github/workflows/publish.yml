@@ -13,8 +13,6 @@ jobs:
     name: Publish Custom Node to registry
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@main
         with:
