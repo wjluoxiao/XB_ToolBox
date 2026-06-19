@@ -1,22 +1,22 @@
 """
 XB-ToolBox ROCm 优化节点 (v5.0)
 ================================
-8 个节点，专为 AMD ROCm GPU 设计，零外部依赖�?
+8 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
 
-  XB_ROCmKSampler              �?采样器（rocBLAS调优 + SDPA修复�?
-  XB_ROCmKSamplerAdvanced      �?高级采样器（支持分段采样/加噪控制/残留噪声�?
-  XB_ROCmSamplerCustom         �?自定义采样器（模块化调度�?采样�?引导器）
-  XB_ROCmSamplerCustomAdvanced �?自定义高级采样器（完全模块化 + 独立噪波注入�?
-  XB_ROCmVAEDecode             �?空间分块解码器（架构自适应 tile�?
-  XB_ROCmVAEEncode             �?空间分块编码器（架构自适应 tile�?
-  XB_ROCmVAEDecodeTemporal     �?空间+时间分块解码器（视频专用�?
-  XB_ROCmMemCleaner            �?显存清理+诊断报告
+  XB_ROCmKSampler              — 采样器（rocBLAS调优 + SDPA修复）
+  XB_ROCmKSamplerAdvanced      — 高级采样器（支持分段采样/加噪控制/残留噪声）
+  XB_ROCmSamplerCustom         — 自定义采样器（模块化调度器/采样器/引导器）
+  XB_ROCmSamplerCustomAdvanced — 自定义高级采样器（完全模块化 + 独立噪波注入）
+  XB_ROCmVAEDecode             — 空间分块解码器（架构自适应 tile）
+  XB_ROCmVAEEncode             — 空间分块编码器（架构自适应 tile）
+  XB_ROCmVAEDecodeTemporal     — 空间+时间分块解码器（视频专用）
+  XB_ROCmMemCleaner            — 显存清理+诊断报告
 
 核心机制:
-  - tile_size=0 �?自动根据 GPU 架构选择最优分块大小（用户也可手动覆盖�?
-  - fp16_accumulation=True �?rocBLAS 矩阵乘法�?fp16 中间累积（~5-10% 加速）
-  - mem_efficient SDPA �?AMD 上最稳定�?attention 后端（防崩溃�?
-  - 时间分块 �?视频 latent �?chunk 解码，显存峰值降�?80%
+  - tile_size=0 → 自动根据 GPU 架构选择最优分块大小（用户也可手动覆盖）
+  - fp16_accumulation=True → rocBLAS 矩阵乘法用 fp16 中间累积（~5-10% 加速）
+  - mem_efficient SDPA → AMD 上最稳定的 attention 后端（防崩溃）
+  - 时间分块 → 视频 latent 逐 chunk 解码，显存峰值降低 80%
 """
 
 import torch, gc, os, sys, time
@@ -30,7 +30,7 @@ import nodes
 
 
 class AnyType(str):
-    """哑类型——接受任意连线，仅用于串联节点防止误�?""
+    """哑类型——接受任意连线，仅用于串联节点防止误删"""
     def __eq__(self, _) -> bool: return True
     def __ne__(self, __value: object) -> bool: return False
 
@@ -38,18 +38,18 @@ _any = AnyType("*")
 
 
 _AMD_ARCH_DB = {
-    # ══════════�?RDNA4 �?RX 9000 ══════════�?
+    # ═══════════ RDNA4 — RX 9000 ═══════════
     "gfx1201": {"name": "RDNA4 (Navi 48 XT)",     "tile": 768, "gen": "RDNA4",   "fp16_ok": True,  "fp8_ok": True},
     "gfx1200": {"name": "RDNA4 (Navi 48)",        "tile": 640, "gen": "RDNA4",   "fp16_ok": True,  "fp8_ok": True},
-    # ══════════�?RDNA3.5 �?Strix APU ══════════�?
+    # ═══════════ RDNA3.5 — Strix APU ═══════════
     "gfx1151": {"name": "RDNA3.5 (Strix Halo)",   "tile": 768, "gen": "RDNA3.5", "fp16_ok": True},
     "gfx1150": {"name": "RDNA3.5 (Strix Point)",  "tile": 384, "gen": "RDNA3.5", "fp16_ok": True},
-    # ══════════�?RDNA3 �?RX 7000 + Phoenix ══════════�?
+    # ═══════════ RDNA3 — RX 7000 + Phoenix ═══════════
     "gfx1103": {"name": "RDNA3 (Phoenix iGPU)",   "tile": 256, "gen": "RDNA3",   "fp16_ok": True},
     "gfx1102": {"name": "RDNA3 (Navi 33)",        "tile": 384, "gen": "RDNA3",   "fp16_ok": True},
     "gfx1101": {"name": "RDNA3 (Navi 32)",        "tile": 512, "gen": "RDNA3",   "fp16_ok": True},
     "gfx1100": {"name": "RDNA3 (Navi 31)",        "tile": 640, "gen": "RDNA3",   "fp16_ok": True},
-    # ══════════�?RDNA2 �?RX 6000 + 集显 ══════════�?
+    # ═══════════ RDNA2 — RX 6000 + 集显 ═══════════
     "gfx1037": {"name": "RDNA2 (Mendocino iGPU)",  "tile": 64,  "gen": "RDNA2",   "fp16_ok": False},
     "gfx1036": {"name": "RDNA2 (Raphael iGPU)",    "tile": 64,  "gen": "RDNA2",   "fp16_ok": False},
     "gfx1035": {"name": "RDNA2 (Rembrandt iGPU)",  "tile": 128, "gen": "RDNA2",   "fp16_ok": False},
@@ -57,15 +57,15 @@ _AMD_ARCH_DB = {
     "gfx1032": {"name": "RDNA2 (Navi 23)",         "tile": 256, "gen": "RDNA2",   "fp16_ok": False},
     "gfx1031": {"name": "RDNA2 (Navi 22)",         "tile": 320, "gen": "RDNA2",   "fp16_ok": False},
     "gfx1030": {"name": "RDNA2 (Navi 21)",         "tile": 384, "gen": "RDNA2",   "fp16_ok": False},
-    # ══════════�?RDNA1 �?RX 5000 ══════════�?
+    # ═══════════ RDNA1 — RX 5000 ═══════════
     "gfx1012": {"name": "RDNA1 (Navi 14)",         "tile": 128, "gen": "RDNA1",   "fp16_ok": False},
     "gfx1011": {"name": "RDNA1 (Navi 12)",         "tile": 192, "gen": "RDNA1",   "fp16_ok": False},
     "gfx1010": {"name": "RDNA1 (Navi 10)",         "tile": 256, "gen": "RDNA1",   "fp16_ok": False},
-    # ══════════�?CDNA �?数据中心 ══════════�?
+    # ═══════════ CDNA — 数据中心 ═══════════
     "gfx942":  {"name": "CDNA3 (MI300X)",          "tile": 512, "gen": "CDNA3",   "fp16_ok": True,  "fp8_ok": True},
     "gfx90a":  {"name": "CDNA2 (MI250X)",          "tile": 512, "gen": "CDNA2",   "fp16_ok": True},
     "gfx908":  {"name": "CDNA (MI100)",            "tile": 256, "gen": "CDNA",    "fp16_ok": True},
-    # ══════════�?Legacy �?Vega ══════════�?
+    # ═══════════ Legacy — Vega ═══════════
     "gfx906":  {"name": "Vega (Radeon VII)",       "tile": 256, "gen": "Vega",    "fp16_ok": False},
 }
 
@@ -107,8 +107,8 @@ def gpu_info() -> dict:
 
 
 def _read_env_flag(name: str) -> bool | None:
-    """读取用户环境变量: 1/true �?True, 0/false �?False, 未设�?�?None.
-    这是 XB_ToolBox 专属的补充开关，不是 ComfyUI 官方参数�?""
+    """读取用户环境变量: 1/true → True, 0/false → False, 未设置 → None.
+    这是 XB_ToolBox 专属的补充开关，不是 ComfyUI 官方参数。"""
     v = os.environ.get(name, "").strip().lower()
     if v in ("1", "true", "yes", "on"):  return True
     if v in ("0", "false", "no", "off"): return False
@@ -116,44 +116,44 @@ def _read_env_flag(name: str) -> bool | None:
 
 
 def _has_comfy_arg(flag: str) -> bool:
-    """检�?ComfyUI 启动命令行是否包含指�?flag (�?--force-fp32)."""
+    """检查 ComfyUI 启动命令行是否包含指定 flag (如 --force-fp32)."""
     return flag in sys.argv
 
 
 def tune():
-    """ROCm 全局调优 �?动态架构感�?+ DiT 算力解放 (2026 v5.1).
+    """ROCm 全局调优 — 动态架构感知 + DiT 算力解放 (2026 v5.1).
 
-    三级优先�? ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
+    三级优先级: ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
 
-    自动识别�?ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
-      --cpu              �?跳过 GPU 调优
+    自动识别的 ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
+      --cpu              → 跳过 GPU 调优
       --force-fp32, --fp32-unet, --fp64-unet
-                         �?禁用 fp16/bf16 加�?
+                         → 禁用 fp16/bf16 加速
       --force-fp16, --fp16-unet
-                         �?仅在 GPU 硬件支持时启�?
+                         → 仅在 GPU 硬件支持时启用
 
-    XB_ToolBox 补充环境变量（调试用�?
+    XB_ToolBox 补充环境变量（调试用）:
       XB_FP16_ACCUM=1/0  强制启用/禁用 rocBLAS fp16 累积
     """
     if not is_rocm(): return
 
-    # ── CPU 模式直接退�?──
+    # ── CPU 模式直接退出 ──
     if _has_comfy_arg("--cpu"):
         return
 
     g = gpu_info()
 
-    # ══════════════════════════════════════════�?
+    # ═══════════════════════════════════════════
     # 1. 全局矩阵乘法精度解放
-    #    激�?AMD RDNA3+/CDNA �?WMMA 矩阵核心�?
-    #    加速所�?Transformer/DiT 线性层 (Anima/LTX/Ideogram).
-    #    老架构无 WMMA，PyTorch 自动退回避免报�?
-    # ══════════════════════════════════════════�?
+    #    激活 AMD RDNA3+/CDNA 的 WMMA 矩阵核心，
+    #    加速所有 Transformer/DiT 线性层 (Anima/LTX/Ideogram).
+    #    老架构无 WMMA，PyTorch 自动退回避免报错.
+    # ═══════════════════════════════════════════
     torch.set_float32_matmul_precision('high')
 
-    # ══════════════════════════════════════════�?
+    # ═══════════════════════════════════════════
     # 2. FP16 / BF16 累积调度
-    # ══════════════════════════════════════════�?
+    # ═══════════════════════════════════════════
     if _has_comfy_arg("--force-fp32") or _has_comfy_arg("--fp32-unet") or _has_comfy_arg("--fp64-unet"):
         can_fp16 = False
     elif _has_comfy_arg("--force-fp16") or _has_comfy_arg("--fp16-unet"):
@@ -165,13 +165,13 @@ def tune():
 
     torch.backends.cuda.matmul.allow_fp16_accumulation = can_fp16
 
-    # BF16 降精度规�? 2026 �?DiT 模型默认 BF16，启用后加�?~15-25%
+    # BF16 降精度规约: 2026 年 DiT 模型默认 BF16，启用后加速 ~15-25%
     if hasattr(torch.backends.cuda.matmul, 'allow_bf16_reduced_precision_reduction'):
         torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = can_fp16
 
-    # ══════════════════════════════════════════�?
-    # 3. SDPA 架构动态路�?�?DiT 长序列算力解�?
-    # ══════════════════════════════════════════�?
+    # ═══════════════════════════════════════════
+    # 3. SDPA 架构动态路由 — DiT 长序列算力解放
+    # ═══════════════════════════════════════════
     if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'):
         torch.backends.cuda.enable_mem_efficient_sdp(True)  # 始终作为兜底
 
@@ -186,60 +186,60 @@ def tune():
 
 
 def _vae_force_fp32() -> bool:
-    """老架�?GPU 是否应强�?VAE �?fp32.
+    """老架构 GPU 是否应强制 VAE 用 fp32.
 
-    优先�? ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
+    优先级: ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
 
-    自动识别�?ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
+    自动识别的 ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
       --force-fp32, --fp32-vae
-        �?强制 VAE �?fp32
+        → 强制 VAE 用 fp32
       --fp16-vae, --bf16-vae
-        �?不强�?(用户明确�?fp16/bf16 VAE)
+        → 不强制 (用户明确要 fp16/bf16 VAE)
       --cpu-vae
-        �?不强�?(VAE �?CPU 上运行，无需 GPU 精度保护)
+        → 不强制 (VAE 在 CPU 上运行，无需 GPU 精度保护)
 
-    XB_ToolBox 补充环境变量（调试用�?
+    XB_ToolBox 补充环境变量（调试用）:
       XB_FP16_VAE=1 / 0  强制 VAE fp16 / fp32
     """
     if not is_rocm(): return False
 
-    # ── 优先�?1: ComfyUI 官方启动参数 ──
+    # ── 优先级 1: ComfyUI 官方启动参数 ──
     if _has_comfy_arg("--cpu-vae"):
-        return False  # VAE �?CPU 上，不需�?GPU 精度保护
+        return False  # VAE 在 CPU 上，不需要 GPU 精度保护
     if _has_comfy_arg("--force-fp32") or _has_comfy_arg("--fp32-vae"):
         return True
     if _has_comfy_arg("--fp16-vae") or _has_comfy_arg("--bf16-vae"):
         return False
 
-    # ── 优先�?2: XB_ToolBox 环境变量 ──
+    # ── 优先级 2: XB_ToolBox 环境变量 ──
     user_fp16 = _read_env_flag("XB_FP16_VAE")
     if user_fp16 is not None:
         return not user_fp16
 
-    # ── 优先�?3: 架构自动判断 ──
+    # ── 优先级 3: 架构自动判断 ──
     g = gpu_info()
     return not g.get("fp16_ok", False)
 
 
 def _vae_safe_cast(tensor: torch.Tensor) -> torch.Tensor:
-    """老架�?GPU 上，�?fp16/bf16 输入转为 fp32 保护 MIOpen 卷积�?
-    FLUX/SD3/WanVideo 等新模型默认输出 bf16，老卡�?bf16 的排斥比 fp16 更剧烈�?""
+    """老架构 GPU 上，将 fp16/bf16 输入转为 fp32 保护 MIOpen 卷积。
+    FLUX/SD3/WanVideo 等新模型默认输出 bf16，老卡对 bf16 的排斥比 fp16 更剧烈。"""
     if tensor.dtype in (torch.float16, torch.bfloat16) and _vae_force_fp32():
         return tensor.float()
     return tensor
 
 
 def _vae_align_dtype(vae, tensor: torch.Tensor):
-    """旧架构上强制 VAE 模型权重精度对齐输入张量�?
-    兼容旧式 VAE (first_stage_model.dtype) 和新�?AutoencodingEngine (�?.dtype)�?
-    返回原始 dtype �?_vae_restore_dtype 恢复，无需恢复时返�?None�?""
+    """旧架构上强制 VAE 模型权重精度对齐输入张量。
+    兼容旧式 VAE (first_stage_model.dtype) 和新式 AutoencodingEngine (无 .dtype)。
+    返回原始 dtype 供 _vae_restore_dtype 恢复，无需恢复时返回 None。"""
     if not _vae_force_fp32() or not hasattr(vae, 'first_stage_model'):
         return None
     model = vae.first_stage_model
     try:
         model_dtype = model.dtype
     except AttributeError:
-        # AutoencodingEngine 等新�?VAE 没有 .dtype，从参数推断
+        # AutoencodingEngine 等新式 VAE 没有 .dtype，从参数推断
         try:
             model_dtype = next(model.parameters()).dtype
         except (StopIteration, AttributeError):
@@ -254,7 +254,7 @@ def _vae_align_dtype(vae, tensor: torch.Tensor):
 
 
 def _vae_restore_dtype(vae, orig_dtype):
-    """恢复 VAE 模型权重到原始精度�?""
+    """恢复 VAE 模型权重到原始精度。"""
     if orig_dtype is not None and hasattr(vae, 'first_stage_model'):
         try:
             vae.first_stage_model.to(orig_dtype)
@@ -263,10 +263,10 @@ def _vae_restore_dtype(vae, orig_dtype):
 
 
 def _get_spatial_compression(vae) -> int:
-    """获取 VAE 空间压缩比，兼容多种属性名�?ComfyUI 原生接口�?
-    优先�? spatial_compression_decode (正确拼写)
+    """获取 VAE 空间压缩比，兼容多种属性名和 ComfyUI 原生接口。
+    优先级: spatial_compression_decode (正确拼写)
            > spacial_compression_decode (历史遗留错误拼写)
-           > downscale_ratio (ComfyUI 原生属�?
+           > downscale_ratio (ComfyUI 原生属性)
            > 8 (默认兜底)"""
     for attr in ('spatial_compression_decode', 'spacial_compression_decode'):
         if hasattr(vae, attr):
@@ -287,12 +287,12 @@ def memclr(sync: bool = True):
 
 
 def memstat() -> dict:
-    """获取当前显存状态�?
+    """获取当前显存状态。
 
-    ⚠️ Windows ROCm 限制: torch.cuda.memory_allocated() 只能读取 PyTorch 进程�?
-    分配的显存池，无法感�?AMD 驱动层的隐式分配 (�?MIOpen 算子编译缓存)�?
-    若推理突然变慢，请以任务管理器「专�?GPU 内存」读数为准�?
-    Linux 下此问题不存在�?
+    ⚠️ Windows ROCm 限制: torch.cuda.memory_allocated() 只能读取 PyTorch 进程内
+    分配的显存池，无法感知 AMD 驱动层的隐式分配 (如 MIOpen 算子编译缓存)。
+    若推理突然变慢，请以任务管理器「专用 GPU 内存」读数为准。
+    Linux 下此问题不存在。
     """
     if not torch.cuda.is_available(): return {}
     return {
@@ -327,8 +327,8 @@ def _do_cleanup(stage: str, level: str):
 
 
 def _even_chunks(total: int, chunk: int):
-    """均匀分块：避免末尾出现特别小的碎片�?
-    余数 >= chunk/2 时单独成块，< chunk/2 时合并到最后一块�?""
+    """均匀分块：避免末尾出现特别小的碎片。
+    余数 >= chunk/2 时单独成块，< chunk/2 时合并到最后一块。"""
     if total <= chunk:
         return [(0, total)]
     n_full = total // chunk
@@ -337,17 +337,17 @@ def _even_chunks(total: int, chunk: int):
         return [(i * chunk, (i + 1) * chunk) for i in range(n_full)]
 
     if remainder < chunk // 2:
-        # 余数太小，合并到最后一�?
+        # 余数太小，合并到最后一块
         chunks = [(i * chunk, (i + 1) * chunk) for i in range(n_full - 1)]
         chunks.append(((n_full - 1) * chunk, total))
     else:
-        # 余数够大，单独成�?
+        # 余数够大，单独成块
         chunks = [(i * chunk, min((i + 1) * chunk, total)) for i in range(n_full + 1)]
     return chunks
 
 
 class _Noise_EmptyNoise:
-    """空噪�?�?不加�?""
+    """空噪波 — 不加噪"""
     def __init__(self):
         self.seed = 0
 
@@ -373,12 +373,12 @@ class _Noise_RandomNoise:
 
 
 # ============================================================
-# XB_ROCmKSampler �?ROCm 优化采样�?
+# XB_ROCmKSampler — ROCm 优化采样器
 # ============================================================
 class XB_ROCmKSampler:
     """
-    ROCm 优化采样�?�?rocBLAS fp16累积 + mem_efficient SDPA
-    配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）�?
+    ROCm 优化采样器 — rocBLAS fp16累积 + mem_efficient SDPA
+    配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）。
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -409,12 +409,12 @@ class XB_ROCmKSampler:
 
 
 # ============================================================
-# XB_ROCmKSamplerAdvanced �?ROCm 优化高级采样�?
+# XB_ROCmKSamplerAdvanced — ROCm 优化高级采样器
 # ============================================================
 class XB_ROCmKSamplerAdvanced:
     """
-    ROCm 优化高级采样�?�?支持分段采样 (start/end step)、加噪控制、残留噪声返�?
-    配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）�?
+    ROCm 优化高级采样器 — 支持分段采样 (start/end step)、加噪控制、残留噪声返回
+    配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）。
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -450,13 +450,13 @@ class XB_ROCmKSamplerAdvanced:
 
 
 # ============================================================
-# XB_ROCmVAEDecode �?ROCm VAE 解码�?(空间分块)
+# XB_ROCmVAEDecode — ROCm VAE 解码器 (空间分块)
 # ============================================================
 class XB_ROCmVAEDecode:
     """
-    ROCm VAE 解码�?�?架构自适应空间分块
-    tile=0 �?自动根据GPU架构选最优�?(RX9070XT�?68, RX7900�?40, ...)
-    tile>0 �?使用手动指定的分块大�?
+    ROCm VAE 解码器 — 架构自适应空间分块
+    tile=0 → 自动根据GPU架构选最优值 (RX9070XT→768, RX7900→640, ...)
+    tile>0 → 使用手动指定的分块大小
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -464,7 +464,7 @@ class XB_ROCmVAEDecode:
             "samples": ("LATENT",),
             "vae": ("VAE",),
             "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64,
-                             "tooltip": "0=根据GPU架构自动选择 手动可覆�?}),
+                             "tooltip": "0=根据GPU架构自动选择 手动可覆盖"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动(tile/8)"}),
             "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
@@ -477,16 +477,16 @@ class XB_ROCmVAEDecode:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
-        # 嵌套张量不做 unbind：官�?decode_tiled 内部原生处理 NestedTensor
-        # （官�?VAEDecodeTiled 也不�?unbind，直接透传�?
+        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
+        # （官方 VAEDecodeTiled 也不做 unbind，直接透传）
 
-        # 🛡�?强制显存连续性校�?(嵌套张量跳过，由其内部各子张量自行处�?
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过，由其内部各子张量自行处理)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
 
-        # 🛡�?老架�?GPU 强制 VAE 输入�?fp32
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
         lat = _vae_safe_cast(lat)
-        # 🛡�?VAE 模型权重对齐输入精度
+        # 🛡️ VAE 模型权重对齐输入精度
         _orig_dtype = _vae_align_dtype(vae, lat)
 
         if tile == 0: tile = g["tile"]
@@ -500,11 +500,11 @@ class XB_ROCmVAEDecode:
         else:
             overlap_xy = overlap // spatial_comp
 
-        # 官方防线：防止重叠区超过分块（潜空间校验，对�?VAEDecodeTiled�?
+        # 官方防线：防止重叠区超过分块（潜空间校验，对齐 VAEDecodeTiled）
         if tile_x < overlap_xy * 4:
             overlap_xy = tile_x // 4
 
-        # �?快速路径：图像完全在一个分块内 �?跳过 tiled 开销，直接全局解码
+        # ⚡ 快速路径：图像完全在一个分块内 → 跳过 tiled 开销
         lat_h, lat_w = lat.shape[-2], lat.shape[-1]
         use_fast = (tile_x >= lat_h and tile_y >= lat_w)
 
@@ -526,12 +526,12 @@ class XB_ROCmVAEDecode:
 
 
 # ============================================================
-# XB_ROCmVAEEncode �?ROCm VAE 编码�?(空间分块)
+# XB_ROCmVAEEncode — ROCm VAE 编码器 (空间分块)
 # ============================================================
 class XB_ROCmVAEEncode:
     """
-    ROCm VAE 编码�?�?架构自适应空间分块
-    tile=0 �?自动, tile>0 �?手动
+    ROCm VAE 编码器 — 架构自适应空间分块
+    tile=0 → 自动, tile>0 → 手动
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -555,13 +555,13 @@ class XB_ROCmVAEEncode:
     def go(self, pixels, vae, tile, overlap, temporal_size, temporal_overlap, cleanup="不做任何清理"):
         g = gpu_info(); tune()
 
-        # 🛡�?强制显存连续性校�?
+        # 🛡️ 强制显存连续性校验
         if not pixels.is_contiguous():
             pixels = pixels.contiguous()
 
-        # 🛡�?老架�?GPU 强制 VAE 输入�?fp32
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
         pixels = _vae_safe_cast(pixels)
-        # 🛡�?VAE 模型权重对齐输入精度
+        # 🛡️ VAE 模型权重对齐输入精度
         _orig_dtype = _vae_align_dtype(vae, pixels)
 
         if tile == 0: tile = g["tile"]
@@ -600,13 +600,13 @@ class XB_ROCmVAEEncode:
 
 
 # ============================================================
-# XB_ROCmVAEDecodeTemporal �?ROCm VAE 时空解码�?
+# XB_ROCmVAEDecodeTemporal — ROCm VAE 时空解码器
 # ============================================================
 class XB_ROCmVAEDecodeTemporal:
     """
-    ROCm VAE 解码�?(空间+时间分块) �?视频模型专用.
-    适用�?Wan/LTX 等视�?VAE latent�?
-    所有参�?0 时全自动: 空间tile→架构自适应, 时间chunk→显存自适应
+    ROCm VAE 解码器 (空间+时间分块) — 视频模型专用
+    适用于 Wan/LTX 等视频 VAE latent。
+    所有参数=0 时全自动: 空间tile→架构自适应, 时间chunk→显存自适应
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -616,11 +616,11 @@ class XB_ROCmVAEDecodeTemporal:
             "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64,
                              "tooltip": "空间分块 0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
-                                "tooltip": "空间重叠 0=自动(tile/8, 最�?2)"}),
+                                "tooltip": "空间重叠 0=自动(tile/8, 最小32)"}),
             "t_tile": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 16,
                                "tooltip": "时间分块帧数 0=根据显存自适应"}),
             "t_overlap": ("INT", {"default": 0, "min": 0, "max": 64, "step": 4,
-                                  "tooltip": "时间重叠 0=自动(t_tile/16, 最�?)"}),
+                                  "tooltip": "时间重叠 0=自动(t_tile/16, 最小4)"}),
             "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
@@ -631,15 +631,15 @@ class XB_ROCmVAEDecodeTemporal:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
-        # 嵌套张量不做 unbind：官�?decode_tiled 内部原生处理 NestedTensor
+        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
 
-        # 🛡�?强制显存连续性校�?(嵌套张量跳过)
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
 
-        # 🛡�?老架�?GPU 强制 VAE 输入�?fp32
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
         lat = _vae_safe_cast(lat)
-        # 🛡�?VAE 模型权重对齐输入精度
+        # 🛡️ VAE 模型权重对齐输入精度
         _orig_dtype = _vae_align_dtype(vae, lat)
 
         if lat.dim() == 5:
@@ -677,19 +677,19 @@ class XB_ROCmVAEDecodeTemporal:
                                    overlap=overlap_xy,
                                    tile_t=t_tile_vae, overlap_t=t_overlap_vae)
         except TypeError:
-            # decode_tiled 不支�?tile_t/overlap_t
+            # decode_tiled 不支持 tile_t/overlap_t
             print(f"  ⚠️ ROCm VAE Temporal: temporal kwargs unsupported.")
             if is_vid and not hasattr(vae, 'temporal_compression_decode'):
-                # 2D VAE 处理视频 �?movedim 置换 F/C 再展平，防止帧间通道串扰
+                # 2D VAE 处理视频 → movedim 置换 F/C 再展平，防止帧间通道串扰
                 print("  ⚠️ flattening 5D to 4D for spatial tiled decode...")
                 lat_flat = lat.movedim(2, 1).reshape(-1, C, H, W)
                 img = vae.decode_tiled(lat_flat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
             else:
-                # �?3D VAE �?decode_tiled 不认 5D，不能硬塞，退回全局解码
+                # 真 3D VAE 但 decode_tiled 不认 5D，不能硬塞，退回全局解码
                 print("  ⚠️ 3D VAE lacks native tiling, falling back to global decode (watch VRAM!)")
                 img = vae.decode(lat)
         except AttributeError:
-            # �?decode_tiled 都没�?�?最�?fallback
+            # 连 decode_tiled 都没有 → 最终 fallback
             print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
             img = vae.decode(lat)
         finally:
@@ -701,15 +701,15 @@ class XB_ROCmVAEDecodeTemporal:
 
 
 # ============================================================
-# XB_ROCmMemCleaner �?ROCm 显存清理与诊�?
+# XB_ROCmMemCleaner — ROCm 显存清理与诊断
 # ============================================================
 class XB_ROCmMemCleaner:
     """
-    ROCm 显存清理+诊断 �?独立节点
-    显示 GPU 信息 + 清理前后显存对比�?
+    ROCm 显存清理+诊断 — 独立节点
+    显示 GPU 信息 + 清理前后显存对比。
 
-    验证 fp16_accumulation 加速效�?
-      �?Python 控制台运�?
+    验证 fp16_accumulation 加速效果:
+      在 Python 控制台运行:
         import torch, time
         a=torch.randn(4096,4096,dtype=torch.float16,device='cuda')
         b=torch.randn(4096,4096,dtype=torch.float16,device='cuda')
@@ -758,12 +758,12 @@ class XB_ROCmMemCleaner:
 
 
 # ============================================================
-# XB_ROCmSamplerCustom �?ROCm 自定义采样器
+# XB_ROCmSamplerCustom — ROCm 自定义采样器
 # ============================================================
 class XB_ROCmSamplerCustom:
     """
-    ROCm 优化自定义采样器 �?配合调度�?采样�?引导器模块化使用
-    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生�?
+    ROCm 优化自定义采样器 — 配合调度器/采样器/引导器模块化使用
+    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -824,12 +824,12 @@ class XB_ROCmSamplerCustom:
 
 
 # ============================================================
-# XB_ROCmSamplerCustomAdvanced �?ROCm 自定义高级采样器
+# XB_ROCmSamplerCustomAdvanced — ROCm 自定义高级采样器
 # ============================================================
 class XB_ROCmSamplerCustomAdvanced:
     """
-    ROCm 优化自定义高级采样器 �?完全模块化：噪波/引导�?采样�?sigma 独立注入
-    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生�?
+    ROCm 优化自定义高级采样器 — 完全模块化：噪波/引导器/采样器/sigma 独立注入
+    优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
     """
     @classmethod
     def INPUT_TYPES(s):
