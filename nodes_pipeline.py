@@ -536,9 +536,7 @@ class XB_WanAnimate_RelayNode:
             sm = b.get("scale_method", "lanczos")
             cm = b.get("crop_mode", "center")
             clip_img = comfy.utils.common_upscale(ref_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
-            local_clip_vision, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
-            local_clip_vision, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
-            clip_vision_output = local_clip_vision
+            clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
             print("🖼️ [XB-BOX] 使用独立参考图（含独立CLIP视觉编码）。")
         else:
             ref_image = b.get("global_ref_image")
@@ -966,7 +964,18 @@ class XB_WanInfiniteTalk_RelayNode:
                 import torchaudio
                 ca_wf = torchaudio.functional.resample(ca["waveform"], ca["sample_rate"], pa["sample_rate"])
                 ca = {"waveform": ca_wf, "sample_rate": pa["sample_rate"]}
-            final_audio = {"waveform": torch.cat([pa["waveform"], ca["waveform"]], dim=-1),
+
+            # 🛡️ 设备对齐 + 声道对齐: 防止 torch.cat 因设备/声道不一致崩溃
+            pa_wf = pa["waveform"]
+            ca_wf = ca["waveform"].to(pa_wf.device)
+            if pa_wf.dim() >= 1 and ca_wf.dim() >= 1 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
+                # 单声道 → 双声道 或反之时对齐
+                if pa_wf.shape[0] == 1:
+                    pa_wf = pa_wf.repeat(ca_wf.shape[0], *([1] * (pa_wf.dim() - 1)))
+                elif ca_wf.shape[0] == 1:
+                    ca_wf = ca_wf.repeat(pa_wf.shape[0], *([1] * (ca_wf.dim() - 1)))
+
+            final_audio = {"waveform": torch.cat([pa_wf, ca_wf], dim=-1),
                            "sample_rate": pa["sample_rate"]}
 
         b["_global_frame_offset"] = b.get("_global_frame_offset", 0) + cut.shape[cd]

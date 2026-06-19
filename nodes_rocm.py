@@ -19,7 +19,7 @@ XB-ToolBox ROCm 优化节点 (v5.0)
   - 时间分块 → 视频 latent 逐 chunk 解码，显存峰值降低 80%
 """
 
-import torch, gc, time
+import torch, gc, os, sys, time
 import comfy.model_management as mm
 import comfy.samplers
 import comfy.sample
@@ -38,25 +38,35 @@ _any = AnyType("*")
 
 
 _AMD_ARCH_DB = {
-    # RDNA4 — RX 9070 系列
-    "gfx1201": {"name": "RX 9070 XT",   "tile": 768, "gen": "RDNA4"},
-    "gfx1200": {"name": "RX 9070",      "tile": 640, "gen": "RDNA4"},
-    # RDNA3.5 — Strix APU
-    "gfx1151": {"name": "Strix Halo",   "tile": 768, "gen": "RDNA3.5"},
-    "gfx1150": {"name": "Strix Point",  "tile": 512, "gen": "RDNA3.5"},
-    # RDNA3 — RX 7000
-    "gfx1102": {"name": "RX 7600",      "tile": 384, "gen": "RDNA3"},
-    "gfx1101": {"name": "RX 7800 XT",   "tile": 512, "gen": "RDNA3"},
-    "gfx1100": {"name": "RX 7900 XTX",  "tile": 640, "gen": "RDNA3"},
-    # RDNA2 — RX 6000
-    "gfx1032": {"name": "RX 6600",      "tile": 256, "gen": "RDNA2"},
-    "gfx1031": {"name": "RX 6700 XT",   "tile": 320, "gen": "RDNA2"},
-    "gfx1030": {"name": "RX 6800/6900", "tile": 384, "gen": "RDNA2"},
-    # CDNA
-    "gfx942":  {"name": "MI300X",       "tile": 512, "gen": "CDNA3"},
-    "gfx90a":  {"name": "MI250X",       "tile": 512, "gen": "CDNA2"},
-    "gfx908":  {"name": "MI100",        "tile": 256, "gen": "CDNA"},
-    "gfx906":  {"name": "Radeon VII",   "tile": 256, "gen": "Vega"},
+    # ═══════════ RDNA4 — RX 9000 ═══════════
+    "gfx1201": {"name": "RDNA4 (Navi 48 XT)",     "tile": 768, "gen": "RDNA4",   "fp16_ok": True,  "fp8_ok": True},
+    "gfx1200": {"name": "RDNA4 (Navi 48)",        "tile": 640, "gen": "RDNA4",   "fp16_ok": True,  "fp8_ok": True},
+    # ═══════════ RDNA3.5 — Strix APU ═══════════
+    "gfx1151": {"name": "RDNA3.5 (Strix Halo)",   "tile": 768, "gen": "RDNA3.5", "fp16_ok": True},
+    "gfx1150": {"name": "RDNA3.5 (Strix Point)",  "tile": 384, "gen": "RDNA3.5", "fp16_ok": True},
+    # ═══════════ RDNA3 — RX 7000 + Phoenix ═══════════
+    "gfx1103": {"name": "RDNA3 (Phoenix iGPU)",   "tile": 256, "gen": "RDNA3",   "fp16_ok": True},
+    "gfx1102": {"name": "RDNA3 (Navi 33)",        "tile": 384, "gen": "RDNA3",   "fp16_ok": True},
+    "gfx1101": {"name": "RDNA3 (Navi 32)",        "tile": 512, "gen": "RDNA3",   "fp16_ok": True},
+    "gfx1100": {"name": "RDNA3 (Navi 31)",        "tile": 640, "gen": "RDNA3",   "fp16_ok": True},
+    # ═══════════ RDNA2 — RX 6000 + 集显 ═══════════
+    "gfx1037": {"name": "RDNA2 (Mendocino iGPU)",  "tile": 64,  "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1036": {"name": "RDNA2 (Raphael iGPU)",    "tile": 64,  "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1035": {"name": "RDNA2 (Rembrandt iGPU)",  "tile": 128, "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1034": {"name": "RDNA2 (Navi 24)",         "tile": 128, "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1032": {"name": "RDNA2 (Navi 23)",         "tile": 256, "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1031": {"name": "RDNA2 (Navi 22)",         "tile": 320, "gen": "RDNA2",   "fp16_ok": False},
+    "gfx1030": {"name": "RDNA2 (Navi 21)",         "tile": 384, "gen": "RDNA2",   "fp16_ok": False},
+    # ═══════════ RDNA1 — RX 5000 ═══════════
+    "gfx1012": {"name": "RDNA1 (Navi 14)",         "tile": 128, "gen": "RDNA1",   "fp16_ok": False},
+    "gfx1011": {"name": "RDNA1 (Navi 12)",         "tile": 192, "gen": "RDNA1",   "fp16_ok": False},
+    "gfx1010": {"name": "RDNA1 (Navi 10)",         "tile": 256, "gen": "RDNA1",   "fp16_ok": False},
+    # ═══════════ CDNA — 数据中心 ═══════════
+    "gfx942":  {"name": "CDNA3 (MI300X)",          "tile": 512, "gen": "CDNA3",   "fp16_ok": True,  "fp8_ok": True},
+    "gfx90a":  {"name": "CDNA2 (MI250X)",          "tile": 512, "gen": "CDNA2",   "fp16_ok": True},
+    "gfx908":  {"name": "CDNA (MI100)",            "tile": 256, "gen": "CDNA",    "fp16_ok": True},
+    # ═══════════ Legacy — Vega ═══════════
+    "gfx906":  {"name": "Vega (Radeon VII)",       "tile": 256, "gen": "Vega",    "fp16_ok": False},
 }
 
 
@@ -96,14 +106,163 @@ def gpu_info() -> dict:
     return d
 
 
+def _read_env_flag(name: str) -> bool | None:
+    """读取用户环境变量: 1/true → True, 0/false → False, 未设置 → None.
+    这是 XB_ToolBox 专属的补充开关，不是 ComfyUI 官方参数。"""
+    v = os.environ.get(name, "").strip().lower()
+    if v in ("1", "true", "yes", "on"):  return True
+    if v in ("0", "false", "no", "off"): return False
+    return None
+
+
+def _has_comfy_arg(flag: str) -> bool:
+    """检查 ComfyUI 启动命令行是否包含指定 flag (如 --force-fp32)."""
+    return flag in sys.argv
+
+
 def tune():
-    """ROCm 全局调优 — fp16累积 (rocBLAS加速) + mem_efficient SDPA"""
+    """ROCm 全局调优 — 动态架构感知 + DiT 算力解放 (2026 v5.1).
+
+    三级优先级: ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
+
+    自动识别的 ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
+      --cpu              → 跳过 GPU 调优
+      --force-fp32, --fp32-unet, --fp64-unet
+                         → 禁用 fp16/bf16 加速
+      --force-fp16, --fp16-unet
+                         → 仅在 GPU 硬件支持时启用
+
+    XB_ToolBox 补充环境变量（调试用）:
+      XB_FP16_ACCUM=1/0  强制启用/禁用 rocBLAS fp16 累积
+    """
     if not is_rocm(): return
-    torch.backends.cuda.matmul.allow_fp16_accumulation = True
+
+    # ── CPU 模式直接退出 ──
+    if _has_comfy_arg("--cpu"):
+        return
+
+    g = gpu_info()
+
+    # ═══════════════════════════════════════════
+    # 1. 全局矩阵乘法精度解放
+    #    激活 AMD RDNA3+/CDNA 的 WMMA 矩阵核心，
+    #    加速所有 Transformer/DiT 线性层 (Anima/LTX/Ideogram).
+    #    老架构无 WMMA，PyTorch 自动退回避免报错.
+    # ═══════════════════════════════════════════
+    torch.set_float32_matmul_precision('high')
+
+    # ═══════════════════════════════════════════
+    # 2. FP16 / BF16 累积调度
+    # ═══════════════════════════════════════════
+    if _has_comfy_arg("--force-fp32") or _has_comfy_arg("--fp32-unet") or _has_comfy_arg("--fp64-unet"):
+        can_fp16 = False
+    elif _has_comfy_arg("--force-fp16") or _has_comfy_arg("--fp16-unet"):
+        can_fp16 = g.get("fp16_ok", False)
+    elif (user_fp16 := _read_env_flag("XB_FP16_ACCUM")) is not None:
+        can_fp16 = user_fp16
+    else:
+        can_fp16 = g.get("fp16_ok", False)
+
+    torch.backends.cuda.matmul.allow_fp16_accumulation = can_fp16
+
+    # BF16 降精度规约: 2026 年 DiT 模型默认 BF16，启用后加速 ~15-25%
+    if hasattr(torch.backends.cuda.matmul, 'allow_bf16_reduced_precision_reduction'):
+        torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = can_fp16
+
+    # ═══════════════════════════════════════════
+    # 3. SDPA 架构动态路由 — DiT 长序列算力解放
+    # ═══════════════════════════════════════════
     if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'):
-        torch.backends.cuda.enable_mem_efficient_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(True)  # 始终作为兜底
+
     if hasattr(torch.backends.cuda, 'enable_flash_sdp'):
-        torch.backends.cuda.enable_flash_sdp(False)
+        gen = g.get("gen", "")
+        # RDNA3+ / CDNA2+: Flash Attention 2/3 通过 Triton/CK 完美支持
+        # RDNA1/2 / Vega / CDNA1: Flash 触发 MIOpen 段错误，必须禁用
+        if gen in ("RDNA3", "RDNA3.5", "RDNA4", "CDNA2", "CDNA3"):
+            torch.backends.cuda.enable_flash_sdp(True)
+        else:
+            torch.backends.cuda.enable_flash_sdp(False)
+
+
+def _vae_force_fp32() -> bool:
+    """老架构 GPU 是否应强制 VAE 用 fp32.
+
+    优先级: ComfyUI 启动参数 > XB_ 环境变量 > 架构自动判断.
+
+    自动识别的 ComfyUI 官方参数 (v0.16 ~ v0.25 通用):
+      --force-fp32, --fp32-vae
+        → 强制 VAE 用 fp32
+      --fp16-vae, --bf16-vae
+        → 不强制 (用户明确要 fp16/bf16 VAE)
+      --cpu-vae
+        → 不强制 (VAE 在 CPU 上运行，无需 GPU 精度保护)
+
+    XB_ToolBox 补充环境变量（调试用）:
+      XB_FP16_VAE=1 / 0  强制 VAE fp16 / fp32
+    """
+    if not is_rocm(): return False
+
+    # ── 优先级 1: ComfyUI 官方启动参数 ──
+    if _has_comfy_arg("--cpu-vae"):
+        return False  # VAE 在 CPU 上，不需要 GPU 精度保护
+    if _has_comfy_arg("--force-fp32") or _has_comfy_arg("--fp32-vae"):
+        return True
+    if _has_comfy_arg("--fp16-vae") or _has_comfy_arg("--bf16-vae"):
+        return False
+
+    # ── 优先级 2: XB_ToolBox 环境变量 ──
+    user_fp16 = _read_env_flag("XB_FP16_VAE")
+    if user_fp16 is not None:
+        return not user_fp16
+
+    # ── 优先级 3: 架构自动判断 ──
+    g = gpu_info()
+    return not g.get("fp16_ok", False)
+
+
+def _vae_safe_cast(tensor: torch.Tensor) -> torch.Tensor:
+    """老架构 GPU 上，将 fp16/bf16 输入转为 fp32 保护 MIOpen 卷积。
+    FLUX/SD3/WanVideo 等新模型默认输出 bf16，老卡对 bf16 的排斥比 fp16 更剧烈。"""
+    if tensor.dtype in (torch.float16, torch.bfloat16) and _vae_force_fp32():
+        return tensor.float()
+    return tensor
+
+
+def _vae_align_dtype(vae, tensor: torch.Tensor):
+    """旧架构上强制 VAE 模型权重精度对齐输入张量。
+    若只转输入不转模型，MIOpen 会因 Input/Weight dtype 不一致直接崩溃。
+    返回原始 dtype 供 _vae_restore_dtype 恢复，无需恢复时返回 None。"""
+    if not _vae_force_fp32() or not hasattr(vae, 'first_stage_model'):
+        return None
+    model = vae.first_stage_model
+    if model.dtype != tensor.dtype:
+        orig = model.dtype
+        model.to(tensor.dtype)
+        return orig
+    return None
+
+
+def _vae_restore_dtype(vae, orig_dtype):
+    """恢复 VAE 模型权重到原始精度。"""
+    if orig_dtype is not None and hasattr(vae, 'first_stage_model'):
+        vae.first_stage_model.to(orig_dtype)
+
+
+def _get_spatial_compression(vae) -> int:
+    """获取 VAE 空间压缩比，兼容多种属性名和 ComfyUI 原生接口。
+    优先级: spatial_compression_decode (正确拼写)
+           > spacial_compression_decode (历史遗留错误拼写)
+           > downscale_ratio (ComfyUI 原生属性)
+           > 8 (默认兜底)"""
+    for attr in ('spatial_compression_decode', 'spacial_compression_decode'):
+        if hasattr(vae, attr):
+            val = getattr(vae, attr)
+            return val() if callable(val) else val
+    if hasattr(vae, 'downscale_ratio'):
+        val = vae.downscale_ratio
+        return val() if callable(val) else val
+    return 8
 
 
 def memclr(sync: bool = True):
@@ -115,7 +274,13 @@ def memclr(sync: bool = True):
 
 
 def memstat() -> dict:
-    """获取当前显存状态"""
+    """获取当前显存状态。
+
+    ⚠️ Windows ROCm 限制: torch.cuda.memory_allocated() 只能读取 PyTorch 进程内
+    分配的显存池，无法感知 AMD 驱动层的隐式分配 (如 MIOpen 算子编译缓存)。
+    若推理突然变慢，请以任务管理器「专用 GPU 内存」读数为准。
+    Linux 下此问题不存在。
+    """
     if not torch.cuda.is_available(): return {}
     return {
         "alloc": torch.cuda.memory_allocated(0) / 1024**3,
@@ -150,30 +315,22 @@ def _do_cleanup(stage: str, level: str):
 
 def _even_chunks(total: int, chunk: int):
     """均匀分块：避免末尾出现特别小的碎片。
-    如果剩余 < chunk/2，合并到前一个 chunk。"""
+    余数 >= chunk/2 时单独成块，< chunk/2 时合并到最后一块。"""
     if total <= chunk:
         return [(0, total)]
     n_full = total // chunk
     remainder = total % chunk
     if remainder == 0:
         return [(i * chunk, (i + 1) * chunk) for i in range(n_full)]
-    # 有余数：如果余数 < chunk/2，把它分给前面的 chunk
+
     if remainder < chunk // 2:
-        chunks = []
-        extra_each = remainder // n_full
-        extra_rem = remainder % n_full
-        pos = 0
-        for i in range(n_full):
-            sz = chunk + extra_each + (1 if i < extra_rem else 0)
-            chunks.append((pos, pos + sz))
-            pos += sz
-        chunks.append((pos, total))  # 最后小块也保留，但已经很小了，合并逻辑在上面
-        # 更简单：直接把余数加到最后一个 chunk
+        # 余数太小，合并到最后一块
         chunks = [(i * chunk, (i + 1) * chunk) for i in range(n_full - 1)]
         chunks.append(((n_full - 1) * chunk, total))
-        return chunks
     else:
-        return [(i * chunk, min((i + 1) * chunk, total)) for i in range(n_full + 1)]
+        # 余数够大，单独成块
+        chunks = [(i * chunk, min((i + 1) * chunk, total)) for i in range(n_full + 1)]
+    return chunks
 
 
 class _Noise_EmptyNoise:
@@ -307,16 +464,42 @@ class XB_ROCmVAEDecode:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
+        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
+        # （官方 VAEDecodeTiled 也不做 unbind，直接透传）
+
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过，由其内部各子张量自行处理)
+        if not lat.is_nested and not lat.is_contiguous():
+            lat = lat.contiguous()
+
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
+        lat = _vae_safe_cast(lat)
+        # 🛡️ VAE 模型权重对齐输入精度
+        _orig_dtype = _vae_align_dtype(vae, lat)
+
         if tile == 0: tile = g["tile"]
-        if overlap == 0: overlap = max(32, tile // 8)
+
+        spatial_comp = _get_spatial_compression(vae)
+        tile_x = tile // spatial_comp
+        tile_y = tile // spatial_comp
+
+        if overlap == 0:
+            overlap_xy = max(4, tile_x // 8)
+        else:
+            overlap_xy = overlap // spatial_comp
+
+        # 官方防线：防止重叠区超过分块（潜空间校验，对齐 VAEDecodeTiled）
+        if tile_x < overlap_xy * 4:
+            overlap_xy = tile_x // 4
 
         _do_cleanup("pre", cleanup)
         try:
-            img = vae.decode_tiled(lat, tile_x=tile, tile_y=tile, overlap=overlap)
+            img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
         except AttributeError:
             print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
             img = vae.decode(lat)
-        _do_cleanup("post", cleanup)
+        finally:
+            _vae_restore_dtype(vae, _orig_dtype)
+            _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
@@ -339,25 +522,60 @@ class XB_ROCmVAEEncode:
                              "tooltip": "0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动"}),
+            "temporal_size": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 16,
+                                      "tooltip": "视频VAE时间分块帧数 0=根据显存自适应"}),
+            "temporal_overlap": ("INT", {"default": 0, "min": 0, "max": 64, "step": 4,
+                                         "tooltip": "时间重叠 0=自动"}),
             "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/ROCm"
 
-    def go(self, pixels, vae, tile, overlap, cleanup="不做任何清理"):
+    def go(self, pixels, vae, tile, overlap, temporal_size, temporal_overlap, cleanup="不做任何清理"):
         g = gpu_info(); tune()
+
+        # 🛡️ 强制显存连续性校验
+        if not pixels.is_contiguous():
+            pixels = pixels.contiguous()
+
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
+        pixels = _vae_safe_cast(pixels)
+        # 🛡️ VAE 模型权重对齐输入精度
+        _orig_dtype = _vae_align_dtype(vae, pixels)
 
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
 
+        # 时间分块: 对齐官方 VAEEncodeTiled
+        temporal_comp = vae.temporal_compression_encode() if hasattr(vae, 'temporal_compression_encode') else None
+        if temporal_comp is not None:
+            if temporal_size == 0:
+                if g["gb"] >= 48:   temporal_size = 64
+                elif g["gb"] >= 24: temporal_size = 32
+                elif g["gb"] >= 16: temporal_size = 16
+                else:               temporal_size = 8
+            t_tile = max(2, temporal_size // temporal_comp)
+            if temporal_overlap == 0:
+                temporal_overlap = max(4, temporal_size // 16)
+            t_overlap = max(1, min(t_tile // 2, temporal_overlap // temporal_comp))
+        else:
+            t_tile = None
+            t_overlap = None
+
         _do_cleanup("pre", cleanup)
         try:
+            lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap,
+                                   tile_t=t_tile, overlap_t=t_overlap)
+        except TypeError:
+            print(f"  ⚠️ ROCm VAE Encode: temporal kwargs unsupported, using spatial only.")
             lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap)
         except AttributeError:
             print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
             lat = vae.encode(pixels)
-        _do_cleanup("post", cleanup)
+        finally:
+            _vae_restore_dtype(vae, _orig_dtype)
+            _do_cleanup("post", cleanup)
         return ({"samples": lat},)
 
 
@@ -393,6 +611,17 @@ class XB_ROCmVAEDecodeTemporal:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
+        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
+
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
+        if not lat.is_nested and not lat.is_contiguous():
+            lat = lat.contiguous()
+
+        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
+        lat = _vae_safe_cast(lat)
+        # 🛡️ VAE 模型权重对齐输入精度
+        _orig_dtype = _vae_align_dtype(vae, lat)
+
         if lat.dim() == 5:
             B, C, F, H, W = lat.shape; is_vid = True
         elif lat.dim() == 4:
@@ -401,11 +630,11 @@ class XB_ROCmVAEDecodeTemporal:
             raise ValueError(f"unsupported latent dim: {lat.dim()}")
 
         if tile == 0: tile = g["tile"]
-        spacial_comp = vae.spacial_compression_decode() if hasattr(vae, 'spacial_compression_decode') else 8
-        tile_x = tile // spacial_comp
-        tile_y = tile // spacial_comp
+        spatial_comp = _get_spatial_compression(vae)
+        tile_x = tile // spatial_comp
+        tile_y = tile // spatial_comp
         if overlap == 0: overlap = max(32, tile // 8)
-        overlap_xy = overlap // spacial_comp
+        overlap_xy = overlap // spatial_comp
 
         temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
         if temporal_comp is not None and is_vid:
@@ -427,17 +656,25 @@ class XB_ROCmVAEDecodeTemporal:
             img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y,
                                    overlap=overlap_xy,
                                    tile_t=t_tile_vae, overlap_t=t_overlap_vae)
-        except (AttributeError, TypeError):
-            print(f"  ⚠️ ROCm VAE Decode Temporal: decode_tiled not available, fallback")
-            if is_vid and F > 1:
-                frames = []
-                for f in range(F):
-                    fl = lat[:, :, f:f+1, :, :].squeeze(2)
-                    frames.append(vae.decode(fl).unsqueeze(1))
-                img = torch.cat(frames, dim=1)
+        except TypeError:
+            # decode_tiled 不支持 tile_t/overlap_t
+            print(f"  ⚠️ ROCm VAE Temporal: temporal kwargs unsupported.")
+            if is_vid and not hasattr(vae, 'temporal_compression_decode'):
+                # 2D VAE 处理视频 → movedim 置换 F/C 再展平，防止帧间通道串扰
+                print("  ⚠️ flattening 5D to 4D for spatial tiled decode...")
+                lat_flat = lat.movedim(2, 1).reshape(-1, C, H, W)
+                img = vae.decode_tiled(lat_flat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
             else:
+                # 真 3D VAE 但 decode_tiled 不认 5D，不能硬塞，退回全局解码
+                print("  ⚠️ 3D VAE lacks native tiling, falling back to global decode (watch VRAM!)")
                 img = vae.decode(lat)
-        _do_cleanup("post", cleanup)
+        except AttributeError:
+            # 连 decode_tiled 都没有 → 最终 fallback
+            print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
+            img = vae.decode(lat)
+        finally:
+            _vae_restore_dtype(vae, _orig_dtype)
+            _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
         return (img,)
