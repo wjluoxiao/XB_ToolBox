@@ -343,8 +343,20 @@ class XB_WanAnimateToVideo:
         def _enc(pixels):
             if pixels.dim() == 3: pixels = pixels.unsqueeze(0)
             p = pixels[:, :, :, :3]
+
+            # 🛡️ 显存连续性重组
+            if not p.is_contiguous(): p = p.contiguous()
+            # 🛡️ VAE 精度对齐
+            if hasattr(vae, 'first_stage_model'):
+                vae_dtype = getattr(vae.first_stage_model, 'dtype', None)
+                if vae_dtype is None:
+                    try: vae_dtype = next(vae.first_stage_model.parameters()).dtype
+                    except: pass
+                if vae_dtype is not None and p.dtype != vae_dtype:
+                    p = p.to(vae_dtype)
+
             if vae_tile_size and vae_tile_size > 0:
-                try: return vae.encode_tiled(p, tile_x=vae_tile_size, tile_y=vae_tile_size, overlap=32, tile_t=256, overlap_t=8)
+                try: return vae.encode_tiled(p, tile_x=vae_tile_size, tile_y=vae_tile_size, overlap=32, tile_t=32, overlap_t=4)
                 except (AttributeError, TypeError): pass
             return vae.encode(p)
         if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'): torch.backends.cuda.enable_mem_efficient_sdp(True)

@@ -15,13 +15,28 @@ def _upscale(img, w, h, method="lanczos", crop="center"):
     return comfy.utils.common_upscale(img.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
 
 def _encode_vae(vae, pixels, tile_size):
-
     if pixels.dim() == 3:
         pixels = pixels.unsqueeze(0)
+    p = pixels[:, :, :, :3]
+
+    # 🛡️ 显存连续性重组 (movedim/切片会产生非连续张量，MIOpen 无法处理)
+    if not p.is_contiguous():
+        p = p.contiguous()
+
+    # 🛡️ VAE 精度对齐 (输入 float32 vs 权重 bfloat16 会 RuntimeError)
+    if hasattr(vae, 'first_stage_model'):
+        vae_dtype = getattr(vae.first_stage_model, 'dtype', None)
+        if vae_dtype is None:
+            try: vae_dtype = next(vae.first_stage_model.parameters()).dtype
+            except: pass
+        if vae_dtype is not None and p.dtype != vae_dtype:
+            p = p.to(vae_dtype)
+
     if tile_size == 0 or tile_size is None:
-        return vae.encode(pixels[:, :, :, :3])
+        return vae.encode(p)
     else:
-        return vae.encode_tiled(pixels[:, :, :, :3], tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=256, overlap_t=8)
+        # tile_t=32: 时间分块 32 帧像素 → 8 帧潜空间 (÷4)，24G 显存安全
+        return vae.encode_tiled(p, tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=32, overlap_t=4)
 
 # ============================================================
 # XB_WanImageToVideo — Wan 图生视频
@@ -65,8 +80,9 @@ class XB_WanImageToVideo:
 
             concat_latent_image = _encode_vae(vae, image, vae_tile_size)
 
-            mask = torch.ones((1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]), device=start_image.device, dtype=start_image.dtype)
-            mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
+            mask = torch.ones((1, 1, latent.shape[2] * 4, concat_latent_image.shape[-2], concat_latent_image.shape[-1]), device=start_image.device, dtype=start_image.dtype)
+            mask[:, :, :start_image.shape[0] + 3] = 0.0
+            mask = mask.view(1, mask.shape[2] // 4, 4, mask.shape[3], mask.shape[4]).transpose(1, 2)
 
             positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": mask})
             negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": mask})
@@ -572,9 +588,10 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
         image[:start_image.shape[0]] = start_image
 
         concat_latent_image = _encode_vae(vae, image, vae_tile_size)
-        concat_mask = torch.ones((1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
+        concat_mask = torch.ones((1, 1, latent.shape[2] * 4, concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
                                  device=start_image.device, dtype=start_image.dtype)
-        concat_mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
+        concat_mask[:, :, :start_image.shape[0] + 3] = 0.0
+        concat_mask = concat_mask.view(1, concat_mask.shape[2] // 4, 4, concat_mask.shape[3], concat_mask.shape[4]).transpose(1, 2)
 
         positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
         negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})

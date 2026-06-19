@@ -59,12 +59,22 @@ class XB_SageAttentionAccelerator:
                 k = k.view(b, -1, heads, dim_head)
                 v = v.view(b, -1, heads, dim_head)
                 tensor_layout = "NHD"
-                
-            if mask is not None:
-                if mask.ndim == 2: mask = mask.unsqueeze(0)
-                if mask.ndim == 3: mask = mask.unsqueeze(1)
             
-            out = sageattn(q, k, v, is_causal=False, tensor_layout=tensor_layout, sage_config=selected_cfg).to(in_dtype)
+            # 🛡️ 非2的幂Head Dim → 退回原生SDPA
+            if dim_head not in (16, 32, 64, 128, 256):
+                print("\033[93m[SageAttn]\033[0m: Unsupported head_dim ({}) — falling back to SDPA.".format(dim_head))
+                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
+            
+            # 🛡️ 有attn_mask → sageattn内核不支持，退回原生SDPA并警告
+            if mask is not None:
+                print("\033[93m[SageAttn]\033[0m: Attention mask detected — falling back to SDPA.")
+                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
+            
+            # 传递is_causal（sageattn有独立的causal内核）
+            is_causal = kwargs.get("is_causal", False)
+            out = sageattn(q, k, v, is_causal=is_causal, tensor_layout=tensor_layout, sage_config=selected_cfg).to(in_dtype)
             
             if tensor_layout == "HND":
                 if not skip_output_reshape:
