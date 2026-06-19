@@ -23,14 +23,6 @@ def is_dynamic_vram_active():
         return True
     return False
 
-def is_lowvram_safe() -> bool:
-    """BlockSwap 依赖 ComfyUI 低显存模式的 forward hook 机制。
-    未启用 lowvram/novram 时，裸 to(cpu) 会切断 GPU 前向传播链导致设备不匹配崩溃。"""
-    for flag in ("--lowvram", "--novram"):
-        if flag in sys.argv:
-            return True
-    return False
-
 def is_unsupported_model(diffusion_model):
     model_type = type(diffusion_model).__name__
     # 黑名单列表：遇到这些底层架构，直接静默放行，拒绝分块
@@ -69,12 +61,6 @@ class XB_UNetBlockSwap:
             return (unet_model,)
 
         if is_dynamic_vram_active():
-            return (unet_model,)
-
-        if not is_lowvram_safe():
-            print("\033[93m[XB Block Swap]\033[0m: ⚠️ 未检测到 --lowvram/--novram 参数。")
-            print("  BlockSwap 依赖 ComfyUI 低显存模式的 forward hook 机制，裸 to(cpu) 会导致设备不匹配崩溃。")
-            print("  请添加 --lowvram 启动参数后重试，节点已自动跳过。")
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
