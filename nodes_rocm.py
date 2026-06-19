@@ -222,11 +222,13 @@ def _vae_force_fp32() -> bool:
 
 
 def _vae_enforce_precision(vae, tensor: torch.Tensor):
-    """ROCm VAE 终极精度防线 — 彻底歼灭 MIOpen 混合精度崩溃。
-    
-    问题: ComfyUI 加载 VAE 时可能权重 fp16 + Bias fp32，MIOpen 零容忍报:
-      RuntimeError: Input type (Half) and bias type (float) should be the same
-    
+    """ROCm VAE 精度防线 (v5.1 物理扫荡版)
+
+    ComfyUI 的 decode_tiled 内部会调用 load_model_gpu 重新加载原始权重，
+    model.to() 的修改会被覆盖。因此必须：
+    1. 先让 ComfyUI 把模型加载到 GPU
+    2. 直接在 GPU 上篡改 param.data / buffer.data 物理张量
+
     返回: (安全转换后的 tensor, 模型原始名义 dtype 供 restore)
     """
     if not hasattr(vae, 'first_stage_model'):
@@ -241,16 +243,20 @@ def _vae_enforce_precision(vae, tensor: torch.Tensor):
         except (StopIteration, AttributeError):
             nominal_dtype = torch.float32
 
-    # 目标精度: 老架构强制 fp32，新架构尊重 VAE 名义精度
     target_dtype = torch.float32 if _vae_force_fp32() else nominal_dtype
-
     safe_tensor = tensor.to(target_dtype)
 
-    # 暴力抹平模型内所有混合精度参数 (如 ComfyUI 残留的 fp32 Bias)
-    try:
-        model.to(target_dtype)
-    except Exception:
-        pass
+    # 抢占: 让 ComfyUI 先把模型加载到 GPU
+    if hasattr(vae, 'patcher'):
+        mm.load_model_gpu(vae.patcher)
+
+    # 物理扫荡: 直接在 GPU 上篡改底层张量数据，无视 ComfyUI 拦截
+    for param in model.parameters():
+        if param.dtype != target_dtype:
+            param.data = param.data.to(target_dtype)
+    for buf in model.buffers():
+        if buf.dtype != target_dtype:
+            buf.data = buf.data.to(target_dtype)
 
     return safe_tensor, nominal_dtype
 
