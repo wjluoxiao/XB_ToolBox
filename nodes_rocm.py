@@ -221,55 +221,6 @@ def _vae_force_fp32() -> bool:
     return not g.get("fp16_ok", False)
 
 
-def _vae_enforce_precision(vae, tensor: torch.Tensor):
-    """ROCm VAE 精度防线 (v5.1 物理扫荡版)
-
-    ComfyUI 的 decode_tiled 内部会调用 load_model_gpu 重新加载原始权重，
-    model.to() 的修改会被覆盖。因此必须：
-    1. 先让 ComfyUI 把模型加载到 GPU
-    2. 直接在 GPU 上篡改 param.data / buffer.data 物理张量
-
-    返回: (安全转换后的 tensor, 模型原始名义 dtype 供 restore)
-    """
-    if not hasattr(vae, 'first_stage_model'):
-        return tensor, None
-
-    model = vae.first_stage_model
-    try:
-        nominal_dtype = model.dtype
-    except AttributeError:
-        try:
-            nominal_dtype = next(model.parameters()).dtype
-        except (StopIteration, AttributeError):
-            nominal_dtype = torch.float32
-
-    target_dtype = torch.float32 if _vae_force_fp32() else nominal_dtype
-    safe_tensor = tensor.to(target_dtype)
-
-    # 抢占: 让 ComfyUI 先把模型加载到 GPU
-    if hasattr(vae, 'patcher'):
-        mm.load_model_gpu(vae.patcher)
-
-    # 物理扫荡: 直接在 GPU 上篡改底层张量数据，无视 ComfyUI 拦截
-    for param in model.parameters():
-        if param.dtype != target_dtype:
-            param.data = param.data.to(target_dtype)
-    for buf in model.buffers():
-        if buf.dtype != target_dtype:
-            buf.data = buf.data.to(target_dtype)
-
-    return safe_tensor, nominal_dtype
-
-
-def _vae_restore_dtype(vae, orig_dtype):
-    """恢复 VAE 模型权重到原始精度。"""
-    if orig_dtype is not None and hasattr(vae, 'first_stage_model'):
-        try:
-            vae.first_stage_model.to(orig_dtype)
-        except Exception:
-            pass
-
-
 def _get_spatial_compression(vae) -> int:
     """获取 VAE 空间压缩比，兼容多种属性名和 ComfyUI 原生接口。
     优先级: spatial_compression_decode (正确拼写)
@@ -485,15 +436,9 @@ class XB_ROCmVAEDecode:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
-        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
-        # （官方 VAEDecodeTiled 也不做 unbind，直接透传）
-
-        # 🛡️ 强制显存连续性校验 (嵌套张量跳过，由其内部各子张量自行处理)
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
-
-        # 🛡️ ROCm VAE 精度防线: 抹平混合精度 (ComfyUI 可能 fp16权重+fp32Bias → MIOpen崩溃)
-        lat, _orig_dtype = _vae_enforce_precision(vae, lat)
 
         if tile == 0: tile = g["tile"]
 
@@ -506,11 +451,9 @@ class XB_ROCmVAEDecode:
         else:
             overlap_xy = overlap // spatial_comp
 
-        # 官方防线：防止重叠区超过分块（潜空间校验，对齐 VAEDecodeTiled）
         if tile_x < overlap_xy * 4:
             overlap_xy = tile_x // 4
 
-        # ⚡ 快速路径：图像完全在一个分块内 → 跳过 tiled 开销
         lat_h, lat_w = lat.shape[-2], lat.shape[-1]
         use_fast = (tile_x >= lat_h and tile_y >= lat_w)
 
@@ -524,7 +467,6 @@ class XB_ROCmVAEDecode:
             print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
             img = vae.decode(lat)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
@@ -565,9 +507,6 @@ class XB_ROCmVAEEncode:
         if not pixels.is_contiguous():
             pixels = pixels.contiguous()
 
-        # 🛡️ ROCm VAE 精度防线: 抹平混合精度
-        pixels, _orig_dtype = _vae_enforce_precision(vae, pixels)
-
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
 
@@ -598,7 +537,6 @@ class XB_ROCmVAEEncode:
             print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
             lat = vae.encode(pixels)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         return ({"samples": lat},)
 
@@ -640,9 +578,6 @@ class XB_ROCmVAEDecodeTemporal:
         # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
-
-        # 🛡️ ROCm VAE 精度防线: 抹平混合精度
-        lat, _orig_dtype = _vae_enforce_precision(vae, lat)
 
         if lat.dim() == 5:
             B, C, F, H, W = lat.shape; is_vid = True
@@ -695,7 +630,6 @@ class XB_ROCmVAEDecodeTemporal:
             print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
             img = vae.decode(lat)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
