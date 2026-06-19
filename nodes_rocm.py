@@ -231,22 +231,35 @@ def _vae_safe_cast(tensor: torch.Tensor) -> torch.Tensor:
 
 def _vae_align_dtype(vae, tensor: torch.Tensor):
     """旧架构上强制 VAE 模型权重精度对齐输入张量。
-    若只转输入不转模型，MIOpen 会因 Input/Weight dtype 不一致直接崩溃。
+    兼容旧式 VAE (first_stage_model.dtype) 和新式 AutoencodingEngine (无 .dtype)。
     返回原始 dtype 供 _vae_restore_dtype 恢复，无需恢复时返回 None。"""
     if not _vae_force_fp32() or not hasattr(vae, 'first_stage_model'):
         return None
     model = vae.first_stage_model
-    if model.dtype != tensor.dtype:
-        orig = model.dtype
-        model.to(tensor.dtype)
-        return orig
+    try:
+        model_dtype = model.dtype
+    except AttributeError:
+        # AutoencodingEngine 等新式 VAE 没有 .dtype，从参数推断
+        try:
+            model_dtype = next(model.parameters()).dtype
+        except (StopIteration, AttributeError):
+            return None
+    if model_dtype != tensor.dtype:
+        try:
+            model.to(tensor.dtype)
+        except Exception:
+            return None
+        return model_dtype
     return None
 
 
 def _vae_restore_dtype(vae, orig_dtype):
     """恢复 VAE 模型权重到原始精度。"""
     if orig_dtype is not None and hasattr(vae, 'first_stage_model'):
-        vae.first_stage_model.to(orig_dtype)
+        try:
+            vae.first_stage_model.to(orig_dtype)
+        except Exception:
+            pass
 
 
 def _get_spatial_compression(vae) -> int:
