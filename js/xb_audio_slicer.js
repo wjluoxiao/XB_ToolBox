@@ -110,7 +110,7 @@ app.registerExtension({
                     const fps = parseFloat(wFps?.value) || 25;
                     const et = parseFloat(wEnd?.value) || 0;
                     if (et <= 0 || et > audioEl.duration + 1) {
-                        const r = Math.round(audioEl.duration * fps) / fps;
+                        const r = Math.floor(audioEl.duration * fps) / fps;
                         wEnd.value = r;
                         if (wEnd.inputEl) wEnd.inputEl.value = r;
                         if (wEnd.element) wEnd.element.value = r;

@@ -66,7 +66,7 @@ try:
                              XB_WanAnimateToVideo)
 
     from .nodes_label import XB_CanvasLabel
-    from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2
+    from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
@@ -138,7 +138,8 @@ try:
         "XB_CanvasLabel": XB_CanvasLabel,
         "XB_AudioSlicer": XB_AudioSlicer,
         "XB_AudioSlicerV1": XB_AudioSlicerV1,
-        "XB_AudioSlicerV2": XB_AudioSlicerV2
+        "XB_AudioSlicerV2": XB_AudioSlicerV2,
+        "XB_AudioSlicerV3": XB_AudioSlicerV3
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -191,6 +192,7 @@ try:
         "XB_AudioSlicer": "XB-BOX - 🎵 音频切片（基础）",
         "XB_AudioSlicerV1": "XB-BOX - 🎵 音频切片V1（单人）",
         "XB_AudioSlicerV2": "XB-BOX - 🎵 音频切片V2（双人）",
+        "XB_AudioSlicerV3": "XB-BOX - 🎵 音频切片V3（高级）",
         "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块",
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",

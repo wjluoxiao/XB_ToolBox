@@ -852,6 +852,32 @@
       "5": { "name": "帧数2" }
     }
   },
+  "XB_AudioSlicerV3": {
+    "display_name": "XB-BOX - 🎵 音频切片V3（高级）",
+    "inputs": {
+      "audio1": { "name": "音频文件1" },
+      "fps": { "name": "视频帧率" },
+      "start1": { "name": "开始时间1" },
+      "end1": { "name": "结束时间1" },
+      "mute_count1": { "name": "音频1消音数量" },
+      "mutes1_data": { "name": "消音数据1" },
+      "audio2": { "name": "音频文件2" },
+      "start2": { "name": "开始时间2" },
+      "end2": { "name": "结束时间2" },
+      "mute_count2": { "name": "音频2消音数量" },
+      "mutes2_data": { "name": "消音数据2" },
+      "merge_mode": { "name": "合并模式" },
+      "total_display": { "name": "合并帧数" }
+    },
+    "outputs": {
+      "0": { "name": "合并音频" },
+      "1": { "name": "合并帧数" },
+      "2": { "name": "音频1" },
+      "3": { "name": "帧数1" },
+      "4": { "name": "音频2" },
+      "5": { "name": "帧数2" }
+    }
+  },
   "XB_WanInfiniteTalk_ParamBus": {
     "display_name": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线（单人）",
     "inputs": {
