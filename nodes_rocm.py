@@ -1,4 +1,4 @@
-"""
+﻿"""
 XB-ToolBox ROCm 优化节点 (v5.0)
 ================================
 8 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
@@ -221,36 +221,38 @@ def _vae_force_fp32() -> bool:
     return not g.get("fp16_ok", False)
 
 
-def _vae_safe_cast(tensor: torch.Tensor) -> torch.Tensor:
-    """老架构 GPU 上，将 fp16/bf16 输入转为 fp32 保护 MIOpen 卷积。
-    FLUX/SD3/WanVideo 等新模型默认输出 bf16，老卡对 bf16 的排斥比 fp16 更剧烈。"""
-    if tensor.dtype in (torch.float16, torch.bfloat16) and _vae_force_fp32():
-        return tensor.float()
-    return tensor
+def _vae_enforce_precision(vae, tensor: torch.Tensor):
+    """ROCm VAE 终极精度防线 — 彻底歼灭 MIOpen 混合精度崩溃。
+    
+    问题: ComfyUI 加载 VAE 时可能权重 fp16 + Bias fp32，MIOpen 零容忍报:
+      RuntimeError: Input type (Half) and bias type (float) should be the same
+    
+    返回: (安全转换后的 tensor, 模型原始名义 dtype 供 restore)
+    """
+    if not hasattr(vae, 'first_stage_model'):
+        return tensor, None
 
-
-def _vae_align_dtype(vae, tensor: torch.Tensor):
-    """旧架构上强制 VAE 模型权重精度对齐输入张量。
-    兼容旧式 VAE (first_stage_model.dtype) 和新式 AutoencodingEngine (无 .dtype)。
-    返回原始 dtype 供 _vae_restore_dtype 恢复，无需恢复时返回 None。"""
-    if not _vae_force_fp32() or not hasattr(vae, 'first_stage_model'):
-        return None
     model = vae.first_stage_model
     try:
-        model_dtype = model.dtype
+        nominal_dtype = model.dtype
     except AttributeError:
-        # AutoencodingEngine 等新式 VAE 没有 .dtype，从参数推断
         try:
-            model_dtype = next(model.parameters()).dtype
+            nominal_dtype = next(model.parameters()).dtype
         except (StopIteration, AttributeError):
-            return None
-    if model_dtype != tensor.dtype:
-        try:
-            model.to(tensor.dtype)
-        except Exception:
-            return None
-        return model_dtype
-    return None
+            nominal_dtype = torch.float32
+
+    # 目标精度: 老架构强制 fp32，新架构尊重 VAE 名义精度
+    target_dtype = torch.float32 if _vae_force_fp32() else nominal_dtype
+
+    safe_tensor = tensor.to(target_dtype)
+
+    # 暴力抹平模型内所有混合精度参数 (如 ComfyUI 残留的 fp32 Bias)
+    try:
+        model.to(target_dtype)
+    except Exception:
+        pass
+
+    return safe_tensor, nominal_dtype
 
 
 def _vae_restore_dtype(vae, orig_dtype):
@@ -484,10 +486,8 @@ class XB_ROCmVAEDecode:
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
 
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        lat = _vae_safe_cast(lat)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, lat)
+        # 🛡️ ROCm VAE 精度防线: 抹平混合精度 (ComfyUI 可能 fp16权重+fp32Bias → MIOpen崩溃)
+        lat, _orig_dtype = _vae_enforce_precision(vae, lat)
 
         if tile == 0: tile = g["tile"]
 
@@ -559,10 +559,8 @@ class XB_ROCmVAEEncode:
         if not pixels.is_contiguous():
             pixels = pixels.contiguous()
 
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        pixels = _vae_safe_cast(pixels)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, pixels)
+        # 🛡️ ROCm VAE 精度防线: 抹平混合精度
+        pixels, _orig_dtype = _vae_enforce_precision(vae, pixels)
 
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
@@ -637,10 +635,8 @@ class XB_ROCmVAEDecodeTemporal:
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
 
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        lat = _vae_safe_cast(lat)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, lat)
+        # 🛡️ ROCm VAE 精度防线: 抹平混合精度
+        lat, _orig_dtype = _vae_enforce_precision(vae, lat)
 
         if lat.dim() == 5:
             B, C, F, H, W = lat.shape; is_vid = True
