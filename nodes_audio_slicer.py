@@ -5,7 +5,7 @@ XB-ToolBox 音频切片节点
 使用 av (PyAV) 解码，兼容所有格式（同 VHS 用 ffmpeg 的效果）
 """
 
-import os
+import os, asyncio
 
 import folder_paths
 import torch
@@ -71,7 +71,9 @@ async def handle_audio_waveform(request):
         return web.json_response({"error": f"File not found: {filename}"})
 
     try:
-        result = _load_audio_file(audio_path)
+        # 🛡️ 重度CPU解码踢入线程池，不阻塞ComfyUI主事件循环
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _load_audio_file, audio_path)
         if result is None:
             return web.json_response({"error": "Failed to decode audio"})
         waveform, sample_rate = result
@@ -84,9 +86,14 @@ async def handle_audio_waveform(request):
         total_samples = waveform.shape[0]
         chunk_size = max(1, total_samples // num_peaks)
         peaks = []
-        for i in range(0, total_samples, chunk_size):
-            chunk = waveform[i:i + chunk_size]
-            peaks.append([round(float(chunk.max().item()), 6), round(float(chunk.min().item()), 6)])
+        for i in range(num_peaks):
+            chunk = waveform[i * chunk_size : (i + 1) * chunk_size]
+            if chunk.numel() == 0:
+                peaks.append([0.0, 0.0])
+                continue
+            # RMS 均方根 — 反映声音真实能量，不像 max/min 那样被噪音尖峰欺骗
+            rms = float(torch.sqrt(torch.mean(chunk.float() ** 2)).item())
+            peaks.append([round(rms, 6), round(-rms, 6)])
 
         return web.json_response({
             "duration": round(total_samples / sample_rate, 2),
@@ -166,6 +173,13 @@ class XB_AudioSlicer:
         duration_sec = (end_sample - start_sample) / sample_rate
         raw_frames = int(round(duration_sec * fps))
         frame_count = _snap_4n1(raw_frames)
+        # 🛡️ 音频物理长度对齐 4N+1 帧数，防止音视频时间轴错位
+        target_samples = int((frame_count / fps) * sample_rate)
+        if sliced.shape[1] < target_samples:
+            pad = torch.zeros((sliced.shape[0], target_samples - sliced.shape[1]), dtype=sliced.dtype, device=sliced.device)
+            sliced = torch.cat([sliced, pad], dim=1)
+        elif sliced.shape[1] > target_samples:
+            sliced = sliced[:, :target_samples]
         if frame_count != raw_frames:
             print(f"🔧 [音频切片] 帧数 {raw_frames} → {frame_count} (对齐 4N+1)")
         return (_make_audio(sliced, sample_rate), frame_count)
@@ -291,7 +305,16 @@ class XB_AudioSlicerV2:
         if es <= ss: es = min(ss + int(fd * 4 * sr), audio.shape[1])
         dur = (es - ss) / sr
         raw = int(round(dur * fps))
-        return audio[:, ss:es], _snap_4n1(raw)
+        fc = _snap_4n1(raw)
+        # 🛡️ 音频物理长度对齐 4N+1 帧数
+        sliced = audio[:, ss:es]
+        target = int((fc / fps) * sr)
+        if sliced.shape[1] < target:
+            pad = torch.zeros((sliced.shape[0], target - sliced.shape[1]), dtype=sliced.dtype, device=sliced.device)
+            sliced = torch.cat([sliced, pad], dim=1)
+        elif sliced.shape[1] > target:
+            sliced = sliced[:, :target]
+        return sliced, fc
 
     def slice_dual(self, audio1, fps, start1, end1, audio2, start2, end2, gap_frames, total_display):
         a1, d1f = self._load(audio1); a2, d2f = self._load(audio2)

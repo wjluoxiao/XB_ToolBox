@@ -29,11 +29,7 @@ app.registerExtension({
                     const el = wDur.inputEl || wDur.element;
                     if (el) {
                         el.readOnly = true;
-                        el.style.backgroundColor = "#1a1a1a";
-                        el.style.color = "#00E676";
-                        el.style.textAlign = "center";
-                        el.style.fontWeight = "bold";
-                        el.style.fontSize = "13px";
+                        el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:15px;min-width:120px;white-space:nowrap;overflow:hidden;";
                     }
                 }, 100);
             }
@@ -89,6 +85,7 @@ app.registerExtension({
             // 3. 状态
             // ============================================================
             let totalDur = 0, dragging = null, dragRS = 0, dragRE = 0, _lastFile = null, _pausing = false;
+            let peaks = null; // 后端波形峰值数据
 
             // ============================================================
             // 4. 辅助函数
@@ -149,27 +146,33 @@ app.registerExtension({
             const draw = () => {
                 const ctx = canvas.getContext("2d");
                 const w = canvas.width, h = canvas.height;
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 适配 devicePixelRatio
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 const W = w / dpr, H = h / dpr;
                 ctx.clearRect(0, 0, W, H);
-
-                ctx.fillStyle = "#111";
-                ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H);
 
                 const dur = getDur(), s = getS(), e = getE();
                 const sx = timeToX(s) / dpr, ex = timeToX(e) / dpr;
                 const ww = (W - PAD * 2), mid = H / 2;
 
-                // 通用波形（填满高度）
-                const nBars = 100;
-                const barW = Math.max(2, ww / nBars);
-                for (let i = 0; i < nBars; i++) {
-                    const x = PAD + (i / nBars) * ww;
-                    const amp = Math.abs(Math.sin(i * 0.4) * Math.cos(i * 0.15) * Math.sin(i * 0.08 + 1.2));
-                    const bh = Math.max(1, amp * H * 0.49);  // 填满 98% 高度
-                    const inSel = x >= sx && x <= ex;
-                    ctx.fillStyle = inSel ? "#4FC3F7" : "rgba(79,195,247,0.15)";
-                    ctx.fillRect(x, mid - bh, Math.max(1, barW - 0.5), bh * 2);
+                // 真实音频波形（来自后端 peaks 数据）
+                if (peaks && peaks.length > 1) {
+                    const n = peaks.length, barW = Math.max(1.5, ww / n);
+                    // 对数动态缩放：即使压缩音乐也能分辨响度变化，0%=0 100%=满
+                    const rmsVals = peaks.map(p => p[0]);
+                    const rmsMax = Math.max(...rmsVals, 0.001);
+                    const scale = (v) => Math.log10(1 + 9 * v / rmsMax) * H * 0.50;
+                    for (let i = 0; i < n; i++) {
+                        const x = PAD + (i / n) * ww;
+                        const bh = Math.max(0.5, scale(peaks[i][0]));
+                        const inSel = x >= sx && x <= ex;
+                        ctx.fillStyle = inSel ? "#4FC3F7" : "rgba(79,195,247,0.18)";
+                        ctx.fillRect(x, mid - bh, Math.max(1, barW - 0.3), bh * 2);
+                    }
+                } else {
+                    // fallback: 无数据占位线
+                    ctx.strokeStyle = "rgba(79,195,247,0.15)"; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(PAD, mid); ctx.lineTo(PAD + ww, mid); ctx.stroke();
                 }
 
                 // 选中高亮
@@ -247,6 +250,10 @@ app.registerExtension({
                         wEnd.value = snap(Math.min(dur, ne));
                     }
                     syncWidgets(); draw();
+                    // 拖拽开始线时重置播放位置
+                    if (dragging === "start" || dragging === "range") {
+                        if (audioEl.readyState >= 1) audioEl.currentTime = getS();
+                    }
                 } else {
                     const mx = mouseToCanvasX(ev.clientX);
                     const sxPx = timeToX(getS()), exPx = timeToX(getE());
@@ -310,30 +317,44 @@ app.registerExtension({
             // ============================================================
             // 8. Widget 回调 + 初始化
             // ============================================================
+            const fetchPeaks = async (filename) => {
+                if (!filename || filename === "none") { peaks = null; return; }
+                try {
+                    const resp = await api.fetchApi("/xb_toolbox/audio_waveform", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filename, num_peaks: 200 })
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        peaks = data.peaks;
+                        totalDur = data.duration || 10;
+                    }
+                } catch (e) { console.warn("XB Audio V1: fetchPeaks failed", e); }
+            };
+
             if (wAudio) {
                 const orig = wAudio.callback;
-                wAudio.callback = function () { orig?.apply(this, arguments); updateSrc(); };
+                wAudio.callback = function () { orig?.apply(this, arguments); updateSrc(); fetchPeaks(wAudio.value).then(() => { draw(); }); };
             }
             // start/end 变化 → 同步播放器位置和波形
-            const onTimeChange = () => {
-                // 防止 end < start
+            const onTimeChange = (resetPlayback) => {
                 let s = getS(), e = getE(), dur = getDur();
                 if (e < s + 0.01) { e = Math.min(s + 0.01, dur); wEnd.value = e; }
                 syncWidgets(); draw();
-                if (audioEl.readyState >= 1)
+                if (resetPlayback && audioEl.readyState >= 1)
                     audioEl.currentTime = s;
             };
             if (wStart) {
                 const orig = wStart.callback;
-                wStart.callback = function () { orig?.apply(this, arguments); onTimeChange(); };
+                wStart.callback = function () { orig?.apply(this, arguments); onTimeChange(true); };
             }
             if (wEnd) {
                 const orig = wEnd.callback;
-                wEnd.callback = function () { orig?.apply(this, arguments); onTimeChange(); };
+                wEnd.callback = function () { orig?.apply(this, arguments); onTimeChange(false); };
             }
 
             setInterval(() => { if (totalDur > 0) { syncWidgets(); draw(); } }, 150);
-            setTimeout(() => updateSrc(), 400);
+            setTimeout(() => { updateSrc(); if (wAudio?.value && wAudio.value !== "none") fetchPeaks(wAudio.value).then(() => draw()); }, 400);
 
             const o2 = node.onRemoved;
             node.onRemoved = () => { o2?.apply(node); };

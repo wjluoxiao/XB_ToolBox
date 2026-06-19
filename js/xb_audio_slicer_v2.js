@@ -29,13 +29,14 @@ app.registerExtension({
             const wTot = node.widgets.find(w => w.name === "total_display");
 
             // total_display 样式
-            if (wTot) setTimeout(() => { const el = wTot.inputEl || wTot.element; if (el) { el.readOnly = true; el.style.backgroundColor = "#1a1a1a"; el.style.color = "#00E676"; el.style.textAlign = "center"; el.style.fontWeight = "bold"; el.style.fontSize = "13px"; } }, 100);
+            if (wTot) setTimeout(() => { const el = wTot.inputEl || wTot.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;min-width:120px;white-space:nowrap;overflow:hidden;"; } }, 100);
 
             // 状态
             const audioEl1 = document.createElement("audio"); audioEl1.controls = true; audioEl1.style.cssText = "width:100%;height:30px;outline:none;";
             const audioEl2 = document.createElement("audio"); audioEl2.controls = true; audioEl2.style.cssText = "width:100%;height:30px;outline:none;";
             let dur1 = 0, dur2 = 0, drag = null, drs = 0, dre = 0, pausing = false, _last1 = null, _last2 = null;
             let activeTrack = 1; // 1 or 2
+            let peaks1 = null, peaks2 = null; // 后端波形峰值数据
 
             // ============================================================
             // 容器
@@ -58,7 +59,7 @@ app.registerExtension({
                 };
                 document.body.appendChild(fi);
                 const btn = node.addWidget("button", label, "image", () => { app.canvas.node_widget = null; fi.click(); });
-                btn.options.serialize = false;
+                if (btn.options) btn.options.serialize = false;
                 return fi;
             };
             const fi1 = mkUpload(wA1, "上传音频1");
@@ -126,19 +127,46 @@ app.registerExtension({
             };
 
             // ============================================================
-            // 绘制
+            // 绘制（使用后端真实波形峰值数据）
             // ============================================================
+            const fetchPeaks = async (filename, track) => {
+                if (!filename || filename === "none") { if (track === 1) peaks1 = null; else peaks2 = null; return; }
+                try {
+                    const resp = await api.fetchApi("/xb_toolbox/audio_waveform", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filename, num_peaks: 200 })
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (track === 1) { peaks1 = data.peaks; dur1 = data.duration; }
+                        else { peaks2 = data.peaks; dur2 = data.duration; }
+                    }
+                } catch (e) { console.warn("XB Audio: fetchPeaks failed", e); }
+            };
+
             const drawWave = (cvs, t) => {
                 const ctx = cvs.getContext("2d"), W = cvs.width / dpr, H = cvs.height / dpr;
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H);
                 const d = getD(t), s = getS(t), e = getE(t), sx = tToX(s, cvs, t) / dpr, ex = tToX(e, cvs, t) / dpr;
-                const ww = W - PAD * 2, mid = H / 2, nBars = 100, barW = Math.max(2, ww / nBars);
-                for (let i = 0; i < nBars; i++) {
-                    const x = PAD + (i / nBars) * ww, amp = Math.abs(Math.sin(i * 0.5) * Math.cos(i * 0.13) * Math.sin(i * 0.07 + 1.8));
-                    const bh = Math.max(1, amp * H * 0.48);
-                    ctx.fillStyle = (x >= sx && x <= ex) ? "#4FC3F7" : "rgba(79,195,247,0.12)";
-                    ctx.fillRect(x, mid - bh, Math.max(1, barW - 0.5), bh * 2);
+                const ww = W - PAD * 2, mid = H / 2;
+                const peaks = t === 1 ? peaks1 : peaks2;
+                if (peaks && peaks.length > 1) {
+                    const n = peaks.length, barW = Math.max(1.5, ww / n);
+                    // 对数动态缩放：即使压缩音乐也能分辨响度变化，0%=0 100%=满
+                    const rmsVals = peaks.map(p => p[0]);
+                    const rmsMax = Math.max(...rmsVals, 0.001);
+                    const scale = (v) => Math.log10(1 + 9 * v / rmsMax) * H * 0.50;
+                    for (let i = 0; i < n; i++) {
+                        const x = PAD + (i / n) * ww;
+                        const bh = Math.max(0.5, scale(peaks[i][0]));
+                        ctx.fillStyle = (x >= sx && x <= ex) ? "#4FC3F7" : "rgba(79,195,247,0.18)";
+                        ctx.fillRect(x, mid - bh, Math.max(1, barW - 0.3), bh * 2);
+                    }
+                } else {
+                    // fallback: 无数据时显示占位线
+                    ctx.strokeStyle = "rgba(79,195,247,0.15)"; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(PAD, mid); ctx.lineTo(W - PAD, mid); ctx.stroke();
                 }
                 ctx.fillStyle = "rgba(76,175,80,0.08)"; ctx.fillRect(sx, 0, ex - sx, H);
                 [sx, ex].forEach((x, i) => {
@@ -168,6 +196,9 @@ app.registerExtension({
                         else if (drag === "end") we.value = snap(Math.min(d, Math.max(tv, s + fDur)));
                         else { const dx = tv - (drs + dre) / 2; let ns = drs + dx, ne = dre + dx; if (ns < 0) { ne -= ns; ns = 0; } if (ne > d) { ns -= ne - d; ne = d; } ws.value = snap(Math.max(0, ns)); we.value = snap(Math.min(d, ne)); }
                         syncW(activeTrack); drawWave(cvs, activeTrack);
+                        // 拖拽开始线时重置播放位置
+                        if ((drag === "start" || drag === "range") && (activeTrack === 1 ? audioEl1.readyState >= 1 : audioEl2.readyState >= 1))
+                            (activeTrack === 1 ? audioEl1 : audioEl2).currentTime = getS(activeTrack);
                     }
                 };
             };
@@ -195,14 +226,20 @@ app.registerExtension({
             // ============================================================
             // 回调
             // ============================================================
-            const onTimeChange = (t) => { syncW(t); drawWave(t === 1 ? canvas1 : canvas2, t); const ael = t === 1 ? audioEl1 : audioEl2; if (ael.readyState >= 1) ael.currentTime = getS(t); };
-            [wA1, wA2].forEach((w, i) => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); updateSrc(i === 0 ? audioEl1 : audioEl2, w, i + 1, i === 0 ? _last1 : _last2); }; } });
-            [wS1, wE1].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(1); }; } });
-            [wS2, wE2].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(2); }; } });
+            const onTimeChange = (t, resetPlayback) => { syncW(t); drawWave(t === 1 ? canvas1 : canvas2, t); if (resetPlayback) { const ael = t === 1 ? audioEl1 : audioEl2; if (ael.readyState >= 1) ael.currentTime = getS(t); } };
+            [wA1, wA2].forEach((w, i) => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); const t = i + 1; const fn = w.value; fetchPeaks(fn, t).then(() => { syncW(t); drawWave(t === 1 ? canvas1 : canvas2, t); }); updateSrc(i === 0 ? audioEl1 : audioEl2, w, t, i === 0 ? _last1 : _last2); }; } });
+            [wS1].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(1, true); }; } });
+            [wE1].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(1, false); }; } });
+            [wS2].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(2, true); }; } });
+            [wE2].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(2, false); }; } });
             if (wGap) { const o = wGap.callback; wGap.callback = function () { o?.apply(this, arguments); syncW(1); syncW(2); }; }
 
             setInterval(() => { if (dur1 > 0 || dur2 > 0) { syncW(1); syncW(2); drawWave(canvas1, 1); drawWave(canvas2, 2); } }, 150);
-            setTimeout(() => { updateSrc(audioEl1, wA1, 1, _last1); updateSrc(audioEl2, wA2, 2, _last2); }, 400);
+            setTimeout(() => {
+                updateSrc(audioEl1, wA1, 1, _last1); updateSrc(audioEl2, wA2, 2, _last2);
+                if (wA1?.value && wA1.value !== "none") fetchPeaks(wA1.value, 1).then(() => { syncW(1); drawWave(canvas1, 1); });
+                if (wA2?.value && wA2.value !== "none") fetchPeaks(wA2.value, 2).then(() => { syncW(2); drawWave(canvas2, 2); });
+            }, 400);
 
             const oo = node.onRemoved;
             node.onRemoved = () => { oo?.apply(node); };
