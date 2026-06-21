@@ -1152,5 +1152,18 @@
     "outputs": {
       "0": { "name": "图像" }
     }
+  },
+  "XB_StringMerge": {
+    "display_name": "XB-BOX - 📝 字符串合并",
+    "inputs": {
+      "inputcount": { "name": "输入数量" },
+      "string_1": { "name": "字符串_1" },
+      "delimiter": { "name": "分隔符" },
+      "return_list": { "name": "输出为列表" },
+      "newline_per_segment": { "name": "每段换行" }
+    },
+    "outputs": {
+      "0": { "name": "字符串" }
+    }
   }
 }

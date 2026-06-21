@@ -12,7 +12,10 @@
     "Batch_Process": "批量处理",
     "ROCm": "ROCm加速",
     "Wan": "Wan视频",
-    "Audio": "音频工具"
+    "Audio": "音频工具",
+    "Display": "显示标签",
+    "Segment": "图像分割",
+    "Text": "文本工具"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",
