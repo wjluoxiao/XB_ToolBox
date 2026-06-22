@@ -70,6 +70,7 @@ const SIZES = {
     "XB_AudioSlicerV2": [360, 200],
     "XB_AudioSlicerV3": [360, 200],
     "XB_StringMerge": [360, 200],
+    "XB_MSR": [360, 200],
 };
 
 app.registerExtension({
