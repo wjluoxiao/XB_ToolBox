@@ -59,8 +59,9 @@ app.registerExtension({
                         let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
                         let isGoldenZone = (valRatio === "16:9" || valRatio === "9:16");
+                        let isLTX = valRatio.includes("(LTX)");
                         
-                        let currentStep = isGoldenZone ? 1 : (isFree ? 1 : 16);
+                        let currentStep = isGoldenZone ? 1 : (isLTX ? 32 : (isFree ? 1 : 16));
                         wWidth.options.step = currentStep; wHeight.options.step = currentStep;
                         if (wWidth.inputEl) wWidth.inputEl.step = currentStep; else if (wWidth.element) wWidth.element.step = currentStep;
                         if (wHeight.inputEl) wHeight.inputEl.step = currentStep; else if (wHeight.element) wHeight.element.step = currentStep;
@@ -107,7 +108,9 @@ app.registerExtension({
                             } else {
                                 const ratioMap = {
                                     "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0
+                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
+                                    "16:9 (LTX)": 16.0 / 9.0, "9:16 (LTX)": 9.0 / 16.0,
+                                    "4:3 (LTX)": 4.0 / 3.0, "3:4 (LTX)": 3.0 / 4.0
                                 };
                                 let currentRatio = ratioMap[valRatio];
 

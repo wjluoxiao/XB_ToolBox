@@ -73,6 +73,7 @@ try:
                               XB_ROCmVAEDecode, XB_ROCmVAEEncode,
                               XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
     from .nodes_string_merge import XB_StringMerge
+    from .nodes_msr import XB_MSR
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -141,7 +142,8 @@ try:
         "XB_AudioSlicerV1": XB_AudioSlicerV1,
         "XB_AudioSlicerV2": XB_AudioSlicerV2,
         "XB_AudioSlicerV3": XB_AudioSlicerV3,
-        "XB_StringMerge": XB_StringMerge
+        "XB_StringMerge": XB_StringMerge,
+        "XB_MSR": XB_MSR
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -199,6 +201,7 @@ try:
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
         "XB_StringMerge": "XB-BOX - 📝 字符串合并",
+        "XB_MSR": "XB-BOX - 🎞️ MSR 多图合成帧序列",
     }
 
     print_success("\n" + "="*50)

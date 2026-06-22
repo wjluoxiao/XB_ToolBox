@@ -1165,5 +1165,23 @@
     "outputs": {
       "0": { "name": "字符串" }
     }
+  },
+  "XB_MSR": {
+    "display_name": "XB-BOX - 🎞️ MSR 多图合成帧序列",
+    "inputs": {
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "frame_count": { "name": "帧数" },
+      "scale_method": { "name": "缩放方法" },
+      "crop_mode": { "name": "裁剪模式" },
+      "img_1": { "name": "图片 1" },
+      "img_2": { "name": "图片 2" },
+      "img_3": { "name": "图片 3" },
+      "img_4": { "name": "图片 4" },
+      "background": { "name": "背景图" }
+    },
+    "outputs": {
+      "0": { "name": "帧序列" }
+    }
   }
 }

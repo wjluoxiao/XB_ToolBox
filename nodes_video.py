@@ -46,7 +46,7 @@ class XB_VideoParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
                 "duration_display": ("STRING", {"default": "Video Duration: 0.00 s", "multiline": False}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 1}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 1}),
@@ -76,6 +76,17 @@ class XB_VideoParamsMaster:
             buckets = golden_buckets[aspect_ratio]
             closest = min(buckets, key=lambda b: abs(b[0] - width))
             safe_w, safe_h = closest[0], closest[1]
+        elif "LTX" in aspect_ratio:
+            # LTX 模式使用 step=32
+            step = 32
+            ratio_map = {"16:9 (LTX)": 16/9, "9:16 (LTX)": 9/16, "4:3 (LTX)": 4/3, "3:4 (LTX)": 3/4}
+            target_ratio = ratio_map.get(aspect_ratio, 16/9)
+            if width >= height:
+                safe_w = max(step, round(width / step) * step)
+                safe_h = max(step, round((safe_w / target_ratio) / step) * step)
+            else:
+                safe_h = max(step, round(height / step) * step)
+                safe_w = max(step, round((safe_h * target_ratio) / step) * step)
         else:
             # 解析宽高比并强制约束，使用 round() 避免累积误差
             step = 16
