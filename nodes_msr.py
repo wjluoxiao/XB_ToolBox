@@ -13,8 +13,8 @@ class XB_MSR:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "width": ("INT", {"default": 736, "min": 32, "max": 8192, "step": 32}),
-                "height": ("INT", {"default": 1280, "min": 32, "max": 8192, "step": 32}),
+                "width": ("INT", {"default": 736, "min": 200, "max": 8192, "step": 32}),
+                "height": ("INT", {"default": 1280, "min": 200, "max": 8192, "step": 32}),
                 "frame_count": ("INT", {"default": 17, "min": 1, "max": 1024, "step": 1}),
                 "scale_method": (_SCALE_METHODS, {"default": "lanczos"}),
                 "crop_mode": (_CROP_MODES, {"default": "center"}),
