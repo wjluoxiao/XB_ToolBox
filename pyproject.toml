@@ -9,6 +9,6 @@ Repository = "https://github.com/wjluoxiao/XB_ToolBox"
 
 [tool.comfy]
 PublisherId = "wjluoxiao"
-DisplayName = "XB-BOX ToolBox"
+DisplayName = "XB_ToolBox"
 Icon = ""
 Category = "video"
