@@ -1,8 +1,8 @@
 [project]
 name = "XB_ToolBox"
 description = "XB_ToolBox: An easy-to-use ComfyUI custom node suite that streamlines workflow generation. Featuring exclusive data-flow logic and pioneering experimental kernel optimizations dedicated to the native AMD GPU ecosystem."
-version = "0.6.23"
-license = { Apache-2.0 license }
+version = "0.6.22"
+license = { file = "LICENSE" }
 
 [project.urls]
 Repository = "https://github.com/wjluoxiao/XB_ToolBox"
@@ -10,5 +10,5 @@ Repository = "https://github.com/wjluoxiao/XB_ToolBox"
 [tool.comfy]
 PublisherId = "wjluoxiao"
 DisplayName = "XB_ToolBox"
-Icon = ""
+Icon = "🐲"
 Category = "video"
