@@ -1,8 +1,8 @@
 [project]
 name = "XB_ToolBox"
-description = "XB-BOX: ComfyUI custom node toolbox - Wan video generation, ROCm acceleration, pipeline tools, and more"
+description = "XB_ToolBox: An easy-to-use ComfyUI custom node suite that streamlines workflow generation. Featuring exclusive data-flow logic and pioneering experimental kernel optimizations dedicated to the native AMD GPU ecosystem."
 version = "0.6.22"
-license = { file = "LICENSE" }
+license = { Apache-2.0 license }
 
 [project.urls]
 Repository = "https://github.com/wjluoxiao/XB_ToolBox"
