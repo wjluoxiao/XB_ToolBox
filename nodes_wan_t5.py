@@ -139,7 +139,8 @@ class XB_WanT5Loader:
         if quantization == "disabled":
             for v in sd.values():
                 if isinstance(v, torch.Tensor) and v.dtype == torch.float8_e4m3fn:
-                    quantization = "fp8_e4m3fn"; break
+                    quantization = "fp8_e4m3fn"
+                    break
         if "token_embedding.weight" not in sd and "shared.weight" not in sd:
             raise ValueError("Invalid T5 model, expected 'umt5-xxl' format")
         sd = _convert_t5_keys(sd)

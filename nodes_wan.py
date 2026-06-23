@@ -205,9 +205,13 @@ class XB_WanSampler:
         kw.update(extra)
         r = _wan_import("nodes_sampler").WanVideoSampler().process(**kw)
         if cleanup == "单次缓存清理":
-            torch.cuda.synchronize(); torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
         elif cleanup == "双次缓存清理":
-            torch.cuda.synchronize(); mm.soft_empty_cache(); torch.cuda.empty_cache(); gc.collect()
+            torch.cuda.synchronize()
+            mm.soft_empty_cache()
+            torch.cuda.empty_cache()
+            gc.collect()
         return r
 
 
@@ -262,8 +266,10 @@ class XB_WanVAELoader:
         mod = _wan_import("wanvideo.wan_video_vae")
         cls = mod.WanVideoVAE38 if sd["model.conv2.weight"].shape[0] == 48 else mod.WanVideoVAE
         vae = cls(dtype=dtype, pruning_rate=pruning_rate, cpu_cache=use_cpu_cache)
-        vae.load_state_dict(sd); del sd
-        vae.eval(); vae.to(dtype=dtype)
+        vae.load_state_dict(sd)
+        del sd
+        vae.eval()
+        vae.to(dtype=dtype)
         print(f"  [XB_WanVAELoader] {model_name} | {precision} | pruning={pruning_rate}")
         return (vae,)
 
@@ -293,12 +299,19 @@ class XB_WanDecode:
             vae=vae, samples=samples, enable_vae_tiling=enable_vae_tiling,
             tile_x=tile_x, tile_y=tile_y, tile_stride_x=tile_stride_x, tile_stride_y=tile_stride_y)
         if cleanup == "单次缓存清理":
-            torch.cuda.synchronize(); torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
         elif cleanup == "双次缓存清理":
-            torch.cuda.synchronize(); mm.soft_empty_cache(); torch.cuda.empty_cache(); gc.collect()
+            torch.cuda.synchronize()
+            mm.soft_empty_cache()
+            torch.cuda.empty_cache()
+            gc.collect()
         elif cleanup == "卸载显存模型":
-            mm.unload_all_models(); mm.soft_empty_cache()
-            torch.cuda.synchronize(); torch.cuda.empty_cache(); gc.collect()
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            gc.collect()
         return r
 
 
