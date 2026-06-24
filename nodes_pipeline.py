@@ -156,20 +156,27 @@ class XB_Wan_RelayNode:
             crop_mode=b.get("crop_mode", "center"),
         )
 
-        print(f"🔥 [XB-BOX] Samping Layer 1 (0 -> {b['high_noise_steps']} steps)...")
+        # 🛡️ 护城河：步数边界校验，防止 ODE 时间步崩塌
+        total_steps = b["steps"]
+        high_steps = b["high_noise_steps"]
+        if high_steps >= total_steps:
+            high_steps = total_steps - 1
+            print(f"⚠️ [XB-BOX] 拦截到致命参数：强制修正 high_noise_steps 为 {high_steps}")
+
+        print(f"🔥 [XB-BOX] Samping Layer 1 (0 -> {high_steps} steps)...")
         latent_high, = nodes.KSamplerAdvanced().sample(
             model=b["model_high"], add_noise="enable", noise_seed=seed,
-            steps=b["steps"], cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+            steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
             positive=pos, negative=neg, latent_image=latent,
-            start_at_step=0, end_at_step=b["high_noise_steps"], return_with_leftover_noise="enable" 
+            start_at_step=0, end_at_step=high_steps, return_with_leftover_noise="enable" 
         )
 
-        print(f"❄️ [XB-BOX] Samping Layer 2 ({b['high_noise_steps']} -> completion)...")
+        print(f"❄️ [XB-BOX] Samping Layer 2 ({high_steps} -> {total_steps})...")
         latent_low, = nodes.KSamplerAdvanced().sample(
             model=b["model_low"], add_noise="disable", noise_seed=seed, 
-            steps=b["steps"], cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+            steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
             positive=pos, negative=neg, latent_image=latent_high, 
-            start_at_step=b["high_noise_steps"], end_at_step=10000, return_with_leftover_noise="disable"
+            start_at_step=high_steps, end_at_step=total_steps, return_with_leftover_noise="disable"
         )
 
         decoded_image, = nodes.VAEDecode().decode(
@@ -253,18 +260,27 @@ class XB_Wan_InfiniteRelayNode:
             crop_mode=b.get("crop_mode", "center"),
         )
 
+        # 🛡️ 护城河：步数边界校验，防止 ODE 时间步崩塌
+        total_steps = b["steps"]
+        high_steps = b["high_noise_steps"]
+        if high_steps >= total_steps:
+            high_steps = total_steps - 1
+            print(f"⚠️ [XB-BOX] 拦截到致命参数：强制修正 high_noise_steps 为 {high_steps}")
+
+        print(f"🔥 [XB-BOX] Samping Layer 1 (0 -> {high_steps} steps)...")
         latent_high, = nodes.KSamplerAdvanced().sample(
             model=b["model_high"], add_noise="enable", noise_seed=seed,
-            steps=b["steps"], cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+            steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
             positive=pos, negative=neg, latent_image=latent,
-            start_at_step=0, end_at_step=b["high_noise_steps"], return_with_leftover_noise="enable" 
+            start_at_step=0, end_at_step=high_steps, return_with_leftover_noise="enable" 
         )
 
+        print(f"❄️ [XB-BOX] Samping Layer 2 ({high_steps} -> {total_steps})...")
         latent_low, = nodes.KSamplerAdvanced().sample(
             model=b["model_low"], add_noise="disable", noise_seed=seed, 
-            steps=b["steps"], cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+            steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
             positive=pos, negative=neg, latent_image=latent_high, 
-            start_at_step=b["high_noise_steps"], end_at_step=10000, return_with_leftover_noise="disable"
+            start_at_step=high_steps, end_at_step=total_steps, return_with_leftover_noise="disable"
         )
 
         decoded_image, = nodes.VAEDecode().decode(
