@@ -35,8 +35,9 @@ def _encode_vae(vae, pixels, tile_size):
     if tile_size == 0 or tile_size is None:
         return vae.encode(p)
     else:
-        # tile_t=32: 时间分块 32 帧像素 → 8 帧潜空间 (÷4)，24G 显存安全
-        return vae.encode_tiled(p, tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=32, overlap_t=4)
+        # 🔧 overlap_t = tile_t//2: Wan 3D VAE 时间卷积需要充足上下文帧，
+        #    overlap_t=4 (12.5%) 导致分块边界 latent 衰减 → 解码尾帧发灰
+        return vae.encode_tiled(p, tile_x=tile_size, tile_y=tile_size, overlap=32, tile_t=32, overlap_t=16)
 
 # ============================================================
 # XB_WanImageToVideo — Wan 图生视频
@@ -562,8 +563,12 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
                                   clip_vision_output=None, start_image=None,
                                   audio_encoder_output_2=None, previous_frames=None,
                                   mask_1=None, mask_2=None, segment_audio=False,
+                                  global_frame_offset=None,
                                   scale_method="lanczos", crop_mode="center"):
     """共用音频处理 + 模型补丁核心逻辑（单人/双人复用）"""
+
+    # 🌟 零拷贝克隆：所有补丁打在 clone 上，OOM/取消中断时原模型不受污染
+    model = model.clone()
 
     if previous_frames is not None and previous_frames.shape[0] < motion_frame_count:
         raise ValueError("Not enough previous frames provided.")
@@ -642,7 +647,11 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
 
     if previous_frames is not None:
         motion_frames = comfy.utils.common_upscale(previous_frames[-motion_frame_count:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
-        frame_offset = previous_frames.shape[0] - motion_frame_count
+        # 🔧 优先使用显式传入的全局偏移量，彻底废弃通过 shape 反推
+        if global_frame_offset is not None:
+            frame_offset = global_frame_offset
+        else:
+            frame_offset = previous_frames.shape[0] - motion_frame_count
         if segment_audio:
             audio_start = 0  # [fixed]
         else:
@@ -718,12 +727,14 @@ class XB_WanInfiniteTalkToVideo_Single:
     def process(self, model, model_patch, positive, negative, vae, width, height, length,
                 audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
                 clip_vision_output=None, start_image=None, previous_frames=None, segment_audio=False,
+                global_frame_offset=None,
                 scale_method="lanczos", crop_mode="center"):
         return _process_infinite_talk_audio(
             model, model_patch, positive, negative, vae, width, height, length,
             audio_encoder_output_1, motion_frame_count, audio_scale, vae_tile_size,
             clip_vision_output=clip_vision_output, start_image=start_image,
-            previous_frames=previous_frames, segment_audio=segment_audio)
+            previous_frames=previous_frames, segment_audio=segment_audio,
+            global_frame_offset=global_frame_offset)
 
 
 # ============================================================
@@ -769,6 +780,7 @@ class XB_WanInfiniteTalkToVideo_Dual:
                 audio_encoder_output_1, audio_encoder_output_2, mask_1, mask_2,
                 motion_frame_count, audio_scale, vae_tile_size,
                 clip_vision_output=None, start_image=None, previous_frames=None,
+                global_frame_offset=None,
                 scale_method="lanczos", crop_mode="center"):
         return _process_infinite_talk_audio(
             model, model_patch, positive, negative, vae, width, height, length,
@@ -777,6 +789,7 @@ class XB_WanInfiniteTalkToVideo_Dual:
             audio_encoder_output_2=audio_encoder_output_2,
             previous_frames=previous_frames,
             mask_1=mask_1, mask_2=mask_2,
+            global_frame_offset=global_frame_offset,
             scale_method=scale_method, crop_mode=crop_mode)
 
 # ==============================================================================
@@ -827,6 +840,7 @@ class XB_WanInfiniteTalkToVideo:
                 clip_vision_output=None, start_image=None,
                 audio_encoder_output_2=None, previous_frames=None,
                 mask_1=None, mask_2=None,
+                global_frame_offset=None,
                 scale_method="lanczos", crop_mode="center"):
         return _process_infinite_talk_audio(
             model, model_patch, positive, negative, vae, width, height, length,
@@ -835,6 +849,7 @@ class XB_WanInfiniteTalkToVideo:
             audio_encoder_output_2=audio_encoder_output_2,
             previous_frames=previous_frames,
             mask_1=mask_1, mask_2=mask_2,
+            global_frame_offset=global_frame_offset,
             scale_method=scale_method, crop_mode=crop_mode)
 
 # ==============================================================================

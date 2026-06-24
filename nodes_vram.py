@@ -40,9 +40,15 @@ class XTX_Data_Radar:
             if cond is not None:
                 for c in cond:
                     if isinstance(c, list) and len(c) > 0:
+                        # c[0]: 交叉注意力条件张量
                         tensor = c[0]
                         if isinstance(tensor, torch.Tensor):
                             total_size += tensor.element_size() * tensor.nelement()
+                        # c[1]: 字典，含 pooled_output / ControlNet / GLIGEN 等重型特征
+                        if len(c) > 1 and isinstance(c[1], dict):
+                            for _k, _v in c[1].items():
+                                if isinstance(_v, torch.Tensor):
+                                    total_size += _v.element_size() * _v.nelement()
             return total_size / (1024 * 1024)
 
         pos_w = get_cond_weight(positive_cond)

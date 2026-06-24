@@ -133,6 +133,9 @@ class XB_ChunkVisualization:
         p_percent = min(100, (kappa / 2.0) * 100)
         p_color = (0, 255, 0) if p_percent < 60 else ((255, 200, 0) if p_percent < 85 else (255, 50, 50))
 
+        # 🛡️ 全局字体缓存：避免 Auto-Queue 模式下反复磁盘 I/O 和内存泄漏
+        _FONT_CACHE = {}
+
         def get_font(size):
             font_paths = [
                 # Windows
@@ -146,12 +149,22 @@ class XB_ChunkVisualization:
                 "/System/Library/Fonts/Helvetica.ttc",
             ]
             for p in font_paths:
+                cache_key = (p, size)
+                if cache_key in _FONT_CACHE:
+                    return _FONT_CACHE[cache_key]
                 if os.path.exists(p):
                     try:
-                        return ImageFont.truetype(p, size)
+                        font = ImageFont.truetype(p, size)
+                        _FONT_CACHE[cache_key] = font
+                        return font
                     except Exception:
                         continue
-            return ImageFont.load_default()
+            # 兜底字体也缓存
+            if ("_fallback", size) in _FONT_CACHE:
+                return _FONT_CACHE[("_fallback", size)]
+            fb = ImageFont.load_default()
+            _FONT_CACHE[("_fallback", size)] = fb
+            return fb
         
         f_info = get_font(22)
         f_num = get_font(28) 

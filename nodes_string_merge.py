@@ -29,6 +29,7 @@ class XB_StringMerge:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("string",)
+    OUTPUT_IS_LIST = (True,)  # return_list=True 时返回 Python list，须告知 ComfyUI 引擎
     FUNCTION = "combine"
     CATEGORY = "XB_ToolBox/Text"
     DESCRIPTION = (

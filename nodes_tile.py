@@ -37,13 +37,7 @@ class XB_SamplerChunkMaster:
 
         if rocm_optimized:
             model_copy.model_options["wan_frame_overlap"] = frame_chunk_overlap
-            model_copy.model_options["rocm_optimized"] = True
-            
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                if hasattr(torch.cuda, "ipc_collect"):
-                    torch.cuda.ipc_collect() 
+            model_copy.model_options["rocm_optimized"] = True 
 
         width = 1280
         height = 720

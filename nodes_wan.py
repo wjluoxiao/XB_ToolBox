@@ -191,10 +191,8 @@ class XB_WanSampler:
     def go(self, model, image_embeds, steps, cfg, shift, seed, force_offload, scheduler,
            riflex_freq_index, cleanup="单次缓存清理", text_embeds=None,
            samples=None, denoise=1.0, batched_cfg=False, **extra):
-        if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'):
-            torch.backends.cuda.enable_mem_efficient_sdp(True)
-        if hasattr(torch.backends.cuda, 'enable_flash_sdp'):
-            torch.backends.cuda.enable_flash_sdp(False)
+        # 🔧 SDPA 路由已从全局污染改为 context manager（见 nodes_rocm.py _sdp_context），
+        #    此采样器调用 WanVideoSampler（自有 Attention 实现），不依赖 PyTorch SDPA 全局设置
         kw = {"model": model, "image_embeds": image_embeds, "shift": shift,
               "steps": steps, "cfg": cfg, "seed": seed, "force_offload": force_offload,
               "scheduler": scheduler, "riflex_freq_index": riflex_freq_index}
@@ -372,7 +370,6 @@ class XB_WanAnimateToVideo:
                 try: return vae.encode_tiled(p, tile_x=vae_tile_size, tile_y=vae_tile_size, overlap=32, tile_t=32, overlap_t=4)
                 except (AttributeError, TypeError): pass
             return vae.encode(p)
-        if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'): torch.backends.cuda.enable_mem_efficient_sdp(True)
         trim_latent, ref_motion_latent_length = 0, 0
         latent_length = ((length - 1) // 4) + 1
         if reference_image is None: reference_image = torch.zeros((1, height, width, 3))

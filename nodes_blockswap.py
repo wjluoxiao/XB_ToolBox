@@ -25,12 +25,31 @@ def is_dynamic_vram_active():
 
 def is_unsupported_model(diffusion_model):
     model_type = type(diffusion_model).__name__
-    # 黑名单列表：遇到这些底层架构，直接静默放行，拒绝分块
-    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT", "ErnieImageModel"] 
+    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT", "ErnieImageModel"]
     for b in blacklist:
         if b in model_type:
             return model_type
+
+    # 🛡️ 侦测 comfy_kitchen 量化模型（GGUF / FP8 / 混合精度）
+    #    comfy_kitchen 会覆写 nn.Module._apply() → _quantized_apply()，
+    #    BlockSwap 的 module.to() 会触发其 C++ 量化引擎 → HIP invalid argument
+    try:
+        # 方法1: 参数类型异常（GGUF 等非标准参数）
+        for param in diffusion_model.parameters():
+            if type(param) not in (torch.Tensor, torch.nn.Parameter) or hasattr(param, "_qdata"):
+                return "Quantized/Comfy-Kitchen (GGUF)"
+            break
+    except Exception:
+        pass
+    try:
+        # 方法2: nn.Module._apply 被 comfy_kitchen 覆写（FP8/混合精度量化）
+        if type(diffusion_model)._apply is not torch.nn.Module._apply:
+            return "Quantized/Comfy-Kitchen (FP8/Mixed)"
+    except Exception:
+        pass
+
     return None
+
 
 # ============================================================
 # XB_UNetBlockSwap — UNet 分块交换 (显存优化)
@@ -65,7 +84,8 @@ class XB_UNetBlockSwap:
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = torch.device('cuda')
+            # 🛡️ 动态获取 ComfyUI 分配的 GPU 设备，绝不写死 'cuda:0'
+            main_device = model_patcher.load_device
             
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
@@ -141,7 +161,8 @@ class XB_CheckpointBlockSwap:
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
             base_model = model_patcher.model
-            main_device = torch.device('cuda')
+            # 🛡️ 动态获取 ComfyUI 分配的 GPU 设备
+            main_device = model_patcher.load_device
 
             diffusion_model = getattr(base_model, 'diffusion_model', None)
             if not diffusion_model:
@@ -170,6 +191,7 @@ class XB_CheckpointBlockSwap:
 
             if all_blocks:
                 print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块。")
+
                 for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing Checkpoint pipeline"):
                     if b > blocks_to_swap:
                         block.to(main_device)

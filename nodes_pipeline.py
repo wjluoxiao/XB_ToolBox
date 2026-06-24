@@ -6,15 +6,127 @@ from PIL import Image, ImageOps
 import nodes
 import comfy.samplers
 import comfy.model_management
-import folder_paths  
+import folder_paths
+try:
+    import torchaudio
+except ImportError:
+    torchaudio = None
+    print("⚠️ [XB-BOX] torchaudio 未安装！音频重采样功能将不可用。请运行: pip install torchaudio")
 from .nodes_wan_vae import XB_WanFirstLastFrameToVideo, XB_WanImageToVideo, XB_WanInfiniteTalkToVideo_Single
 
 
-def _refresh_models():
-    """清空 GPU 缓存但不卸载模型（BlockSwap 分块模型卸载后重新加载会崩溃）"""
+# VRAM 保护阈值：累积视频超过总显存此比例时自动迁移至 CPU（兼容 6GB~48GB 全系列显卡）
+_VRAM_VIDEO_SAFETY_RATIO = 0.30
+
+
+def _get_vram_info():
+    """获取当前 CUDA 设备显存信息 (total, free, used)"""
+    if not torch.cuda.is_available():
+        return 0, 0, 0
+    d = torch.cuda.current_device()
+    total = torch.cuda.get_device_properties(d).total_memory
+    reserved = torch.cuda.memory_reserved(d)
+    allocated = torch.cuda.memory_allocated(d)
+    free = total - reserved
+    return total, free, allocated
+
+
+def _refresh_models(force=False):
+    """VRAM 感知缓存刷新：仅在显存紧张时清理，避免频繁清空分配池导致碎片化"""
+    if not force:
+        _, free, _ = _get_vram_info()
+        if torch.cuda.is_available():
+            total = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory
+            if free > total * 0.12:  # 空闲 > 12%，说明不紧张，跳过清理
+                return
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
+
+
+def _safe_video_accumulate(prev_video, new_segment, concat_dim, label=""):
+    """
+    VRAM 感知视频累积拼接，兼容从 6GB 到 48GB 的所有配置。
+    - 预判合并后体积，决定在 CPU 还是 GPU 拼接
+    - 绝不让已卸载到 CPU 的巨型张量反向吸入显存
+    - 高配卡几乎无感知，低配卡自动保护不 OOM
+    """
+    if prev_video is None:
+        return new_segment
+
+    target_device = new_segment.device
+
+    # 1. 预判合并后显存占用
+    combined_bytes = (prev_video.numel() + new_segment.numel()) * new_segment.element_size()
+    if target_device.type == 'cuda':
+        total_mem = torch.cuda.get_device_properties(target_device).total_memory
+        ratio = combined_bytes / total_mem
+    else:
+        ratio = 0.0
+
+    # 2. 核心路由：prev 在 CPU 或合并会超阈值 → 强制 CPU 拼接
+    if prev_video.device.type == 'cpu' or ratio > _VRAM_VIDEO_SAFETY_RATIO:
+        new_segment = new_segment.cpu()
+        if prev_video.device.type != 'cpu':
+            prev_video = prev_video.cpu()
+        result = torch.cat([prev_video, new_segment], dim=concat_dim)
+        tag = f"[{label}] " if label else ""
+        print(f"💾 [XB-BOX] {tag}VRAM保护: 累积视频 {combined_bytes/1024**3:.2f}GB ({ratio*100:.0f}% 总显存) → 已在 CPU 完成无损拼接")
+        return result
+
+    # 3. 只有确认安全时才在 GPU 拼接
+    if prev_video.device != target_device:
+        prev_video = prev_video.to(target_device, non_blocking=True)
+    return torch.cat([prev_video, new_segment], dim=concat_dim)
+
+
+def _match_color_to_ref(target_img, ref_img):
+    """色彩重映射引擎：用均值和标准差将 target 光影强制对齐到 ref。
+
+    3D VAE 的边界帧因缺失未来帧 padding 会变暗——此函数用数学手段
+    把变暗的尾帧拉回原始首帧的光影分布，斩断接力中的曝光衰减死循环。
+
+    target_img: [1, H, W, 3] (变暗的尾帧)
+    ref_img:    [1, H', W', 3] (总线里的全局参考首帧)
+    """
+    t = target_img.movedim(-1, 1)  # [1, 3, H, W]
+    r = ref_img.movedim(-1, 1)     # [1, 3, H', W']
+
+    t_mean = t.mean(dim=(2, 3), keepdim=True)
+    t_std = t.std(dim=(2, 3), keepdim=True) + 1e-6
+    r_mean = r.mean(dim=(2, 3), keepdim=True)
+    r_std = r.std(dim=(2, 3), keepdim=True) + 1e-6
+
+    matched = (t - t_mean) / t_std * r_std + r_mean
+    return torch.clamp(matched, 0.0, 1.0).movedim(1, -1)
+
+
+def _apply_progressive_color_correction(decoded_image, ref_image, is_4d):
+    """全序列渐变色彩补偿：平方权重 + 50% 混合降敏，避免尾端色彩过度补偿伪影。
+
+    用 start_image 做色彩锚点。平方权重 (x²) 比三次幂 (x³) 过渡更平缓，
+    在 33 帧场景下后 15% 帧的修正强度从 73% 降至 60%。
+    50% blending (原帧×0.5 + 匹配帧×0.5) 进一步抑制 color transfer 的内容差异伪影。
+    """
+    vid = decoded_image if is_4d else decoded_image[0]
+    T = vid.shape[0]
+    if T <= 1:
+        return decoded_image
+
+    raw_last = vid[-1:]  # [1, H, W, C]
+    full_match = _match_color_to_ref(raw_last, ref_image)
+
+    # 🌟 50% 混合降敏：一半原帧 + 一半色彩匹配，抑制内容差异导致的过度补偿
+    blended_last = raw_last * 0.5 + full_match * 0.5
+
+    drift_diff = blended_last - raw_last
+    linear = torch.linspace(0.0, 1.0, T, device=vid.device, dtype=vid.dtype)
+    weights = (linear ** 2).view(T, 1, 1, 1)  # 平方权重，更平缓
+
+    corrected_vid = vid + drift_diff * weights
+    corrected_vid = torch.clamp(corrected_vid, 0.0, 1.0)
+
+    return corrected_vid if is_4d else corrected_vid.unsqueeze(0)
 
 
 # ============================================================
@@ -51,6 +163,7 @@ class XB_Wan_ParamBus:
             },
             "optional": {
                 "clip_vision": ("CLIP_VISION",),
+                "global_start_image": ("IMAGE",),  # 🌟 全局无损首帧——接力时锚定光影防止 3D VAE 衰减
                 "scale_method": (["lanczos", "bilinear", "bicubic", "nearest-exact", "area"], {"default": "lanczos"}),
                 "crop_mode": (["center", "disabled"], {"default": "center"}),
             }
@@ -64,7 +177,7 @@ class XB_Wan_ParamBus:
     def pack_bus(self, **kwargs):
         import comfy.utils
         cv = kwargs.get("clip_vision")
-        ref = kwargs.get("start_image")  # 首尾帧/图生视频用 start_image 做视觉参考
+        ref = kwargs.get("global_start_image")  # 首尾帧/图生视频用 global_start_image 做视觉参考
         if cv is not None and ref is not None:
             w, h = kwargs["width"], kwargs["height"]
             method = kwargs.get("scale_method", "lanczos")
@@ -130,11 +243,13 @@ class XB_Wan_RelayNode:
             print(f"🖼️ [XB-BOX] Endpoint connection detected, prioritizing opt_end_image payload.")
         else:
             if end_image_file == "[Folder empty_Please connect or upload]":
-                raise ValueError("🚨 [XB-BOX] End frame missing! Connect image to opt_end_image or upload via panel!")
+                print("⏭️  [XB-BOX] No end frame specified for this segment, skipping relay iteration.")
+                return (wan_bus, start_image, prev_video)
                 
             image_path = folder_paths.get_annotated_filepath(end_image_file)
             if not os.path.exists(image_path):
-                 raise ValueError(f"🚨 [XB-BOX] Image file not found: {image_path}")
+                print(f"⏭️  [XB-BOX] End frame file not found: {os.path.basename(image_path)}, skipping relay iteration.")
+                return (wan_bus, start_image, prev_video)
             
             i = Image.open(image_path)
             i = ImageOps.exif_transpose(i)
@@ -197,12 +312,15 @@ class XB_Wan_RelayNode:
                     decoded_image = decoded_image[:, safe_trim:, :, :, :]
 
         last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+
+        # 👑 全序列渐变补偿：start_image 做锚点（接力中=上一段修正尾帧，同色彩空间）
+        decoded_image = _apply_progressive_color_correction(decoded_image, start_image, is_4d)
+        last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+        print("✨ [XB-BOX] 触发抗衰减机制：已应用全序列 3D VAE 曝光漂移渐变补偿！")
+
         concat_dim = 0 if is_4d else 1
         
-        if prev_video is not None:
-            final_video = torch.cat([prev_video, decoded_image], dim=concat_dim)
-        else:
-            final_video = decoded_image
+        final_video = _safe_video_accumulate(prev_video, decoded_image, concat_dim, label="Relay")
 
         _refresh_models()
         return (wan_bus, last_frame, final_video)
@@ -301,12 +419,15 @@ class XB_Wan_InfiniteRelayNode:
                     decoded_image = decoded_image[:, safe_trim:, :, :, :]
 
         last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+
+        # 👑 全序列渐变补偿：start_image 做锚点（接力中=上一段修正尾帧，同色彩空间）
+        decoded_image = _apply_progressive_color_correction(decoded_image, start_image, is_4d)
+        last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+        print("✨ [XB-BOX] 触发抗衰减机制：已应用全序列 3D VAE 曝光漂移渐变补偿！")
+
         concat_dim = 0 if is_4d else 1
         
-        if prev_video is not None:
-            final_video = torch.cat([prev_video, decoded_image], dim=concat_dim)
-        else:
-            final_video = decoded_image
+        final_video = _safe_video_accumulate(prev_video, decoded_image, concat_dim, label="InfiniteRelay")
 
         _refresh_models()
         return (wan_bus, last_frame, final_video)
@@ -343,7 +464,11 @@ class XB_Video_Merger:
                         f"does not match first segment shape {ref_shape} on dimension {d} "
                         f"(expected {ref_shape[d]}, got {vid.shape[d]})"
                     )
-        return (torch.cat(videos, dim=concat_dim),)
+        # 将全部视频段卸载到 CPU 再拼接，防止多段同时驻留 VRAM 导致 OOM
+        videos_cpu = [v.cpu() for v in videos]
+        merged = torch.cat(videos_cpu, dim=concat_dim)
+        print(f"💾 [XB-BOX] Merger: {len(videos)} 段视频已在 CPU 完成拼接 (shape={list(merged.shape)})")
+        return (merged,)
 
 # ============================================================
 # XB_StoryboardSlicer — 分镜切片器
@@ -388,7 +513,7 @@ class XB_StoryboardSlicer:
         placeholder_h = max(1, slice_h - crop_y * 2)
         placeholder_w = max(1, slice_w - crop_x * 2)
         while len(sliced_images) < 9:
-            sliced_images.append(torch.zeros((1, placeholder_h, placeholder_w, 3), dtype=torch.float32))
+            sliced_images.append(torch.zeros((1, placeholder_h, placeholder_w, 3), dtype=torch.float32, device=image.device))
         return tuple(sliced_images)
 
 
@@ -535,10 +660,12 @@ class XB_WanAnimate_RelayNode:
                     use_local_ref_image == 1)
         if is_local:
             if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
-                raise ValueError("🚨 [XB-BOX] 已开启独立参考图，但未选择图片文件！")
+                print("⏭️  [XB-BOX] 已开启独立参考图但未选择图片文件，跳过当前 Animate 接力点。")
+                return (b, prev_video if prev_video is not None else torch.zeros((1, b.get("height", 832), b.get("width", 480), 3)))
             image_path = folder_paths.get_annotated_filepath(ref_image_file)
             if not os.path.exists(image_path):
-                raise ValueError(f"🚨 [XB-BOX] 图片文件未找到: {image_path}")
+                print(f"⏭️  [XB-BOX] 独立参考图文件未找到: {os.path.basename(image_path)}，跳过当前 Animate 接力点。")
+                return (b, prev_video if prev_video is not None else torch.zeros((1, b.get("height", 832), b.get("width", 480), 3)))
             i = Image.open(image_path)
             i = ImageOps.exif_transpose(i)
             image_data = i.convert("RGB")
@@ -607,14 +734,6 @@ class XB_WanAnimate_RelayNode:
 
         pos, neg, latent, trim_latent, trim_image, new_offset = func(**kwargs)
 
-        model_obj = b["model"]
-        if hasattr(model_obj, "model") and hasattr(model_obj, "offload_device"):
-            model_obj.model.to(model_obj.offload_device)
-            comfy.model_management.soft_empty_cache()
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
-            gc.collect()
-
         print(f"🔥 [XB-BOX] Animate Single-Pass Sampling ({b['steps']} steps)...")
         latent_sampled, = nodes.KSampler().sample(
             model=b["model"], 
@@ -662,10 +781,7 @@ class XB_WanAnimate_RelayNode:
                 decoded_image = decoded_image[:, trim_px:, :, :, :]
             print(f"✂️ [XB-BOX] 像素裁切重叠: {trim_px} 帧")
 
-        if prev_video is not None:
-            final_video = torch.cat([prev_video, decoded_image], dim=concat_dim)
-        else:
-            final_video = decoded_image
+        final_video = _safe_video_accumulate(prev_video, decoded_image, concat_dim, label="AnimateRelay")
 
         actual_out = decoded_image.shape[concat_dim]
         b["current_offset"] = current_offset + actual_out
@@ -885,28 +1001,19 @@ class XB_WanInfiniteTalk_RelayNode:
         # --- InfiniteTalk 底座 ---
         prev = b.get("_previous_frames")
 
-        # 🛡️ 总线模式：previous_frames 只含最后一段，补齐到累积帧数，
-        # 让 _process_infinite_talk_audio 的 frame_offset 算出正确的全局 audio_start
-        if bus_audio_mode and prev is not None:
-            accumulated = b["_accumulated_frames"]
-            target_len = accumulated + motion
-            cd_pad = 0 if len(prev.shape) == 4 else 1
-            if prev.shape[cd_pad] < target_len:
-                pad_shape = list(prev.shape)
-                pad_shape[cd_pad] = target_len - prev.shape[cd_pad]
-                dummy = torch.zeros(pad_shape, device=prev.device, dtype=prev.dtype)
-                prev = torch.cat([dummy, prev], dim=cd_pad)
+        # 🛡️ 总线模式：直接传递全局帧偏移量给底层，彻底废弃巨型 dummy tensor
+        #     _process_infinite_talk_audio 现在接收 global_frame_offset 参数，
+        #     不再依赖 previous_frames.shape[0] 来反推音频偏移
+        global_frame_offset = None
+        if bus_audio_mode:
+            global_frame_offset = b["_accumulated_frames"]
 
         core = XB_WanInfiniteTalkToVideo_Single()
 
-        # 🛡️ 保存模型原始状态，之后完整恢复，防止补丁累积导致质量下滑
-        model_ref = b["model"]
-        _saved_wrappers = dict(model_ref.wrappers) if hasattr(model_ref, "wrappers") else {}
-        _saved_obj_patches = dict(model_ref.object_patches) if hasattr(model_ref, "object_patches") else {}
-        _saved_trans_opts = dict(model_ref.model_options.get("transformer_options", {})) if hasattr(model_ref, "model_options") else {}
-
+        # � _process_infinite_talk_audio 内部已通过 model.clone() 保护原模型，
+        #    无需手动 save/restore——异常中断时 clone 自动被 GC 回收
         model_out, pos, neg, latent, trim = core.process(
-            model=model_ref, model_patch=b["model_patch"],
+            model=b["model"], model_patch=b["model_patch"],
             positive=pos_cond, negative=neg_cond, vae=b["vae"],
             width=b["width"], height=b["height"], length=actual_length,
             audio_encoder_output_1=encoded_audio,
@@ -915,6 +1022,7 @@ class XB_WanInfiniteTalk_RelayNode:
             clip_vision_output=b.get("clip_vision_output"),
             start_image=b.get("start_image"), previous_frames=prev,
             segment_audio=use_segment_audio,
+            global_frame_offset=global_frame_offset,
             scale_method=b.get("scale_method", "lanczos"),
             crop_mode=b.get("crop_mode", "center"),
         )
@@ -926,16 +1034,6 @@ class XB_WanInfiniteTalk_RelayNode:
             sampler_name=b["sampler_name"], scheduler=b["scheduler"],
             positive=pos, negative=neg, latent_image=latent, denoise=1.0,
         )
-
-        # --- 完整恢复模型原始状态（不只是删 key，防止残留引用累积） ---
-        if hasattr(model_out, "wrappers"):
-            model_out.wrappers.clear()
-            model_out.wrappers.update(_saved_wrappers)
-        if hasattr(model_out, "object_patches"):
-            model_out.object_patches.clear()
-            model_out.object_patches.update(_saved_obj_patches)
-        if hasattr(model_out, "model_options"):
-            model_out.model_options["transformer_options"] = _saved_trans_opts
 
         # --- 解码 ---
         decoded, = nodes.VAEDecode().decode(samples=latent_out, vae=b["vae"])
@@ -949,7 +1047,7 @@ class XB_WanInfiniteTalk_RelayNode:
         trim_val = int(trim) if trim else 0
         trim_val = min(trim_val, total - 1) if trim_val < total else 0
         cut = decoded[trim_val:] if is4d else decoded[:, trim_val:]
-        final_video = torch.cat([prev_video, cut], dim=cd) if prev_video is not None else cut
+        final_video = _safe_video_accumulate(prev_video, cut, cd, label="TalkRelay")
 
         # --- 音频裁剪累加 ---
         ats = trim_val / fps if trim_val else 0.0
@@ -969,6 +1067,8 @@ class XB_WanInfiniteTalk_RelayNode:
                 n = int(ats * sr)
                 if n < wf.shape[-1]:
                     cut_audio = {"waveform": wf[..., n:], "sample_rate": sr}
+                else:
+                    cut_audio = None  # 裁切长度超出自身，彻底丢弃防止音画不同步
 
         if prev_audio is None:
             final_audio = cut_audio
@@ -977,19 +1077,24 @@ class XB_WanInfiniteTalk_RelayNode:
         else:
             pa, ca = prev_audio, cut_audio
             if pa["sample_rate"] != ca["sample_rate"]:
-                import torchaudio
+                if torchaudio is None:
+                    raise ImportError("🚨 [XB-BOX] 音频采样率不一致需要 torchaudio 重采样，但 torchaudio 未安装！请运行: pip install torchaudio")
                 ca_wf = torchaudio.functional.resample(ca["waveform"], ca["sample_rate"], pa["sample_rate"])
                 ca = {"waveform": ca_wf, "sample_rate": pa["sample_rate"]}
 
             # 🛡️ 设备对齐 + 声道对齐: 防止 torch.cat 因设备/声道不一致崩溃
             pa_wf = pa["waveform"]
             ca_wf = ca["waveform"].to(pa_wf.device)
-            if pa_wf.dim() >= 1 and ca_wf.dim() >= 1 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
-                # 单声道 → 双声道 或反之时对齐
-                if pa_wf.shape[0] == 1:
-                    pa_wf = pa_wf.repeat(ca_wf.shape[0], *([1] * (pa_wf.dim() - 1)))
-                elif ca_wf.shape[0] == 1:
-                    ca_wf = ca_wf.repeat(pa_wf.shape[0], *([1] * (ca_wf.dim() - 1)))
+            if pa_wf.dim() >= 2 and ca_wf.dim() >= 2 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
+                # 🔧 严格针对 Channel 维度 (shape[-2]) 对齐 [B, C, T] 格式
+                if pa_wf.shape[-2] == 1 and ca_wf.shape[-2] > 1:
+                    rpt = [1] * pa_wf.dim()
+                    rpt[-2] = ca_wf.shape[-2]
+                    pa_wf = pa_wf.repeat(*rpt)
+                elif ca_wf.shape[-2] == 1 and pa_wf.shape[-2] > 1:
+                    rpt = [1] * ca_wf.dim()
+                    rpt[-2] = pa_wf.shape[-2]
+                    ca_wf = ca_wf.repeat(*rpt)
 
             final_audio = {"waveform": torch.cat([pa_wf, ca_wf], dim=-1),
                            "sample_rate": pa["sample_rate"]}

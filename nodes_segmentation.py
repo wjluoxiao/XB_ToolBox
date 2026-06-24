@@ -52,13 +52,13 @@ def _preprocess(image_bchw: torch.Tensor) -> np.ndarray:
     return (x - mean) / std
 
 
-def _postprocess(output: np.ndarray, orig_h: int, orig_w: int) -> torch.Tensor:
-    """ONNX 输出 [1,1,320,320] → resize 回原始尺寸 → [1, H, W] mask"""
-    import cv2
-    mask = output[0, 0]  # [320, 320]
-    mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
-    mask = np.clip(mask, 0, 1)
-    return torch.from_numpy(mask).unsqueeze(0)
+def _postprocess_batch(output: np.ndarray, orig_h: int, orig_w: int, device: torch.device) -> torch.Tensor:
+    """ONNX 输出 [B, 1, 320, 320] → GPU 批量 resize 到 [B, H, W] mask，零 for 循环"""
+    mask_tensor = torch.from_numpy(output).to(device)  # [B, 1, 320, 320]
+    mask_resized = torch.nn.functional.interpolate(
+        mask_tensor, size=(orig_h, orig_w), mode="bilinear", align_corners=False
+    )
+    return torch.clamp(mask_resized.squeeze(1), 0, 1)  # [B, H, W]
 
 
 # ============================================================
@@ -127,17 +127,9 @@ class XB_HumanSegmentation:
         ort_outputs = session.run(None, ort_inputs)
         mask_np = ort_outputs[0]  # [B, 1, 320, 320]
 
-        # --- 3. 后处理 ---
-        masks = []
-        cutouts = []
-        for b_idx in range(B):
-            mask = _postprocess(mask_np[b_idx:b_idx + 1], orig_h, orig_w)  # [1, H, W]
-            masks.append(mask)
-            fg = image[b_idx] * mask.permute(1, 2, 0)  # [H, W, C]
-            cutouts.append(fg)
-
-        mask_stack = torch.cat(masks, dim=0)      # [B, H, W]
-        cutout_stack = torch.stack(cutouts, dim=0)  # [B, H, W, C]
+        # --- 3. 纯 GPU 批量后处理（一行替代 81 次 OpenCV for 循环）---
+        mask_stack = _postprocess_batch(mask_np, orig_h, orig_w, image.device)  # [B, H, W]
+        cutout_stack = image * mask_stack.unsqueeze(-1)  # [B, H, W, C] 广播
 
         return (mask_stack, cutout_stack)
 

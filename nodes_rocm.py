@@ -169,20 +169,20 @@ def tune():
     if hasattr(torch.backends.cuda.matmul, 'allow_bf16_reduced_precision_reduction'):
         torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = can_fp16
 
-    # ═══════════════════════════════════════════
-    # 3. SDPA 架构动态路由 — DiT 长序列算力解放
-    # ═══════════════════════════════════════════
-    if hasattr(torch.backends.cuda, 'enable_mem_efficient_sdp'):
-        torch.backends.cuda.enable_mem_efficient_sdp(True)  # 始终作为兜底
 
-    if hasattr(torch.backends.cuda, 'enable_flash_sdp'):
-        gen = g.get("gen", "")
-        # RDNA3+ / CDNA2+: Flash Attention 2/3 通过 Triton/CK 完美支持
-        # RDNA1/2 / Vega / CDNA1: Flash 触发 MIOpen 段错误，必须禁用
-        if gen in ("RDNA3", "RDNA3.5", "RDNA4", "CDNA2", "CDNA3"):
-            torch.backends.cuda.enable_flash_sdp(True)
-        else:
-            torch.backends.cuda.enable_flash_sdp(False)
+def _sdp_context():
+    """返回适合当前 GPU 架构的 sdp_kernel context manager。
+
+    与 tune() 解耦：matmul 等设置保持全局，SDPA 路由通过 context manager
+    在每次采样时精确控制，采样结束后自动归还算子调度权给 ComfyUI 主进程，
+    杜绝全局 enable_flash_sdp 对老旧 ControlNet/AnimateDiff 节点的生态污染。
+    """
+    g = gpu_info()
+    gen = g.get("gen", "")
+    if gen in ("RDNA3", "RDNA3.5", "RDNA4", "CDNA2", "CDNA3"):
+        return torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=True)
+    else:
+        return torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=True)
 
 
 def _vae_force_fp32() -> bool:
@@ -361,8 +361,9 @@ class XB_ROCmKSampler:
     def go(self, model, seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, denoise, cleanup="不做任何清理"):
         tune()
-        out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
-                                        positive, negative, latent, denoise)
+        with _sdp_context():
+            out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
+                                            positive, negative, latent, denoise)
         _do_cleanup("post", cleanup)
         return (out,)
 
@@ -400,10 +401,11 @@ class XB_ROCmKSamplerAdvanced:
     def go(self, model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0, cleanup="不做任何清理"):
         tune()
-        out, = nodes.KSamplerAdvanced().sample(
-            model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
-            positive, negative, latent, start_at_step, end_at_step,
-            return_with_leftover_noise, denoise=denoise)
+        with _sdp_context():
+            out, = nodes.KSamplerAdvanced().sample(
+                model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
+                positive, negative, latent, start_at_step, end_at_step,
+                return_with_leftover_noise, denoise=denoise)
         _do_cleanup("post", cleanup)
         return (out,)
 
@@ -450,6 +452,9 @@ class XB_ROCmVAEDecode:
             overlap_xy = max(4, tile_x // 8)
         else:
             overlap_xy = overlap // spatial_comp
+
+        # 🛡️ 数学护城河：stride = tile - overlap，必须 > 0，否则死循环
+        overlap_xy = max(1, min(overlap_xy, tile_x - 1))
 
         if tile_x < overlap_xy * 4:
             overlap_xy = tile_x // 4
@@ -509,6 +514,8 @@ class XB_ROCmVAEEncode:
 
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
+        # 🛡️ 编码路径：overlap 必须 < tile，防止 stride ≤ 0 导致死循环
+        overlap = max(1, min(overlap, tile - 1))
 
         # 时间分块: 对齐官方 VAEEncodeTiled
         temporal_comp = vae.temporal_compression_encode() if hasattr(vae, 'temporal_compression_encode') else None
@@ -592,6 +599,8 @@ class XB_ROCmVAEDecodeTemporal:
         tile_y = tile // spatial_comp
         if overlap == 0: overlap = max(32, tile // 8)
         overlap_xy = overlap // spatial_comp
+        # 🛡️ 解码路径：overlap_xy 必须 < tile_x，防止 stride ≤ 0
+        overlap_xy = max(1, min(overlap_xy, tile_x - 1))
 
         temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
         if temporal_comp is not None and is_vid:
@@ -741,7 +750,8 @@ class XB_ROCmSamplerCustom:
         callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
 
         disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-        samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+        with _sdp_context():
+            samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
 
         out = latent.copy()
         out.pop("downscale_ratio_spacial", None)
@@ -798,7 +808,8 @@ class XB_ROCmSamplerCustomAdvanced:
         callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
 
         disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-        samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
+        with _sdp_context():
+            samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
         samples = samples.to(comfy.model_management.intermediate_device())
 
         out = latent.copy()
