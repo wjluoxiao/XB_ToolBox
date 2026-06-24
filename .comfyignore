@@ -1,0 +1,7 @@
+# Development-only assets
+docs/
+.github/
+.gitignore
+.comfyignore
+*.psd
+.vscode/
