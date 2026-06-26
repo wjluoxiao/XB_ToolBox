@@ -51,14 +51,14 @@ WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "js")
 try:
     from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
     from .nodes_vram import XTX_Data_Radar
-    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter 
+    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
     from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro
     from .nodes_batch import XB_BatchFolderLoader
-    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode
+    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New
     from .nodes_sageatt import XB_SageAttentionAccelerator
     from .nodes_wan_t5 import XB_WanT5Loader
     from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
@@ -68,6 +68,9 @@ try:
     from .nodes_label import XB_CanvasLabel
     from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
+
+    # 注册视频转码端点（预览窗口实时缩放依赖）
+    from . import xb_video_server
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
                               XB_ROCmVAEDecode, XB_ROCmVAEEncode,
@@ -82,6 +85,8 @@ try:
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
         "XB_ImageParamsMaster": XB_ImageParamsMaster, 
         "XB_MasterParameter": XB_MasterParameter,
+        "XB_VideoLoader": XB_VideoLoader,
+        "XB_VideoCombine": XB_VideoCombine,
         "XB_UNetBlockSwap": XB_UNetBlockSwap,
         "XB_CheckpointBlockSwap": XB_CheckpointBlockSwap,
         "XB_DynamicBus": XB_DynamicBus,
@@ -135,6 +140,11 @@ try:
         "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
         "XB_WanInfiniteTalk_ParamBus": XB_WanInfiniteTalk_ParamBus,
         "XB_WanInfiniteTalk_RelayNode": XB_WanInfiniteTalk_RelayNode,
+        "XB_Wan_InfiniteRelayNode_New": XB_Wan_InfiniteRelayNode_New,
+        "XB_WanAnimate_RelayNode_New": XB_WanAnimate_RelayNode_New,
+        "XB_WanInfiniteTalk_RelayNode_New": XB_WanInfiniteTalk_RelayNode_New,
+        "XB_WanSCAIL_ParamBus_New": XB_WanSCAIL_ParamBus_New,
+        "XB_WanSCAIL_RelayNode_New": XB_WanSCAIL_RelayNode_New,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
         "XB_CanvasLabel": XB_CanvasLabel,
@@ -153,6 +163,8 @@ try:
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
+        "XB_VideoLoader": "XB-BOX - 🎬 视频加载器（修复预览BUG）",
+        "XB_VideoCombine": "XB-BOX - 🎬 视频拼接输出",
         "XB_UNetBlockSwap": "XB-BOX - UNet Block Swap",
         "XB_CheckpointBlockSwap": "XB-BOX - Checkpoint Block Swap",
         "XB_DynamicBus": "XB-BOX - Dynamic Bus",
@@ -190,6 +202,11 @@ try:
         "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
         "XB_WanInfiniteTalk_ParamBus": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线",
         "XB_WanInfiniteTalk_RelayNode": "XB-BOX - 🏃 InfiniteTalk 无限对口型接力点",
+        "XB_Wan_InfiniteRelayNode_New": "XB-BOX - 🆕 Wan 无限接力点 (New)",
+        "XB_WanAnimate_RelayNode_New": "XB-BOX - 🆕 Animate 无限接力点 (New)",
+        "XB_WanInfiniteTalk_RelayNode_New": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (New)",
+        "XB_WanSCAIL_ParamBus_New": "XB-BOX - 🆕 SCAIL 总线 (New)",
+        "XB_WanSCAIL_RelayNode_New": "XB-BOX - 🆕 SCAIL 无限接力点 (New)",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",

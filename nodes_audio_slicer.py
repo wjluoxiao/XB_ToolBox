@@ -116,7 +116,8 @@ def _snap_4n1(frames):
 # ============================================================
 class XB_AudioSlicer:
     """音频加载与切片节点 — 支持频谱可视化 + 拖拽分割线截取
-    输出帧数（非秒数），可直接对接 InfiniteTalk 接力点的 segment_length。"""
+    输出帧数（非秒数），可直接对接 InfiniteTalk 接力点的 segment_length。
+    额外输出 fps，方便连接到总线统一帧率。"""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -137,8 +138,8 @@ class XB_AudioSlicer:
             }
         }
 
-    RETURN_TYPES = ("AUDIO", "INT")
-    RETURN_NAMES = ("audio", "frame_count")
+    RETURN_TYPES = ("AUDIO", "INT", "FLOAT")
+    RETURN_NAMES = ("audio", "frame_count", "fps")
     FUNCTION = "slice_audio"
     CATEGORY = "XB_ToolBox/Audio"
 
@@ -148,11 +149,11 @@ class XB_AudioSlicer:
 
     def slice_audio(self, audio, fps, start_time, end_time, duration_display):
         if audio == "none":
-            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0)
+            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0, fps)
 
         result = _load_audio_file(os.path.join(folder_paths.get_input_directory(), audio))
         if result is None:
-            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0)
+            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0, fps)
 
         waveform, sample_rate = result
         if waveform.shape[0] > 1:
@@ -183,7 +184,7 @@ class XB_AudioSlicer:
             sliced = sliced[:, :target_samples]
         if frame_count != raw_frames:
             print(f"🔧 [音频切片] 帧数 {raw_frames} → {frame_count} (对齐 4N+1)")
-        return (_make_audio(sliced, sample_rate), frame_count)
+        return (_make_audio(sliced, sample_rate), frame_count, fps)
 
 
 # ============================================================
@@ -191,7 +192,8 @@ class XB_AudioSlicer:
 # ============================================================
 class XB_AudioSlicerV1:
     """音频切片节点 V1 — 可视化波形窗口 + 拖拽分割线截取
-    输出帧数（非秒数），可直接对接 InfiniteTalk 接力点的 segment_length。"""
+    输出帧数（非秒数），可直接对接 InfiniteTalk 接力点的 segment_length。
+    额外输出 fps，方便连接到总线统一帧率。"""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -212,8 +214,8 @@ class XB_AudioSlicerV1:
             }
         }
 
-    RETURN_TYPES = ("AUDIO", "INT")
-    RETURN_NAMES = ("audio", "frame_count")
+    RETURN_TYPES = ("AUDIO", "INT", "FLOAT")
+    RETURN_NAMES = ("audio", "frame_count", "fps")
     FUNCTION = "slice_audio"
     CATEGORY = "XB_ToolBox/Audio"
 
@@ -223,11 +225,11 @@ class XB_AudioSlicerV1:
 
     def slice_audio(self, audio, fps, start_time, end_time, duration_display):
         if audio == "none":
-            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0)
+            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0, fps)
 
         result = _load_audio_file(os.path.join(folder_paths.get_input_directory(), audio))
         if result is None:
-            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0)
+            return (_make_audio(torch.zeros((1, 1), dtype=torch.float32), 44100), 0, fps)
 
         waveform, sample_rate = result
         if waveform.shape[0] > 1:
@@ -249,7 +251,7 @@ class XB_AudioSlicerV1:
         frame_count = _snap_4n1(raw_frames)
         if frame_count != raw_frames:
             print(f"🔧 [音频切片V1] 帧数 {raw_frames} → {frame_count} (对齐 4N+1)")
-        return (_make_audio(sliced, sample_rate), frame_count)
+        return (_make_audio(sliced, sample_rate), frame_count, fps)
 
 
 # ============================================================
@@ -282,8 +284,8 @@ class XB_AudioSlicerV2:
             }
         }
 
-    RETURN_TYPES = ("AUDIO", "INT", "AUDIO", "INT", "AUDIO", "INT")
-    RETURN_NAMES = ("combined_audio", "total_frames", "audio1", "frames1", "audio2", "frames2")
+    RETURN_TYPES = ("AUDIO", "INT", "FLOAT", "AUDIO", "INT", "AUDIO", "INT")
+    RETURN_NAMES = ("combined_audio", "total_frames", "fps", "audio1", "frames1", "audio2", "frames2")
     FUNCTION = "slice_dual"
     CATEGORY = "XB_ToolBox/Audio"
 
@@ -342,7 +344,7 @@ class XB_AudioSlicerV2:
         total_f = _snap_4n1(f1 + max(0, gap_frames) + f2)
         if total_f != f1 + max(0, gap_frames) + f2:
             print(f"🔧 [音频切片V2] 合并帧数 {f1 + max(0, gap_frames) + f2} → {total_f} (对齐 4N+1)")
-        return (_make_audio(combined, sr), total_f,
+        return (_make_audio(combined, sr), total_f, fps,
                 _make_audio(t1, sr), f1, _make_audio(t2, sr), f2)
 
 
@@ -377,8 +379,8 @@ class XB_AudioSlicerV3:
             }
         }
 
-    RETURN_TYPES = ("AUDIO", "INT", "AUDIO", "INT", "AUDIO", "INT")
-    RETURN_NAMES = ("combined_audio", "total_frames", "audio1", "frames1", "audio2", "frames2")
+    RETURN_TYPES = ("AUDIO", "INT", "FLOAT", "AUDIO", "INT", "AUDIO", "INT")
+    RETURN_NAMES = ("combined_audio", "total_frames", "fps", "audio1", "frames1", "audio2", "frames2")
     FUNCTION = "slice_v3"
     CATEGORY = "XB_ToolBox/Audio"
 
@@ -477,5 +479,5 @@ class XB_AudioSlicerV3:
         elif combined.shape[1] > target_samples:
             combined = combined[:, :target_samples]
 
-        return (_make_audio(combined, sr), total_f,
+        return (_make_audio(combined, sr), total_f, fps,
                 _make_audio(t1, sr), f1, _make_audio(t2, sr), f2)

@@ -287,7 +287,7 @@ app.registerExtension({
                 if (tr.wS) { const o = tr.wS.callback; tr.wS.callback = function () { o?.apply(this, arguments); const val = parseFloat(tr.wS?.value) || 0; if (val < 0) tr.wS.value = 0; updateTot(); if (tr.ael.readyState >= 1) tr.ael.currentTime = parseFloat(tr.wS?.value) || 0; }; }
                 if (tr.wE) { const o = tr.wE.callback; tr.wE.callback = function () { o?.apply(this, arguments); const dur = tr.dur || 10; const val = parseFloat(tr.wE?.value) || 0; if (val > dur) { const fps = parseFloat(wFps?.value) || 24; tr.wE.value = Math.floor(dur * fps) / fps; } updateTot(); }; }
                 
-                tr.ael.addEventListener("loadedmetadata", () => { tr.dur = tr.ael.duration; tr.wS.value = 0; tr.wE.value = Math.floor(tr.dur * 24) / 24; updateTot(); fetchPeaks(tr.wA?.value, t); });
+                tr.ael.addEventListener("loadedmetadata", () => { tr.dur = tr.ael.duration; const fps = parseFloat(wFps?.value) || 24; const curStart = parseFloat(tr.wS?.value) || 0; const curEnd = parseFloat(tr.wE?.value) || 0; if (curStart === 0 && (curEnd <= 0 || curEnd > tr.dur + 1 || Math.abs(curEnd - 10.0) < 0.001)) { tr.wS.value = 0; tr.wE.value = Math.floor(tr.dur * fps) / fps; } updateTot(); fetchPeaks(tr.wA?.value, t); });
                 
                 tr.ael.addEventListener("timeupdate", () => {
                     const s = parseFloat(tr.wS?.value) || 0, e = parseFloat(tr.wE?.value) || 10;

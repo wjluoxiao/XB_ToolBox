@@ -214,7 +214,7 @@ app.registerExtension({
             // ============================================================
             const updateSrc = (ael, w, t, _last) => { const f = w?.value; if (f && f !== "none" && f !== _last) { if (t === 1) _last1 = f; else _last2 = f; ael.src = api.apiURL("/view?" + new URLSearchParams({ filename: f, type: "input", t: Date.now() })); } };
             const bindAudio = (ael, t) => {
-                ael.addEventListener("loadedmetadata", () => { if (t === 1) dur1 = ael.duration; else dur2 = ael.duration; const d = getD(t); const ws = t === 1 ? wS1 : wS2, we = t === 1 ? wE1 : wE2; const fps = parseFloat(wFps?.value) || 25; ws.value = 0; we.value = Math.floor(d * fps) / fps; syncW(t); ael.currentTime = 0; });
+                ael.addEventListener("loadedmetadata", () => { if (t === 1) dur1 = ael.duration; else dur2 = ael.duration; const d = getD(t); const ws = t === 1 ? wS1 : wS2, we = t === 1 ? wE1 : wE2; const fps = parseFloat(wFps?.value) || 25; const curStart = parseFloat(ws?.value) || 0; const curEnd = parseFloat(we?.value) || 0; if (curStart === 0 && (curEnd <= 0 || curEnd > d + 1 || Math.abs(curEnd - 10.0) < 0.001)) { ws.value = 0; we.value = Math.floor(d * fps) / fps; } syncW(t); ael.currentTime = parseFloat(ws?.value) || 0; });
                 ael.addEventListener("play", () => { const s = getS(t); if (ael.currentTime < s || ael.currentTime >= getE(t)) ael.currentTime = s; });
                 ael.addEventListener("timeupdate", () => { if (pausing) return; if (ael.currentTime >= getE(t)) { pausing = true; ael.pause(); ael.currentTime = getS(t); setTimeout(() => { pausing = false; }, 100); } });
             };
@@ -222,7 +222,7 @@ app.registerExtension({
 
             const onTimeChange = (t, resetPlayback) => { syncW(t); if (resetPlayback) { const ael = t === 1 ? audioEl1 : audioEl2; if (ael.readyState >= 1) ael.currentTime = getS(t); } };
             
-            [wA1, wA2].forEach((w, i) => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); const t = i + 1; const fn = w.value; fetchPeaks(fn, t).then(() => { const ws = t === 1 ? wS1 : wS2, we = t === 1 ? wE1 : wE2; const d = t === 1 ? dur1 : dur2; const fps = parseFloat(wFps?.value) || 25; ws.value = 0; we.value = Math.floor(d * fps) / fps; syncW(t); }); updateSrc(i === 0 ? audioEl1 : audioEl2, w, t, i === 0 ? _last1 : _last2); }; } });
+            [wA1, wA2].forEach((w, i) => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); const t = i + 1; const fn = w.value; fetchPeaks(fn, t).then(() => { const ws = t === 1 ? wS1 : wS2, we = t === 1 ? wE1 : wE2; const d = t === 1 ? dur1 : dur2; const fps = parseFloat(wFps?.value) || 25; const curStart = parseFloat(ws?.value) || 0; const curEnd = parseFloat(we?.value) || 0; if (curStart === 0 && (curEnd <= 0 || curEnd > d + 1 || Math.abs(curEnd - 10.0) < 0.001)) { ws.value = 0; we.value = Math.floor(d * fps) / fps; } syncW(t); }); updateSrc(i === 0 ? audioEl1 : audioEl2, w, t, i === 0 ? _last1 : _last2); }; } });
             [wS1].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(1, true); }; } });
             [wE1].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(1, false); }; } });
             [wS2].forEach(w => { if (w) { const o = w.callback; w.callback = function () { o?.apply(this, arguments); onTimeChange(2, true); }; } });

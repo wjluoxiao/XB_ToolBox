@@ -1,13 +1,16 @@
 import { app } from "../../scripts/app.js";
 
 // ============================================================
-// XB_WanAnimate_RelayNode — Animate 无限接力点 UI
+// XB_WanAnimate_RelayNode / XB_WanSCAIL_RelayNode
+// Animate & SCAIL 无限接力点 — 独立参考图 锁定/解锁 UI
 // ============================================================
 
+const RELAY_LOCK_NODES = ["XB_WanAnimate_RelayNode", "XB_WanSCAIL_RelayNode"];
+
 app.registerExtension({
-    name: "xiaobai.animate_relay_ui",
+    name: "xiaobai.animate_scail_relay_lock_ui",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "XB_WanAnimate_RelayNode") {
+        if (!RELAY_LOCK_NODES.includes(nodeData.name)) return;
             const onNodeCreated = nodeType.prototype.onNodeCreated;
 
             nodeType.prototype.onNodeCreated = function () {
@@ -125,6 +128,5 @@ app.registerExtension({
                 setTimeout(updateDOM, 50);
                 setTimeout(updateDOM, 300);
             };
-        }
     }
 });

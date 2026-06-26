@@ -44,19 +44,36 @@ def _refresh_models(force=False):
     gc.collect()
 
 
-def _safe_video_accumulate(prev_video, new_segment, concat_dim, label=""):
+def _safe_video_accumulate(prev_video, new_segment, concat_dim, label="", concat_mode="自动"):
     """
     VRAM 感知视频累积拼接，兼容从 6GB 到 48GB 的所有配置。
-    - 预判合并后体积，决定在 CPU 还是 GPU 拼接
-    - 绝不让已卸载到 CPU 的巨型张量反向吸入显存
-    - 高配卡几乎无感知，低配卡自动保护不 OOM
+    concat_mode: "自动"(默认) | "强制GPU" | "强制CPU"
     """
     if prev_video is None:
         return new_segment
 
     target_device = new_segment.device
 
-    # 1. 预判合并后显存占用
+    # 强制CPU
+    if concat_mode == "强制CPU":
+        new_segment = new_segment.cpu()
+        if prev_video.device.type != 'cpu':
+            prev_video = prev_video.cpu()
+        result = torch.cat([prev_video, new_segment], dim=concat_dim)
+        tag = f"[{label}] " if label else ""
+        print(f"💾 [XB-BOX] {tag}强制CPU拼接")
+        return result
+
+    # 强制GPU
+    if concat_mode == "强制GPU":
+        if prev_video.device != target_device:
+            prev_video = prev_video.to(target_device, non_blocking=True)
+        result = torch.cat([prev_video, new_segment], dim=concat_dim)
+        tag = f"[{label}] " if label else ""
+        print(f"🚀 [XB-BOX] {tag}强制GPU拼接: {result.numel()*result.element_size()/1024**3:.2f}GB")
+        return result
+
+    # 自动模式
     combined_bytes = (prev_video.numel() + new_segment.numel()) * new_segment.element_size()
     if target_device.type == 'cuda':
         total_mem = torch.cuda.get_device_properties(target_device).total_memory
@@ -64,7 +81,6 @@ def _safe_video_accumulate(prev_video, new_segment, concat_dim, label=""):
     else:
         ratio = 0.0
 
-    # 2. 核心路由：prev 在 CPU 或合并会超阈值 → 强制 CPU 拼接
     if prev_video.device.type == 'cpu' or ratio > _VRAM_VIDEO_SAFETY_RATIO:
         new_segment = new_segment.cpu()
         if prev_video.device.type != 'cpu':
@@ -74,7 +90,6 @@ def _safe_video_accumulate(prev_video, new_segment, concat_dim, label=""):
         print(f"💾 [XB-BOX] {tag}VRAM保护: 累积视频 {combined_bytes/1024**3:.2f}GB ({ratio*100:.0f}% 总显存) → 已在 CPU 完成无损拼接")
         return result
 
-    # 3. 只有确认安全时才在 GPU 拼接
     if prev_video.device != target_device:
         prev_video = prev_video.to(target_device, non_blocking=True)
     return torch.cat([prev_video, new_segment], dim=concat_dim)
@@ -163,7 +178,8 @@ class XB_Wan_ParamBus:
             },
             "optional": {
                 "clip_vision": ("CLIP_VISION",),
-                "global_start_image": ("IMAGE",),  # 🌟 全局无损首帧——接力时锚定光影防止 3D VAE 衰减
+                "global_start_image": ("IMAGE",),
+                "concat_mode": (["自动", "强制GPU", "强制CPU"], {"default": "自动", "tooltip": "视频累积拼接位置"}),
                 "scale_method": (["lanczos", "bilinear", "bicubic", "nearest-exact", "area"], {"default": "lanczos"}),
                 "crop_mode": (["center", "disabled"], {"default": "center"}),
             }
@@ -557,6 +573,7 @@ class XB_WanAnimate_ParamBus:
                 "face_video": ("IMAGE",),
                 "background_video": ("IMAGE",),
                 "character_mask": ("MASK",),
+                "concat_mode": (["自动", "强制GPU", "强制CPU"], {"default": "自动", "tooltip": "视频累积拼接位置"}),
                 "scale_method": (["lanczos", "bilinear", "bicubic", "nearest-exact", "area"], {"default": "lanczos"}),
                 "crop_mode": (["center", "disabled"], {"default": "center"}),
             }
@@ -843,6 +860,7 @@ class XB_WanInfiniteTalk_ParamBus:
             "optional": {
                 "start_image": ("IMAGE",),
                 "audio": ("AUDIO", {"tooltip": "总线音频模式：接入长音频，总线一次性编码，接力点自动分段"}),
+                "concat_mode": (["自动", "强制GPU", "强制CPU"], {"default": "自动", "tooltip": "视频累积拼接位置"}),
             },
         }
 
@@ -1111,3 +1129,859 @@ class XB_WanInfiniteTalk_RelayNode:
 
         _refresh_models()
         return (b, final_video, final_audio)
+
+# ============================================================
+# NEW 无限接力节点（带重叠帧数/拼接模式等新功能）
+# ============================================================
+
+class XB_Wan_InfiniteRelayNode_New:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "wan_bus": ("WAN_BUS",),  
+                "start_image": ("IMAGE",),
+                "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the specific action for this segment..."}),
+                "trim_head_frames": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1, "tooltip": "接力重叠帧数（去重）"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定：本节点自动循环 N 次 = 串联 N 个接力点"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",)
+            }
+        }
+        
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True 
+
+    RETURN_TYPES = ("WAN_BUS", "IMAGE", "IMAGE")
+    RETURN_NAMES = ("📦 WAN_BUS (Pass to next)", "🖼️ Current End Image (Connect to next Start Image)", "🎞️ Accumulated Video Stream")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_bus, start_image, positive_prompt, trim_head_frames=1, relay_count=1, prev_video=None):
+        print(f"\n🏃‍♀️ [XB-BOX] Executing Image-to-Video Infinite pipeline × {relay_count} relay(s)...")
+        b = wan_bus
+        segment_len = b["length"]
+        cut_first_frame = b.get("cut_first_frame", True)
+        # 估算总计帧数
+        est_per_segment = segment_len - (trim_head_frames if cut_first_frame and segment_len > 1 else 0)
+        est_total = est_per_segment * relay_count
+        print(f"📊 [XB-BOX] 每段约 {est_per_segment} 帧 (原始 {segment_len}), 总计约 {est_total} 帧")
+
+        current_image = start_image
+        accumulated_video = prev_video
+
+        for r in range(relay_count):
+            seed = b["seed"]
+            print(f"\n🔄 [XB-BOX] 接力 {r+1}/{relay_count}...")
+
+            encode_tile = b.get("vae_encode_tile_size", b.get("vae_tile_size", 64))
+            decode_tile = b.get("vae_decode_tile_size", b.get("vae_tile_size", 64))
+
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], positive_prompt)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b["negative_prompt"])
+
+            cv_output = b.get("clip_vision_output")
+            pos, neg, latent = XB_WanImageToVideo().process(
+                positive=pos_cond, negative=neg_cond, vae=b["vae"], 
+                clip_vision_output=cv_output, start_image=current_image, 
+                width=b["width"], height=b["height"], length=segment_len, 
+                batch_size=1, vae_tile_size=encode_tile,
+                scale_method=b.get("scale_method", "lanczos"),
+                crop_mode=b.get("crop_mode", "center"),
+            )
+
+            total_steps = b["steps"]
+            high_steps = b["high_noise_steps"]
+            if high_steps >= total_steps:
+                high_steps = total_steps - 1
+
+            latent_high, = nodes.KSamplerAdvanced().sample(
+                model=b["model_high"], add_noise="enable", noise_seed=seed,
+                steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent,
+                start_at_step=0, end_at_step=high_steps, return_with_leftover_noise="enable" 
+            )
+
+            latent_low, = nodes.KSamplerAdvanced().sample(
+                model=b["model_low"], add_noise="disable", noise_seed=seed, 
+                steps=total_steps, cfg=b["cfg"], sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent_high, 
+                start_at_step=high_steps, end_at_step=total_steps, return_with_leftover_noise="disable"
+            )
+
+            decoded_image, = nodes.VAEDecode().decode(samples=latent_low, vae=b["vae"])
+
+            is_4d = len(decoded_image.shape) == 4
+            frame_dim = 0 if is_4d else 1
+            total_frames = decoded_image.shape[frame_dim]
+
+            if cut_first_frame and total_frames > 1:
+                safe_trim = min(trim_head_frames, total_frames - 1)
+                if safe_trim > 0:
+                    if is_4d:
+                        decoded_image = decoded_image[safe_trim:, :, :, :]
+                    else:
+                        decoded_image = decoded_image[:, safe_trim:, :, :, :]
+
+            last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+
+            decoded_image = _apply_progressive_color_correction(decoded_image, current_image, is_4d)
+            last_frame = decoded_image[-1:, :, :, :] if is_4d else decoded_image[:, -1:, :, :, :]
+
+            concat_dim = 0 if is_4d else 1
+            accumulated_video = _safe_video_accumulate(accumulated_video, decoded_image, concat_dim, label=f"InfiniteRelay-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+            current_image = last_frame
+
+        _refresh_models()
+        print(f"✅ [XB-BOX] 接力完成: {relay_count} 段, 总计 {accumulated_video.shape[concat_dim]} 帧")
+        return (wan_bus, current_image, accumulated_video)
+
+
+# ============================================================
+# XB_Video_Merger — 视频拼接器
+# ============================================================
+class XB_Video_Merger:
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = {"required": {}, "optional": {}}
+        for i in range(1, 11):
+            inputs["optional"][f"video_{i}"] = ("IMAGE",)
+        return inputs
+    
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("🎞️ Full Long Video",)
+    FUNCTION = "merge_videos"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def merge_videos(self, **kwargs):
+        videos = [kwargs.get(f"video_{i}") for i in range(1, 11) if kwargs.get(f"video_{i}") is not None]
+        if not videos: 
+            raise ValueError("🚨 [XB-BOX] Merge failed: At least one video must be connected!")
+        
+        concat_dim = 0 if len(videos[0].shape) == 4 else 1
+        ref_shape = list(videos[0].shape)
+        for i, vid in enumerate(videos):
+            for d in range(len(ref_shape)):
+                if d != concat_dim and vid.shape[d] != ref_shape[d]:
+                    raise ValueError(
+                        f"🚨 [XB-BOX] Merge failed: Video segment {i+1} shape {list(vid.shape)} "
+                        f"does not match first segment shape {ref_shape} on dimension {d} "
+                        f"(expected {ref_shape[d]}, got {vid.shape[d]})"
+                    )
+        # 将全部视频段卸载到 CPU 再拼接，防止多段同时驻留 VRAM 导致 OOM
+        videos_cpu = [v.cpu() for v in videos]
+        merged = torch.cat(videos_cpu, dim=concat_dim)
+        print(f"💾 [XB-BOX] Merger: {len(videos)} 段视频已在 CPU 完成拼接 (shape={list(merged.shape)})")
+        return (merged,)
+
+# ============================================================
+# XB_StoryboardSlicer — 分镜切片器
+# ============================================================
+class XB_StoryboardSlicer:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mode": (["3-Grid (1x3 Horizontal)", "3-Grid (3x1 Vertical)", "4-Grid (2x2)", "6-Grid (2x3 Horizontal)", "6-Grid (3x2 Vertical)", "9-Grid (3x3)"], {"default": "4-Grid (2x2)"}),
+                "crop_margin": ("FLOAT", {"default": 0.00, "min": 0.00, "max": 0.45, "step": 0.01}),
+            }
+        }
+    RETURN_TYPES = ("IMAGE",) * 9
+    RETURN_NAMES = ("Img1", "Img2", "Img3", "Img4", "Img5", "Img6", "Img7", "Img8", "Img9")
+    FUNCTION = "slice_image"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def slice_image(self, image, mode, crop_margin):
+        if "1x3" in mode: rows, cols = 1, 3
+        elif "3x1" in mode: rows, cols = 3, 1
+        elif "2x2" in mode: rows, cols = 2, 2
+        elif "2x3" in mode: rows, cols = 2, 3
+        elif "3x2" in mode: rows, cols = 3, 2
+        elif "3x3" in mode: rows, cols = 3, 3
+        else: rows, cols = 2, 2 
+
+        batch_size, h, w, channels = image.shape
+        slice_h, slice_w = h // rows, w // cols
+        crop_y, crop_x = int(slice_h * crop_margin), int(slice_w * crop_margin)
+
+        sliced_images = []
+        for r in range(rows):
+            for c in range(cols):
+                sy, ey = r * slice_h + crop_y, (r + 1) * slice_h - crop_y
+                sx, ex = c * slice_w + crop_x, (c + 1) * slice_w - crop_x
+                if sy >= ey: ey = sy + 1
+                if sx >= ex: ex = sx + 1
+                sliced_images.append(image[:, sy:ey, sx:ex, :])
+
+        placeholder_h = max(1, slice_h - crop_y * 2)
+        placeholder_w = max(1, slice_w - crop_x * 2)
+        while len(sliced_images) < 9:
+            sliced_images.append(torch.zeros((1, placeholder_h, placeholder_w, 3), dtype=torch.float32, device=image.device))
+        return tuple(sliced_images)
+
+
+# ============================================================
+# XB_WanAnimate_ParamBus — Wan Animate 动作迁移参数总线
+# ============================================================
+class XB_WanAnimate_RelayNode_New:
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))] if os.path.exists(input_dir) else []
+        files = sorted(files)
+
+        if not files:
+            files = ["[Folder empty_Please connect or upload]"]
+
+        return {
+            "required": {
+                "wan_animate_bus": ("WAN_ANIMATE_BUS",),
+                "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 1}),
+                "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the scene..."}),
+                "use_local_ref_image": (["继承总线全局图", "独立参考图"], {"default": "继承总线全局图"}),
+                "ref_image_file": (files, {"image_upload": True}),
+                "continue_motion_max_frames": ("INT", {"default": 5, "min": 0, "max": 16, "tooltip": "接力重叠帧数（衔接过渡）"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",),
+            }
+        }
+        
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True 
+
+    RETURN_TYPES = ("WAN_ANIMATE_BUS", "IMAGE")
+    RETURN_NAMES = ("📦 WAN_ANIMATE_BUS (传给下段)", "🎞️ 累加视频流")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_animate_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", continue_motion_max_frames=5, relay_count=1, prev_video=None, opt_ref_image=None):
+        b = wan_animate_bus.copy()
+        print(f"\n🏃‍♀️ [XB-BOX] Executing Wan Animate Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
+        accumulated_video = prev_video
+
+        completed = 0
+        for r in range(relay_count):
+            current_offset = b.get("current_offset", 0)
+            seed = b.get("seed", 123456789)
+            print(f"\n🔄 [XB-BOX] Animate 接力 {r+1}/{relay_count} (offset={current_offset})...")
+
+            source_video = b.get("pose_video") if b.get("pose_video") is not None else b.get("face_video")
+            total_source_frames = float('inf')
+            bus_total = b.get("total_frames", 0)
+            if bus_total > 0:
+                total_source_frames = bus_total
+            elif source_video is not None:
+                total_source_frames = source_video.shape[0] if len(source_video.shape) == 4 else source_video.shape[1]
+
+            remaining_frames = max(0, total_source_frames - current_offset)
+
+            if remaining_frames <= 0:
+                break
+
+            if remaining_frames < segment_length:
+                if current_offset == 0:
+                    need_raw = remaining_frames
+                else:
+                    need_raw = remaining_frames + continue_motion_max_frames
+                actual_length = ((need_raw + 2) // 4) * 4 + 1
+                if actual_length < 1:
+                    break
+                print(f"⚠️ [XB-BOX] 最后一段: 剩余 {remaining_frames} → {actual_length} 帧 (4N+1)")
+            else:
+                actual_length = segment_length
+
+            is_local = (use_local_ref_image in ("独立参考图", True, 1))
+            if is_local:
+                if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
+                    print("⏭️ [XB-BOX] 独立参考图未选择，跳过")
+                    break
+                image_path = folder_paths.get_annotated_filepath(ref_image_file)
+                if not os.path.exists(image_path):
+                    print(f"⏭️ [XB-BOX] 参考图文件未找到，跳过")
+                    break
+                i = Image.open(image_path)
+                i = ImageOps.exif_transpose(i)
+                image_data = i.convert("RGB")
+                image_data = np.array(image_data).astype(np.float32) / 255.0
+                ref_image = torch.from_numpy(image_data)[None,]
+                cv_model = b.get("clip_vision")
+                if cv_model is None:
+                    raise ValueError("🚨 独立参考图需要 clip_vision 模型！")
+                w, h = b.get("width", 480), b.get("height", 832)
+                sm = b.get("scale_method", "lanczos")
+                cm = b.get("crop_mode", "center")
+                clip_img = comfy.utils.common_upscale(ref_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
+                clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
+            else:
+                ref_image = b.get("global_ref_image")
+                if ref_image is None:
+                    raise ValueError("🚨 缺少参考图！")
+                clip_vision_output = b.get("clip_vision_output")
+
+            prompt_text = positive_prompt.strip() if positive_prompt.strip() else b.get("positive_prompt", "")
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], prompt_text)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b.get("negative_prompt", ""))
+
+            continue_motion = None
+            cont_max_frames = continue_motion_max_frames
+            if is_local:
+                cont_max_frames = 0
+            if accumulated_video is not None and cont_max_frames > 0:
+                is_4d_v = len(accumulated_video.shape) == 4
+                if is_4d_v:
+                    continue_motion = accumulated_video[-cont_max_frames:, :, :, :]
+                else:
+                    continue_motion = accumulated_video[:, -cont_max_frames:, :, :, :]
+
+            try:
+                from .nodes_wan import XB_WanAnimateToVideo
+            except ImportError:
+                raise ImportError("🚨 找不到 XB_WanAnimateToVideo")
+
+            animate_core = XB_WanAnimateToVideo()
+            func_name = getattr(XB_WanAnimateToVideo, "FUNCTION", "process")
+            func = getattr(animate_core, func_name)
+            kwargs = {
+                "positive": pos_cond, "negative": neg_cond, "vae": b["vae"],
+                "clip_vision_output": clip_vision_output, "reference_image": ref_image,
+                "face_video": b.get("face_video"), "pose_video": b.get("pose_video"),
+                "background_video": b.get("background_video"), "character_mask": b.get("character_mask"),
+                "continue_motion": continue_motion,
+                "width": b["width"], "height": b["height"], "length": actual_length, "batch_size": 1,
+                "continue_motion_max_frames": cont_max_frames,
+                "video_frame_offset": current_offset, 
+                "vae_tile_size": b.get("vae_encode_tile_size", 320)
+            }
+            pos, neg, latent, trim_latent, trim_image, new_offset = func(**kwargs)
+
+            latent_sampled, = nodes.KSampler().sample(
+                model=b["model"], seed=seed, steps=b["steps"], cfg=b["cfg"],
+                sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent, denoise=1.0
+            )
+            trim_latent_val = trim_latent if trim_latent is not None else 0
+            if trim_latent_val > 0:
+                latent_sampled["samples"] = latent_sampled["samples"][:, :, trim_latent_val:, :, :]
+
+            try:
+                from .nodes_rocm import XB_ROCmVAEDecodeTemporal
+            except ImportError:
+                raise ImportError("🚨 找不到 XB_ROCmVAEDecodeTemporal")
+            cleanup_mode = b.get("cleanup", "双次缓存清理")
+            decoder = XB_ROCmVAEDecodeTemporal()
+            decoded_image, = decoder.go(
+                samples=latent_sampled, vae=b["vae"],
+                tile=b.get("vae_decode_tile_size", 320), overlap=b.get("spatial_overlap", 32),
+                t_tile=b.get("temporal_chunk_size", 64), t_overlap=b.get("temporal_overlap", 8),
+                cleanup=cleanup_mode
+            )
+
+            is_4d = len(decoded_image.shape) == 4
+            concat_dim = 0 if is_4d else 1
+            trim_px = int(trim_image) if trim_image else 0
+            if trim_px > 0 and trim_px < decoded_image.shape[concat_dim]:
+                if is_4d:
+                    decoded_image = decoded_image[trim_px:, :, :, :]
+                else:
+                    decoded_image = decoded_image[:, trim_px:, :, :, :]
+
+            accumulated_video = _safe_video_accumulate(accumulated_video, decoded_image, concat_dim, label=f"AnimateRelay-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+            actual_out = decoded_image.shape[concat_dim]
+            b["current_offset"] = current_offset + actual_out
+            print(f"✅ [XB-BOX] 接力 {r+1}/{relay_count} 完成. out={actual_out}f total={accumulated_video.shape[concat_dim]}f")
+            completed = r + 1
+
+        if completed < relay_count:
+            print(f"✅ [XB-BOX] 生成任务由 {completed} 个接力点已经完成，跳过剩余接力点！")
+        else:
+            print(f"🎉 [XB-BOX] Animate 接力全部完成: {relay_count} 段, 总计 {accumulated_video.shape[0 if len(accumulated_video.shape)==4 else 1]} 帧")
+        overlap = continue_motion_max_frames
+        total = max(0, segment_length * relay_count - overlap * (relay_count - 1))
+        return (b, accumulated_video)
+
+
+# ============================================================
+# XB_WanInfiniteTalk_ParamBus — InfiniteTalk 无限对口型参数总线
+# ============================================================
+class XB_WanInfiniteTalk_RelayNode_New:
+    """
+    每个接力点完成：CLIPTextEncode → WanInfiniteTalkToVideo_Single → KSampler → VAEDecode → trim → 累加。
+    音频独立输入 + 自动裁剪重叠 + 累加输出，与视频帧对齐。
+    relay_count > 1 时本节点内部自动循环 N 次。
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "wan_infinitetalk_bus": ("WAN_INFINITETALK_BUS",),
+                "positive_prompt": ("STRING", {"multiline": True, "default": ""}),
+                "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1, "tooltip": "接力重叠帧数（运动过渡）"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",),
+                "prev_audio": ("AUDIO",),
+                "audio": ("AUDIO",),
+            }
+        }
+
+    RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
+    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_infinitetalk_bus, positive_prompt, segment_length, motion_frame_count=9, relay_count=1,
+                      prev_video=None, prev_audio=None, audio=None):
+        b = wan_infinitetalk_bus.copy()
+        fps = b.get("fps", 25.0)
+        bus_audio_mode = b.get("_bus_audio_mode", False)
+        print(f"\n🏃‍♀️ [XB-BOX] Executing InfiniteTalk Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
+
+        accumulated_video = prev_video
+        accumulated_audio = prev_audio
+
+        completed = 0
+        for r in range(relay_count):
+            print(f"\n🔄 [XB-BOX] InfiniteTalk 接力 {r+1}/{relay_count}...")
+
+            # ================================================================
+            # 🛡️ 模式判断 & 帧数计算
+            # ================================================================
+            if bus_audio_mode:
+                # --- 模式1：总线音频模式 ---
+                total_frames = b["_total_frames"]
+                accumulated = b["_accumulated_frames"]
+                remaining = total_frames - accumulated
+
+                if remaining <= 0:
+                    break
+
+                if remaining < segment_length:
+                    if accumulated == 0:
+                        need_raw = remaining  # 第一段无 trim
+                    else:
+                        need_raw = remaining + motion_frame_count
+                    actual_length = ((need_raw + 2) // 4) * 4 + 1
+                    if actual_length < 1:
+                        break
+                    print(f"\n⚠️ [XB-BOX] 最后一段: 剩余 {remaining} → need_raw={need_raw} → {actual_length} 帧 (4N+1)")
+                else:
+                    actual_length = segment_length
+
+                encoded_audio = b["_encoded_audio"]
+                raw_audio = b.get("_raw_audio")
+                use_segment_audio = False
+                print(f"\n🔊 [XB-BOX] 总线音频接力: 偏移 {accumulated} 帧 @ {fps:.0f}fps, 生成长度 {actual_length} 帧 ({accumulated}/{total_frames})")
+            else:
+                # --- 模式2：独立音频模式 ---
+                if audio is None:
+                    print(f"⏭️ [XB-BOX] 无音频输入，跳过接力 {r+1}")
+                    break
+
+                actual_length = segment_length
+                encoded_audio = None
+                raw_audio = audio
+                use_segment_audio = True
+                print(f"\n🎵 [XB-BOX] 独立音频接力: 生成长度 {actual_length} 帧")
+
+            # --- 🛡️ 帧数对齐：Wan 模型要求 length = 4n+1 ---
+            raw_length = actual_length
+            aligned_length = ((actual_length + 2) // 4) * 4 + 1
+            if aligned_length != raw_length:
+                print(f"⚠️ [XB-BOX] 帧数对齐: {raw_length} → {aligned_length} (4n+1)")
+                if not bus_audio_mode and audio is not None:
+                    pad_frames = aligned_length - raw_length
+                    pad_sec = pad_frames / fps
+                    sr = audio["sample_rate"]
+                    pad_samples = int(pad_sec * sr)
+                    pad_wf = torch.zeros((audio["waveform"].shape[0], pad_samples), dtype=audio["waveform"].dtype, device=audio["waveform"].device)
+                    raw_audio = {"waveform": torch.cat([audio["waveform"], pad_wf], dim=-1), "sample_rate": sr}
+            actual_length = aligned_length
+
+            # --- 音频编码（独立模式） ---
+            if not bus_audio_mode:
+                ae_cls = nodes.NODE_CLASS_MAPPINGS.get("AudioEncoderEncode")
+                if ae_cls is None:
+                    raise ImportError("AudioEncoderEncode not found")
+                ae = ae_cls()
+                encoded_audio, = getattr(ae, ae.FUNCTION)(b["audio_encoder"], raw_audio)
+
+            # --- 提示词 ---
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], positive_prompt)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b["negative_prompt"])
+
+            # --- InfiniteTalk 底座 ---
+            prev = b.get("_previous_frames")
+            global_frame_offset = None
+            if bus_audio_mode:
+                global_frame_offset = b["_accumulated_frames"]
+
+            core = XB_WanInfiniteTalkToVideo_Single()
+            model_out, pos, neg, latent, trim = core.process(
+                model=b["model"], model_patch=b["model_patch"],
+                positive=pos_cond, negative=neg_cond, vae=b["vae"],
+                width=b["width"], height=b["height"], length=actual_length,
+                audio_encoder_output_1=encoded_audio,
+                motion_frame_count=motion_frame_count, audio_scale=b["audio_scale"],
+                vae_tile_size=b["vae_encode_tile_size"],
+                clip_vision_output=b.get("clip_vision_output"),
+                start_image=b.get("start_image"), previous_frames=prev,
+                segment_audio=use_segment_audio,
+                global_frame_offset=global_frame_offset,
+                scale_method=b.get("scale_method", "lanczos"),
+                crop_mode=b.get("crop_mode", "center"),
+            )
+
+            # --- 采样 ---
+            latent_out, = nodes.KSampler().sample(
+                model=model_out, seed=b["seed"],
+                steps=b["steps"], cfg=b["cfg"],
+                sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent, denoise=1.0,
+            )
+
+            # --- 解码 ---
+            decoded, = nodes.VAEDecode().decode(samples=latent_out, vae=b["vae"])
+
+            # --- 视频裁剪累加 ---
+            is4d = len(decoded.shape) == 4
+            cd = 0 if is4d else 1
+            total = decoded.shape[cd]
+            b["_previous_frames"] = decoded
+
+            trim_val = int(trim) if trim else 0
+            trim_val = min(trim_val, total - 1) if trim_val < total else 0
+            cut = decoded[trim_val:] if is4d else decoded[:, trim_val:]
+            final_video = _safe_video_accumulate(accumulated_video, cut, cd, label=f"TalkRelay-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+
+            # --- 音频裁剪累加 ---
+            ats = trim_val / fps if trim_val else 0.0
+            if bus_audio_mode:
+                raw_wf = raw_audio["waveform"] if raw_audio else torch.zeros((1, 1))
+                raw_sr = raw_audio["sample_rate"] if raw_audio else 44100
+                seg_start_sample = int(b["_accumulated_frames"] / fps * raw_sr)
+                seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd]) / fps * raw_sr)
+                seg_end_sample = min(seg_end_sample, raw_wf.shape[-1])
+                cut_audio = {"waveform": raw_wf[..., seg_start_sample:seg_end_sample], "sample_rate": raw_sr} if seg_end_sample > seg_start_sample else None
+            else:
+                cut_audio = raw_audio
+                if ats > 0 and raw_audio:
+                    wf = raw_audio["waveform"]
+                    sr = raw_audio["sample_rate"]
+                    n = int(ats * sr)
+                    if n < wf.shape[-1]:
+                        cut_audio = {"waveform": wf[..., n:], "sample_rate": sr}
+                    else:
+                        cut_audio = None
+
+            if accumulated_audio is None:
+                final_audio = cut_audio
+            elif cut_audio is None:
+                final_audio = accumulated_audio
+            else:
+                pa, ca = accumulated_audio, cut_audio
+                if pa["sample_rate"] != ca["sample_rate"]:
+                    if torchaudio is None:
+                        raise ImportError("🚨 [XB-BOX] 音频采样率不一致需要 torchaudio 重采样，但 torchaudio 未安装！请运行: pip install torchaudio")
+                    ca_wf = torchaudio.functional.resample(ca["waveform"], ca["sample_rate"], pa["sample_rate"])
+                    ca = {"waveform": ca_wf, "sample_rate": pa["sample_rate"]}
+                pa_wf = pa["waveform"]
+                ca_wf = ca["waveform"].to(pa_wf.device)
+                if pa_wf.dim() >= 2 and ca_wf.dim() >= 2 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
+                    if pa_wf.shape[-2] == 1 and ca_wf.shape[-2] > 1:
+                        rpt = [1] * pa_wf.dim()
+                        rpt[-2] = ca_wf.shape[-2]
+                        pa_wf = pa_wf.repeat(*rpt)
+                    elif ca_wf.shape[-2] == 1 and pa_wf.shape[-2] > 1:
+                        rpt = [1] * ca_wf.dim()
+                        rpt[-2] = pa_wf.shape[-2]
+                        ca_wf = ca_wf.repeat(*rpt)
+                final_audio = {"waveform": torch.cat([pa_wf, ca_wf], dim=-1), "sample_rate": pa["sample_rate"]}
+
+            b["_global_frame_offset"] = b.get("_global_frame_offset", 0) + cut.shape[cd]
+            if bus_audio_mode:
+                b["_accumulated_frames"] += cut.shape[cd]
+            accumulated_video = final_video
+            accumulated_audio = final_audio
+            print(f"✅ [XB-BOX] 接力 {r+1}/{relay_count} 完成. out={cut.shape[cd]}f total={final_video.shape[cd]}f")
+            completed = r + 1
+
+        if completed < relay_count:
+            print(f"✅ [XB-BOX] 生成任务由 {completed} 个接力点已经完成，跳过剩余接力点！")
+        else:
+            print(f"🎉 [XB-BOX] InfiniteTalk 接力全部完成: {relay_count} 段, 总计 {accumulated_video.shape[0 if len(accumulated_video.shape)==4 else 1]} 帧")
+        _refresh_models()
+        overlap = motion_frame_count
+        total = max(0, segment_length * relay_count - overlap * (relay_count - 1))
+        return (b, accumulated_video, accumulated_audio)
+
+
+# ============================================================
+# XB_WanSCAIL_ParamBus — SCAIL 无限时长参数总线
+# ============================================================
+class XB_WanSCAIL_ParamBus_New:
+    """SCAIL 无限接力参数总线。
+    集中管理模型、姿态视频、参考图等所有共享参数，
+    接力点只需传正面提示词 + 单次生成帧数，其余全从总线走。
+    """
+    _SCALE_METHODS = ["bilinear", "bicubic", "lanczos", "nearest-exact", "area"]
+    _CROP_MODES = ["center", "disabled"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                # --- 模型 ---
+                "model": ("MODEL",),
+                "clip": ("CLIP",),
+                "vae": ("VAE",),
+                "clip_vision": ("CLIP_VISION",),
+                # --- 基础参数 ---
+                "negative_prompt": ("STRING", {"multiline": True, "default": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"}),
+                "width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 32}),
+                "height": ("INT", {"default": 896, "min": 32, "max": 8192, "step": 32}),
+                "total_frames": ("INT", {"default": 0, "min": 0, "max": 999999, "tooltip": "0=自动从姿态视频取长度；>0=强制截断到此帧数"}),
+                "fps": ("FLOAT", {"default": 16.0, "min": 1.0, "max": 120.0, "step": 1.0}),
+                # --- SCAIL 控制 ---
+                "pose_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "pose_start": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "pose_end": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "replacement_mode": ("BOOLEAN", {"default": False, "label_on": "替换模式", "label_off": "动画模式"}),
+                "concat_mode": (["自动", "强制GPU", "强制CPU"], {"default": "自动", "tooltip": "视频累积拼接位置: 自动=显存>30%切CPU | 强制GPU=始终GPU | 强制CPU=始终CPU"}),
+                # --- VAE 分块 ---
+                "vae_encode_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+                "vae_decode_tile_size": ("INT", {"default": 192, "min": 64, "max": 3840, "step": 32}),
+                "spatial_overlap": ("INT", {"default": 32, "min": 0, "max": 3840, "step": 32}),
+                "temporal_chunk_size": ("INT", {"default": 64, "min": 0, "max": 8192, "step": 4}),
+                "temporal_overlap": ("INT", {"default": 8, "min": 0, "max": 8192, "step": 4}),
+                # --- 采样 ---
+                "steps": ("INT", {"default": 20, "min": 1, "max": 100}),
+                "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 10.0, "step": 0.1}),
+                "sampler_name": (comfy.samplers.KSAMPLER_NAMES,),
+                "scheduler": (comfy.samplers.SCHEDULER_NAMES,),
+                "seed": ("INT", {"default": 123456789}),
+                # --- 清理 ---
+                "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "双次缓存清理"}),
+            },
+            "optional": {
+                "global_ref_image": ("IMAGE",),
+                "reference_image_mask": ("IMAGE", {"tooltip": "参考图遮罩 (替换模式: 隔离角色区域)"}),
+                "pose_video": ("IMAGE", {"tooltip": "姿态/驱动视频"}),
+                "pose_video_mask": ("IMAGE", {"tooltip": "SCAIL-2 彩色遮罩视频"}),
+                "scale_method": (cls._SCALE_METHODS, {"default": "lanczos"}),
+                "crop_mode": (cls._CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("WAN_SCAIL_BUS",)
+    RETURN_NAMES = ("📦 WAN_SCAIL_BUS",)
+    FUNCTION = "pack_bus"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def pack_bus(self, **kwargs):
+        # CLIP 视觉编码：参考图缩放到视频尺寸后编码
+        cv = kwargs.get("clip_vision")
+        ref = kwargs.get("global_ref_image")
+        if cv is not None and ref is not None:
+            w, h = kwargs["width"], kwargs["height"]
+            method = kwargs.get("scale_method", "lanczos")
+            crop = kwargs.get("crop_mode", "center")
+            scaled = comfy.utils.common_upscale(ref.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
+            kwargs["clip_vision_output"], = nodes.CLIPVisionEncode().encode(cv, scaled, "center")
+            print(f"👁️ [XB-BOX] SCAIL CLIP视觉编码 ({ref.shape[1]}×{ref.shape[2]} → {w}×{h}, {method}/{crop})")
+        else:
+            kwargs["clip_vision_output"] = None
+
+        kwargs["current_offset"] = 0
+        return (kwargs,)
+
+
+# ============================================================
+# XB_WanSCAIL_RelayNode — SCAIL 无限接力点
+# ============================================================
+class XB_WanSCAIL_RelayNode_New:
+    """SCAIL 无限接力节点。
+    每个接力点完成：CLIPTextEncode → SCAIL Process → KSampler → VAEDecode → trim → 累加。
+    自动管理姿态视频偏移 + 前段尾帧衔接。
+    relay_count > 1 时本节点内部自动循环 N 次。
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))] if os.path.exists(input_dir) else []
+        files = sorted(files)
+        if not files:
+            files = ["[Folder empty_Please connect or upload]"]
+
+        return {
+            "required": {
+                "wan_scail_bus": ("WAN_SCAIL_BUS",),
+                "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the scene..."}),
+                "use_local_ref_image": (["继承总线全局图", "独立参考图"], {"default": "继承总线全局图"}),
+                "ref_image_file": (files, {"image_upload": True}),
+                "previous_frame_count": ("INT", {"default": 5, "min": 1, "max": 8192, "step": 4, "tooltip": "接力重叠帧数（尾帧衔接）"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("WAN_SCAIL_BUS", "IMAGE")
+    RETURN_NAMES = ("📦 WAN_SCAIL_BUS (传给下段)", "🎞️ 累加视频流")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", previous_frame_count=5, relay_count=1, prev_video=None):
+        b = wan_scail_bus.copy()
+        print(f"\n🏃‍♀️ [XB-BOX] Executing SCAIL Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
+        accumulated_video = prev_video
+
+        completed = 0
+        for r in range(relay_count):
+            current_offset = b.get("current_offset", 0)
+            seed = b.get("seed", 123456789)
+            print(f"\n🔄 [XB-BOX] SCAIL 接力 {r+1}/{relay_count} (offset={current_offset})...")
+
+            pose_video = b.get("pose_video")
+            total_source_frames = float('inf')
+            bus_total = b.get("total_frames", 0)
+            if bus_total > 0:
+                total_source_frames = bus_total
+            elif pose_video is not None:
+                total_source_frames = pose_video.shape[0] if len(pose_video.shape) == 4 else pose_video.shape[1]
+
+            remaining_frames = max(0, total_source_frames - current_offset)
+
+            if remaining_frames <= 0:
+                break
+
+            if remaining_frames < segment_length:
+                if current_offset == 0:
+                    need_raw = remaining_frames
+                else:
+                    need_raw = remaining_frames + previous_frame_count
+                actual_length = ((need_raw + 2) // 4) * 4 + 1
+                if actual_length < 1:
+                    break
+                print(f"⚠️ [XB-BOX] SCAIL 最后一段: 剩余 {remaining_frames} → {actual_length} 帧 (4N+1)")
+            else:
+                actual_length = segment_length
+
+            # --- 独立参考图逻辑 ---
+            is_local = (use_local_ref_image in ("独立参考图", True, 1))
+            if is_local:
+                if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
+                    print(f"⏭️ [XB-BOX] 独立参考图未选择，跳过接力 {r+1}")
+                    break
+                image_path = folder_paths.get_annotated_filepath(ref_image_file)
+                if not os.path.exists(image_path):
+                    print(f"⏭️ [XB-BOX] 参考图文件未找到，跳过接力 {r+1}")
+                    break
+                i = Image.open(image_path)
+                i = ImageOps.exif_transpose(i)
+                image_data = i.convert("RGB")
+                image_data = np.array(image_data).astype(np.float32) / 255.0
+                ref_image = torch.from_numpy(image_data)[None,]
+                cv_model = b.get("clip_vision")
+                if cv_model is None:
+                    raise ValueError("🚨 独立参考图需要 clip_vision 模型！")
+                w, h = b.get("width", 512), b.get("height", 896)
+                sm = b.get("scale_method", "lanczos")
+                cm = b.get("crop_mode", "center")
+                clip_img = comfy.utils.common_upscale(ref_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
+                clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
+                print("🖼️ [XB-BOX] SCAIL 使用独立参考图（含独立CLIP视觉编码）")
+            else:
+                ref_image = b.get("global_ref_image")
+                clip_vision_output = b.get("clip_vision_output")
+
+            # --- 提示词 ---
+            prompt_text = positive_prompt.strip() if positive_prompt.strip() else b.get("positive_prompt", "")
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], prompt_text)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b.get("negative_prompt", ""))
+
+            # --- 准备 previous_frames ---
+            previous_frames = None
+            if accumulated_video is not None and current_offset > 0:
+                is_4d = len(accumulated_video.shape) == 4
+                if is_4d:
+                    previous_frames = accumulated_video[-previous_frame_count:]
+                else:
+                    previous_frames = accumulated_video[:, -previous_frame_count:]
+
+            # --- SCAIL Pro 底座 ---
+            try:
+                from .nodes_wan_vae import XB_WanSCAILToVideoPro
+            except ImportError:
+                raise ImportError("🚨 找不到 XB_WanSCAILToVideoPro")
+            scail_core = XB_WanSCAILToVideoPro()
+            pos, neg, latent, new_offset = scail_core.process(
+                positive=pos_cond, negative=neg_cond, vae=b["vae"],
+                width=b["width"], height=b["height"], length=actual_length, batch_size=1,
+                pose_strength=b.get("pose_strength", 1.0),
+                pose_start=b.get("pose_start", 0.0), pose_end=b.get("pose_end", 1.0),
+                replacement_mode=b.get("replacement_mode", False),
+                video_frame_offset=current_offset, previous_frame_count=previous_frame_count,
+                vae_tile_size=b.get("vae_encode_tile_size", 256),
+                pose_video=pose_video, pose_video_mask=b.get("pose_video_mask"),
+                reference_image=ref_image, reference_image_mask=b.get("reference_image_mask"),
+                clip_vision_output=clip_vision_output, previous_frames=previous_frames,
+            )
+
+            # --- 采样 ---
+            latent_sampled, = nodes.KSampler().sample(
+                model=b["model"], seed=seed, steps=b["steps"], cfg=b["cfg"],
+                sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent, denoise=1.0,
+            )
+
+            # --- 解码 ---
+            try:
+                from .nodes_rocm import XB_ROCmVAEDecodeTemporal
+            except ImportError:
+                raise ImportError("🚨 找不到 XB_ROCmVAEDecodeTemporal")
+            cleanup_mode = b.get("cleanup", "双次缓存清理")
+            decoder = XB_ROCmVAEDecodeTemporal()
+            decoded_image, = decoder.go(
+                samples=latent_sampled, vae=b["vae"],
+                tile=b.get("vae_decode_tile_size", 192), overlap=b.get("spatial_overlap", 32),
+                t_tile=b.get("temporal_chunk_size", 64), t_overlap=b.get("temporal_overlap", 8),
+                cleanup=cleanup_mode,
+            )
+
+            # --- 裁剪重叠帧 & 累加 ---
+            is_4d = len(decoded_image.shape) == 4
+            concat_dim = 0 if is_4d else 1
+            total_out = decoded_image.shape[concat_dim]
+            trim_px = previous_frame_count if (accumulated_video is not None and current_offset > 0) else 0
+            trim_px = min(trim_px, total_out - 1) if trim_px < total_out else 0
+            if trim_px > 0:
+                if is_4d:
+                    decoded_image = decoded_image[trim_px:, :, :, :]
+                else:
+                    decoded_image = decoded_image[:, trim_px:, :, :, :]
+
+            accumulated_video = _safe_video_accumulate(accumulated_video, decoded_image, concat_dim, label=f"SCAIL-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+            actual_out = decoded_image.shape[concat_dim]
+            b["current_offset"] = new_offset
+            print(f"✅ [XB-BOX] SCAIL 接力 {r+1}/{relay_count} 完成. out={actual_out}f total={accumulated_video.shape[concat_dim]}f")
+            completed = r + 1
+
+        if completed < relay_count:
+            print(f"✅ [XB-BOX] 生成任务由 {completed} 个接力点已经完成，跳过剩余接力点！")
+        else:
+            print(f"🎉 [XB-BOX] SCAIL 接力全部完成: {relay_count} 段, 总计 {accumulated_video.shape[0 if len(accumulated_video.shape)==4 else 1]} 帧")
+        _refresh_models()
+        overlap = previous_frame_count
+        total = max(0, segment_length * relay_count - overlap * (relay_count - 1))
+        return (b, accumulated_video)

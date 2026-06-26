@@ -62,6 +62,8 @@ const SIZES = {
     "XB_WanAnimate_RelayNode": [360, 200],
     "XB_WanInfiniteTalk_ParamBus": [360, 200],
     "XB_WanInfiniteTalk_RelayNode": [360, 200],
+    "XB_WanSCAIL_ParamBus": [360, 200],
+    "XB_WanSCAIL_RelayNode": [360, 200],
     "XB_HumanSegmentation": [360, 200],
     "XB_HumanSegModelLoader": [360, 200],
     "XB_CanvasLabel": [360, 200],

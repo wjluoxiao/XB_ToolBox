@@ -58,10 +58,9 @@ app.registerExtension({
                         let valRatio = wRatio.value;
                         let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
-                        let isGoldenZone = (valRatio === "16:9" || valRatio === "9:16");
                         let isLTX = valRatio.includes("(LTX)");
                         
-                        let currentStep = isGoldenZone ? 1 : (isLTX ? 32 : (isFree ? 1 : 16));
+                        let currentStep = isFree ? 1 : (isLTX ? 32 : 16);
                         wWidth.options.step = currentStep; wHeight.options.step = currentStep;
                         if (wWidth.inputEl) wWidth.inputEl.step = currentStep; else if (wWidth.element) wWidth.element.step = currentStep;
                         if (wHeight.inputEl) wHeight.inputEl.step = currentStep; else if (wHeight.element) wHeight.element.step = currentStep;
@@ -72,45 +71,10 @@ app.registerExtension({
                         let hChanged = hei !== node._xb_last_height;
 
                         if (wChanged || hChanged || rChanged) {
-                            if (isGoldenZone) {
-                                const goldenBuckets = {
-                                    "16:9": [ {w: 832, h: 480}, {w: 960, h: 544}, {w: 1280, h: 720}, {w: 1920, h: 1088} ],
-                                    "9:16": [ {w: 480, h: 832}, {w: 544, h: 960}, {w: 720, h: 1280}, {w: 1088, h: 1920} ]
-                                };
-                                let buckets = goldenBuckets[valRatio];
-                                
-                                if (rChanged) {
-                                    wid = buckets[0].w; hei = buckets[0].h; 
-                                } else if (wChanged || hChanged) {
-                                    let wDelta = wid - node._xb_last_width;
-                                    let hDelta = hei - node._xb_last_height;
-                                    let currIdx = buckets.findIndex(b => b.w === node._xb_last_width && b.h === node._xb_last_height);
-                                    if (currIdx === -1) currIdx = 0;
-
-                                    if (wChanged) {
-                                        if (wDelta === 1) currIdx = Math.min(currIdx + 1, buckets.length - 1);
-                                        else if (wDelta === -1) currIdx = Math.max(currIdx - 1, 0);
-                                        else {
-                                            let closest = buckets.reduce((prev, curr) => Math.abs(curr.w - wid) < Math.abs(prev.w - wid) ? curr : prev);
-                                            currIdx = buckets.indexOf(closest);
-                                        }
-                                    } else if (hChanged) {
-                                        if (hDelta === 1) currIdx = Math.min(currIdx + 1, buckets.length - 1);
-                                        else if (hDelta === -1) currIdx = Math.max(currIdx - 1, 0);
-                                        else {
-                                            let closest = buckets.reduce((prev, curr) => Math.abs(curr.h - hei) < Math.abs(prev.h - hei) ? curr : prev);
-                                            currIdx = buckets.indexOf(closest);
-                                        }
-                                    }
-                                    wid = buckets[currIdx].w;
-                                    hei = buckets[currIdx].h;
-                                }
-                            } else {
+                            if (!isFree && !isLTX) {
                                 const ratioMap = {
                                     "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
-                                    "16:9 (LTX)": 16.0 / 9.0, "9:16 (LTX)": 9.0 / 16.0,
-                                    "4:3 (LTX)": 4.0 / 3.0, "3:4 (LTX)": 3.0 / 4.0
+                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0
                                 };
                                 let currentRatio = ratioMap[valRatio];
 

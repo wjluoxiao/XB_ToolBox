@@ -204,7 +204,7 @@ app.registerExtension({
             // 核心逻辑
             // ============================================================
             const updateSrc = () => { const f = wAudio?.value; if (f && f !== "none" && f !== _lastFile) { _lastFile = f; totalDur = 0; audioEl.src = api.apiURL("/view?" + new URLSearchParams({ filename: f, type: "input", t: Date.now() })); } };
-            audioEl.addEventListener("loadedmetadata", () => { totalDur = audioEl.duration; const fps = parseFloat(wFps?.value) || 25; wStart.value = 0; wEnd.value = Math.floor(totalDur * fps) / fps; syncWidgets(); audioEl.currentTime = 0; });
+            audioEl.addEventListener("loadedmetadata", () => { totalDur = audioEl.duration; const fps = parseFloat(wFps?.value) || 25; const curStart = parseFloat(wStart?.value) || 0; const curEnd = parseFloat(wEnd?.value) || 0; if (curStart === 0 && (curEnd <= 0 || curEnd > totalDur + 1 || Math.abs(curEnd - 10.0) < 0.001)) { wStart.value = 0; wEnd.value = Math.floor(totalDur * fps) / fps; } syncWidgets(); audioEl.currentTime = parseFloat(wStart?.value) || 0; });
             audioEl.addEventListener("play", () => { _pausing = false; const st = getS(), et = getE(); if (audioEl.currentTime < st || audioEl.currentTime >= et) audioEl.currentTime = st; });
             audioEl.addEventListener("timeupdate", () => { if (_pausing) return; if (audioEl.currentTime >= getE()) { _pausing = true; audioEl.pause(); audioEl.currentTime = getS(); setTimeout(() => { _pausing = false; }, 100); } });
 
@@ -213,7 +213,7 @@ app.registerExtension({
                 try { const resp = await api.fetchApi("/xb_toolbox/audio_waveform", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename, num_peaks: 4000 }) }); if (resp.ok) { const data = await resp.json(); peaks = data.peaks; totalDur = data.duration || 10; } } catch (e) {}
             };
 
-            if (wAudio) { const orig = wAudio.callback; wAudio.callback = function () { orig?.apply(this, arguments); updateSrc(); fetchPeaks(wAudio.value).then(() => { wStart.value = 0; if (totalDur > 0) { const fps = parseFloat(wFps?.value) || 25; wEnd.value = Math.floor(totalDur * fps) / fps; } syncWidgets(); }); }; }
+            if (wAudio) { const orig = wAudio.callback; wAudio.callback = function () { orig?.apply(this, arguments); updateSrc(); fetchPeaks(wAudio.value).then(() => { const curStart = parseFloat(wStart?.value) || 0; const curEnd = parseFloat(wEnd?.value) || 0; if (curStart === 0 && (curEnd <= 0 || curEnd > totalDur + 1 || Math.abs(curEnd - 10.0) < 0.001)) { wStart.value = 0; if (totalDur > 0) { const fps = parseFloat(wFps?.value) || 25; wEnd.value = Math.floor(totalDur * fps) / fps; } } syncWidgets(); }); }; }
             const onTimeChange = (resetPlayback) => { let s = getS(), e = getE(), dur = getDur(); if (e < s + 0.01) { e = Math.min(s + 0.01, dur); wEnd.value = e; } syncWidgets(); if (resetPlayback && audioEl.readyState >= 1) audioEl.currentTime = s; };
             if (wStart) { const orig = wStart.callback; wStart.callback = function () { orig?.apply(this, arguments); onTimeChange(true); }; }
             if (wEnd) { const orig = wEnd.callback; wEnd.callback = function () { orig?.apply(this, arguments); onTimeChange(false); }; }

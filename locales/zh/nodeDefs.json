@@ -1,129 +1,348 @@
 {
+  "XB_VideoLoader": {
+    "display_name": "XB-BOX - 🎬 视频加载器",
+    "inputs": {
+      "video": {
+        "name": "视频文件"
+      },
+      "force_rate": {
+        "name": "强制帧率"
+      },
+      "custom_width": {
+        "name": "输出宽度"
+      },
+      "custom_height": {
+        "name": "输出高度"
+      },
+      "frame_load_cap": {
+        "name": "帧数上限"
+      },
+      "skip_first_frames": {
+        "name": "跳过前X帧"
+      },
+      "select_every_nth": {
+        "name": "间隔取帧"
+      },
+      "format": {
+        "name": "模型格式"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎞️ 图像帧"
+      },
+      "1": {
+        "name": "🔢 帧数"
+      },
+      "2": {
+        "name": "🔊 音频"
+      },
+      "3": {
+        "name": "📋 视频信息"
+      }
+    }
+  },
+  "XB_VideoCombine": {
+    "display_name": "XB-BOX - 🎬 视频拼接输出",
+    "inputs": {
+      "images": {
+        "name": "图像序列"
+      },
+      "frame_rate": {
+        "name": "帧率"
+      },
+      "loop_count": {
+        "name": "循环次数"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      },
+      "format": {
+        "name": "输出格式"
+      },
+      "pingpong": {
+        "name": "乒乓循环"
+      },
+      "save_output": {
+        "name": "保存到输出"
+      },
+      "audio": {
+        "name": "音频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "文件路径"
+      }
+    }
+  },
   "XB_VRAM_Calculator": {
     "display_name": "XB-BOX - 📟 可用显存计算",
     "inputs": {
-      "Total_VRAM_GB": { "name": "显卡总显存_GB" },
-      "System_Overhead_GB": { "name": "系统开销_GB" },
-      "Main_Video_Model": { "name": "视频主模型" },
-      "Model_Quantization": { "name": "模型量化" },
-      "Total_Model_Layers": { "name": "主模型总层数" },
-      "Layers_to_Swap": { "name": "下放层数" },
-      "LoRA_Plugin_VRAM_GB": { "name": "LoRA及插件总占用_GB" },
-      "Context_Length_Frames": { "name": "上下文总帧数" },
-      "Spatial_Resolution": { "name": "空间分辨率" }
+      "Total_VRAM_GB": {
+        "name": "显卡总显存_GB"
+      },
+      "System_Overhead_GB": {
+        "name": "系统开销_GB"
+      },
+      "Main_Video_Model": {
+        "name": "视频主模型"
+      },
+      "Model_Quantization": {
+        "name": "模型量化"
+      },
+      "Total_Model_Layers": {
+        "name": "主模型总层数"
+      },
+      "Layers_to_Swap": {
+        "name": "下放层数"
+      },
+      "LoRA_Plugin_VRAM_GB": {
+        "name": "LoRA及插件总占用_GB"
+      },
+      "Context_Length_Frames": {
+        "name": "上下文总帧数"
+      },
+      "Spatial_Resolution": {
+        "name": "空间分辨率"
+      }
     },
     "outputs": {
-      "0": { "name": "可用显存输出" }
+      "0": {
+        "name": "可用显存输出"
+      }
     }
   },
   "XB_ChunkVisualization": {
     "display_name": "XB-BOX - 🧊 时空分块预览",
     "inputs": {
-      "Stat_Mode": { "name": "统计模式" },
-      "Available_VRAM_GB": { "name": "可用显存_GB" },
-      "Image_Width": { "name": "图片宽度" },
-      "Image_Height": { "name": "图片高度" },
-      "Image_Frames": { "name": "图像帧数" },
-      "Current_Stage": { "name": "当前阶段" },
-      "Spatial_Tile_Size": { "name": "分块大小" },
-      "Spatial_Tile_Overlap": { "name": "分块重叠" },
-      "Temporal_Chunk_Size": { "name": "切片大小" },
-      "Temporal_Chunk_Overlap": { "name": "切片重叠" },
-      "Spatial_Tiling": { "name": "空间分块" },
-      "Temporal_Chunking": { "name": "时间切片" },
-      "Image_Input": { "name": "图像输入" }
+      "Stat_Mode": {
+        "name": "统计模式"
+      },
+      "Available_VRAM_GB": {
+        "name": "可用显存_GB"
+      },
+      "Image_Width": {
+        "name": "图片宽度"
+      },
+      "Image_Height": {
+        "name": "图片高度"
+      },
+      "Image_Frames": {
+        "name": "图像帧数"
+      },
+      "Current_Stage": {
+        "name": "当前阶段"
+      },
+      "Spatial_Tile_Size": {
+        "name": "分块大小"
+      },
+      "Spatial_Tile_Overlap": {
+        "name": "分块重叠"
+      },
+      "Temporal_Chunk_Size": {
+        "name": "切片大小"
+      },
+      "Temporal_Chunk_Overlap": {
+        "name": "切片重叠"
+      },
+      "Spatial_Tiling": {
+        "name": "空间分块"
+      },
+      "Temporal_Chunking": {
+        "name": "时间切片"
+      },
+      "Image_Input": {
+        "name": "图像输入"
+      }
     },
     "outputs": {
-      "0": { "name": "预览图" },
-      "1": { "name": "管道数量" },
-      "2": { "name": "单管像素量" },
-      "3": { "name": "上下文峰值" }
+      "0": {
+        "name": "预览图"
+      },
+      "1": {
+        "name": "管道数量"
+      },
+      "2": {
+        "name": "单管像素量"
+      },
+      "3": {
+        "name": "上下文峰值"
+      }
     }
   },
   "XTX_Data_Radar": {
     "display_name": "XB-BOX - 🪞 生成数据预览",
     "inputs": {
-      "model": { "name": "模型" },
-      "latent": { "name": "潜变量" },
-      "positive_cond": { "name": "正面条件" },
-      "negative_cond": { "name": "负面条件" }
+      "model": {
+        "name": "模型"
+      },
+      "latent": {
+        "name": "潜变量"
+      },
+      "positive_cond": {
+        "name": "正面条件"
+      },
+      "negative_cond": {
+        "name": "负面条件"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" },
-      "1": { "name": "潜变量" }
+      "0": {
+        "name": "模型"
+      },
+      "1": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_VideoParamsMaster": {
     "display_name": "XB-BOX - 🎬 视频参数大全",
     "inputs": {
-      "aspect_ratio": { "name": "画幅比例" },
-      "duration_display": { "name": "时长估算" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "帧数" },
-      "fps": { "name": "帧率" },
-      "fps_float": { "name": "帧率(小数)" }
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "duration_display": {
+        "name": "时长估算"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "fps_float": {
+        "name": "帧率(小数)"
+      }
     },
     "outputs": {
-      "0": { "name": "宽度" },
-      "1": { "name": "高度" },
-      "2": { "name": "帧数" },
-      "3": { "name": "帧率" },
-      "4": { "name": "帧率(小数)" },
-      "5": { "name": "缩放尺寸" }
+      "0": {
+        "name": "宽度"
+      },
+      "1": {
+        "name": "高度"
+      },
+      "2": {
+        "name": "帧数"
+      },
+      "3": {
+        "name": "帧率"
+      },
+      "4": {
+        "name": "帧率(小数)"
+      },
+      "5": {
+        "name": "缩放尺寸"
+      }
     }
   },
   "XB_ImageParamsMaster": {
     "display_name": "XB-BOX - 🖼️ 图片参数大全",
     "inputs": {
-      "aspect_ratio": { "name": "画幅比例" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "batch_size": { "name": "生成数量" },
-      "strength_float": { "name": "强度(小数)" },
-      "strength_int": { "name": "强度(整数)" }
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "strength_float": {
+        "name": "强度(小数)"
+      },
+      "strength_int": {
+        "name": "强度(整数)"
+      }
     },
     "outputs": {
-      "0": { "name": "图片宽度" },
-      "1": { "name": "图片高度" },
-      "2": { "name": "生成数量" },
-      "3": { "name": "浮点控制" },
-      "4": { "name": "整数控制" },
-      "5": { "name": "缩放尺寸" }
+      "0": {
+        "name": "图片宽度"
+      },
+      "1": {
+        "name": "图片高度"
+      },
+      "2": {
+        "name": "生成数量"
+      },
+      "3": {
+        "name": "浮点控制"
+      },
+      "4": {
+        "name": "整数控制"
+      },
+      "5": {
+        "name": "缩放尺寸"
+      }
     }
   },
   "XB_MasterParameter": {
     "display_name": "XB-BOX - 🎛️ 全能参数控制",
     "inputs": {
-      "mode": { "name": "控制模式" },
-      "value": { "name": "数值" }
+      "mode": {
+        "name": "控制模式"
+      },
+      "value": {
+        "name": "数值"
+      }
     },
     "outputs": {
-      "0": { "name": "整数(INT)" },
-      "1": { "name": "浮点(FLOAT)" }
+      "0": {
+        "name": "整数(INT)"
+      },
+      "1": {
+        "name": "浮点(FLOAT)"
+      }
     }
   },
   "XB_UNetBlockSwap": {
     "display_name": "XB-BOX - ✂️ 模型分块交换（UNet）",
     "inputs": {
-      "unet_model": { "name": "UNet模型" },
-      "blocks_to_swap": { "name": "下放块数量" }
+      "unet_model": {
+        "name": "UNet模型"
+      },
+      "blocks_to_swap": {
+        "name": "下放块数量"
+      }
     },
     "outputs": {
-      "0": { "name": "UNet模型" }
+      "0": {
+        "name": "UNet模型"
+      }
     }
   },
   "XB_CheckpointBlockSwap": {
     "display_name": "XB-BOX - ✂️ 模型分块交换（Checkpoints）",
     "inputs": {
-      "checkpoint_model": { "name": "大模型" },
-      "blocks_to_swap": { "name": "下放块数量" },
-      "offload_img_emb": { "name": "卸载图像嵌入层" },
-      "offload_txt_emb": { "name": "卸载文本嵌入层" },
-      "use_non_blocking": { "name": "启用非阻塞传输" }
+      "checkpoint_model": {
+        "name": "大模型"
+      },
+      "blocks_to_swap": {
+        "name": "下放块数量"
+      },
+      "offload_img_emb": {
+        "name": "卸载图像嵌入层"
+      },
+      "offload_txt_emb": {
+        "name": "卸载文本嵌入层"
+      },
+      "use_non_blocking": {
+        "name": "启用非阻塞传输"
+      }
     },
     "outputs": {
-      "0": { "name": "大模型" }
+      "0": {
+        "name": "大模型"
+      }
     }
   },
   "XB_DynamicBus": {
@@ -132,19 +351,27 @@
   "XB_UNetNameBroadcaster": {
     "display_name": "XB-BOX - 🗂️ UNet 名称分发",
     "inputs": {
-      "unet_name": { "name": "选择UNet模型" }
+      "unet_name": {
+        "name": "选择UNet模型"
+      }
     },
     "outputs": {
-      "0": { "name": "UNet名称" }
+      "0": {
+        "name": "UNet名称"
+      }
     }
   },
   "XB_CLIPNameBroadcaster": {
     "display_name": "XB-BOX - 🗂️ CLIP 名称分发",
     "inputs": {
-      "clip_name": { "name": "选择CLIP模型" }
+      "clip_name": {
+        "name": "选择CLIP模型"
+      }
     },
     "outputs": {
-      "0": { "name": "CLIP名称" }
+      "0": {
+        "name": "CLIP名称"
+      }
     }
   },
   "XB_Dashboard_Zen": {
@@ -153,1035 +380,2745 @@
   "XB_SamplerChunkMaster": {
     "display_name": "XB-BOX - 🧊 采样分块大师",
     "inputs": {
-      "model": { "name": "模型" },
-      "stat_mode": { "name": "状态模式" },
-      "tile_size": { "name": "分块尺寸" },
-      "tile_overlap": { "name": "分块重叠" },
-      "frame_chunk_size": { "name": "时间切片大小" },
-      "frame_chunk_overlap": { "name": "时间切片重叠" },
-      "rocm_optimized": { "name": "ROCm显存优化" },
-      "latent_info": { "name": "潜变量信息" }
+      "model": {
+        "name": "模型"
+      },
+      "stat_mode": {
+        "name": "状态模式"
+      },
+      "tile_size": {
+        "name": "分块尺寸"
+      },
+      "tile_overlap": {
+        "name": "分块重叠"
+      },
+      "frame_chunk_size": {
+        "name": "时间切片大小"
+      },
+      "frame_chunk_overlap": {
+        "name": "时间切片重叠"
+      },
+      "rocm_optimized": {
+        "name": "ROCm显存优化"
+      },
+      "latent_info": {
+        "name": "潜变量信息"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" },
-      "1": { "name": "预览图" }
+      "0": {
+        "name": "模型"
+      },
+      "1": {
+        "name": "预览图"
+      }
     }
   },
   "XB_WanImageToVideo": {
     "display_name": "XB-BOX - 🖼️ 单图转视频分块 (Wan)",
     "inputs": {
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "vae": { "name": "VAE解码器" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "帧数" },
-      "batch_size": { "name": "生成数量" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_output": { "name": "CLIP视觉特征" },
-      "start_image": { "name": "首帧图片" }
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "vae": {
+        "name": "VAE解码器"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "帧数"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉特征"
+      },
+      "start_image": {
+        "name": "首帧图片"
+      }
     },
     "outputs": {
-      "0": { "name": "正面提示词" },
-      "1": { "name": "负面提示词" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面提示词"
+      },
+      "1": {
+        "name": "负面提示词"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanFirstLastFrameToVideo": {
     "display_name": "XB-BOX - 🎞️ 首尾帧视频分块(Wan)",
     "inputs": {
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "vae": { "name": "VAE解码器" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "帧数" },
-      "batch_size": { "name": "生成数量" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_start_image": { "name": "首帧视觉特征" },
-      "clip_vision_end_image": { "name": "尾帧视觉特征" },
-      "start_image": { "name": "首帧图片" },
-      "end_image": { "name": "尾帧图片" }
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "vae": {
+        "name": "VAE解码器"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "帧数"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_start_image": {
+        "name": "首帧视觉特征"
+      },
+      "clip_vision_end_image": {
+        "name": "尾帧视觉特征"
+      },
+      "start_image": {
+        "name": "首帧图片"
+      },
+      "end_image": {
+        "name": "尾帧图片"
+      }
     },
     "outputs": {
-      "0": { "name": "正面提示词" },
-      "1": { "name": "负面提示词" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面提示词"
+      },
+      "1": {
+        "name": "负面提示词"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_BatchFolderLoader": {
     "display_name": "XB-BOX - 📂 图片批量加载",
     "inputs": {
-      "directory": { "name": "文件夹路径" },
-      "seed": { "name": "步进种子" }
+      "directory": {
+        "name": "文件夹路径"
+      },
+      "seed": {
+        "name": "步进种子"
+      }
     },
     "outputs": {
-      "0": { "name": "图像" },
-      "1": { "name": "遮罩" },
-      "2": { "name": "文件名" },
-      "3": { "name": "总数量" }
+      "0": {
+        "name": "图像"
+      },
+      "1": {
+        "name": "遮罩"
+      },
+      "2": {
+        "name": "文件名"
+      },
+      "3": {
+        "name": "总数量"
+      }
     }
   },
   "XB_Wan_ParamBus": {
     "display_name": "XB-BOX - 📦 视频参数总线",
     "inputs": {
-      "model_high": { "name": "高噪模型" },
-      "model_low": { "name": "低噪模型" },
-      "clip": { "name": "CLIP模型" },
-      "vae": { "name": "VAE模型" },
-      "negative_prompt": { "name": "负面提示词" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "帧数" },
-      "fps": { "name": "帧率" },
-      "vae_encode_tile_size": { "name": "VAE编码分块" },
-      "vae_decode_tile_size": { "name": "VAE解码分块" },
-      "spatial_overlap": { "name": "画面重叠" },
-      "temporal_chunk_size": { "name": "时间分块" },
-      "temporal_overlap": { "name": "时间重叠" },
-      "steps": { "name": "总步数" },
-      "high_noise_steps": { "name": "高噪步数" },
-      "cfg": { "name": "引导系数" },
-      "sampler_name": { "name": "采样器" },
-      "scheduler": { "name": "调度器" },
-      "seed": { "name": "随机种" },
-      "cut_first_frame": { "name": "去除首帧(接力去重)" },
-      "trim_head_frames": { "name": "去重帧数(默认1)" }
+      "model_high": {
+        "name": "高噪模型"
+      },
+      "model_low": {
+        "name": "低噪模型"
+      },
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "vae_encode_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "vae_decode_tile_size": {
+        "name": "VAE解码分块"
+      },
+      "spatial_overlap": {
+        "name": "画面重叠"
+      },
+      "temporal_chunk_size": {
+        "name": "时间分块"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠"
+      },
+      "steps": {
+        "name": "总步数"
+      },
+      "high_noise_steps": {
+        "name": "高噪步数"
+      },
+      "cfg": {
+        "name": "引导系数"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "随机种"
+      },
+      "cut_first_frame": {
+        "name": "去除首帧(接力去重)"
+      },
+      "concat_mode": {
+        "name": "视频拼接模式"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_BUS (动态总线)" }
+      "0": {
+        "name": "📦 WAN_BUS (动态总线)"
+      }
     }
   },
   "XB_Wan_RelayNode": {
     "display_name": "XB-BOX - 🏃 首尾帧接力点",
     "inputs": {
-      "wan_bus": { "name": "WAN动态总线" },
-      "start_image": { "name": "起始图片" },
-      "positive_prompt": { "name": "段落正向提示词" },
-      "end_image_file": { "name": "选择尾图" },
-      "opt_end_image": { "name": "可选尾图连线" },
-      "prev_video": { "name": "前段视频" }
+      "wan_bus": {
+        "name": "WAN动态总线"
+      },
+      "start_image": {
+        "name": "起始图片"
+      },
+      "positive_prompt": {
+        "name": "段落正向提示词"
+      },
+      "end_image_file": {
+        "name": "选择尾图"
+      },
+      "opt_end_image": {
+        "name": "可选尾图连线"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_BUS (传给下段)" },
-      "1": { "name": "🖼️ 当前尾图 (接下段首图)" },
-      "2": { "name": "🎞️ 累加视频流" }
+      "0": {
+        "name": "📦 WAN_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🖼️ 当前尾图 (接下段首图)"
+      },
+      "2": {
+        "name": "🎞️ 累加视频流"
+      }
     }
   },
   "XB_Wan_InfiniteRelayNode": {
     "display_name": "XB-BOX - 🏃‍♀️ 无限长接力点",
     "inputs": {
-      "wan_bus": { "name": "WAN动态总线" },
-      "start_image": { "name": "起始图片" },
-      "positive_prompt": { "name": "段落正向提示词" },
-      "prev_video": { "name": "前段视频" }
+      "wan_bus": {
+        "name": "WAN动态总线"
+      },
+      "start_image": {
+        "name": "起始图片"
+      },
+      "positive_prompt": {
+        "name": "段落正向提示词"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_BUS (传给下段)" },
-      "1": { "name": "🖼️ 当前尾图 (接下段首图)" },
-      "2": { "name": "🎞️ 累加视频流" }
+      "0": {
+        "name": "📦 WAN_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🖼️ 当前尾图 (接下段首图)"
+      },
+      "2": {
+        "name": "🎞️ 累加视频流"
+      }
     }
   },
   "XB_Video_Merger": {
     "display_name": "XB-BOX - 🧩 视频无缝拼接",
     "inputs": {
-      "video_1": { "name": "视频段 1" },
-      "video_2": { "name": "视频段 2" }
+      "video_1": {
+        "name": "视频段 1"
+      },
+      "video_2": {
+        "name": "视频段 2"
+      }
     },
     "outputs": {
-      "0": { "name": "🎞️ 完整长视频" }
+      "0": {
+        "name": "🎞️ 完整长视频"
+      }
     }
   },
   "XB_StoryboardSlicer": {
     "display_name": "XB-BOX - 🧊 分镜图片切割",
     "inputs": {
-      "image": { "name": "图像" },
-      "mode": { "name": "切分模式" },
-      "crop_margin": { "name": "边缘裁剪比例" }
+      "image": {
+        "name": "图像"
+      },
+      "mode": {
+        "name": "切分模式"
+      },
+      "crop_margin": {
+        "name": "边缘裁剪比例"
+      }
     },
     "outputs": {
-      "0": { "name": "图1" },
-      "1": { "name": "图2" },
-      "2": { "name": "图3" },
-      "3": { "name": "图4" },
-      "4": { "name": "图5" },
-      "5": { "name": "图6" },
-      "6": { "name": "图7" },
-      "7": { "name": "图8" },
-      "8": { "name": "图9" }
+      "0": {
+        "name": "图1"
+      },
+      "1": {
+        "name": "图2"
+      },
+      "2": {
+        "name": "图3"
+      },
+      "3": {
+        "name": "图4"
+      },
+      "4": {
+        "name": "图5"
+      },
+      "5": {
+        "name": "图6"
+      },
+      "6": {
+        "name": "图7"
+      },
+      "7": {
+        "name": "图8"
+      },
+      "8": {
+        "name": "图9"
+      }
     }
   },
   "XB_SageAttentionAccelerator": {
     "display_name": "XB-BOX - 🚀 Sage注意力加速",
     "inputs": {
-      "model": { "name": "模型" },
-      "preset": { "name": "加速档位预设" }
+      "model": {
+        "name": "模型"
+      },
+      "preset": {
+        "name": "加速档位预设"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" }
+      "0": {
+        "name": "模型"
+      }
     }
   },
   "XB_WanSoundImageToVideo": {
     "display_name": "XB-BOX - 🎵 音频图像转视频分块(WanSound)",
     "inputs": {
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "vae": { "name": "VAE解码器" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批次大小" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "audio_encoder_output": { "name": "音频编码器输出" },
-      "ref_image": { "name": "参考图像" },
-      "control_video": { "name": "控制视频" },
-      "ref_motion": { "name": "参考动作" }
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "vae": {
+        "name": "VAE解码器"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批次大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "audio_encoder_output": {
+        "name": "音频编码器输出"
+      },
+      "ref_image": {
+        "name": "参考图像"
+      },
+      "control_video": {
+        "name": "控制视频"
+      },
+      "ref_motion": {
+        "name": "参考动作"
+      }
     }
   },
   "XB_WanInfiniteTalkToVideo": {
     "display_name": "XB-BOX - 🎵 语音转视频分块（兼容）",
     "inputs": {
-      "model": { "name": "模型" },
-      "model_patch": { "name": "模型补丁" },
-      "positive": { "name": "正向提示" },
-      "negative": { "name": "负向提示" },
-      "vae": { "name": "VAE" },
-      "mode": { "name": "模式" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "audio_encoder_output_1": { "name": "音频输入1" },
-      "motion_frame_count": { "name": "运动帧数" },
-      "audio_scale": { "name": "音频缩放" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "start_image": { "name": "起始图像" },
-      "audio_encoder_output_2": { "name": "音频输入2" },
-      "previous_frames": { "name": "前置帧" },
-      "mask_1": { "name": "遮罩1" },
-      "mask_2": { "name": "遮罩2" }
+      "model": {
+        "name": "模型"
+      },
+      "model_patch": {
+        "name": "模型补丁"
+      },
+      "positive": {
+        "name": "正向提示"
+      },
+      "negative": {
+        "name": "负向提示"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "mode": {
+        "name": "模式"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "audio_encoder_output_1": {
+        "name": "音频输入1"
+      },
+      "motion_frame_count": {
+        "name": "运动帧数"
+      },
+      "audio_scale": {
+        "name": "音频缩放"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "start_image": {
+        "name": "起始图像"
+      },
+      "audio_encoder_output_2": {
+        "name": "音频输入2"
+      },
+      "previous_frames": {
+        "name": "前置帧"
+      },
+      "mask_1": {
+        "name": "遮罩1"
+      },
+      "mask_2": {
+        "name": "遮罩2"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" },
-      "1": { "name": "正向提示" },
-      "2": { "name": "负向提示" },
-      "3": { "name": "潜变量" },
-      "4": { "name": "裁剪帧数" }
+      "0": {
+        "name": "模型"
+      },
+      "1": {
+        "name": "正向提示"
+      },
+      "2": {
+        "name": "负向提示"
+      },
+      "3": {
+        "name": "潜变量"
+      },
+      "4": {
+        "name": "裁剪帧数"
+      }
     }
   },
   "XB_WanInfiniteTalkToVideo_Single": {
     "display_name": "XB-BOX - 🎵 语音转视频分块（单人）",
     "inputs": {
-      "model": { "name": "模型" },
-      "model_patch": { "name": "模型补丁" },
-      "positive": { "name": "正向提示" },
-      "negative": { "name": "负向提示" },
-      "vae": { "name": "VAE" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "audio_encoder_output_1": { "name": "音频输入1" },
-      "motion_frame_count": { "name": "运动帧数" },
-      "audio_scale": { "name": "音频缩放" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "start_image": { "name": "起始图像" },
-      "previous_frames": { "name": "前置帧" }
+      "model": {
+        "name": "模型"
+      },
+      "model_patch": {
+        "name": "模型补丁"
+      },
+      "positive": {
+        "name": "正向提示"
+      },
+      "negative": {
+        "name": "负向提示"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "audio_encoder_output_1": {
+        "name": "音频输入1"
+      },
+      "motion_frame_count": {
+        "name": "运动帧数"
+      },
+      "audio_scale": {
+        "name": "音频缩放"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "start_image": {
+        "name": "起始图像"
+      },
+      "previous_frames": {
+        "name": "前置帧"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" },
-      "1": { "name": "正向提示" },
-      "2": { "name": "负向提示" },
-      "3": { "name": "潜变量" },
-      "4": { "name": "裁剪帧数" }
+      "0": {
+        "name": "模型"
+      },
+      "1": {
+        "name": "正向提示"
+      },
+      "2": {
+        "name": "负向提示"
+      },
+      "3": {
+        "name": "潜变量"
+      },
+      "4": {
+        "name": "裁剪帧数"
+      }
     }
   },
   "XB_WanInfiniteTalkToVideo_Dual": {
     "display_name": "XB-BOX - 🎵 语音转视频分块（双人）",
     "inputs": {
-      "model": { "name": "模型" },
-      "model_patch": { "name": "模型补丁" },
-      "positive": { "name": "正向提示" },
-      "negative": { "name": "负向提示" },
-      "vae": { "name": "VAE" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "audio_encoder_output_1": { "name": "音频输入1" },
-      "audio_encoder_output_2": { "name": "音频输入2" },
-      "mask_1": { "name": "遮罩1" },
-      "mask_2": { "name": "遮罩2" },
-      "motion_frame_count": { "name": "运动帧数" },
-      "audio_scale": { "name": "音频缩放" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "start_image": { "name": "起始图像" },
-      "previous_frames": { "name": "前置帧" }
+      "model": {
+        "name": "模型"
+      },
+      "model_patch": {
+        "name": "模型补丁"
+      },
+      "positive": {
+        "name": "正向提示"
+      },
+      "negative": {
+        "name": "负向提示"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "audio_encoder_output_1": {
+        "name": "音频输入1"
+      },
+      "audio_encoder_output_2": {
+        "name": "音频输入2"
+      },
+      "mask_1": {
+        "name": "遮罩1"
+      },
+      "mask_2": {
+        "name": "遮罩2"
+      },
+      "motion_frame_count": {
+        "name": "运动帧数"
+      },
+      "audio_scale": {
+        "name": "音频缩放"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "start_image": {
+        "name": "起始图像"
+      },
+      "previous_frames": {
+        "name": "前置帧"
+      }
     },
     "outputs": {
-      "0": { "name": "模型" },
-      "1": { "name": "正向提示" },
-      "2": { "name": "负向提示" },
-      "3": { "name": "潜变量" },
-      "4": { "name": "裁剪帧数" }
+      "0": {
+        "name": "模型"
+      },
+      "1": {
+        "name": "正向提示"
+      },
+      "2": {
+        "name": "负向提示"
+      },
+      "3": {
+        "name": "潜变量"
+      },
+      "4": {
+        "name": "裁剪帧数"
+      }
     }
   },
   "XB_WanFunControlToVideo": {
     "display_name": "XB-BOX - 🎮 控制视频转视频分块(Wan2.1)",
     "inputs": {
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "vae": { "name": "VAE解码器" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批次大小" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "clip_vision_output": { "name": "视觉特征输出" },
-      "start_image": { "name": "起始图像" },
-      "control_video": { "name": "控制视频" }
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "vae": {
+        "name": "VAE解码器"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批次大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "视觉特征输出"
+      },
+      "start_image": {
+        "name": "起始图像"
+      },
+      "control_video": {
+        "name": "控制视频"
+      }
     }
   },
   "XB_Wan22FunControlToVideo": {
     "display_name": "XB-BOX - 🎮 控制视频转视频分块(Wan2.2)",
     "inputs": {
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "vae": { "name": "VAE解码器" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批次大小" },
-      "vae_tile_size": { "name": "VAE分块大小" },
-      "ref_image": { "name": "参考图像" },
-      "control_video": { "name": "控制视频" }
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "vae": {
+        "name": "VAE解码器"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批次大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "ref_image": {
+        "name": "参考图像"
+      },
+      "control_video": {
+        "name": "控制视频"
+      }
     }
   },
   "XB_ROCmKSampler": {
     "display_name": "XB-BOX - 🚀 ROCm 采样器",
     "inputs": {
-      "model": { "name": "模型" },
-      "seed": { "name": "随机种子" },
-      "steps": { "name": "采样步数" },
-      "cfg": { "name": "引导系数(CFG)" },
-      "sampler": { "name": "采样器" },
-      "scheduler": { "name": "调度器" },
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "latent": { "name": "潜变量" },
-      "denoise": { "name": "降噪强度" },
-      "cleanup": { "name": "采样后清理" }
+      "model": {
+        "name": "模型"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "steps": {
+        "name": "采样步数"
+      },
+      "cfg": {
+        "name": "引导系数(CFG)"
+      },
+      "sampler": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "latent": {
+        "name": "潜变量"
+      },
+      "denoise": {
+        "name": "降噪强度"
+      },
+      "cleanup": {
+        "name": "采样后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "潜变量" }
+      "0": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_ROCmKSamplerAdvanced": {
     "display_name": "XB-BOX - 🚀 ROCm 高级采样器",
     "inputs": {
-      "model": { "name": "模型" },
-      "add_noise": { "name": "添加噪声" },
-      "noise_seed": { "name": "噪声种子" },
-      "steps": { "name": "采样步数" },
-      "cfg": { "name": "引导系数(CFG)" },
-      "sampler": { "name": "采样器" },
-      "scheduler": { "name": "调度器" },
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "latent": { "name": "潜变量" },
-      "start_at_step": { "name": "起始步数" },
-      "end_at_step": { "name": "结束步数" },
-      "return_with_leftover_noise": { "name": "返回残留噪声" },
-      "cleanup": { "name": "采样后清理" }
+      "model": {
+        "name": "模型"
+      },
+      "add_noise": {
+        "name": "添加噪声"
+      },
+      "noise_seed": {
+        "name": "噪声种子"
+      },
+      "steps": {
+        "name": "采样步数"
+      },
+      "cfg": {
+        "name": "引导系数(CFG)"
+      },
+      "sampler": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "latent": {
+        "name": "潜变量"
+      },
+      "start_at_step": {
+        "name": "起始步数"
+      },
+      "end_at_step": {
+        "name": "结束步数"
+      },
+      "return_with_leftover_noise": {
+        "name": "返回残留噪声"
+      },
+      "cleanup": {
+        "name": "采样后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "潜变量" }
+      "0": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_ROCmSamplerCustom": {
     "display_name": "XB-BOX - ⚙️ ROCm 自定义采样器",
     "inputs": {
-      "model": { "name": "模型" },
-      "add_noise": { "name": "添加噪声" },
-      "noise_seed": { "name": "噪声种子" },
-      "cfg": { "name": "引导系数(CFG)" },
-      "positive": { "name": "正面提示词" },
-      "negative": { "name": "负面提示词" },
-      "sampler": { "name": "采样器" },
-      "sigmas": { "name": "西格玛" },
-      "latent_image": { "name": "Latent图像" },
-      "cleanup": { "name": "采样后清理" }
+      "model": {
+        "name": "模型"
+      },
+      "add_noise": {
+        "name": "添加噪声"
+      },
+      "noise_seed": {
+        "name": "噪声种子"
+      },
+      "cfg": {
+        "name": "引导系数(CFG)"
+      },
+      "positive": {
+        "name": "正面提示词"
+      },
+      "negative": {
+        "name": "负面提示词"
+      },
+      "sampler": {
+        "name": "采样器"
+      },
+      "sigmas": {
+        "name": "西格玛"
+      },
+      "latent_image": {
+        "name": "Latent图像"
+      },
+      "cleanup": {
+        "name": "采样后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "输出Latent" },
-      "1": { "name": "降噪Latent" }
+      "0": {
+        "name": "输出Latent"
+      },
+      "1": {
+        "name": "降噪Latent"
+      }
     }
   },
   "XB_ROCmSamplerCustomAdvanced": {
     "display_name": "XB-BOX - ⚙️ ROCm 自定义高级采样器",
     "inputs": {
-      "noise": { "name": "噪波" },
-      "guider": { "name": "引导器" },
-      "sampler": { "name": "采样器" },
-      "sigmas": { "name": "西格玛" },
-      "latent_image": { "name": "Latent图像" },
-      "cleanup": { "name": "采样后清理" }
+      "noise": {
+        "name": "噪波"
+      },
+      "guider": {
+        "name": "引导器"
+      },
+      "sampler": {
+        "name": "采样器"
+      },
+      "sigmas": {
+        "name": "西格玛"
+      },
+      "latent_image": {
+        "name": "Latent图像"
+      },
+      "cleanup": {
+        "name": "采样后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "输出Latent" },
-      "1": { "name": "降噪Latent" }
+      "0": {
+        "name": "输出Latent"
+      },
+      "1": {
+        "name": "降噪Latent"
+      }
     }
   },
   "XB_ROCmVAEDecode": {
     "display_name": "XB-BOX - 🖼️ ROCm VAE 解码",
     "inputs": {
-      "samples": { "name": "潜变量" },
-      "vae": { "name": "VAE模型" },
-      "tile": { "name": "空间分块(0=自动)" },
-      "overlap": { "name": "分块重叠(0=自动)" },
-      "cleanup": { "name": "清理力度" }
+      "samples": {
+        "name": "潜变量"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "tile": {
+        "name": "空间分块(0=自动)"
+      },
+      "overlap": {
+        "name": "分块重叠(0=自动)"
+      },
+      "cleanup": {
+        "name": "清理力度"
+      }
     },
     "outputs": {
-      "0": { "name": "图像" }
+      "0": {
+        "name": "图像"
+      }
     }
   },
   "XB_ROCmVAEEncode": {
     "display_name": "XB-BOX - 📦 ROCm VAE 编码",
     "inputs": {
-      "pixels": { "name": "图像" },
-      "vae": { "name": "VAE模型" },
-      "tile": { "name": "空间分块(0=自动)" },
-      "overlap": { "name": "分块重叠(0=自动)" },
-      "cleanup": { "name": "编码后清理" }
+      "pixels": {
+        "name": "图像"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "tile": {
+        "name": "空间分块(0=自动)"
+      },
+      "overlap": {
+        "name": "分块重叠(0=自动)"
+      },
+      "cleanup": {
+        "name": "编码后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "潜变量" }
+      "0": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_ROCmVAEDecodeTemporal": {
     "display_name": "XB-BOX - 🎬 ROCm VAE 时空解码",
     "inputs": {
-      "samples": { "name": "潜变量" },
-      "vae": { "name": "VAE模型" },
-      "tile": { "name": "空间分块(0=自动)" },
-      "overlap": { "name": "空间重叠(0=自动)" },
-      "t_tile": { "name": "时间分块帧数(0=自动)" },
-      "t_overlap": { "name": "时间重叠(0=自动)" },
-      "cleanup": { "name": "清理力度" }
+      "samples": {
+        "name": "潜变量"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "tile": {
+        "name": "空间分块(0=自动)"
+      },
+      "overlap": {
+        "name": "空间重叠(0=自动)"
+      },
+      "t_tile": {
+        "name": "时间分块帧数(0=自动)"
+      },
+      "t_overlap": {
+        "name": "时间重叠(0=自动)"
+      },
+      "cleanup": {
+        "name": "清理力度"
+      }
     },
     "outputs": {
-      "0": { "name": "图像" }
+      "0": {
+        "name": "图像"
+      }
     }
   },
   "XB_ROCmMemCleaner": {
     "display_name": "XB-BOX - 🧹 ROCm 显存清理",
     "inputs": {
-      "mode": { "name": "清理模式" },
-      "anything": { "name": "任意接入(防误删)" }
+      "mode": {
+        "name": "清理模式"
+      },
+      "anything": {
+        "name": "任意接入(防误删)"
+      }
     },
     "outputs": {
-      "0": { "name": "直通输出" }
+      "0": {
+        "name": "直通输出"
+      }
     }
   },
   "XB_WanT5Loader": {
     "display_name": "XB-BOX - � Wan T5 加载器(FP8)",
     "inputs": {
-      "model_name": { "name": "模型名称" },
-      "precision": { "name": "精度" },
-      "load_device": { "name": "加载设备" },
-      "quantization": { "name": "量化" }
+      "model_name": {
+        "name": "模型名称"
+      },
+      "precision": {
+        "name": "精度"
+      },
+      "load_device": {
+        "name": "加载设备"
+      },
+      "quantization": {
+        "name": "量化"
+      }
     },
     "outputs": {
-      "0": { "name": "T5模型" }
+      "0": {
+        "name": "T5模型"
+      }
     }
   },
   "XB_WanCompileSettings": {
     "display_name": "XB-BOX - ⚡ Wan 编译设置",
     "inputs": {
-      "backend": { "name": "编译后端" },
-      "fullgraph": { "name": "完整图" },
-      "mode": { "name": "编译模式" },
-      "dynamic": { "name": "动态形状" },
-      "dynamo_cache_size_limit": { "name": "缓存大小限制" },
-      "compile_transformer_blocks_only": { "name": "仅限Transformer层" }
+      "backend": {
+        "name": "编译后端"
+      },
+      "fullgraph": {
+        "name": "完整图"
+      },
+      "mode": {
+        "name": "编译模式"
+      },
+      "dynamic": {
+        "name": "动态形状"
+      },
+      "dynamo_cache_size_limit": {
+        "name": "缓存大小限制"
+      },
+      "compile_transformer_blocks_only": {
+        "name": "仅限Transformer层"
+      }
     },
     "outputs": {
-      "0": { "name": "编译参数" }
+      "0": {
+        "name": "编译参数"
+      }
     }
   },
   "XB_WanModelLoader": {
     "display_name": "XB-BOX - 🔗 Wan 模型加载",
     "inputs": {
-      "model": { "name": "模型" },
-      "base_precision": { "name": "基础精度" },
-      "quantization": { "name": "量化" },
-      "load_device": { "name": "加载设备" },
-      "attention_mode": { "name": "注意力模式" },
-      "rms_norm_function": { "name": "RMS Norm函数" },
-      "block_swap_args": { "name": "分块交换参数" },
-      "compile_args": { "name": "编译参数" },
-      "lora": { "name": "LoRA" }
+      "model": {
+        "name": "模型"
+      },
+      "base_precision": {
+        "name": "基础精度"
+      },
+      "quantization": {
+        "name": "量化"
+      },
+      "load_device": {
+        "name": "加载设备"
+      },
+      "attention_mode": {
+        "name": "注意力模式"
+      },
+      "rms_norm_function": {
+        "name": "RMS Norm函数"
+      },
+      "block_swap_args": {
+        "name": "分块交换参数"
+      },
+      "compile_args": {
+        "name": "编译参数"
+      },
+      "lora": {
+        "name": "LoRA"
+      }
     },
     "outputs": {
-      "0": { "name": "Wan模型" }
+      "0": {
+        "name": "Wan模型"
+      }
     }
   },
   "XB_WanBlockSwap": {
     "display_name": "XB-BOX - 🔄 Wan 分块交换",
     "inputs": {
-      "blocks_to_swap": { "name": "交换块数" },
-      "offload_img_emb": { "name": "卸载图像嵌入" },
-      "offload_txt_emb": { "name": "卸载文本嵌入" },
-      "use_non_blocking": { "name": "非阻塞传输" },
-      "prefetch_blocks": { "name": "预取块数" }
+      "blocks_to_swap": {
+        "name": "交换块数"
+      },
+      "offload_img_emb": {
+        "name": "卸载图像嵌入"
+      },
+      "offload_txt_emb": {
+        "name": "卸载文本嵌入"
+      },
+      "use_non_blocking": {
+        "name": "非阻塞传输"
+      },
+      "prefetch_blocks": {
+        "name": "预取块数"
+      }
     },
     "outputs": {
-      "0": { "name": "分块交换参数" }
+      "0": {
+        "name": "分块交换参数"
+      }
     }
   },
   "XB_WanSampler": {
     "display_name": "XB-BOX - 🔗 Wan 采样器",
     "inputs": {
-      "model": { "name": "模型" },
-      "steps": { "name": "步数" },
-      "cfg": { "name": "引导尺度" },
-      "shift": { "name": "调度偏移" },
-      "seed": { "name": "种子" },
-      "force_offload": { "name": "强制卸载" },
-      "scheduler": { "name": "调度器" },
-      "riflex_freq_index": { "name": "RIFLEX频率" },
-      "cleanup": { "name": "采样后清理" },
-      "text_embeds": { "name": "文本嵌入" },
-      "image_embeds": { "name": "图像嵌入" },
-      "samples": { "name": "初始潜变量" },
-      "denoise": { "name": "降噪强度" },
-      "batched_cfg": { "name": "批量CFG" }
+      "model": {
+        "name": "模型"
+      },
+      "steps": {
+        "name": "步数"
+      },
+      "cfg": {
+        "name": "引导尺度"
+      },
+      "shift": {
+        "name": "调度偏移"
+      },
+      "seed": {
+        "name": "种子"
+      },
+      "force_offload": {
+        "name": "强制卸载"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "riflex_freq_index": {
+        "name": "RIFLEX频率"
+      },
+      "cleanup": {
+        "name": "采样后清理"
+      },
+      "text_embeds": {
+        "name": "文本嵌入"
+      },
+      "image_embeds": {
+        "name": "图像嵌入"
+      },
+      "samples": {
+        "name": "初始潜变量"
+      },
+      "denoise": {
+        "name": "降噪强度"
+      },
+      "batched_cfg": {
+        "name": "批量CFG"
+      }
     },
     "outputs": {
-      "0": { "name": "采样输出" },
-      "1": { "name": "降噪输出" }
+      "0": {
+        "name": "采样输出"
+      },
+      "1": {
+        "name": "降噪输出"
+      }
     }
   },
   "XB_WanTextEncode": {
     "display_name": "XB-BOX - 🔗 Wan 文本编码",
     "inputs": {
-      "t5_model": { "name": "T5模型" },
-      "positive_prompt": { "name": "正面提示词" },
-      "negative_prompt": { "name": "负面提示词" },
-      "use_disk_cache": { "name": "磁盘缓存" },
-      "device": { "name": "设备" }
+      "t5_model": {
+        "name": "T5模型"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "use_disk_cache": {
+        "name": "磁盘缓存"
+      },
+      "device": {
+        "name": "设备"
+      }
     },
     "outputs": {
-      "0": { "name": "文本嵌入" }
+      "0": {
+        "name": "文本嵌入"
+      }
     }
   },
   "XB_WanVAELoader": {
     "display_name": "XB-BOX - 🔗 Wan VAE 加载",
     "inputs": {
-      "model_name": { "name": "模型名称" },
-      "precision": { "name": "精度" },
-      "compile_args": { "name": "编译参数" },
-      "use_cpu_cache": { "name": "CPU缓存" }
+      "model_name": {
+        "name": "模型名称"
+      },
+      "precision": {
+        "name": "精度"
+      },
+      "compile_args": {
+        "name": "编译参数"
+      },
+      "use_cpu_cache": {
+        "name": "CPU缓存"
+      }
     },
     "outputs": {
-      "0": { "name": "WanVAE" }
+      "0": {
+        "name": "WanVAE"
+      }
     }
   },
   "XB_WanDecode": {
     "display_name": "XB-BOX - � Wan VAE 解码",
     "inputs": {
-      "vae": { "name": "VAE模型" },
-      "samples": { "name": "潜变量" },
-      "enable_vae_tiling": { "name": "VAE分块" },
-      "tile_x": { "name": "分块宽度" },
-      "tile_y": { "name": "分块高度" },
-      "tile_stride_x": { "name": "水平步长" },
-      "tile_stride_y": { "name": "垂直步长" },
-      "cleanup": { "name": "解码后清理" }
+      "vae": {
+        "name": "VAE模型"
+      },
+      "samples": {
+        "name": "潜变量"
+      },
+      "enable_vae_tiling": {
+        "name": "VAE分块"
+      },
+      "tile_x": {
+        "name": "分块宽度"
+      },
+      "tile_y": {
+        "name": "分块高度"
+      },
+      "tile_stride_x": {
+        "name": "水平步长"
+      },
+      "tile_stride_y": {
+        "name": "垂直步长"
+      },
+      "cleanup": {
+        "name": "解码后清理"
+      }
     },
     "outputs": {
-      "0": { "name": "图像" }
+      "0": {
+        "name": "图像"
+      }
     }
   },
   "XB_WanAnimateToVideo": {
     "display_name": "XB-BOX - 🎬 Wan 动画转视频",
     "inputs": {
-      "positive": { "name": "正向提示" },
-      "negative": { "name": "负向提示" },
-      "vae": { "name": "VAE" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批次大小" },
-      "continue_motion_max_frames": { "name": "继续运动最大帧数" },
-      "video_frame_offset": { "name": "视频帧偏移" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "reference_image": { "name": "参考图像" },
-      "face_video": { "name": "面部视频" },
-      "pose_video": { "name": "姿态视频" },
-      "background_video": { "name": "背景视频" },
-      "character_mask": { "name": "角色遮罩" },
-      "continue_motion": { "name": "继续运动" },
-      "vae_tile_size": { "name": "VAE分块大小" }
+      "positive": {
+        "name": "正向提示"
+      },
+      "negative": {
+        "name": "负向提示"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批次大小"
+      },
+      "continue_motion_max_frames": {
+        "name": "继续运动最大帧数"
+      },
+      "video_frame_offset": {
+        "name": "视频帧偏移"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "reference_image": {
+        "name": "参考图像"
+      },
+      "face_video": {
+        "name": "面部视频"
+      },
+      "pose_video": {
+        "name": "姿态视频"
+      },
+      "background_video": {
+        "name": "背景视频"
+      },
+      "character_mask": {
+        "name": "角色遮罩"
+      },
+      "continue_motion": {
+        "name": "继续运动"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      }
     },
     "outputs": {
-      "0": { "name": "正向提示" },
-      "1": { "name": "负向提示" },
-      "2": { "name": "潜变量" },
-      "3": { "name": "修剪潜变量" },
-      "4": { "name": "修剪图像" },
-      "5": { "name": "视频帧偏移" }
+      "0": {
+        "name": "正向提示"
+      },
+      "1": {
+        "name": "负向提示"
+      },
+      "2": {
+        "name": "潜变量"
+      },
+      "3": {
+        "name": "修剪潜变量"
+      },
+      "4": {
+        "name": "修剪图像"
+      },
+      "5": {
+        "name": "视频帧偏移"
+      }
     }
   },
   "XB_WanAnimate_ParamBus": {
     "display_name": "XB-BOX - 🎬 Animate 动作迁移总线",
     "inputs": {
-      "model": { "name": "模型" },
-      "clip": { "name": "CLIP模型" },
-      "vae": { "name": "VAE模型" },
-      "negative_prompt": { "name": "负面提示词" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "total_frames": { "name": "总帧数" },
-      "fps": { "name": "帧率" },
-      "vae_encode_tile_size": { "name": "VAE编码分块" },
-      "vae_decode_tile_size": { "name": "VAE解码分块" },
-      "spatial_overlap": { "name": "画面重叠" },
-      "temporal_chunk_size": { "name": "时间分块" },
-      "temporal_overlap": { "name": "时间重叠" },
-      "steps": { "name": "总步数" },
-      "cfg": { "name": "引导系数" },
-      "sampler_name": { "name": "采样器" },
-      "scheduler": { "name": "调度器" },
-      "seed": { "name": "随机种" },
-      "continue_motion_max_frames": { "name": "衔接重叠过渡帧" },
-      "cleanup": { "name": "显存清理" },
-      "clip_vision": { "name": "CLIP视觉模型" },
-      "global_ref_image": { "name": "全局参考图" },
-      "pose_video": { "name": "源姿态长视频" },
-      "face_video": { "name": "源面部长视频" },
-      "background_video": { "name": "源背景长视频" },
-      "character_mask": { "name": "角色遮罩" }
+      "model": {
+        "name": "模型"
+      },
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "total_frames": {
+        "name": "总帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "vae_encode_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "vae_decode_tile_size": {
+        "name": "VAE解码分块"
+      },
+      "spatial_overlap": {
+        "name": "画面重叠"
+      },
+      "temporal_chunk_size": {
+        "name": "时间分块"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠"
+      },
+      "steps": {
+        "name": "总步数"
+      },
+      "cfg": {
+        "name": "引导系数"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "随机种"
+      },
+      "concat_mode": {
+        "name": "视频拼接模式"
+      },
+      "cleanup": {
+        "name": "显存清理"
+      },
+      "clip_vision": {
+        "name": "CLIP视觉模型"
+      },
+      "global_ref_image": {
+        "name": "全局参考图"
+      },
+      "pose_video": {
+        "name": "源姿态长视频"
+      },
+      "face_video": {
+        "name": "源面部长视频"
+      },
+      "background_video": {
+        "name": "源背景长视频"
+      },
+      "character_mask": {
+        "name": "角色遮罩"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_ANIMATE_BUS (动画总线)" }
+      "0": {
+        "name": "📦 WAN_ANIMATE_BUS (动画总线)"
+      }
     }
   },
   "XB_WanAnimate_RelayNode": {
     "display_name": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
     "inputs": {
-      "wan_animate_bus": { "name": "WAN动画总线" },
-      "segment_length": { "name": "本段生成帧数" },
-      "positive_prompt": { "name": "动作提示词" },
-      "use_local_ref_image": { "name": "独立参考图输入" },
-      "ref_image_file": { "name": "选择上传参考图" },
-      "prev_video": { "name": "前段视频" }
+      "wan_animate_bus": {
+        "name": "WAN动画总线"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "positive_prompt": {
+        "name": "动作提示词"
+      },
+      "use_local_ref_image": {
+        "name": "独立参考图输入"
+      },
+      "ref_image_file": {
+        "name": "选择上传参考图"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_ANIMATE_BUS (传给下段)" },
-      "1": { "name": "🎞️ 累加视频流" }
+      "0": {
+        "name": "📦 WAN_ANIMATE_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      }
     }
   },
   "XB_HumanSegmentation": {
     "display_name": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
     "inputs": {
-      "seg_model": { "name": "分割模型" },
-      "image": { "name": "图像" }
+      "seg_model": {
+        "name": "分割模型"
+      },
+      "image": {
+        "name": "图像"
+      }
     },
     "outputs": {
-      "0": { "name": "人物蒙版" },
-      "1": { "name": "人物抠图" }
+      "0": {
+        "name": "人物蒙版"
+      },
+      "1": {
+        "name": "人物抠图"
+      }
     }
   },
   "XB_HumanSegModelLoader": {
     "display_name": "XB-BOX - 📥 人物分割模型加载",
     "inputs": {
-      "model": { "name": "ONNX模型" }
+      "model": {
+        "name": "ONNX模型"
+      }
     },
     "outputs": {
-      "0": { "name": "分割模型" }
+      "0": {
+        "name": "分割模型"
+      }
     }
   },
   "XB_AudioSlicer": {
     "display_name": "XB-BOX - 🎵 音频切片（基础）",
     "inputs": {
-      "audio": { "name": "音频文件" },
-      "fps": { "name": "视频帧率" },
-      "start_time": { "name": "开始时间" },
-      "end_time": { "name": "结束时间" },
-      "duration_display": { "name": "输出帧数" }
+      "audio": {
+        "name": "音频文件"
+      },
+      "fps": {
+        "name": "视频帧率"
+      },
+      "start_time": {
+        "name": "开始时间"
+      },
+      "end_time": {
+        "name": "结束时间"
+      },
+      "duration_display": {
+        "name": "输出帧数"
+      }
     },
     "outputs": {
-      "0": { "name": "音频" },
-      "1": { "name": "帧数" }
+      "0": {
+        "name": "音频"
+      },
+      "1": {
+        "name": "帧数"
+      },
+      "2": {
+        "name": "帧率"
+      }
     }
   },
   "XB_AudioSlicerV1": {
     "display_name": "XB-BOX - 🎵 音频切片V1（单人）",
     "inputs": {
-      "audio": { "name": "音频文件" },
-      "fps": { "name": "视频帧率" },
-      "start_time": { "name": "开始时间" },
-      "end_time": { "name": "结束时间" },
-      "duration_display": { "name": "输出帧数" }
+      "audio": {
+        "name": "音频文件"
+      },
+      "fps": {
+        "name": "视频帧率"
+      },
+      "start_time": {
+        "name": "开始时间"
+      },
+      "end_time": {
+        "name": "结束时间"
+      },
+      "duration_display": {
+        "name": "输出帧数"
+      }
     },
     "outputs": {
-      "0": { "name": "音频" },
-      "1": { "name": "帧数" }
+      "0": {
+        "name": "音频"
+      },
+      "1": {
+        "name": "帧数"
+      },
+      "2": {
+        "name": "帧率"
+      }
     }
   },
   "XB_AudioSlicerV2": {
     "display_name": "XB-BOX - 🎵 音频切片V2（双人）",
     "inputs": {
-      "audio1": { "name": "音频文件1" },
-      "fps": { "name": "视频帧率" },
-      "start1": { "name": "开始时间1" },
-      "end1": { "name": "结束时间1" },
-      "audio2": { "name": "音频文件2" },
-      "start2": { "name": "开始时间2" },
-      "end2": { "name": "结束时间2" },
-      "gap_frames": { "name": "间隔帧数" },
-      "total_display": { "name": "合并帧数" }
+      "audio1": {
+        "name": "音频文件1"
+      },
+      "fps": {
+        "name": "视频帧率"
+      },
+      "start1": {
+        "name": "开始时间1"
+      },
+      "end1": {
+        "name": "结束时间1"
+      },
+      "audio2": {
+        "name": "音频文件2"
+      },
+      "start2": {
+        "name": "开始时间2"
+      },
+      "end2": {
+        "name": "结束时间2"
+      },
+      "gap_frames": {
+        "name": "间隔帧数"
+      },
+      "total_display": {
+        "name": "合并帧数"
+      }
     },
     "outputs": {
-      "0": { "name": "合并音频" },
-      "1": { "name": "合并帧数" },
-      "2": { "name": "音频1" },
-      "3": { "name": "帧数1" },
-      "4": { "name": "音频2" },
-      "5": { "name": "帧数2" }
+      "0": {
+        "name": "合并音频"
+      },
+      "1": {
+        "name": "合并帧数"
+      },
+      "2": {
+        "name": "帧率"
+      },
+      "3": {
+        "name": "音频1"
+      },
+      "4": {
+        "name": "帧数1"
+      },
+      "5": {
+        "name": "音频2"
+      },
+      "6": {
+        "name": "帧数2"
+      }
     }
   },
   "XB_AudioSlicerV3": {
     "display_name": "XB-BOX - 🎵 音频切片V3（高级）",
     "inputs": {
-      "audio1": { "name": "音频文件1" },
-      "fps": { "name": "视频帧率" },
-      "start1": { "name": "开始时间1" },
-      "end1": { "name": "结束时间1" },
-      "mute_count1": { "name": "音频1消音数量" },
-      "mutes1_data": { "name": "消音数据1" },
-      "audio2": { "name": "音频文件2" },
-      "start2": { "name": "开始时间2" },
-      "end2": { "name": "结束时间2" },
-      "mute_count2": { "name": "音频2消音数量" },
-      "mutes2_data": { "name": "消音数据2" },
-      "merge_mode": { "name": "合并模式" },
-      "total_display": { "name": "合并帧数" }
+      "audio1": {
+        "name": "音频文件1"
+      },
+      "fps": {
+        "name": "视频帧率"
+      },
+      "start1": {
+        "name": "开始时间1"
+      },
+      "end1": {
+        "name": "结束时间1"
+      },
+      "mute_count1": {
+        "name": "音频1消音数量"
+      },
+      "mutes1_data": {
+        "name": "消音数据1"
+      },
+      "audio2": {
+        "name": "音频文件2"
+      },
+      "start2": {
+        "name": "开始时间2"
+      },
+      "end2": {
+        "name": "结束时间2"
+      },
+      "mute_count2": {
+        "name": "音频2消音数量"
+      },
+      "mutes2_data": {
+        "name": "消音数据2"
+      },
+      "merge_mode": {
+        "name": "合并模式"
+      },
+      "total_display": {
+        "name": "合并帧数"
+      }
     },
     "outputs": {
-      "0": { "name": "合并音频" },
-      "1": { "name": "合并帧数" },
-      "2": { "name": "音频1" },
-      "3": { "name": "帧数1" },
-      "4": { "name": "音频2" },
-      "5": { "name": "帧数2" }
+      "0": {
+        "name": "合并音频"
+      },
+      "1": {
+        "name": "合并帧数"
+      },
+      "2": {
+        "name": "帧率"
+      },
+      "3": {
+        "name": "音频1"
+      },
+      "4": {
+        "name": "帧数1"
+      },
+      "5": {
+        "name": "音频2"
+      },
+      "6": {
+        "name": "帧数2"
+      }
     }
   },
   "XB_WanInfiniteTalk_ParamBus": {
     "display_name": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线（单人）",
     "inputs": {
-      "model": { "name": "模型" },
-      "model_patch": { "name": "模型补丁" },
-      "clip": { "name": "CLIP模型" },
-      "vae": { "name": "VAE模型" },
-      "audio_encoder": { "name": "音频编码器" },
-      "start_image": { "name": "起始参考图" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" },
-      "negative_prompt": { "name": "负面提示词" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "total_frames": { "name": "总帧数" },
-      "fps": { "name": "帧率" },
-      "vae_encode_tile_size": { "name": "VAE编码分块" },
-      "vae_decode_tile_size": { "name": "VAE解码分块" },
-      "spatial_overlap": { "name": "空间重叠" },
-      "temporal_chunk_size": { "name": "时间分块" },
-      "temporal_overlap": { "name": "时间重叠" },
-      "steps": { "name": "采样步数" },
-      "cfg": { "name": "引导系数" },
-      "sampler_name": { "name": "采样器" },
-      "scheduler": { "name": "调度器" },
-      "seed": { "name": "随机种子" },
-      "motion_frame_count": { "name": "运动过渡帧数" },
-      "audio_scale": { "name": "音频强度" },
-      "cleanup": { "name": "显存清理" },
-      "clip_vision": { "name": "CLIP视觉" },
-      "start_image": { "name": "起始参考图" },
-      "audio": { "name": "长音频输入" }
+      "model": {
+        "name": "模型"
+      },
+      "model_patch": {
+        "name": "模型补丁"
+      },
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "audio_encoder": {
+        "name": "音频编码器"
+      },
+      "start_image": {
+        "name": "起始参考图"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "total_frames": {
+        "name": "总帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "vae_encode_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "vae_decode_tile_size": {
+        "name": "VAE解码分块"
+      },
+      "spatial_overlap": {
+        "name": "空间重叠"
+      },
+      "temporal_chunk_size": {
+        "name": "时间分块"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠"
+      },
+      "steps": {
+        "name": "采样步数"
+      },
+      "cfg": {
+        "name": "引导系数"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "audio_scale": {
+        "name": "音频强度"
+      },
+      "concat_mode": {
+        "name": "视频拼接模式"
+      },
+      "cleanup": {
+        "name": "显存清理"
+      },
+      "clip_vision": {
+        "name": "CLIP视觉"
+      },
+      "audio": {
+        "name": "长音频输入"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_INFINITETALK_BUS" }
+      "0": {
+        "name": "📦 WAN_INFINITETALK_BUS"
+      }
     }
   },
   "XB_WanInfiniteTalk_RelayNode": {
     "display_name": "XB-BOX - 🏃 InfiniteTalk 无限对口型接力点",
     "inputs": {
-      "wan_infinitetalk_bus": { "name": "WAN_INFINITETALK_BUS" },
-      "positive_prompt": { "name": "正面提示词" },
-      "segment_length": { "name": "分段帧数" },
-      "prev_video": { "name": "前置累加视频" },
-      "prev_audio": { "name": "前置累加音频" },
-      "audio": { "name": "音频输入" }
+      "wan_infinitetalk_bus": {
+        "name": "WAN_INFINITETALK_BUS"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "prev_video": {
+        "name": "前置累加视频"
+      },
+      "prev_audio": {
+        "name": "前置累加音频"
+      },
+      "audio": {
+        "name": "音频输入"
+      }
     },
     "outputs": {
-      "0": { "name": "📦 WAN_INFINITETALK_BUS (传给下段)" },
-      "1": { "name": "🎞️ 累加视频流" },
-      "2": { "name": "🔊 累加音频流" }
+      "0": {
+        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      },
+      "2": {
+        "name": "🔊 累加音频流"
+      }
     }
   },
   "XB_WanVaceToVideo": {
     "display_name": "XB-BOX - 🎬 Wan VACE视频转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "strength": { "name": "强度" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "control_video": { "name": "控制视频" },
-      "control_masks": { "name": "控制遮罩" },
-      "reference_image": { "name": "参考图像" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "strength": {
+        "name": "强度"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "control_video": {
+        "name": "控制视频"
+      },
+      "control_masks": {
+        "name": "控制遮罩"
+      },
+      "reference_image": {
+        "name": "参考图像"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" },
-      "3": { "name": "裁剪潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      },
+      "3": {
+        "name": "裁剪潜变量"
+      }
     }
   },
   "XB_WanFunInpaintToVideo": {
     "display_name": "XB-BOX - 🎬 Wan 修补转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "start_image": { "name": "首帧图" },
-      "end_image": { "name": "尾帧图" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "start_image": {
+        "name": "首帧图"
+      },
+      "end_image": {
+        "name": "尾帧图"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanCameraImageToVideo": {
     "display_name": "XB-BOX - 🎬 Wan 相机控制转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "start_image": { "name": "首帧图" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "camera_conditions": { "name": "相机条件" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "start_image": {
+        "name": "首帧图"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "camera_conditions": {
+        "name": "相机条件"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanPhantomSubjectToVideo": {
     "display_name": "XB-BOX - 🎬 Wan 幻影主体转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "images": { "name": "图像" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "images": {
+        "name": "图像"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件(文本)" },
-      "2": { "name": "负面条件(图像文本)" },
-      "3": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件(文本)"
+      },
+      "2": {
+        "name": "负面条件(图像文本)"
+      },
+      "3": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanHuMoImageToVideo": {
     "display_name": "XB-BOX - 🎬 Wan 人物动作转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "audio_encoder_output": { "name": "音频编码输出" },
-      "ref_image": { "name": "参考图像" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "audio_encoder_output": {
+        "name": "音频编码输出"
+      },
+      "ref_image": {
+        "name": "参考图像"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_Wan22ImageToVideoLatent": {
     "display_name": "XB-BOX - 🎬 Wan2.2 潜变量转视频分块",
     "inputs": {
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "start_image": { "name": "首帧图" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "start_image": {
+        "name": "首帧图"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "潜变量" }
+      "0": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanSoundImageToVideoExtend": {
     "display_name": "XB-BOX - 🎬 Wan 音频扩展转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "length": { "name": "长度" },
-      "video_latent": { "name": "视频潜变量" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "audio_encoder_output": { "name": "音频编码输出" },
-      "ref_image": { "name": "参考图像" },
-      "control_video": { "name": "控制视频" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "video_latent": {
+        "name": "视频潜变量"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "audio_encoder_output": {
+        "name": "音频编码输出"
+      },
+      "ref_image": {
+        "name": "参考图像"
+      },
+      "control_video": {
+        "name": "控制视频"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanSCAILToVideo": {
     "display_name": "XB-BOX - 🎬 Wan SCAIL姿态转视频分块",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "pose_strength": { "name": "姿态强度" },
-      "pose_start": { "name": "姿态起始" },
-      "pose_end": { "name": "姿态结束" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "reference_image": { "name": "参考图像" },
-      "pose_video": { "name": "姿态视频" },
-      "scale_method": { "name": "缩放算法" },
-      "crop_mode": { "name": "裁剪模式" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "pose_strength": {
+        "name": "姿态强度"
+      },
+      "pose_start": {
+        "name": "姿态起始"
+      },
+      "pose_end": {
+        "name": "姿态结束"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "reference_image": {
+        "name": "参考图像"
+      },
+      "pose_video": {
+        "name": "姿态视频"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
     }
   },
   "XB_WanSCAILToVideoPro": {
     "display_name": "XB-BOX - 🎬 Wan SCAIL-2姿态转视频分块 Pro",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE模型" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "length": { "name": "长度" },
-      "batch_size": { "name": "批量大小" },
-      "pose_strength": { "name": "姿态强度" },
-      "pose_start": { "name": "姿态起始" },
-      "pose_end": { "name": "姿态结束" },
-      "replacement_mode": { "name": "替换模式" },
-      "video_frame_offset": { "name": "视频帧偏移" },
-      "previous_frame_count": { "name": "前帧数量" },
-      "vae_tile_size": { "name": "VAE编码分块" },
-      "pose_video": { "name": "姿态视频" },
-      "pose_video_mask": { "name": "姿态遮罩视频" },
-      "reference_image": { "name": "参考图像" },
-      "reference_image_mask": { "name": "参考遮罩图像" },
-      "clip_vision_output": { "name": "CLIP视觉输出" },
-      "previous_frames": { "name": "上一段帧" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "长度"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "pose_strength": {
+        "name": "姿态强度"
+      },
+      "pose_start": {
+        "name": "姿态起始"
+      },
+      "pose_end": {
+        "name": "姿态结束"
+      },
+      "replacement_mode": {
+        "name": "替换模式"
+      },
+      "video_frame_offset": {
+        "name": "视频帧偏移"
+      },
+      "vae_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "pose_video": {
+        "name": "姿态视频"
+      },
+      "pose_video_mask": {
+        "name": "姿态遮罩视频"
+      },
+      "reference_image": {
+        "name": "参考图像"
+      },
+      "reference_image_mask": {
+        "name": "参考遮罩图像"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "previous_frames": {
+        "name": "上一段帧"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" },
-      "2": { "name": "潜变量" },
-      "3": { "name": "视频帧偏移" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      },
+      "3": {
+        "name": "视频帧偏移"
+      }
+    }
+  },
+  "XB_WanSCAIL_ParamBus": {
+    "display_name": "XB-BOX - 🤖 SCAIL 无限时长总线",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "clip_vision": {
+        "name": "CLIP视觉模型"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "total_frames": {
+        "name": "总帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "pose_strength": {
+        "name": "姿态强度"
+      },
+      "pose_start": {
+        "name": "姿态起始"
+      },
+      "pose_end": {
+        "name": "姿态结束"
+      },
+      "replacement_mode": {
+        "name": "替换模式"
+      },
+      "concat_mode": {
+        "name": "视频拼接模式"
+      },
+      "vae_encode_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "vae_decode_tile_size": {
+        "name": "VAE解码分块"
+      },
+      "spatial_overlap": {
+        "name": "画面重叠"
+      },
+      "temporal_chunk_size": {
+        "name": "时间分块"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠"
+      },
+      "steps": {
+        "name": "总步数"
+      },
+      "cfg": {
+        "name": "引导系数"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "随机种"
+      },
+      "cleanup": {
+        "name": "显存清理"
+      },
+      "global_ref_image": {
+        "name": "全局参考图"
+      },
+      "reference_image_mask": {
+        "name": "参考图遮罩"
+      },
+      "pose_video": {
+        "name": "源姿态长视频"
+      },
+      "pose_video_mask": {
+        "name": "姿态遮罩视频"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_SCAIL_BUS (SCAIL总线)"
+      }
+    }
+  },
+  "XB_WanSCAIL_RelayNode": {
+    "display_name": "XB-BOX - 🏃 SCAIL 无限接力点",
+    "inputs": {
+      "wan_scail_bus": {
+        "name": "SCAIL总线"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "positive_prompt": {
+        "name": "动作提示词"
+      },
+      "use_local_ref_image": {
+        "name": "继承/独立参考图"
+      },
+      "ref_image_file": {
+        "name": "选择参考图"
+      },
+      "previous_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_SCAIL_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      }
     }
   },
   "XB_WanVAEDecodeTiled": {
     "display_name": "XB-BOX - 🧊 Wan VAE 时空分块解码",
     "inputs": {
-      "samples": { "name": "潜变量" },
-      "vae": { "name": "VAE模型" },
-      "tile_size": { "name": "空间分块大小" },
-      "spatial_overlap": { "name": "空间块重叠" },
-      "temporal_chunk": { "name": "时间分块帧数" },
-      "temporal_overlap": { "name": "时间块重叠" }
+      "samples": {
+        "name": "潜变量"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "tile_size": {
+        "name": "空间分块大小"
+      },
+      "spatial_overlap": {
+        "name": "空间块重叠"
+      },
+      "temporal_chunk": {
+        "name": "时间分块帧数"
+      },
+      "temporal_overlap": {
+        "name": "时间块重叠"
+      }
     },
     "outputs": {
-      "0": { "name": "图像" }
+      "0": {
+        "name": "图像"
+      }
     }
   },
   "XB_StringMerge": {
     "display_name": "XB-BOX - 📝 字符串合并",
     "inputs": {
-      "inputcount": { "name": "输入数量" },
-      "string_1": { "name": "字符串_1" },
-      "delimiter": { "name": "分隔符" },
-      "return_list": { "name": "输出为列表" },
-      "newline_per_segment": { "name": "每段换行" }
+      "inputcount": {
+        "name": "输入数量"
+      },
+      "string_1": {
+        "name": "字符串_1"
+      },
+      "delimiter": {
+        "name": "分隔符"
+      },
+      "return_list": {
+        "name": "输出为列表"
+      },
+      "newline_per_segment": {
+        "name": "每段换行"
+      }
     },
     "outputs": {
-      "0": { "name": "字符串" }
+      "0": {
+        "name": "字符串"
+      }
     }
   },
   "XB_MSR": {
     "display_name": "XB-BOX - 🎞️ MSR 多图合成帧序列",
     "inputs": {
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "frame_count": { "name": "帧数" },
-      "scale_method": { "name": "缩放方法" },
-      "crop_mode": { "name": "裁剪模式" },
-      "img_1": { "name": "图片 1" },
-      "img_2": { "name": "图片 2" },
-      "img_3": { "name": "图片 3" },
-      "img_4": { "name": "图片 4" },
-      "background": { "name": "背景图" }
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "frame_count": {
+        "name": "帧数"
+      },
+      "scale_method": {
+        "name": "缩放方法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      },
+      "img_1": {
+        "name": "图片 1"
+      },
+      "img_2": {
+        "name": "图片 2"
+      },
+      "img_3": {
+        "name": "图片 3"
+      },
+      "img_4": {
+        "name": "图片 4"
+      },
+      "background": {
+        "name": "背景图"
+      }
     },
     "outputs": {
-      "0": { "name": "帧序列" }
+      "0": {
+        "name": "帧序列"
+      }
+    }
+  },
+  "XB_Wan_InfiniteRelayNode_New": {
+    "display_name": "XB-BOX - 🆕 无限长接力点 (New)",
+    "inputs": {
+      "wan_bus": {
+        "name": "WAN动态总线"
+      },
+      "start_image": {
+        "name": "起始图片"
+      },
+      "positive_prompt": {
+        "name": "段落正向提示词"
+      },
+      "trim_head_frames": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🖼️ 当前尾图 (接下段首图)"
+      },
+      "2": {
+        "name": "🎞️ 累加视频流"
+      }
+    }
+  },
+  "XB_WanAnimate_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 Animate 无限接力点 (New)",
+    "inputs": {
+      "wan_animate_bus": {
+        "name": "WAN动画总线"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "positive_prompt": {
+        "name": "动作提示词"
+      },
+      "use_local_ref_image": {
+        "name": "独立参考图输入"
+      },
+      "ref_image_file": {
+        "name": "选择上传参考图"
+      },
+      "continue_motion_max_frames": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_ANIMATE_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      }
+    }
+  },
+  "XB_WanInfiniteTalk_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (New)",
+    "inputs": {
+      "wan_infinitetalk_bus": {
+        "name": "WAN_INFINITETALK_BUS"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "motion_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "prev_video": {
+        "name": "前置累加视频"
+      },
+      "prev_audio": {
+        "name": "前置累加音频"
+      },
+      "audio": {
+        "name": "音频输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      },
+      "2": {
+        "name": "🔊 累加音频流"
+      }
+    }
+  },
+  "XB_WanSCAIL_ParamBus_New": {
+    "display_name": "XB-BOX - 🆕 SCAIL 总线 (New)",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "clip_vision": {
+        "name": "CLIP视觉模型"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "total_frames": {
+        "name": "总帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "pose_strength": {
+        "name": "姿态强度"
+      },
+      "pose_start": {
+        "name": "姿态起始"
+      },
+      "pose_end": {
+        "name": "姿态结束"
+      },
+      "replacement_mode": {
+        "name": "替换模式"
+      },
+      "previous_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "concat_mode": {
+        "name": "视频拼接模式"
+      },
+      "vae_encode_tile_size": {
+        "name": "VAE编码分块"
+      },
+      "vae_decode_tile_size": {
+        "name": "VAE解码分块"
+      },
+      "spatial_overlap": {
+        "name": "画面重叠"
+      },
+      "temporal_chunk_size": {
+        "name": "时间分块"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠"
+      },
+      "steps": {
+        "name": "总步数"
+      },
+      "cfg": {
+        "name": "引导系数"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "随机种"
+      },
+      "cleanup": {
+        "name": "显存清理"
+      },
+      "global_ref_image": {
+        "name": "全局参考图"
+      },
+      "reference_image_mask": {
+        "name": "参考图遮罩"
+      },
+      "pose_video": {
+        "name": "源姿态长视频"
+      },
+      "pose_video_mask": {
+        "name": "姿态遮罩视频"
+      },
+      "scale_method": {
+        "name": "缩放算法"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_SCAIL_BUS (SCAIL总线)"
+      }
+    }
+  },
+  "XB_WanSCAIL_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 SCAIL 无限接力点 (New)",
+    "inputs": {
+      "wan_scail_bus": {
+        "name": "SCAIL总线"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "positive_prompt": {
+        "name": "动作提示词"
+      },
+      "use_local_ref_image": {
+        "name": "继承/独立参考图"
+      },
+      "ref_image_file": {
+        "name": "选择参考图"
+      },
+      "previous_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "prev_video": {
+        "name": "前段视频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_SCAIL_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      }
     }
   }
 }
