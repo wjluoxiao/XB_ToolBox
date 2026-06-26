@@ -2882,6 +2882,9 @@
       "trim_head_frames": {
         "name": "接力重叠帧数"
       },
+      "total_frames_display": {
+        "name": "总计生成帧数"
+      },
       "relay_count": {
         "name": "接力数量设定"
       },
@@ -2922,6 +2925,9 @@
       "continue_motion_max_frames": {
         "name": "接力重叠帧数"
       },
+      "total_frames_display": {
+        "name": "总计生成帧数"
+      },
       "relay_count": {
         "name": "接力数量设定"
       },
@@ -2952,6 +2958,9 @@
       },
       "motion_frame_count": {
         "name": "接力重叠帧数"
+      },
+      "total_frames_display": {
+        "name": "总计生成帧数"
       },
       "relay_count": {
         "name": "接力数量设定"
@@ -3104,6 +3113,9 @@
       },
       "previous_frame_count": {
         "name": "接力重叠帧数"
+      },
+      "total_frames_display": {
+        "name": "总计生成帧数"
       },
       "relay_count": {
         "name": "接力数量设定"

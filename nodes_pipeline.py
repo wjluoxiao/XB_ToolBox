@@ -1144,6 +1144,7 @@ class XB_Wan_InfiniteRelayNode_New:
                 "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the specific action for this segment..."}),
                 "trim_head_frames": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1, "tooltip": "接力重叠帧数（去重）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定：本节点自动循环 N 次 = 串联 N 个接力点"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
             },
             "optional": {
                 "prev_video": ("IMAGE",)
@@ -1159,7 +1160,7 @@ class XB_Wan_InfiniteRelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_bus, start_image, positive_prompt, trim_head_frames=1, relay_count=1, prev_video=None):
+    def execute_relay(self, wan_bus, start_image, positive_prompt, trim_head_frames=1, relay_count=1, total_frames_display="", prev_video=None):
         print(f"\n🏃‍♀️ [XB-BOX] Executing Image-to-Video Infinite pipeline × {relay_count} relay(s)...")
         b = wan_bus
         segment_len = b["length"]
@@ -1345,6 +1346,7 @@ class XB_WanAnimate_RelayNode_New:
                 "ref_image_file": (files, {"image_upload": True}),
                 "continue_motion_max_frames": ("INT", {"default": 5, "min": 0, "max": 16, "tooltip": "接力重叠帧数（衔接过渡）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
             },
             "optional": {
                 "prev_video": ("IMAGE",),
@@ -1360,7 +1362,7 @@ class XB_WanAnimate_RelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_animate_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", continue_motion_max_frames=5, relay_count=1, prev_video=None, opt_ref_image=None):
+    def execute_relay(self, wan_animate_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", continue_motion_max_frames=5, relay_count=1, total_frames_display="", prev_video=None, opt_ref_image=None):
         b = wan_animate_bus.copy()
         print(f"\n🏃‍♀️ [XB-BOX] Executing Wan Animate Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
         accumulated_video = prev_video
@@ -1524,6 +1526,7 @@ class XB_WanInfiniteTalk_RelayNode_New:
                 "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1, "tooltip": "接力重叠帧数（运动过渡）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
             },
             "optional": {
                 "prev_video": ("IMAGE",),
@@ -1537,7 +1540,7 @@ class XB_WanInfiniteTalk_RelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_infinitetalk_bus, positive_prompt, segment_length, motion_frame_count=9, relay_count=1,
+    def execute_relay(self, wan_infinitetalk_bus, positive_prompt, segment_length, motion_frame_count=9, relay_count=1, total_frames_display="",
                       prev_video=None, prev_audio=None, audio=None):
         b = wan_infinitetalk_bus.copy()
         fps = b.get("fps", 25.0)
@@ -1830,6 +1833,7 @@ class XB_WanSCAIL_RelayNode_New:
                 "ref_image_file": (files, {"image_upload": True}),
                 "previous_frame_count": ("INT", {"default": 5, "min": 1, "max": 8192, "step": 4, "tooltip": "接力重叠帧数（尾帧衔接）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
             },
             "optional": {
                 "prev_video": ("IMAGE",),
@@ -1841,7 +1845,7 @@ class XB_WanSCAIL_RelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", previous_frame_count=5, relay_count=1, prev_video=None):
+    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", previous_frame_count=5, relay_count=1, total_frames_display="", prev_video=None):
         b = wan_scail_bus.copy()
         print(f"\n🏃‍♀️ [XB-BOX] Executing SCAIL Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
         accumulated_video = prev_video
