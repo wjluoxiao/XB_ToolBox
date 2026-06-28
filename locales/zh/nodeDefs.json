@@ -3105,12 +3105,6 @@
       "positive_prompt": {
         "name": "动作提示词"
       },
-      "use_local_ref_image": {
-        "name": "继承/独立参考图"
-      },
-      "ref_image_file": {
-        "name": "选择参考图"
-      },
       "previous_frame_count": {
         "name": "接力重叠帧数"
       },

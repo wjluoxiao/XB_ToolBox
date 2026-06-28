@@ -1818,19 +1818,11 @@ class XB_WanSCAIL_RelayNode_New:
 
     @classmethod
     def INPUT_TYPES(cls):
-        input_dir = folder_paths.get_input_directory()
-        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))] if os.path.exists(input_dir) else []
-        files = sorted(files)
-        if not files:
-            files = ["[Folder empty_Please connect or upload]"]
-
         return {
             "required": {
                 "wan_scail_bus": ("WAN_SCAIL_BUS",),
                 "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "positive_prompt": ("STRING", {"multiline": True, "default": "Describe the scene..."}),
-                "use_local_ref_image": (["继承总线全局图", "独立参考图"], {"default": "继承总线全局图"}),
-                "ref_image_file": (files, {"image_upload": True}),
                 "previous_frame_count": ("INT", {"default": 5, "min": 1, "max": 8192, "step": 4, "tooltip": "接力重叠帧数（尾帧衔接）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
                 "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
@@ -1845,7 +1837,7 @@ class XB_WanSCAIL_RelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", use_local_ref_image="继承总线全局图", ref_image_file="", previous_frame_count=5, relay_count=1, total_frames_display="", prev_video=None):
+    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", previous_frame_count=5, relay_count=1, total_frames_display="", prev_video=None):
         b = wan_scail_bus.copy()
         print(f"\n🏃‍♀️ [XB-BOX] Executing SCAIL Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
         accumulated_video = prev_video
@@ -1881,33 +1873,9 @@ class XB_WanSCAIL_RelayNode_New:
             else:
                 actual_length = segment_length
 
-            # --- 独立参考图逻辑 ---
-            is_local = (use_local_ref_image in ("独立参考图", True, 1))
-            if is_local:
-                if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
-                    print(f"⏭️ [XB-BOX] 独立参考图未选择，跳过接力 {r+1}")
-                    break
-                image_path = folder_paths.get_annotated_filepath(ref_image_file)
-                if not os.path.exists(image_path):
-                    print(f"⏭️ [XB-BOX] 参考图文件未找到，跳过接力 {r+1}")
-                    break
-                i = Image.open(image_path)
-                i = ImageOps.exif_transpose(i)
-                image_data = i.convert("RGB")
-                image_data = np.array(image_data).astype(np.float32) / 255.0
-                ref_image = torch.from_numpy(image_data)[None,]
-                cv_model = b.get("clip_vision")
-                if cv_model is None:
-                    raise ValueError("🚨 独立参考图需要 clip_vision 模型！")
-                w, h = b.get("width", 512), b.get("height", 896)
-                sm = b.get("scale_method", "lanczos")
-                cm = b.get("crop_mode", "center")
-                clip_img = comfy.utils.common_upscale(ref_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
-                clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
-                print("🖼️ [XB-BOX] SCAIL 使用独立参考图（含独立CLIP视觉编码）")
-            else:
-                ref_image = b.get("global_ref_image")
-                clip_vision_output = b.get("clip_vision_output")
+            # --- 参考图：始终从总线继承（已含遮罩处理） ---
+            ref_image = b.get("global_ref_image")
+            clip_vision_output = b.get("clip_vision_output")
 
             # --- 提示词 ---
             prompt_text = positive_prompt.strip() if positive_prompt.strip() else b.get("positive_prompt", "")
