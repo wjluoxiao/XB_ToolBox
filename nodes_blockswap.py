@@ -120,10 +120,18 @@ class XB_UNetBlockSwap:
             if not all_blocks:
                 return
 
-            print(f"\033[96m[XB UNet Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块，分割 {blocks_to_swap} 个分块。")
+            total_blocks = len(all_blocks)
+            # 🛡️ 防呆：用户输入不可超过模型总块数
+            if blocks_to_swap > total_blocks:
+                effective = total_blocks
+                tag = "匹配最大可分块参数"
+            else:
+                effective = blocks_to_swap
+                tag = "匹配用户设置的参数"
+            print(f"\033[96m[XB UNet Block Swap]\033[0m: 静态物理分块交换已激活！已找到 {total_blocks} 个引擎模块，分割 {effective} 个分块（{tag}）。")
 
-            for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing UNet pipeline"):
-                if b > blocks_to_swap:
+            for b, block in tqdm(enumerate(all_blocks), total=total_blocks, desc="Slicing UNet pipeline"):
+                if b > effective:
                     block.to(main_device)
                 else:
                     block.to(model_patcher.offload_device)
@@ -200,10 +208,18 @@ class XB_CheckpointBlockSwap:
                         all_blocks.append(attr)
 
             if all_blocks:
-                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块，分割 {blocks_to_swap} 个分块。")
+                total_blocks = len(all_blocks)
+                # 🛡️ 防呆：用户输入不可超过模型总块数
+                if blocks_to_swap > total_blocks:
+                    effective = total_blocks
+                    tag = "匹配最大可分块参数"
+                else:
+                    effective = blocks_to_swap
+                    tag = "匹配用户设置的参数"
+                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已找到 {total_blocks} 个引擎模块，分割 {effective} 个分块（{tag}）。")
 
-                for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing Checkpoint pipeline"):
-                    if b > blocks_to_swap:
+                for b, block in tqdm(enumerate(all_blocks), total=total_blocks, desc="Slicing Checkpoint pipeline"):
+                    if b > effective:
                         block.to(main_device)
                     else:
                         block.to(model_patcher.offload_device)
