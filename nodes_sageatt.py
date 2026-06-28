@@ -42,12 +42,20 @@ class XB_SageAttentionAccelerator:
             print("\033[96m[XB-BOX]\033[0m: SageAttention 已关闭，模型直接透传")
             return (model,)
 
+        # ── 全局容错：任何异常（缺 sageattention / 缺 MSVC / DLL 错误 等）自动跳过 ──
+        try:
+            return self._apply_patch(model, preset)
+        except Exception as e:
+            import traceback
+            print(f"\n\033[93m[XB_ToolBox 警告] SageAttention 节点异常，自动跳过！工作流继续运行。\033[0m")
+            print(f"\033[93m[XB_ToolBox 错误信息]\033[0m {e}")
+            traceback.print_exc()
+            return (model,)
+
+    def _apply_patch(self, model, preset):
         # ── 自动：一字不差使用 KJNodes 的 auto 逻辑 ──
         if preset == "自动":
-            try:
-                from sageattention import sageattn
-            except ImportError:
-                raise Exception("🚨 Error: sageattention module not found. Please verify installation.")
+            from sageattention import sageattn
 
             def sage_func(q, k, v, is_causal=False, attn_mask=None, tensor_layout="NHD"):
                 return sageattn(q, k, v, is_causal=is_causal, attn_mask=attn_mask, tensor_layout=tensor_layout)
@@ -112,14 +120,10 @@ class XB_SageAttentionAccelerator:
         }
 
         selected_cfg = configs[preset]
+        from sageattention import sageattn
 
         def attention_override_sage(func, q, k, v, heads, mask=None, attn_precision=None,
                                      skip_reshape=False, skip_output_reshape=False, **kwargs):
-            try:
-                from sageattention import sageattn
-            except ImportError:
-                raise Exception("🚨 Error: sageattention module not found. Please verify installation.")
-
             in_dtype = v.dtype
 
             if q.dtype == torch.float32 or k.dtype == torch.float32 or v.dtype == torch.float32:
