@@ -3132,5 +3132,128 @@
         "name": "🎞️ 累加视频流"
       }
     }
+  },
+  "XB_ComicPromptParser": {
+    "display_name": "XB-BOX - 📝 漫画提示词智能解析",
+    "inputs": {
+      "raw_prompt": {
+        "name": "原始剧本"
+      },
+      "base_bubble_desc": {
+        "name": "气泡基础描述"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "洗净给大模型的提示词"
+      },
+      "1": {
+        "name": "给渲染节点的台词"
+      }
+    }
+  },
+  "XB_ComicTextRenderer": {
+    "display_name": "XB-BOX - 💬 漫画文字渲染 (精确坐标)",
+    "inputs": {
+      "image": {
+        "name": "图像"
+      },
+      "text": {
+        "name": "台词文字"
+      },
+      "font_name": {
+        "name": "字体名/路径"
+      },
+      "font_size": {
+        "name": "字体大小"
+      },
+      "x": {
+        "name": "X 坐标"
+      },
+      "y": {
+        "name": "Y 坐标"
+      },
+      "max_width": {
+        "name": "最大宽度"
+      },
+      "alignment": {
+        "name": "对齐方式"
+      },
+      "text_color": {
+        "name": "文字颜色"
+      },
+      "outline_width": {
+        "name": "描边宽度"
+      },
+      "outline_color": {
+        "name": "描边颜色"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
+      }
+    }
+  },
+  "XB_AutoBubbleTextRenderer": {
+    "display_name": "XB-BOX - 🤖 漫画文字渲染 (全自动视觉锚定)",
+    "inputs": {
+      "image": {
+        "name": "图像"
+      },
+      "text": {
+        "name": "台词文本 (| 分隔)"
+      },
+      "font_name": {
+        "name": "字体名/路径"
+      },
+      "font_size": {
+        "name": "字体大小"
+      },
+      "text_color": {
+        "name": "文字颜色"
+      },
+      "bubble_margin": {
+        "name": "气泡内边距"
+      },
+      "auto_clear_bubble": {
+        "name": "数字涂改液"
+      },
+      "white_threshold": {
+        "name": "白色检测阈值"
+      },
+      "min_bubble_area": {
+        "name": "最小气泡面积"
+      },
+      "sort_mode": {
+        "name": "排序模式"
+      },
+      "invert_mode": {
+        "name": "暗黑模式适配"
+      },
+      "shape_filter_enabled": {
+        "name": "形状先验过滤"
+      },
+      "min_extent": {
+        "name": "最小填充率"
+      },
+      "max_aspect_ratio": {
+        "name": "最大宽高比"
+      },
+      "erode_iterations": {
+        "name": "边界分离(腐蚀)"
+      },
+      "morph_close_size": {
+        "name": "形态学内核"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
+      },
+      "1": {
+        "name": "检测信息"
+      }
+    }
   }
 }

@@ -360,12 +360,25 @@ class XB_ROCmKSampler:
 
     def go(self, model, seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, denoise, cleanup="不做任何清理"):
-        tune()
-        with _sdp_context():
-            out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方采样器 ──
+        if not is_rocm():
+            return nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
                                             positive, negative, latent, denoise)
-        _do_cleanup("post", cleanup)
-        return (out,)
+
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        try:
+            tune()
+            with _sdp_context():
+                out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
+                                                positive, negative, latent, denoise)
+            _do_cleanup("post", cleanup)
+            return (out,)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
+                                            positive, negative, latent, denoise)
 
 
 # ============================================================
@@ -400,14 +413,31 @@ class XB_ROCmKSamplerAdvanced:
 
     def go(self, model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0, cleanup="不做任何清理"):
-        tune()
-        with _sdp_context():
-            out, = nodes.KSamplerAdvanced().sample(
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方高级采样器 ──
+        if not is_rocm():
+            return nodes.KSamplerAdvanced().sample(
                 model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
                 positive, negative, latent, start_at_step, end_at_step,
                 return_with_leftover_noise, denoise=denoise)
-        _do_cleanup("post", cleanup)
-        return (out,)
+
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        try:
+            tune()
+            with _sdp_context():
+                out, = nodes.KSamplerAdvanced().sample(
+                    model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
+                    positive, negative, latent, start_at_step, end_at_step,
+                    return_with_leftover_noise, denoise=denoise)
+            _do_cleanup("post", cleanup)
+            return (out,)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.KSamplerAdvanced().sample(
+                model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
+                positive, negative, latent, start_at_step, end_at_step,
+                return_with_leftover_noise, denoise=denoise)
 
 
 # ============================================================
@@ -435,47 +465,58 @@ class XB_ROCmVAEDecode:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, samples, vae, tile, overlap, cleanup):
-        g = gpu_info(); tune()
-        lat = samples["samples"]
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方 VAE 解码 ──
+        if not is_rocm():
+            return nodes.VAEDecode().decode(samples=samples, vae=vae)
 
-        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
-        if not lat.is_nested and not lat.is_contiguous():
-            lat = lat.contiguous()
-
-        if tile == 0: tile = g["tile"]
-
-        spatial_comp = _get_spatial_compression(vae)
-        tile_x = tile // spatial_comp
-        tile_y = tile // spatial_comp
-
-        if overlap == 0:
-            overlap_xy = max(4, tile_x // 8)
-        else:
-            overlap_xy = overlap // spatial_comp
-
-        # 🛡️ 数学护城河：stride = tile - overlap，必须 > 0，否则死循环
-        overlap_xy = max(1, min(overlap_xy, tile_x - 1))
-
-        if tile_x < overlap_xy * 4:
-            overlap_xy = tile_x // 4
-
-        lat_h, lat_w = lat.shape[-2], lat.shape[-1]
-        use_fast = (tile_x >= lat_h and tile_y >= lat_w)
-
-        _do_cleanup("pre", cleanup)
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
-            if use_fast:
-                img = vae.decode(lat)
+            g = gpu_info(); tune()
+            lat = samples["samples"]
+
+            # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
+            if not lat.is_nested and not lat.is_contiguous():
+                lat = lat.contiguous()
+
+            if tile == 0: tile = g["tile"]
+
+            spatial_comp = _get_spatial_compression(vae)
+            tile_x = tile // spatial_comp
+            tile_y = tile // spatial_comp
+
+            if overlap == 0:
+                overlap_xy = max(4, tile_x // 8)
             else:
-                img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
-        except AttributeError:
-            print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
-            img = vae.decode(lat)
-        finally:
-            _do_cleanup("post", cleanup)
-        if img.dim() == 5:
-            img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
-        return (img,)
+                overlap_xy = overlap // spatial_comp
+
+            # 🛡️ 数学护城河：stride = tile - overlap，必须 > 0，否则死循环
+            overlap_xy = max(1, min(overlap_xy, tile_x - 1))
+
+            if tile_x < overlap_xy * 4:
+                overlap_xy = tile_x // 4
+
+            lat_h, lat_w = lat.shape[-2], lat.shape[-1]
+            use_fast = (tile_x >= lat_h and tile_y >= lat_w)
+
+            _do_cleanup("pre", cleanup)
+            try:
+                if use_fast:
+                    img = vae.decode(lat)
+                else:
+                    img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+            except AttributeError:
+                print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
+                img = vae.decode(lat)
+            finally:
+                _do_cleanup("post", cleanup)
+            if img.dim() == 5:
+                img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
+            return (img,)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.VAEDecode().decode(samples=samples, vae=vae)
 
 
 # ============================================================
@@ -506,46 +547,57 @@ class XB_ROCmVAEEncode:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, pixels, vae, tile, overlap, temporal_size, temporal_overlap, cleanup="不做任何清理"):
-        g = gpu_info(); tune()
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方 VAE 编码 ──
+        if not is_rocm():
+            return nodes.VAEEncode().encode(pixels=pixels, vae=vae)
 
-        # 🛡️ 强制显存连续性校验
-        if not pixels.is_contiguous():
-            pixels = pixels.contiguous()
-
-        if tile == 0: tile = g["tile"]
-        if overlap == 0: overlap = max(32, tile // 8)
-        # 🛡️ 编码路径：overlap 必须 < tile，防止 stride ≤ 0 导致死循环
-        overlap = max(1, min(overlap, tile - 1))
-
-        # 时间分块: 对齐官方 VAEEncodeTiled
-        temporal_comp = vae.temporal_compression_encode() if hasattr(vae, 'temporal_compression_encode') else None
-        if temporal_comp is not None:
-            if temporal_size == 0:
-                if g["gb"] >= 48:   temporal_size = 64
-                elif g["gb"] >= 24: temporal_size = 32
-                elif g["gb"] >= 16: temporal_size = 16
-                else:               temporal_size = 8
-            t_tile = max(2, temporal_size // temporal_comp)
-            if temporal_overlap == 0:
-                temporal_overlap = max(4, temporal_size // 16)
-            t_overlap = max(1, min(t_tile // 2, temporal_overlap // temporal_comp))
-        else:
-            t_tile = None
-            t_overlap = None
-
-        _do_cleanup("pre", cleanup)
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
-            lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap,
-                                   tile_t=t_tile, overlap_t=t_overlap)
-        except TypeError:
-            print(f"  ⚠️ ROCm VAE Encode: temporal kwargs unsupported, using spatial only.")
-            lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap)
-        except AttributeError:
-            print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
-            lat = vae.encode(pixels)
-        finally:
-            _do_cleanup("post", cleanup)
-        return ({"samples": lat},)
+            g = gpu_info(); tune()
+
+            # 🛡️ 强制显存连续性校验
+            if not pixels.is_contiguous():
+                pixels = pixels.contiguous()
+
+            if tile == 0: tile = g["tile"]
+            if overlap == 0: overlap = max(32, tile // 8)
+            # 🛡️ 编码路径：overlap 必须 < tile，防止 stride ≤ 0 导致死循环
+            overlap = max(1, min(overlap, tile - 1))
+
+            # 时间分块: 对齐官方 VAEEncodeTiled
+            temporal_comp = vae.temporal_compression_encode() if hasattr(vae, 'temporal_compression_encode') else None
+            if temporal_comp is not None:
+                if temporal_size == 0:
+                    if g["gb"] >= 48:   temporal_size = 64
+                    elif g["gb"] >= 24: temporal_size = 32
+                    elif g["gb"] >= 16: temporal_size = 16
+                    else:               temporal_size = 8
+                t_tile = max(2, temporal_size // temporal_comp)
+                if temporal_overlap == 0:
+                    temporal_overlap = max(4, temporal_size // 16)
+                t_overlap = max(1, min(t_tile // 2, temporal_overlap // temporal_comp))
+            else:
+                t_tile = None
+                t_overlap = None
+
+            _do_cleanup("pre", cleanup)
+            try:
+                lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap,
+                                       tile_t=t_tile, overlap_t=t_overlap)
+            except TypeError:
+                print(f"  ⚠️ ROCm VAE Encode: temporal kwargs unsupported, using spatial only.")
+                lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap)
+            except AttributeError:
+                print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
+                lat = vae.encode(pixels)
+            finally:
+                _do_cleanup("post", cleanup)
+            return ({"samples": lat},)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.VAEEncode().encode(pixels=pixels, vae=vae)
 
 
 # ============================================================
@@ -577,72 +629,89 @@ class XB_ROCmVAEDecodeTemporal:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, samples, vae, tile, overlap, t_tile, t_overlap, cleanup):
-        g = gpu_info(); tune()
-        lat = samples["samples"]
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方时空解码 ──
+        if not is_rocm():
+            if t_tile <= 0:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return nodes.VAEDecodeTiled().decode(
+                samples=samples, vae=vae,
+                tile_size=tile if tile > 0 else 256,
+                overlap=overlap if overlap > 0 else 32,
+                temporal_size=t_tile, temporal_overlap=t_overlap)
 
-        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
-
-        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
-        if not lat.is_nested and not lat.is_contiguous():
-            lat = lat.contiguous()
-
-        if lat.dim() == 5:
-            B, C, F, H, W = lat.shape; is_vid = True
-        elif lat.dim() == 4:
-            B, C, H, W = lat.shape; F = 1; is_vid = False
-        else:
-            raise ValueError(f"unsupported latent dim: {lat.dim()}")
-
-        if tile == 0: tile = g["tile"]
-        spatial_comp = _get_spatial_compression(vae)
-        tile_x = tile // spatial_comp
-        tile_y = tile // spatial_comp
-        if overlap == 0: overlap = max(32, tile // 8)
-        overlap_xy = overlap // spatial_comp
-        # 🛡️ 解码路径：overlap_xy 必须 < tile_x，防止 stride ≤ 0
-        overlap_xy = max(1, min(overlap_xy, tile_x - 1))
-
-        temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
-        if temporal_comp is not None and is_vid:
-            if t_tile == 0:
-                if g["gb"] >= 48:   t_tile = 64
-                elif g["gb"] >= 24: t_tile = 32
-                elif g["gb"] >= 16: t_tile = 16
-                else:               t_tile = 8
-            t_tile_vae = max(2, t_tile // temporal_comp)
-            if t_overlap == 0:
-                t_overlap = max(4, t_tile // 16)
-            t_overlap_vae = max(1, min(t_tile_vae // 2, t_overlap // temporal_comp))
-        else:
-            t_tile_vae = None
-            t_overlap_vae = None
-
-        _do_cleanup("pre", cleanup)
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
-            img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y,
-                                   overlap=overlap_xy,
-                                   tile_t=t_tile_vae, overlap_t=t_overlap_vae)
-        except TypeError:
-            # decode_tiled 不支持 tile_t/overlap_t
-            print(f"  ⚠️ ROCm VAE Temporal: temporal kwargs unsupported.")
-            if is_vid and not hasattr(vae, 'temporal_compression_decode'):
-                # 2D VAE 处理视频 → movedim 置换 F/C 再展平，防止帧间通道串扰
-                print("  ⚠️ flattening 5D to 4D for spatial tiled decode...")
-                lat_flat = lat.movedim(2, 1).reshape(-1, C, H, W)
-                img = vae.decode_tiled(lat_flat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+            g = gpu_info(); tune()
+            lat = samples["samples"]
+
+            # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
+            if not lat.is_nested and not lat.is_contiguous():
+                lat = lat.contiguous()
+
+            if lat.dim() == 5:
+                B, C, F, H, W = lat.shape; is_vid = True
+            elif lat.dim() == 4:
+                B, C, H, W = lat.shape; F = 1; is_vid = False
             else:
-                # 真 3D VAE 但 decode_tiled 不认 5D，不能硬塞，退回全局解码
-                print("  ⚠️ 3D VAE lacks native tiling, falling back to global decode (watch VRAM!)")
+                raise ValueError(f"unsupported latent dim: {lat.dim()}")
+
+            if tile == 0: tile = g["tile"]
+            spatial_comp = _get_spatial_compression(vae)
+            tile_x = tile // spatial_comp
+            tile_y = tile // spatial_comp
+            if overlap == 0: overlap = max(32, tile // 8)
+            overlap_xy = overlap // spatial_comp
+            # 🛡️ 解码路径：overlap_xy 必须 < tile_x，防止 stride ≤ 0
+            overlap_xy = max(1, min(overlap_xy, tile_x - 1))
+
+            temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
+            if temporal_comp is not None and is_vid:
+                if t_tile == 0:
+                    if g["gb"] >= 48:   t_tile = 64
+                    elif g["gb"] >= 24: t_tile = 32
+                    elif g["gb"] >= 16: t_tile = 16
+                    else:               t_tile = 8
+                t_tile_vae = max(2, t_tile // temporal_comp)
+                if t_overlap == 0:
+                    t_overlap = max(4, t_tile // 16)
+                t_overlap_vae = max(1, min(t_tile_vae // 2, t_overlap // temporal_comp))
+            else:
+                t_tile_vae = None
+                t_overlap_vae = None
+
+            _do_cleanup("pre", cleanup)
+            try:
+                img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y,
+                                       overlap=overlap_xy,
+                                       tile_t=t_tile_vae, overlap_t=t_overlap_vae)
+            except TypeError:
+                print(f"  ⚠️ ROCm VAE Temporal: temporal kwargs unsupported.")
+                if is_vid and not hasattr(vae, 'temporal_compression_decode'):
+                    print("  ⚠️ flattening 5D to 4D for spatial tiled decode...")
+                    lat_flat = lat.movedim(2, 1).reshape(-1, C, H, W)
+                    img = vae.decode_tiled(lat_flat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+                else:
+                    print("  ⚠️ 3D VAE lacks native tiling, falling back to global decode (watch VRAM!)")
+                    img = vae.decode(lat)
+            except AttributeError:
+                print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
                 img = vae.decode(lat)
-        except AttributeError:
-            # 连 decode_tiled 都没有 → 最终 fallback
-            print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
-            img = vae.decode(lat)
-        finally:
-            _do_cleanup("post", cleanup)
-        if img.dim() == 5:
-            img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
-        return (img,)
+            finally:
+                _do_cleanup("post", cleanup)
+            if img.dim() == 5:
+                img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
+            return (img,)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            if t_tile <= 0:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return nodes.VAEDecodeTiled().decode(
+                samples=samples, vae=vae,
+                tile_size=tile if tile > 0 else 256,
+                overlap=overlap if overlap > 0 else 32,
+                temporal_size=t_tile, temporal_overlap=t_overlap)
 
 
 # ============================================================
@@ -730,43 +799,56 @@ class XB_ROCmSamplerCustom:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, model, add_noise, noise_seed, cfg, positive, negative, sampler, sigmas, latent_image, cleanup="不做任何清理"):
-        tune()
-        latent = latent_image
-        latent_image_data = latent["samples"]
-        latent = latent.copy()
-        latent_image_data = comfy.sample.fix_empty_latent_channels(model, latent_image_data, latent.get("downscale_ratio_spacial", None))
-        latent["samples"] = latent_image_data
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方自定义采样器 ──
+        if not is_rocm():
+            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+                                                 sampler, sigmas, latent_image)
 
-        if not add_noise:
-            noise = _Noise_EmptyNoise().generate_noise(latent)
-        else:
-            noise = _Noise_RandomNoise(noise_seed).generate_noise(latent)
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        try:
+            tune()
+            latent = latent_image
+            latent_image_data = latent["samples"]
+            latent = latent.copy()
+            latent_image_data = comfy.sample.fix_empty_latent_channels(model, latent_image_data, latent.get("downscale_ratio_spacial", None))
+            latent["samples"] = latent_image_data
 
-        noise_mask = None
-        if "noise_mask" in latent:
-            noise_mask = latent["noise_mask"]
+            if not add_noise:
+                noise = _Noise_EmptyNoise().generate_noise(latent)
+            else:
+                noise = _Noise_RandomNoise(noise_seed).generate_noise(latent)
 
-        x0_output = {}
-        callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
+            noise_mask = None
+            if "noise_mask" in latent:
+                noise_mask = latent["noise_mask"]
 
-        disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-        with _sdp_context():
-            samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+            x0_output = {}
+            callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
 
-        out = latent.copy()
-        out.pop("downscale_ratio_spacial", None)
-        out["samples"] = samples
-        if "x0" in x0_output:
-            x0_out = model.model.process_latent_out(x0_output["x0"].cpu())
-            if samples.is_nested:
-                latent_shapes = [x.shape for x in samples.unbind()]
-                x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
-            out_denoised = latent.copy()
-            out_denoised["samples"] = x0_out
-        else:
-            out_denoised = out
-        _do_cleanup("post", cleanup)
-        return (out, out_denoised)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            with _sdp_context():
+                samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+
+            out = latent.copy()
+            out.pop("downscale_ratio_spacial", None)
+            out["samples"] = samples
+            if "x0" in x0_output:
+                x0_out = model.model.process_latent_out(x0_output["x0"].cpu())
+                if samples.is_nested:
+                    latent_shapes = [x.shape for x in samples.unbind()]
+                    x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
+                out_denoised = latent.copy()
+                out_denoised["samples"] = x0_out
+            else:
+                out_denoised = out
+            _do_cleanup("post", cleanup)
+            return (out, out_denoised)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+                                                 sampler, sigmas, latent_image)
 
 
 # ============================================================
@@ -793,39 +875,50 @@ class XB_ROCmSamplerCustomAdvanced:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, noise, guider, sampler, sigmas, latent_image, cleanup="不做任何清理"):
-        tune()
-        latent = latent_image
-        latent_image_data = latent["samples"]
-        latent = latent.copy()
-        latent_image_data = comfy.sample.fix_empty_latent_channels(guider.model_patcher, latent_image_data, latent.get("downscale_ratio_spacial", None))
-        latent["samples"] = latent_image_data
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方自定义高级采样器 ──
+        if not is_rocm():
+            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
-        noise_mask = None
-        if "noise_mask" in latent:
-            noise_mask = latent["noise_mask"]
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        try:
+            tune()
+            latent = latent_image
+            latent_image_data = latent["samples"]
+            latent = latent.copy()
+            latent_image_data = comfy.sample.fix_empty_latent_channels(guider.model_patcher, latent_image_data, latent.get("downscale_ratio_spacial", None))
+            latent["samples"] = latent_image_data
 
-        x0_output = {}
-        callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
+            noise_mask = None
+            if "noise_mask" in latent:
+                noise_mask = latent["noise_mask"]
 
-        disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-        with _sdp_context():
-            samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
-        samples = samples.to(comfy.model_management.intermediate_device())
+            x0_output = {}
+            callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
 
-        out = latent.copy()
-        out.pop("downscale_ratio_spacial", None)
-        out["samples"] = samples
-        if "x0" in x0_output:
-            x0_out = guider.model_patcher.model.process_latent_out(x0_output["x0"].cpu())
-            if samples.is_nested:
-                latent_shapes = [x.shape for x in samples.unbind()]
-                x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
-            out_denoised = latent.copy()
-            out_denoised["samples"] = x0_out
-        else:
-            out_denoised = out
-        _do_cleanup("post", cleanup)
-        return (out, out_denoised)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            with _sdp_context():
+                samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
+            samples = samples.to(comfy.model_management.intermediate_device())
+
+            out = latent.copy()
+            out.pop("downscale_ratio_spacial", None)
+            out["samples"] = samples
+            if "x0" in x0_output:
+                x0_out = guider.model_patcher.model.process_latent_out(x0_output["x0"].cpu())
+                if samples.is_nested:
+                    latent_shapes = [x.shape for x in samples.unbind()]
+                    x0_out = comfy.nested_tensor.NestedTensor(comfy.utils.unpack_latents(x0_out, latent_shapes))
+                out_denoised = latent.copy()
+                out_denoised["samples"] = x0_out
+            else:
+                out_denoised = out
+            _do_cleanup("post", cleanup)
+            return (out, out_denoised)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            memclr(sync=True)
+            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
 
 __all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',

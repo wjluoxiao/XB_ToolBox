@@ -201,7 +201,24 @@ class XB_WanSampler:
         if denoise < 1.0: kw["denoise_strength"] = denoise
         if batched_cfg: kw["batched_cfg"] = batched_cfg
         kw.update(extra)
-        r = _wan_import("nodes_sampler").WanVideoSampler().process(**kw)
+
+        is_amd = torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip
+
+        try:
+            r = _wan_import("nodes_sampler").WanVideoSampler().process(**kw)
+        except Exception as e:
+            if is_amd:
+                print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+                print(f"[XB_ToolBox 错误信息] {e}")
+                torch.cuda.synchronize()
+                mm.soft_empty_cache()
+                torch.cuda.empty_cache()
+                gc.collect()
+                # 清理后重试一次（A卡环境可能因显存碎片导致首次失败）
+                r = _wan_import("nodes_sampler").WanVideoSampler().process(**kw)
+            else:
+                raise
+
         if cleanup == "单次缓存清理":
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
@@ -293,9 +310,27 @@ class XB_WanDecode:
     CATEGORY = "XB_ToolBox/Wan"
     def go(self, vae, samples, enable_vae_tiling, tile_x, tile_y,
            tile_stride_x, tile_stride_y, cleanup="单次缓存清理"):
-        r = _wan_import("nodes").WanVideoDecode().decode(
-            vae=vae, samples=samples, enable_vae_tiling=enable_vae_tiling,
-            tile_x=tile_x, tile_y=tile_y, tile_stride_x=tile_stride_x, tile_stride_y=tile_stride_y)
+        is_amd = torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip
+
+        try:
+            r = _wan_import("nodes").WanVideoDecode().decode(
+                vae=vae, samples=samples, enable_vae_tiling=enable_vae_tiling,
+                tile_x=tile_x, tile_y=tile_y, tile_stride_x=tile_stride_x, tile_stride_y=tile_stride_y)
+        except Exception as e:
+            if is_amd:
+                print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+                print(f"[XB_ToolBox 错误信息] {e}")
+                torch.cuda.synchronize()
+                mm.soft_empty_cache()
+                torch.cuda.empty_cache()
+                gc.collect()
+                # 清理后重试一次
+                r = _wan_import("nodes").WanVideoDecode().decode(
+                    vae=vae, samples=samples, enable_vae_tiling=enable_vae_tiling,
+                    tile_x=tile_x, tile_y=tile_y, tile_stride_x=tile_stride_x, tile_stride_y=tile_stride_y)
+            else:
+                raise
+
         if cleanup == "单次缓存清理":
             torch.cuda.synchronize()
             torch.cuda.empty_cache()

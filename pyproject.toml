@@ -3,7 +3,7 @@ name = "XB_ToolBox"
 description = "XB_ToolBox: An easy-to-use ComfyUI custom node suite that streamlines workflow generation. Featuring exclusive data-flow logic and pioneering experimental kernel optimizations dedicated to the native AMD GPU ecosystem."
 version = "0.6.26"
 license = { file = "LICENSE" }
-dependencies = []
+dependencies = ["opencv-python", "easyocr"]
 
 [project.urls]
 Repository = "https://github.com/wjluoxiao/XB_ToolBox"

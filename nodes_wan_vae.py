@@ -6,6 +6,7 @@ import node_helpers
 import comfy.clip_vision
 import math
 import numpy as np
+import nodes
 
 _SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
 _CROP_MODES = ["center", "disabled"]
@@ -1459,9 +1460,40 @@ class XB_WanVAEDecodeTiled:
     CATEGORY = "XB_ToolBox/Wan"
 
     def decode(self, samples, vae, tile_size, spatial_overlap, temporal_chunk, temporal_overlap):
-        if temporal_chunk <= 0:
-            return nodes.VAEDecode().decode(samples=samples, vae=vae)
-        return nodes.VAEDecodeTiled().decode(
-            samples=samples, vae=vae,
-            tile_size=tile_size, overlap=spatial_overlap,
-            temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方解码器 ──
+        if not (torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip):
+            if temporal_chunk <= 0:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return nodes.VAEDecodeTiled().decode(
+                samples=samples, vae=vae,
+                tile_size=tile_size, overlap=spatial_overlap,
+                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+
+        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        try:
+            # 🛡️ 显存连续性强制对齐 (专治 MIOpen HIP error: invalid argument)
+            lat = samples["samples"] if isinstance(samples, dict) else samples
+            is_nested_tensor = hasattr(lat, 'is_nested') and lat.is_nested
+            if not is_nested_tensor and not lat.is_contiguous():
+                if isinstance(samples, dict):
+                    samples["samples"] = lat.contiguous()
+                else:
+                    samples = lat.contiguous()
+
+            if temporal_chunk <= 0:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return nodes.VAEDecodeTiled().decode(
+                samples=samples, vae=vae,
+                tile_size=tile_size, overlap=spatial_overlap,
+                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            if temporal_chunk <= 0:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return nodes.VAEDecodeTiled().decode(
+                samples=samples, vae=vae,
+                tile_size=tile_size, overlap=spatial_overlap,
+                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)

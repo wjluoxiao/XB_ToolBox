@@ -59,5 +59,6 @@
   "No (Keep First Frame)": "否 (保留首帧)",
   "gentle": "单次缓存清理",
   "deep": "双次缓存清理",
-  "nuclear": "卸载显存模型"
+  "nuclear": "卸载显存模型",
+  "Comic": "漫画工具"
 }

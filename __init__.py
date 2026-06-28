@@ -77,6 +77,7 @@ try:
                               XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
     from .nodes_string_merge import XB_StringMerge
     from .nodes_msr import XB_MSR
+    from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -153,7 +154,10 @@ try:
         "XB_AudioSlicerV2": XB_AudioSlicerV2,
         "XB_AudioSlicerV3": XB_AudioSlicerV3,
         "XB_StringMerge": XB_StringMerge,
-        "XB_MSR": XB_MSR
+        "XB_MSR": XB_MSR,
+        "XB_ComicPromptParser": XB_ComicPromptParser,
+        "XB_ComicTextRenderer": XB_ComicTextRenderer,
+        "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -219,6 +223,9 @@ try:
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
         "XB_StringMerge": "XB-BOX - 📝 字符串合并",
         "XB_MSR": "XB-BOX - 🎞️ MSR 多图合成帧序列",
+        "XB_ComicPromptParser": "XB-BOX - 📝 漫画提示词智能解析",
+        "XB_ComicTextRenderer": "XB-BOX - 💬 漫画文字渲染 (精确坐标)",
+        "XB_AutoBubbleTextRenderer": "XB-BOX - 🤖 漫画文字渲染 (全自动带涂改液)",
     }
 
     print_success("\n" + "="*50)
