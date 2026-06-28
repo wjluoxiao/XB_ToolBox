@@ -120,7 +120,7 @@ class XB_UNetBlockSwap:
             if not all_blocks:
                 return
 
-            print(f"\033[96m[XB UNet Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块。")
+            print(f"\033[96m[XB UNet Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块，分割 {blocks_to_swap} 个分块。")
 
             for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing UNet pipeline"):
                 if b > blocks_to_swap:
@@ -200,7 +200,7 @@ class XB_CheckpointBlockSwap:
                         all_blocks.append(attr)
 
             if all_blocks:
-                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块。")
+                print(f"\033[96m[XB Checkpoint Block Swap]\033[0m: 静态物理分块交换已激活！已锁定 {len(all_blocks)} 个引擎模块，分割 {blocks_to_swap} 个分块。")
 
                 for b, block in tqdm(enumerate(all_blocks), total=len(all_blocks), desc="Slicing Checkpoint pipeline"):
                     if b > blocks_to_swap:
