@@ -5,7 +5,7 @@ import gc
 from PIL import Image, ImageOps
 import nodes
 import comfy.samplers
-import comfy.model_management
+import comfy.model_management as mm
 import folder_paths
 try:
     import torchaudio
@@ -32,15 +32,24 @@ def _get_vram_info():
 
 
 def _refresh_models(force=False):
-    """VRAM 感知缓存刷新：仅在显存紧张时清理，避免频繁清空分配池导致碎片化"""
+    """清空异构硬件加速器缓存但不卸载模型 (BlockSwap 分块模型卸载后重新加载会崩溃)。
+    支持 NVIDIA (CUDA)、AMD (ROCm/HIP)、Apple Silicon (MPS) 以及 CPU 回退。"""
     if not force:
         _, free, _ = _get_vram_info()
         if torch.cuda.is_available():
             total = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory
-            if free > total * 0.12:  # 空闲 > 12%，说明不紧张，跳过清理
+            if free > total * 0.12:
                 return
-    torch.cuda.synchronize()
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        mm.soft_empty_cache()
+        torch.cuda.empty_cache()
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        torch.mps.synchronize()
+        try:
+            torch.mps.empty_cache()
+        except AttributeError:
+            pass
     gc.collect()
 
 
