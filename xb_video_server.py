@@ -136,9 +136,14 @@ async def xb_view_video(request):
                 if not chunk:
                     break
                 await resp.write(chunk)
-            await proc.wait()
         except (ConnectionResetError, ConnectionError):
-            proc.kill()
+            pass
+        finally:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            await proc.wait()
     except BrokenPipeError:
         pass
     return resp
