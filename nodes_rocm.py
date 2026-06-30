@@ -1021,7 +1021,7 @@ class XB_ROCmLTXVAEDecode:
                 "spatial_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
                     "tooltip": "空间块重叠(latent像素)"}),
                 "temporal_tile_length": ("INT", {"default": 16, "min": 0, "max": 256,
-                    "tooltip": "时间分块长度(latent帧)，0=不分时间块"}),
+                    "tooltip": "时间分块长度(latent帧)，0=不分时间块，最小有效值为2"}),
                 "temporal_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
                     "tooltip": "时间块重叠(latent帧)"}),
                 "last_frame_fix": ("BOOLEAN", {"default": False,
@@ -1065,6 +1065,11 @@ class XB_ROCmLTXVAEDecode:
 
             # 🔧 解码前仅 empty_cache，绝不同步
             _predecode_cleanup(cleanup)
+
+            # 🛡️ 时间分块长度至少为 2，否则后续 chunk 丢帧后为空
+            if temporal_tile_length == 1:
+                temporal_tile_length = 2
+                print("  ⚠️ temporal_tile_length=1 无效，已自动修正为 2")
 
             if temporal_tile_length > 0 and temporal_tile_length < F:
                 # ── 时空分块路径 ──
