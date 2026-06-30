@@ -1481,11 +1481,18 @@ class XB_WanVAEDecodeTiled:
                     samples = lat.contiguous()
 
             if temporal_chunk <= 0:
+                # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+                if torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip:
+                    torch.cuda.synchronize()
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            result = nodes.VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip:
+                torch.cuda.synchronize()
+            return result
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")

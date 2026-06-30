@@ -206,6 +206,9 @@ class XB_WanSampler:
 
         try:
             r = _wan_import("nodes_sampler").WanVideoSampler().process(**kw)
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if is_amd:
+                torch.cuda.synchronize()
         except Exception as e:
             if is_amd:
                 print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
@@ -316,6 +319,9 @@ class XB_WanDecode:
             r = _wan_import("nodes").WanVideoDecode().decode(
                 vae=vae, samples=samples, enable_vae_tiling=enable_vae_tiling,
                 tile_x=tile_x, tile_y=tile_y, tile_stride_x=tile_stride_x, tile_stride_y=tile_stride_y)
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if is_amd:
+                torch.cuda.synchronize()
         except Exception as e:
             if is_amd:
                 print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")

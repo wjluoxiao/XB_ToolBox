@@ -488,7 +488,9 @@ class XB_ROCmKSampler:
                     callback=callback, disable_pbar=False
                 )
             print(f"✅ 采样完成", flush=True)
-            # 采样后仅 empty_cache（异步），绝不同步
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级（sync 仅在采样完成后执行，不增加延迟）
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -559,6 +561,9 @@ class XB_ROCmKSamplerAdvanced:
                     callback=callback, disable_pbar=False
                 )
             print(f"✅ 高级采样完成", flush=True)
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -735,6 +740,9 @@ class XB_ROCmVAEEncode:
                 print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
                 lat = vae.encode(pixels)
             # 🔧 v5.2: 编码后不做任何清理
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return ({"samples": lat},)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
@@ -856,7 +864,9 @@ class XB_ROCmVAEDecodeTemporal:
             if img.dim() == 5:
                 img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
 
-            # 🔧 v5.2: 解码后不做任何同步清理
+            # �️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return (img,)
 
         except Exception as e:
@@ -1412,6 +1422,9 @@ class XB_ROCmSamplerCustom:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
@@ -1493,6 +1506,9 @@ class XB_ROCmSamplerCustomAdvanced:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
