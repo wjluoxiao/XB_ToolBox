@@ -74,7 +74,8 @@ try:
     from .nodes_rocm import (XB_ROCmKSampler, XB_ROCmKSamplerAdvanced,
                               XB_ROCmSamplerCustom, XB_ROCmSamplerCustomAdvanced,
                               XB_ROCmVAEDecode, XB_ROCmVAEEncode,
-                              XB_ROCmVAEDecodeTemporal, XB_ROCmMemCleaner)
+                              XB_ROCmVAEDecodeTemporal, XB_ROCmLTXVAEDecode,
+                              XB_ROCmMemCleaner)
     from .nodes_string_merge import XB_StringMerge
     from .nodes_msr import XB_MSR
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
@@ -127,6 +128,7 @@ try:
         "XB_ROCmVAEDecode": XB_ROCmVAEDecode,
         "XB_ROCmVAEEncode": XB_ROCmVAEEncode,
         "XB_ROCmVAEDecodeTemporal": XB_ROCmVAEDecodeTemporal,
+        "XB_ROCmLTXVAEDecode": XB_ROCmLTXVAEDecode,
         "XB_ROCmMemCleaner": XB_ROCmMemCleaner,
         "XB_WanT5Loader": XB_WanT5Loader,
         "XB_WanCompileSettings": XB_WanCompileSettings,
@@ -192,6 +194,7 @@ try:
         "XB_ROCmVAEDecode": "XB-BOX - 🖼️ ROCm VAE 解码",
         "XB_ROCmVAEEncode": "XB-BOX - 📦 ROCm VAE 编码",
         "XB_ROCmVAEDecodeTemporal": "XB-BOX - 🎬 ROCm VAE 时空解码",
+        "XB_ROCmLTXVAEDecode": "XB-BOX - 🎬 ROCm LTX VAE 时空解码",
         "XB_ROCmMemCleaner": "XB-BOX - 🧹 ROCm 显存清理",
         "XB_WanT5Loader": "XB-BOX - 📝 Wan T5 加载器(FP8)",
         "XB_WanCompileSettings": "XB-BOX - ⚡ Wan 编译设置",

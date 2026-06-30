@@ -32,8 +32,7 @@ def _get_vram_info():
 
 
 def _refresh_models(force=False):
-    """清空异构硬件加速器缓存但不卸载模型 (BlockSwap 分块模型卸载后重新加载会崩溃)。
-    支持 NVIDIA (CUDA)、AMD (ROCm/HIP)、Apple Silicon (MPS) 以及 CPU 回退。"""
+    """VRAM 感知缓存刷新：仅在显存紧张时清理，避免频繁清空分配池导致碎片化"""
     if not force:
         _, free, _ = _get_vram_info()
         if torch.cuda.is_available():
@@ -42,14 +41,10 @@ def _refresh_models(force=False):
                 return
     if torch.cuda.is_available():
         torch.cuda.synchronize()
-        mm.soft_empty_cache()
         torch.cuda.empty_cache()
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    elif torch.backends.mps.is_available():
         torch.mps.synchronize()
-        try:
-            torch.mps.empty_cache()
-        except AttributeError:
-            pass
+        torch.mps.empty_cache()
     gc.collect()
 
 

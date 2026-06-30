@@ -1295,6 +1295,12 @@
       "overlap": {
         "name": "分块重叠(0=自动)"
       },
+      "temporal_size": {
+        "name": "时间分块帧数(0=自动)"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠(0=自动)"
+      },
       "cleanup": {
         "name": "编码后清理"
       }
@@ -1325,6 +1331,40 @@
       },
       "t_overlap": {
         "name": "时间重叠(0=自动)"
+      },
+      "cleanup": {
+        "name": "清理力度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
+      }
+    }
+  },
+  "XB_ROCmLTXVAEDecode": {
+    "display_name": "XB-BOX - 🎬 ROCm LTX VAE 时空解码",
+    "inputs": {
+      "samples": {
+        "name": "潜变量"
+      },
+      "vae": {
+        "name": "LTX VAE模型"
+      },
+      "spatial_tiles": {
+        "name": "空间分块数(1=不分块)"
+      },
+      "spatial_overlap": {
+        "name": "空间重叠(latent像素)"
+      },
+      "temporal_tile_length": {
+        "name": "时间分块长度(latent帧)"
+      },
+      "temporal_overlap": {
+        "name": "时间重叠(latent帧)"
+      },
+      "last_frame_fix": {
+        "name": "末帧修复"
       },
       "cleanup": {
         "name": "清理力度"

@@ -10,6 +10,7 @@ XB-ToolBox ROCm 优化节点 (v5.0)
   XB_ROCmVAEDecode             — 空间分块解码器（架构自适应 tile）
   XB_ROCmVAEEncode             — 空间分块编码器（架构自适应 tile）
   XB_ROCmVAEDecodeTemporal     — 空间+时间分块解码器（视频专用）
+  XB_ROCmLTXVAEDecode          — LTX VAE 时空分块解码器（128ch/32x压缩专用）
   XB_ROCmMemCleaner            — 显存清理+诊断报告
 
 核心机制:
@@ -265,6 +266,60 @@ def _banner(title, g):
     print(f"\n{'='*50}\n  {title}\n  GPU: {g['name']} | {g['gen']} | {g['gb']:.1f}GB\n{'='*50}")
 
 
+def _vae_tune_light():
+    """VAE 专用轻量调优 — 仅设置 fp16 累积，不污染全局 matmul 精度。
+
+    与 tune() 的区别：
+      - 不调用 torch.set_float32_matmul_precision('high')  ← 这是关键！
+        该调用会让 PyTorch 尝试 TF32 tensor core，AMD GPU 没有 TF32，
+        回退到慢速路径，导致 VAE 内部所有卷积/矩阵乘变慢。
+      - 仅设置 allow_fp16_accumulation，对 VAE 解码路径安全。
+    """
+    if not is_rocm():
+        return
+    if _has_comfy_arg("--cpu"):
+        return
+    g = gpu_info()
+    # ── 仅做 fp16 累积，不碰 float32 matmul 精度 ──
+    if _has_comfy_arg("--force-fp32") or _has_comfy_arg("--fp32-unet") or _has_comfy_arg("--fp64-unet"):
+        can_fp16 = False
+    elif _has_comfy_arg("--force-fp16") or _has_comfy_arg("--fp16-unet"):
+        can_fp16 = g.get("fp16_ok", False)
+    elif (user_fp16 := _read_env_flag("XB_FP16_ACCUM")) is not None:
+        can_fp16 = user_fp16
+    else:
+        can_fp16 = g.get("fp16_ok", False)
+    torch.backends.cuda.matmul.allow_fp16_accumulation = can_fp16
+
+
+def _predecode_cleanup(level: str):
+    """解码前轻量清理 — 仅 empty_cache，绝不同步。
+
+    设计原则：
+      - 解码前只需要释放 PyTorch 缓存池中未使用的显存块，
+        让 VAE 有足够空间分配 tile 缓冲区。
+      - empty_cache() 是异步的，不阻塞 GPU 流水线。
+      - 绝不调用 synchronize() —— 这是 3 分钟卡顿的元凶。
+      - 绝不调用 gc.collect() —— Python GC 对 GPU 显存无帮助，
+        反而可能触发 CUDA IPC 清理的隐式同步。
+    """
+    if level == "不做任何清理":
+        return
+    if not torch.cuda.is_available():
+        return
+    if level == "单次缓存清理":
+        torch.cuda.empty_cache()
+    elif level == "双次缓存清理":
+        torch.cuda.empty_cache()
+        mm.soft_empty_cache()
+        torch.cuda.empty_cache()
+    elif level == "卸载显存模型":
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+        torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
+
+
 def _do_cleanup(stage: str, level: str):
     """执行分级清理。pre=操作前不同步, post=操作后先sync再清"""
     if level == "不做任何清理":
@@ -331,13 +386,68 @@ class _Noise_RandomNoise:
         return comfy.sample.prepare_noise(latent_image, self.seed, batch_inds)
 
 
+def _is_video_latent(latent_dict: dict) -> bool:
+    """检测是否为视频 latent（5D 张量，时间维度 > 1）"""
+    samples = latent_dict.get("samples")
+    if samples is None:
+        return False
+    return samples.ndim == 5 and samples.shape[2] > 1
+
+
+def _make_ksampler_callback(steps: int, is_video: bool = False):
+    """创建增强进度回调：ETA 预估 + 每步耗时 + 视频模式自动跳过预览。
+
+    视频工作流中解码预览图开销极大（需跑 VAE），因此自动跳过。
+    """
+    pbar = comfy.utils.ProgressBar(steps)
+    last_update = [time.time()]
+    start_time = time.time()
+
+    def callback(step, x0, x, total_steps):
+        now = time.time()
+        if now - last_update[0] < 0.5 and step < total_steps - 1:
+            return
+
+        preview_bytes = None
+        if not is_video and step % 5 == 0:
+            try:
+                previewer = latent_preview.get_previewer(
+                    mm.get_torch_device(),
+                    latent_preview.TAESDLatentPreviewer().latent_format
+                )
+                if previewer:
+                    preview_bytes = previewer.decode_latent_to_preview_image("JPEG", x0)
+            except Exception:
+                pass
+
+        try:
+            pbar.update_absolute(step + 1, total_steps, preview=preview_bytes)
+        except Exception:
+            pass
+
+        last_update[0] = now
+        elapsed = now - start_time
+        if step > 0:
+            avg_per_step = elapsed / (step + 1)
+            eta = (total_steps - step - 1) * avg_per_step
+            prefix = "🎬" if is_video else "🖼️"
+            print(f"{prefix} Step {step+1}/{total_steps} | 已用 {elapsed:.1f}s | 剩余 ~{eta:.1f}s | 均速 {avg_per_step:.2f}s/步", flush=True)
+
+    return callback
+
+
 # ============================================================
 # XB_ROCmKSampler — ROCm 优化采样器
 # ============================================================
 class XB_ROCmKSampler:
     """
-    ROCm 优化采样器 — rocBLAS fp16累积 + mem_efficient SDPA
+    ROCm 优化采样器 (v5.2) — rocBLAS fp16累积 + mem_efficient SDPA + 增强进度
     配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）。
+
+    v5.2 增强：
+      - 增强进度回调：ETA 预估 + 每步耗时
+      - 视频 latent 自动跳过预览（节省 VAE 解码开销）
+      - 采样后轻量清理，绝不同步等待
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -360,7 +470,7 @@ class XB_ROCmKSampler:
 
     def go(self, model, seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, denoise, cleanup="不做任何清理"):
-        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方采样器 ──
+        # ── 轨道 A：非 AMD 环境 → 直接使用官方采样器 ──
         if not is_rocm():
             return nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
                                             positive, negative, latent, denoise)
@@ -368,15 +478,25 @@ class XB_ROCmKSampler:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
+            is_video = _is_video_latent(latent)
+            callback = _make_ksampler_callback(steps, is_video)
+            print(f"🚀 开始采样: {steps}步, CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
-                out, = nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
-                                                positive, negative, latent, denoise)
-            _do_cleanup("post", cleanup)
+                out, = nodes.KSampler().sample(
+                    model, seed, steps, cfg, sampler, scheduler,
+                    positive, negative, latent, denoise,
+                    callback=callback, disable_pbar=False
+                )
+            print(f"✅ 采样完成", flush=True)
+            # 采样后仅 empty_cache（异步），绝不同步
+            if cleanup != "不做任何清理" and torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return (out,)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.KSampler().sample(model, seed, steps, cfg, sampler, scheduler,
                                             positive, negative, latent, denoise)
 
@@ -386,8 +506,13 @@ class XB_ROCmKSampler:
 # ============================================================
 class XB_ROCmKSamplerAdvanced:
     """
-    ROCm 优化高级采样器 — 支持分段采样 (start/end step)、加噪控制、残留噪声返回
+    ROCm 优化高级采样器 (v5.2) — 支持分段采样、加噪控制、残留噪声返回 + 增强进度
     配合 XB_SageAttentionAccelerator 使用（先 SageAttn 注入，再接此采样器）。
+
+    v5.2 增强：
+      - 增强进度回调：ETA 预估 + 每步耗时
+      - 视频 latent 自动跳过预览
+      - 采样后轻量清理，绝不同步等待
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -413,7 +538,7 @@ class XB_ROCmKSamplerAdvanced:
 
     def go(self, model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
            positive, negative, latent, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0, cleanup="不做任何清理"):
-        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方高级采样器 ──
+        # ── 轨道 A：非 AMD 环境 → 直接使用官方高级采样器 ──
         if not is_rocm():
             return nodes.KSamplerAdvanced().sample(
                 model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
@@ -423,17 +548,25 @@ class XB_ROCmKSamplerAdvanced:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
+            is_video = _is_video_latent(latent)
+            callback = _make_ksampler_callback(steps, is_video)
+            print(f"🚀 开始高级采样: {steps}步 (区间 {start_at_step}-{end_at_step}), CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
                 out, = nodes.KSamplerAdvanced().sample(
                     model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
                     positive, negative, latent, start_at_step, end_at_step,
-                    return_with_leftover_noise, denoise=denoise)
-            _do_cleanup("post", cleanup)
+                    return_with_leftover_noise, denoise=denoise,
+                    callback=callback, disable_pbar=False
+                )
+            print(f"✅ 高级采样完成", flush=True)
+            if cleanup != "不做任何清理" and torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return (out,)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.KSamplerAdvanced().sample(
                 model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
                 positive, negative, latent, start_at_step, end_at_step,
@@ -445,9 +578,15 @@ class XB_ROCmKSamplerAdvanced:
 # ============================================================
 class XB_ROCmVAEDecode:
     """
-    ROCm VAE 解码器 — 架构自适应空间分块
+    ROCm VAE 解码器 — 架构自适应空间分块 (v5.2 修复版)
     tile=0 → 自动根据GPU架构选最优值 (RX9070XT→768, RX7900→640, ...)
     tile>0 → 使用手动指定的分块大小
+
+    v5.2 修复：
+      - 移除 tune() 全局 matmul 精度污染 → 改为 _vae_tune_light()
+      - 解码后不再同步等待 → 消除 10-60s 白等
+      - 解码前仅 empty_cache()，不 sync 不 gc → 保持流水线并发
+      - 清理默认值改为 "不做任何清理" → 用户需要时手动选择
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -458,7 +597,7 @@ class XB_ROCmVAEDecode:
                              "tooltip": "0=根据GPU架构自动选择 手动可覆盖"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动(tile/8)"}),
-            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "go"
@@ -471,7 +610,7 @@ class XB_ROCmVAEDecode:
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
-            g = gpu_info(); tune()
+            g = gpu_info(); _vae_tune_light()
             lat = samples["samples"]
 
             # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
@@ -498,7 +637,8 @@ class XB_ROCmVAEDecode:
             lat_h, lat_w = lat.shape[-2], lat.shape[-1]
             use_fast = (tile_x >= lat_h and tile_y >= lat_w)
 
-            _do_cleanup("pre", cleanup)
+            # 🔧 v5.2: 解码前仅 empty_cache，绝不同步等待
+            _predecode_cleanup(cleanup)
             try:
                 if use_fast:
                     img = vae.decode(lat)
@@ -507,15 +647,18 @@ class XB_ROCmVAEDecode:
             except AttributeError:
                 print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
                 img = vae.decode(lat)
-            finally:
-                _do_cleanup("post", cleanup)
+            # 🔧 v5.2: 解码后不做任何清理，让 Python 引用计数自然回收
+            if isinstance(img, tuple):
+                img = img[0]
             if img.dim() == 5:
                 img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
             return (img,)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            # 🔧 v5.2: 异常恢复也不 sync，直接清理缓存
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.VAEDecode().decode(samples=samples, vae=vae)
 
 
@@ -524,7 +667,7 @@ class XB_ROCmVAEDecode:
 # ============================================================
 class XB_ROCmVAEEncode:
     """
-    ROCm VAE 编码器 — 架构自适应空间分块
+    ROCm VAE 编码器 — 架构自适应空间分块 (v5.2 修复版)
     tile=0 → 自动, tile>0 → 手动
     """
     @classmethod
@@ -553,7 +696,7 @@ class XB_ROCmVAEEncode:
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
-            g = gpu_info(); tune()
+            g = gpu_info(); _vae_tune_light()
 
             # 🛡️ 强制显存连续性校验
             if not pixels.is_contiguous():
@@ -580,7 +723,8 @@ class XB_ROCmVAEEncode:
                 t_tile = None
                 t_overlap = None
 
-            _do_cleanup("pre", cleanup)
+            # 🔧 v5.2: 编码前仅 empty_cache，绝不同步
+            _predecode_cleanup(cleanup)
             try:
                 lat = vae.encode_tiled(pixels, tile_x=tile, tile_y=tile, overlap=overlap,
                                        tile_t=t_tile, overlap_t=t_overlap)
@@ -590,13 +734,13 @@ class XB_ROCmVAEEncode:
             except AttributeError:
                 print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
                 lat = vae.encode(pixels)
-            finally:
-                _do_cleanup("post", cleanup)
+            # 🔧 v5.2: 编码后不做任何清理
             return ({"samples": lat},)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.VAEEncode().encode(pixels=pixels, vae=vae)
 
 
@@ -605,9 +749,17 @@ class XB_ROCmVAEEncode:
 # ============================================================
 class XB_ROCmVAEDecodeTemporal:
     """
-    ROCm VAE 解码器 (空间+时间分块) — 视频模型专用
+    ROCm VAE 解码器 (空间+时间分块) — 视频模型专用 (v5.2 重写)
     适用于 Wan/LTX 等视频 VAE latent。
     所有参数=0 时全自动: 空间tile→架构自适应, 时间chunk→显存自适应
+
+    v5.2 重写：
+      - 手动时间轴切片 + 线性混合 (_temporal_tiled_decode)
+      - 彻底废弃全局解码回退（大显存机器全局解码会触发慢速内存交换）
+      - 移除 tune() 全局 matmul 精度影响 → _vae_tune_light()
+      - 解码后不做任何同步清理
+      - 重叠区域线性淡入淡出混合，消除分块接缝
+      - 每个 chunk 解码后轻量 empty_cache，防止碎片累积
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -619,10 +771,10 @@ class XB_ROCmVAEDecodeTemporal:
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "空间重叠 0=自动(tile/8, 最小32)"}),
             "t_tile": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 16,
-                               "tooltip": "时间分块帧数 0=根据显存自适应"}),
-            "t_overlap": ("INT", {"default": 0, "min": 0, "max": 64, "step": 4,
-                                  "tooltip": "时间重叠 0=自动(t_tile/16, 最小4)"}),
-            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "单次缓存清理"}),
+                               "tooltip": "时间分块(Latent帧) 0=根据显存自适应"}),
+            "t_overlap": ("INT", {"default": 0, "min": 0, "max": 32, "step": 2,
+                                  "tooltip": "时间重叠(Latent帧) 0=自动(t_tile/8)"}),
+            "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "go"
@@ -639,9 +791,9 @@ class XB_ROCmVAEDecodeTemporal:
                 overlap=overlap if overlap > 0 else 32,
                 temporal_size=t_tile, temporal_overlap=t_overlap)
 
-        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
+        # ── 轨道 B：AMD ROCm 环境 → 手动时间轴切片 + 线性混合 ──
         try:
-            g = gpu_info(); tune()
+            g = gpu_info(); _vae_tune_light()
             lat = samples["samples"]
 
             # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
@@ -655,56 +807,63 @@ class XB_ROCmVAEDecodeTemporal:
             else:
                 raise ValueError(f"unsupported latent dim: {lat.dim()}")
 
+            # ── 空间分块参数 ──
             if tile == 0: tile = g["tile"]
             spatial_comp = _get_spatial_compression(vae)
             tile_x = tile // spatial_comp
             tile_y = tile // spatial_comp
             if overlap == 0: overlap = max(32, tile // 8)
             overlap_xy = overlap // spatial_comp
-            # 🛡️ 解码路径：overlap_xy 必须 < tile_x，防止 stride ≤ 0
             overlap_xy = max(1, min(overlap_xy, tile_x - 1))
 
-            temporal_comp = vae.temporal_compression_decode() if hasattr(vae, 'temporal_compression_decode') else None
-            if temporal_comp is not None and is_vid:
-                if t_tile == 0:
-                    if g["gb"] >= 48:   t_tile = 64
-                    elif g["gb"] >= 24: t_tile = 32
-                    elif g["gb"] >= 16: t_tile = 16
-                    else:               t_tile = 8
-                t_tile_vae = max(2, t_tile // temporal_comp)
-                if t_overlap == 0:
-                    t_overlap = max(4, t_tile // 16)
-                t_overlap_vae = max(1, min(t_tile_vae // 2, t_overlap // temporal_comp))
-            else:
-                t_tile_vae = None
-                t_overlap_vae = None
+            # ── 时间压缩比 ──
+            temporal_comp = None
+            if hasattr(vae, 'temporal_compression_decode'):
+                temporal_comp = vae.temporal_compression_decode()
 
-            _do_cleanup("pre", cleanup)
-            try:
-                img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y,
-                                       overlap=overlap_xy,
-                                       tile_t=t_tile_vae, overlap_t=t_overlap_vae)
-            except TypeError:
-                print(f"  ⚠️ ROCm VAE Temporal: temporal kwargs unsupported.")
-                if is_vid and not hasattr(vae, 'temporal_compression_decode'):
-                    print("  ⚠️ flattening 5D to 4D for spatial tiled decode...")
+            # 🔧 v5.2: 解码前仅 empty_cache，绝不同步
+            _predecode_cleanup(cleanup)
+
+            if is_vid and temporal_comp is not None and t_tile > 0 and t_tile < F:
+                # ── 手动时间轴切片路径 (视频 + 时间压缩 + 需要分块) ──
+                img = self._temporal_tiled_decode(
+                    vae, lat, B, C, F, H, W,
+                    tile_x, tile_y, overlap_xy,
+                    t_tile, t_overlap, temporal_comp
+                )
+            elif is_vid:
+                # ── 视频但不需要时间分块 → 空间分块解码 ──
+                try:
+                    img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+                except (AttributeError, TypeError):
+                    # 回退：展平 5D→4D 做空间分块（绝不全局解码！）
+                    print("  ⚠️ decode_tiled unavailable, flattening 5D→4D for spatial tiled decode")
                     lat_flat = lat.movedim(2, 1).reshape(-1, C, H, W)
                     img = vae.decode_tiled(lat_flat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
-                else:
-                    print("  ⚠️ 3D VAE lacks native tiling, falling back to global decode (watch VRAM!)")
+            else:
+                # ── 单帧图片 → 直接空间分块或全图解码 ──
+                use_fast = (tile_x >= H and tile_y >= W)
+                if use_fast:
                     img = vae.decode(lat)
-            except AttributeError:
-                print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
-                img = vae.decode(lat)
-            finally:
-                _do_cleanup("post", cleanup)
+                else:
+                    try:
+                        img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+                    except (AttributeError, TypeError):
+                        img = vae.decode(lat)
+
+            if isinstance(img, tuple):
+                img = img[0]
             if img.dim() == 5:
                 img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
+
+            # 🔧 v5.2: 解码后不做任何同步清理
             return (img,)
+
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             if t_tile <= 0:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
             return nodes.VAEDecodeTiled().decode(
@@ -712,6 +871,398 @@ class XB_ROCmVAEDecodeTemporal:
                 tile_size=tile if tile > 0 else 256,
                 overlap=overlap if overlap > 0 else 32,
                 temporal_size=t_tile, temporal_overlap=t_overlap)
+
+    # ═══════════════════════════════════════════════════════════════
+    # 手动时间轴切片解码（核心加速引擎）
+    # ═══════════════════════════════════════════════════════════════
+    def _temporal_tiled_decode(self, vae, lat, B, C, F, H, W,
+                                tile_x, tile_y, overlap_xy,
+                                t_tile, t_overlap, temporal_comp):
+        """手动时间轴切片 + 线性混合，避免全局解码导致的内存溢出。
+
+        算法：
+          1. 将 latent 按时间轴切成有重叠的 chunk
+          2. 每个 chunk 用 vae.decode() 解码（内部自动做空间分块）
+          3. 丢掉每个后续 chunk 的第 1 个输出帧（时间上下文不完整）
+          4. 对重叠区域做线性淡入淡出混合
+          5. 用 torch.cat 分配新内存拼接（避免张量原地切片写入问题）
+        """
+        device = lat.device
+        dtype = lat.dtype
+
+        # ── 确定 chunk 边界 (latent 帧坐标) ──
+        if t_overlap == 0:
+            t_overlap = max(2, t_tile // 8)
+        t_overlap = max(1, min(t_overlap, t_tile // 2))
+
+        chunks = []
+        chunk_start = 0
+        while chunk_start < F:
+            if chunk_start == 0:
+                chunk_end = min(chunk_start + t_tile, F)
+            else:
+                # 前移 overlap 帧作为上下文，+1 给因果卷积额外一帧
+                overlap_start = max(1, chunk_start - t_overlap - 1)
+                extra = chunk_start - overlap_start
+                chunk_end = min(chunk_start + t_tile - extra, F)
+            if chunk_end <= chunk_start:
+                break
+            chunks.append((chunk_start, chunk_end))
+            chunk_start = chunk_end
+
+        num_chunks = len(chunks)
+        if num_chunks <= 1:
+            # 不需要分块，直接解码
+            result = vae.decode(lat)
+            if isinstance(result, tuple):
+                result = result[0]
+            result = result.squeeze(0)  # [T_out, H, W, C]
+            return result
+
+        print(f"  🧩 Temporal tiling: {num_chunks} chunks, {F} latent frames → ~{F * temporal_comp} output frames")
+
+        # ── 逐 chunk 解码 + 混合拼接 ──
+        result = None
+        first_chunk_done = False
+
+        for chunk_idx, (c_start, c_end) in enumerate(chunks):
+            # 允许 ComfyUI 中断
+            mm.throw_exception_if_processing_interrupted()
+
+            chunk_frames = c_end - c_start
+            chunk_latent = lat[:, :, c_start:c_end, :, :]
+
+            # 空间分块解码这个时间 chunk
+            with torch.no_grad():
+                if tile_x >= H and tile_y >= W:
+                    decoded = vae.decode(chunk_latent)
+                else:
+                    try:
+                        decoded = vae.decode_tiled(chunk_latent,
+                                                   tile_x=tile_x, tile_y=tile_y,
+                                                   overlap=overlap_xy)
+                    except (AttributeError, TypeError):
+                        decoded = vae.decode(chunk_latent)
+
+            if isinstance(decoded, tuple):
+                decoded = decoded[0]
+            # vae.decode 返回 [B, T_out, H, W, C]，B=1
+            decoded = decoded.squeeze(0)  # [T_out, H, W, C]
+
+            if not first_chunk_done:
+                result = decoded
+                first_chunk_done = True
+                out_T = decoded.shape[0]
+                if chunk_idx < 3:
+                    print(f"  Chunk 0: latent [{c_start}:{c_end}] ({chunk_frames}f) → {out_T} output frames")
+            else:
+                out_T = decoded.shape[0]
+
+                # 丢掉第 1 个输出帧（时间上下文不完整，可能有人工痕迹）
+                decoded = decoded[1:]  # [out_T-1, H, W, C]
+
+                # 计算混合帧数
+                blend_frames = min(t_overlap * temporal_comp, decoded.shape[0], result.shape[0])
+                if blend_frames > 0:
+                    prev_tail = result[-blend_frames:]
+                    curr_head = decoded[:blend_frames]
+                    # 线性权重：prev 1→0, curr 0→1
+                    w = torch.linspace(0, 1, blend_frames, device=device, dtype=decoded.dtype)
+                    w = w.view(-1, 1, 1, 1)
+                    blended = prev_tail * (1.0 - w) + curr_head * w
+                    # torch.cat 分配新内存拼接，避免张量原地切片写入问题
+                    result = torch.cat(
+                        [result[:-blend_frames], blended, decoded[blend_frames:]],
+                        dim=0
+                    )
+                else:
+                    result = torch.cat([result, decoded], dim=0)
+
+                if chunk_idx < 3:
+                    print(f"  Chunk {chunk_idx}: latent [{c_start}:{c_end}] ({chunk_frames}f) → "
+                          f"{out_T} output, dropped 1, blended {blend_frames}")
+
+            # 每个 chunk 后轻量清理，防止显存碎片累积（异步，不 sync）
+            if torch.cuda.is_available() and chunk_idx % 2 == 0:
+                torch.cuda.empty_cache()
+
+        print(f"  ✅ Temporal tiling complete: {result.shape[0]} total output frames")
+        return result
+
+
+# ============================================================
+# XB_ROCmLTXVAEDecode — ROCm LTX VAE 时空分块解码器
+# ============================================================
+class XB_ROCmLTXVAEDecode:
+    """
+    ROCm LTX VAE 时空分块解码器 (v5.2 全新) — 专为 LTX Video VAE 设计
+
+    LTX VAE 特性:
+      - 128 通道 latent，32× 空间压缩，8× 时间压缩
+      - 使用 vae.downscale_index_formula 获取缩放因子
+      - 空间分块：网格切分 + 权重累积 + 重叠羽化混合
+      - 时间分块：逐 chunk 解码 + 线性时间混合
+
+    v5.2 设计:
+      - 空间分块采用预分配输出张量 + 权重累积归一化
+      - 时间分块手动切片 + 线性混合
+      - ROCm 优化：异步 empty_cache，绝不同步
+      - 解码前轻量清理，解码后不做任何清理
+    """
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "samples": ("LATENT",),
+                "vae": ("VAE",),
+                "spatial_tiles": ("INT", {"default": 4, "min": 1, "max": 8,
+                    "tooltip": "空间分块数(宽高相同)，1=不分块"}),
+                "spatial_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
+                    "tooltip": "空间块重叠(latent像素)"}),
+                "temporal_tile_length": ("INT", {"default": 16, "min": 0, "max": 256,
+                    "tooltip": "时间分块长度(latent帧)，0=不分时间块"}),
+                "temporal_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
+                    "tooltip": "时间块重叠(latent帧)"}),
+                "last_frame_fix": ("BOOLEAN", {"default": False,
+                    "tooltip": "重复最后一帧后解码再丢弃多余帧，修复尾部伪影"}),
+                "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"],
+                            {"default": "不做任何清理"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "go"
+    CATEGORY = "XB_ToolBox/ROCm"
+
+    def go(self, samples, vae, spatial_tiles, spatial_overlap,
+           temporal_tile_length, temporal_overlap, last_frame_fix, cleanup):
+        # ── 轨道 A：非 AMD 环境 → 直接使用官方解码 ──
+        if not is_rocm():
+            return nodes.VAEDecode().decode(samples=samples, vae=vae)
+
+        # ── 轨道 B：AMD ROCm 环境 → 手动时空分块 ──
+        try:
+            _vae_tune_light()
+            lat = samples["samples"]
+
+            # 🛡️ 强制显存连续性
+            if not lat.is_nested and not lat.is_contiguous():
+                lat = lat.contiguous()
+
+            B, C, F, H, W = lat.shape
+            time_scale, width_scale, height_scale = vae.downscale_index_formula
+            out_frames = 1 + (F - 1) * time_scale
+            out_H = H * height_scale
+            out_W = W * width_scale
+
+            # last_frame_fix：复制最后一帧到末尾以修复尾部伪影
+            if last_frame_fix:
+                lat = torch.cat([lat, lat[:, :, -1:, :, :]], dim=2)
+                F = lat.shape[2]
+                out_frames = 1 + (F - 1) * time_scale
+
+            # 🔧 解码前仅 empty_cache，绝不同步
+            _predecode_cleanup(cleanup)
+
+            if temporal_tile_length > 0 and temporal_tile_length < F:
+                # ── 时空分块路径 ──
+                img = self._decode_spatiotemporal(
+                    vae, lat, B, C, F, H, W, out_frames, out_H, out_W,
+                    spatial_tiles, spatial_overlap,
+                    temporal_tile_length, temporal_overlap,
+                    time_scale, width_scale, height_scale
+                )
+            else:
+                # ── 仅空间分块路径 ──
+                img = self._decode_spatial(
+                    vae, lat, B, out_frames, out_H, out_W,
+                    spatial_tiles, spatial_overlap,
+                    width_scale, height_scale
+                )
+
+            # 去掉 last_frame_fix 产生的多余帧
+            if last_frame_fix:
+                img = img[:-time_scale]
+
+            # reshape 为 ComfyUI 标准格式 [B*F, H, W, C]
+            img = img.view(-1, out_H, out_W, img.shape[-1])
+
+            # 🔧 解码后不做任何同步清理
+            return (img,)
+
+        except Exception as e:
+            print(f"\n[XB_ToolBox 警告] LTX VAE 优化节点异常，回退到官方解码器！")
+            print(f"[XB_ToolBox 错误信息] {e}")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            return nodes.VAEDecode().decode(samples=samples, vae=vae)
+
+    # ═══════════════════════════════════════════════════════════════
+    # 仅空间分块 (LTX 原算法：网格切分 + 权重累积)
+    # ═══════════════════════════════════════════════════════════════
+    def _decode_spatial(self, vae, lat, B, out_frames, out_H, out_W,
+                        spatial_tiles, spatial_overlap,
+                        width_scale, height_scale):
+        """空间分块解码：网格切分 + 权重累积归一化。
+
+        每个空间 tile 独立调用 vae.decode() 解码完整时间序列，
+        重叠区域使用线性羽化权重，累加后归一化消除接缝。
+        """
+        _, C, F, H, W = lat.shape
+
+        # 预分配输出张量和权重张量
+        output = torch.zeros(
+            (B, out_frames, out_H, out_W, 3),
+            device=lat.device, dtype=torch.float32
+        )
+        weights = torch.zeros(
+            (B, out_frames, out_H, out_W, 1),
+            device=lat.device, dtype=torch.float32
+        )
+
+        # 计算基础 tile 尺寸 (含重叠)
+        base_tile_H = (H + (spatial_tiles - 1) * spatial_overlap) // spatial_tiles
+        base_tile_W = (W + (spatial_tiles - 1) * spatial_overlap) // spatial_tiles
+
+        for v in range(spatial_tiles):
+            for h in range(spatial_tiles):
+                # 计算 latent 空间中的 tile 边界
+                h_start = h * (base_tile_W - spatial_overlap)
+                v_start = v * (base_tile_H - spatial_overlap)
+                h_end = min(h_start + base_tile_W, W) if h < spatial_tiles - 1 else W
+                v_end = min(v_start + base_tile_H, H) if v < spatial_tiles - 1 else H
+
+                # 提取 tile → 解码
+                tile_lat = lat[:, :, :, v_start:v_end, h_start:h_end]
+                with torch.no_grad():
+                    decoded = vae.decode(tile_lat)
+
+                # 计算输出空间中的 tile 边界
+                out_h_start = v_start * height_scale
+                out_h_end = v_end * height_scale
+                out_w_start = h_start * width_scale
+                out_w_end = h_end * width_scale
+
+                # 构建羽化权重 (重叠区域线性渐变)
+                tile_out_H = out_h_end - out_h_start
+                tile_out_W = out_w_end - out_w_start
+                tile_weights = torch.ones(
+                    (B, out_frames, tile_out_H, tile_out_W, 1),
+                    device=decoded.device, dtype=decoded.dtype
+                )
+
+                overlap_out_H = spatial_overlap * height_scale
+                overlap_out_W = spatial_overlap * width_scale
+
+                # 水平羽化
+                if h > 0:
+                    w_blend = torch.linspace(0, 1, overlap_out_W, device=decoded.device)
+                    tile_weights[:, :, :, :overlap_out_W, :] *= w_blend.view(1, 1, 1, -1, 1)
+                if h < spatial_tiles - 1:
+                    w_blend = torch.linspace(1, 0, overlap_out_W, device=decoded.device)
+                    tile_weights[:, :, :, -overlap_out_W:, :] *= w_blend.view(1, 1, 1, -1, 1)
+
+                # 垂直羽化
+                if v > 0:
+                    h_blend = torch.linspace(0, 1, overlap_out_H, device=decoded.device)
+                    tile_weights[:, :, :overlap_out_H, :, :] *= h_blend.view(1, 1, -1, 1, 1)
+                if v < spatial_tiles - 1:
+                    h_blend = torch.linspace(1, 0, overlap_out_H, device=decoded.device)
+                    tile_weights[:, :, -overlap_out_H:, :, :] *= h_blend.view(1, 1, -1, 1, 1)
+
+                # 加权累加到输出
+                output[:, :, out_h_start:out_h_end, out_w_start:out_w_end, :] += (
+                    decoded * tile_weights
+                )
+                weights[:, :, out_h_start:out_h_end, out_w_start:out_w_end, :] += tile_weights
+
+        # 归一化
+        output /= weights + 1e-8
+        return output
+
+    # ═══════════════════════════════════════════════════════════════
+    # 时空分块：时间轴切片 + 空间分块 + 时间线性混合
+    # ═══════════════════════════════════════════════════════════════
+    def _decode_spatiotemporal(self, vae, lat, B, C, F, H, W,
+                                out_frames, out_H, out_W,
+                                spatial_tiles, spatial_overlap,
+                                temporal_tile_length, temporal_overlap,
+                                time_scale, width_scale, height_scale):
+        """时空分块解码：先按时间轴切片，每个切片再做空间分块。
+
+        时间混合：每个后续 chunk 丢弃第 1 个输出帧，重叠区域线性混合。
+        """
+        if temporal_tile_length < temporal_overlap + 1:
+            temporal_overlap = max(0, temporal_tile_length - 2)
+
+        # 预分配完整输出
+        output = torch.empty(
+            (B, out_frames, out_H, out_W, 3),
+            device=lat.device, dtype=torch.float32
+        )
+
+        chunk_start = 0
+        while chunk_start < F:
+            # 计算时间 chunk 边界 (与 LTX compute_chunk_boundaries 一致)
+            if chunk_start == 0:
+                overlap_start = chunk_start
+                chunk_end = min(chunk_start + temporal_tile_length, F)
+            else:
+                overlap_start = max(1, chunk_start - temporal_overlap - 1)
+                extra = chunk_start - overlap_start
+                chunk_end = min(chunk_start + temporal_tile_length - extra, F)
+
+            chunk_latent_frames = chunk_end - overlap_start
+            tile = lat[:, :, overlap_start:chunk_end]
+
+            # 空间分块解码这个时间切片
+            decoded = self._decode_spatial(
+                vae, tile, B,
+                1 + (chunk_latent_frames - 1) * time_scale,
+                out_H, out_W,
+                spatial_tiles, spatial_overlap,
+                width_scale, height_scale
+            )  # [B, chunk_out_frames, H, W, 3]
+
+            if chunk_start == 0:
+                # 第一个 chunk：直接放入输出
+                output[:, :decoded.shape[1]] = decoded
+            else:
+                # 丢弃第 1 帧（时间上下文不完整）
+                if decoded.shape[1] <= 1:
+                    raise RuntimeError("Temporal tile has only 1 output frame after trim")
+                decoded = decoded[:, 1:]
+
+                # 计算输出中的时间位置
+                out_t_start = 1 + overlap_start * time_scale
+                out_t_end = out_t_start + decoded.shape[1]
+
+                # 线性时间混合
+                blend_frames = temporal_overlap * time_scale
+                if blend_frames > 0:
+                    frame_weights = torch.linspace(
+                        0, 1, blend_frames + 2,
+                        device=decoded.device, dtype=decoded.dtype
+                    )[1:-1].view(1, -1, 1, 1, 1)
+
+                    after_blend = out_t_start + blend_frames
+                    # 旧帧渐隐 + 新帧渐显
+                    output[:, out_t_start:after_blend] *= (1 - frame_weights)
+                    output[:, out_t_start:after_blend] += frame_weights * decoded[:, :blend_frames]
+                    # 非重叠部分直接替换
+                    output[:, after_blend:out_t_end] = decoded[:, blend_frames:]
+                else:
+                    output[:, out_t_start:out_t_end] = decoded
+
+            chunk_start = chunk_end
+
+            # 每个时间 chunk 后轻量清理
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        return output
 
 
 # ============================================================
@@ -776,8 +1327,13 @@ class XB_ROCmMemCleaner:
 # ============================================================
 class XB_ROCmSamplerCustom:
     """
-    ROCm 优化自定义采样器 — 配合调度器/采样器/引导器模块化使用
+    ROCm 优化自定义采样器 (v5.2) — 配合调度器/采样器/引导器模块化使用 + 增强进度
     优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
+
+    v5.2 增强：
+      - 视频 latent 自动跳过预览
+      - 采样开始/完成日志
+      - 采样后轻量清理，绝不同步等待
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -799,7 +1355,7 @@ class XB_ROCmSamplerCustom:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, model, add_noise, noise_seed, cfg, positive, negative, sampler, sigmas, latent_image, cleanup="不做任何清理"):
-        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方自定义采样器 ──
+        # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义采样器 ──
         if not is_rocm():
             return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
@@ -807,6 +1363,7 @@ class XB_ROCmSamplerCustom:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
+            is_video = _is_video_latent(latent_image)
             latent = latent_image
             latent_image_data = latent["samples"]
             latent = latent.copy()
@@ -824,10 +1381,13 @@ class XB_ROCmSamplerCustom:
 
             x0_output = {}
             callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
+            # 视频模式：跳过预览，禁用进度条
+            disable_pbar = is_video or not comfy.utils.PROGRESS_BAR_ENABLED
 
-            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            print(f"🚀 开始自定义采样: {sigmas.shape[-1]-1}步, CFG {cfg}", flush=True)
             with _sdp_context():
                 samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+            print(f"✅ 自定义采样完成", flush=True)
 
             out = latent.copy()
             out.pop("downscale_ratio_spacial", None)
@@ -841,12 +1401,14 @@ class XB_ROCmSamplerCustom:
                 out_denoised["samples"] = x0_out
             else:
                 out_denoised = out
-            _do_cleanup("post", cleanup)
+            if cleanup != "不做任何清理" and torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
 
@@ -856,8 +1418,13 @@ class XB_ROCmSamplerCustom:
 # ============================================================
 class XB_ROCmSamplerCustomAdvanced:
     """
-    ROCm 优化自定义高级采样器 — 完全模块化：噪波/引导器/采样器/sigma 独立注入
+    ROCm 优化自定义高级采样器 (v5.2) — 完全模块化：噪波/引导器/采样器/sigma 独立注入 + 增强进度
     优化: rocBLAS fp16累积 + mem_efficient SDPA，在采样循环中生效
+
+    v5.2 增强：
+      - 视频 latent 自动跳过预览
+      - 采样开始/完成日志
+      - 采样后轻量清理，绝不同步等待
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -875,13 +1442,14 @@ class XB_ROCmSamplerCustomAdvanced:
     CATEGORY = "XB_ToolBox/ROCm"
 
     def go(self, noise, guider, sampler, sigmas, latent_image, cleanup="不做任何清理"):
-        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方自定义高级采样器 ──
+        # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义高级采样器 ──
         if not is_rocm():
             return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
+            is_video = _is_video_latent(latent_image)
             latent = latent_image
             latent_image_data = latent["samples"]
             latent = latent.copy()
@@ -894,11 +1462,13 @@ class XB_ROCmSamplerCustomAdvanced:
 
             x0_output = {}
             callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
+            disable_pbar = is_video or not comfy.utils.PROGRESS_BAR_ENABLED
 
-            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            print(f"🚀 开始自定义高级采样: {sigmas.shape[-1]-1}步", flush=True)
             with _sdp_context():
                 samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
             samples = samples.to(comfy.model_management.intermediate_device())
+            print(f"✅ 自定义高级采样完成", flush=True)
 
             out = latent.copy()
             out.pop("downscale_ratio_spacial", None)
@@ -912,15 +1482,18 @@ class XB_ROCmSamplerCustomAdvanced:
                 out_denoised["samples"] = x0_out
             else:
                 out_denoised = out
-            _do_cleanup("post", cleanup)
+            if cleanup != "不做任何清理" and torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            memclr(sync=True)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
 
 __all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',
            'XB_ROCmSamplerCustomAdvanced', 'XB_ROCmVAEDecode',
-           'XB_ROCmVAEEncode', 'XB_ROCmVAEDecodeTemporal', 'XB_ROCmMemCleaner']
+           'XB_ROCmVAEEncode', 'XB_ROCmVAEDecodeTemporal', 'XB_ROCmLTXVAEDecode',
+           'XB_ROCmMemCleaner']
