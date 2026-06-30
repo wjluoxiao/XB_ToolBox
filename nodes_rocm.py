@@ -29,6 +29,29 @@ import comfy.nested_tensor
 import latent_preview
 import nodes
 
+# ── 跨版本兼容：SamplerCustom / SamplerCustomAdvanced 在不同 ComfyUI 版本中位置不同 ──
+#   ComfyUI < 0.3x:   nodes.SamplerCustom / nodes.SamplerCustomAdvanced (在 nodes.py)
+#   ComfyUI 0.3x~0.4x: comfy_extras.nodes_custom_sampler.SamplerCustom / ...SamplerCustomAdvanced
+#   ComfyUI >= 0.4x:  传统 API 已移除，改用 ComfyExtension API（无兼容降级路径）
+_SamplerCustom = None
+_SamplerCustomAdvanced = None
+for _mod in (nodes,):
+    for _name in ("SamplerCustom", "SamplerCustomAdvanced"):
+        if hasattr(_mod, _name):
+            if _name == "SamplerCustom":
+                _SamplerCustom = getattr(_mod, _name)
+            else:
+                _SamplerCustomAdvanced = getattr(_mod, _name)
+if _SamplerCustom is None or _SamplerCustomAdvanced is None:
+    try:
+        from comfy_extras import nodes_custom_sampler as _ncs
+        if _SamplerCustom is None and hasattr(_ncs, "SamplerCustom"):
+            _SamplerCustom = _ncs.SamplerCustom
+        if _SamplerCustomAdvanced is None and hasattr(_ncs, "SamplerCustomAdvanced"):
+            _SamplerCustomAdvanced = _ncs.SamplerCustomAdvanced
+    except ImportError:
+        pass
+
 
 class AnyType(str):
     """哑类型——接受任意连线，仅用于串联节点防止误删"""
@@ -1370,7 +1393,11 @@ class XB_ROCmSamplerCustom:
     def go(self, model, add_noise, noise_seed, cfg, positive, negative, sampler, sigmas, latent_image, cleanup="不做任何清理"):
         # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义采样器 ──
         if not is_rocm():
-            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+            if _SamplerCustom is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustom: 当前 ComfyUI 版本不支持传统 SamplerCustom API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
@@ -1425,7 +1452,11 @@ class XB_ROCmSamplerCustom:
             print(f"[XB_ToolBox 错误信息] {e}")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+            if _SamplerCustom is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustom: 当前 ComfyUI 版本不支持传统 SamplerCustom API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
 
 
@@ -1460,7 +1491,11 @@ class XB_ROCmSamplerCustomAdvanced:
     def go(self, noise, guider, sampler, sigmas, latent_image, cleanup="不做任何清理"):
         # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义高级采样器 ──
         if not is_rocm():
-            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
+            if _SamplerCustomAdvanced is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustomAdvanced: 当前 ComfyUI 版本不支持传统 SamplerCustomAdvanced API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
@@ -1509,7 +1544,11 @@ class XB_ROCmSamplerCustomAdvanced:
             print(f"[XB_ToolBox 错误信息] {e}")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
+            if _SamplerCustomAdvanced is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustomAdvanced: 当前 ComfyUI 版本不支持传统 SamplerCustomAdvanced API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
 
 __all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',
