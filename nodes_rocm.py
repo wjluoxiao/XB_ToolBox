@@ -478,14 +478,11 @@ class XB_ROCmKSampler:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
-            is_video = _is_video_latent(latent)
-            callback = _make_ksampler_callback(steps, is_video)
             print(f"🚀 开始采样: {steps}步, CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
                 out, = nodes.KSampler().sample(
                     model, seed, steps, cfg, sampler, scheduler,
-                    positive, negative, latent, denoise,
-                    callback=callback, disable_pbar=False
+                    positive, negative, latent, denoise
                 )
             print(f"✅ 采样完成", flush=True)
             # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级（sync 仅在采样完成后执行，不增加延迟）
@@ -550,15 +547,12 @@ class XB_ROCmKSamplerAdvanced:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
-            is_video = _is_video_latent(latent)
-            callback = _make_ksampler_callback(steps, is_video)
             print(f"🚀 开始高级采样: {steps}步 (区间 {start_at_step}-{end_at_step}), CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
                 out, = nodes.KSamplerAdvanced().sample(
                     model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
                     positive, negative, latent, start_at_step, end_at_step,
-                    return_with_leftover_noise, denoise=denoise,
-                    callback=callback, disable_pbar=False
+                    return_with_leftover_noise, denoise=denoise
                 )
             print(f"✅ 高级采样完成", flush=True)
             # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
