@@ -24,30 +24,17 @@ def is_dynamic_vram_active():
     return False
 
 def is_unsupported_model(diffusion_model):
+    """检测已知不支持物理分块的模型架构（仅黑名单，不检测量化格式）。
+    
+    Qwen / FLUX 等模型的 GGUF 版本虽然参数类型特殊，但 module.to() 仍可正常工作，
+    不应被拦截。只有当模型的 C++ 量化引擎（如 comfy_kitchen）确实会因 module.to()
+    而崩溃时才需要拦截——但这类崩溃无法通过参数类型静态判断，由用户自行取舍。
+    """
     model_type = type(diffusion_model).__name__
     blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT", "ErnieImageModel"]
     for b in blacklist:
         if b in model_type:
             return model_type
-
-    # 🛡️ 侦测 comfy_kitchen 量化模型（GGUF / FP8 / 混合精度）
-    #    comfy_kitchen 会覆写 nn.Module._apply() → _quantized_apply()，
-    #    BlockSwap 的 module.to() 会触发其 C++ 量化引擎 → HIP invalid argument
-    try:
-        # 方法1: 参数类型异常（GGUF 等非标准参数）
-        for param in diffusion_model.parameters():
-            if type(param) not in (torch.Tensor, torch.nn.Parameter) or hasattr(param, "_qdata"):
-                return "Quantized/Comfy-Kitchen (GGUF)"
-            break
-    except Exception:
-        pass
-    try:
-        # 方法2: nn.Module._apply 被 comfy_kitchen 覆写（FP8/混合精度量化）
-        if type(diffusion_model)._apply is not torch.nn.Module._apply:
-            return "Quantized/Comfy-Kitchen (FP8/Mixed)"
-    except Exception:
-        pass
-
     return None
 
 
