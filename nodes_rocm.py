@@ -1066,6 +1066,10 @@ class XB_ROCmLTXVAEDecode:
             # 🔧 解码前仅 empty_cache，绝不同步
             _predecode_cleanup(cleanup)
 
+            # 🛡️ 空间重叠自动补全：0 → 自动取合理值
+            if spatial_overlap == 0 and spatial_tiles > 1:
+                spatial_overlap = 1
+
             # 🛡️ 时间分块长度至少为 2，否则后续 chunk 丢帧后为空
             if temporal_tile_length == 1:
                 temporal_tile_length = 2

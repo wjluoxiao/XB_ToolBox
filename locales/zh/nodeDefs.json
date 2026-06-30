@@ -1355,7 +1355,7 @@
         "name": "空间分块数(1=不分块)"
       },
       "spatial_overlap": {
-        "name": "空间重叠(latent像素)"
+        "name": "空间重叠(0=自动)"
       },
       "temporal_tile_length": {
         "name": "时间分块长度(latent帧,最小2)"
