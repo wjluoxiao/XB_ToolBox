@@ -97,6 +97,32 @@ app.registerExtension({
                                         wid = Math.max(currentStep, wid);
                                     }
                                 }
+                            } else if (isLTX) {
+                                const ratioMap = {
+                                    "16:9 (LTX)": 16.0 / 9.0, "9:16 (LTX)": 9.0 / 16.0,
+                                    "4:3 (LTX)": 4.0 / 3.0, "3:4 (LTX)": 3.0 / 4.0
+                                };
+                                let currentRatio = ratioMap[valRatio];
+
+                                if (wChanged && wid % currentStep !== 0) {
+                                    wid = wid > node._xb_last_width ? Math.ceil(wid / currentStep) * currentStep : Math.floor(wid / currentStep) * currentStep;
+                                } else { wid = Math.round(wid / currentStep) * currentStep; }
+                                wid = Math.max(currentStep, wid);
+
+                                if (hChanged && hei % currentStep !== 0) {
+                                    hei = hei > node._xb_last_height ? Math.ceil(hei / currentStep) * currentStep : Math.floor(hei / currentStep) * currentStep;
+                                } else { hei = Math.round(hei / currentStep) * currentStep; }
+                                hei = Math.max(currentStep, hei);
+
+                                if (currentRatio) {
+                                    if (rChanged || wChanged) {
+                                        hei = Math.round((wid / currentRatio) / currentStep) * currentStep;
+                                        hei = Math.max(currentStep, hei);
+                                    } else if (hChanged) {
+                                        wid = Math.round((hei * currentRatio) / currentStep) * currentStep;
+                                        wid = Math.max(currentStep, wid);
+                                    }
+                                }
                             }
 
                             wWidth.value = wid; wHeight.value = hei;
