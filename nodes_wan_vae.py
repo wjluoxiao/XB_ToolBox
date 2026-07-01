@@ -8,6 +8,18 @@ import math
 import numpy as np
 import nodes
 
+# ── 跨版本兼容：VAEDecodeTiled 在不同 ComfyUI 版本中位置不同 ──
+_VAEDecodeTiled = None
+if hasattr(nodes, "VAEDecodeTiled"):
+    _VAEDecodeTiled = nodes.VAEDecodeTiled
+if _VAEDecodeTiled is None:
+    try:
+        from comfy_extras import nodes_video as _nv
+        if hasattr(_nv, "VAEDecodeTiled"):
+            _VAEDecodeTiled = _nv.VAEDecodeTiled
+    except ImportError:
+        pass
+
 _SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
 _CROP_MODES = ["center", "disabled"]
 
@@ -1462,9 +1474,9 @@ class XB_WanVAEDecodeTiled:
     def decode(self, samples, vae, tile_size, spatial_overlap, temporal_chunk, temporal_overlap):
         # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方解码器 ──
         if not (torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip):
-            if temporal_chunk <= 0:
+            if temporal_chunk <= 0 or _VAEDecodeTiled is None:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
@@ -1481,26 +1493,20 @@ class XB_WanVAEDecodeTiled:
                     samples = lat.contiguous()
 
             if temporal_chunk <= 0:
-                # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-                if torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip:
-                    torch.cuda.synchronize()
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            result = nodes.VAEDecodeTiled().decode(
+            result = _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
-            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-            if torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip:
-                torch.cuda.synchronize()
             return result
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
-            if temporal_chunk <= 0:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if temporal_chunk <= 0 or _VAEDecodeTiled is None:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)

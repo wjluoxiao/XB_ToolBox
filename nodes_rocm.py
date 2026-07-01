@@ -29,19 +29,22 @@ import comfy.nested_tensor
 import latent_preview
 import nodes
 
-# ── 跨版本兼容：SamplerCustom / SamplerCustomAdvanced 在不同 ComfyUI 版本中位置不同 ──
+# ── 跨版本兼容：SamplerCustom / SamplerCustomAdvanced / VAEDecodeTiled 在不同 ComfyUI 版本中位置不同 ──
 #   ComfyUI < 0.3x:   nodes.SamplerCustom / nodes.SamplerCustomAdvanced (在 nodes.py)
 #   ComfyUI 0.3x~0.4x: comfy_extras.nodes_custom_sampler.SamplerCustom / ...SamplerCustomAdvanced
 #   ComfyUI >= 0.4x:  传统 API 已移除，改用 ComfyExtension API（无兼容降级路径）
 _SamplerCustom = None
 _SamplerCustomAdvanced = None
+_VAEDecodeTiled = None
 for _mod in (nodes,):
-    for _name in ("SamplerCustom", "SamplerCustomAdvanced"):
+    for _name in ("SamplerCustom", "SamplerCustomAdvanced", "VAEDecodeTiled"):
         if hasattr(_mod, _name):
             if _name == "SamplerCustom":
                 _SamplerCustom = getattr(_mod, _name)
-            else:
+            elif _name == "SamplerCustomAdvanced":
                 _SamplerCustomAdvanced = getattr(_mod, _name)
+            elif _name == "VAEDecodeTiled":
+                _VAEDecodeTiled = getattr(_mod, _name)
 if _SamplerCustom is None or _SamplerCustomAdvanced is None:
     try:
         from comfy_extras import nodes_custom_sampler as _ncs
@@ -49,6 +52,13 @@ if _SamplerCustom is None or _SamplerCustomAdvanced is None:
             _SamplerCustom = _ncs.SamplerCustom
         if _SamplerCustomAdvanced is None and hasattr(_ncs, "SamplerCustomAdvanced"):
             _SamplerCustomAdvanced = _ncs.SamplerCustomAdvanced
+    except ImportError:
+        pass
+if _VAEDecodeTiled is None:
+    try:
+        from comfy_extras import nodes_video as _nv
+        if hasattr(_nv, "VAEDecodeTiled"):
+            _VAEDecodeTiled = _nv.VAEDecodeTiled
     except ImportError:
         pass
 
@@ -808,9 +818,9 @@ class XB_ROCmVAEDecodeTemporal:
     def go(self, samples, vae, tile, overlap, t_tile, t_overlap, cleanup):
         # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方时空解码 ──
         if not is_rocm():
-            if t_tile <= 0:
+            if t_tile <= 0 or _VAEDecodeTiled is None:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile if tile > 0 else 256,
                 overlap=overlap if overlap > 0 else 32,
@@ -881,9 +891,7 @@ class XB_ROCmVAEDecodeTemporal:
             if img.dim() == 5:
                 img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
 
-            # �️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
+            # 🔧 v5.2: 解码后不做任何同步清理
             return (img,)
 
         except Exception as e:
@@ -893,7 +901,9 @@ class XB_ROCmVAEDecodeTemporal:
                 torch.cuda.empty_cache()
             if t_tile <= 0:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            if _VAEDecodeTiled is None:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile if tile > 0 else 256,
                 overlap=overlap if overlap > 0 else 32,
