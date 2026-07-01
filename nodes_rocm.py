@@ -518,9 +518,6 @@ class XB_ROCmKSampler:
                     positive, negative, latent, denoise
                 )
             print(f"✅ 采样完成", flush=True)
-            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级（sync 仅在采样完成后执行，不增加延迟）
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -588,9 +585,6 @@ class XB_ROCmKSamplerAdvanced:
                     return_with_leftover_noise, denoise=denoise
                 )
             print(f"✅ 高级采样完成", flush=True)
-            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -805,10 +799,10 @@ class XB_ROCmVAEDecodeTemporal:
                              "tooltip": "空间分块 0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "空间重叠 0=自动(tile/8, 最小32)"}),
-            "t_tile": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 16,
-                               "tooltip": "时间分块(Latent帧) 0=根据显存自适应"}),
-            "t_overlap": ("INT", {"default": 0, "min": 0, "max": 32, "step": 2,
-                                  "tooltip": "时间重叠(Latent帧) 0=自动(t_tile/8)"}),
+            "t_tile": ("INT", {"default": 0, "min": 0, "max": 512, "step": 16,
+                               "tooltip": "时间分块(输出帧) 0=根据显存自适应(Wan≈4x/LTX≈8x)"}),
+            "t_overlap": ("INT", {"default": 0, "min": 0, "max": 128, "step": 8,
+                                  "tooltip": "时间重叠(输出帧) 0=自动(t_tile/4, 最小16)"}),
             "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "不做任何清理"}),
         }}
     RETURN_TYPES = ("IMAGE",)
@@ -856,15 +850,34 @@ class XB_ROCmVAEDecodeTemporal:
             if hasattr(vae, 'temporal_compression_decode'):
                 temporal_comp = vae.temporal_compression_decode()
 
+            # ── 时间分块：用户输入为输出帧数 → 内部转为 latent 帧 ──
+            #     公式: latent帧 = round(输出帧 / 时间压缩比)
+            #     Wan=4x  LTX=8x  (自动从VAE读取，无需用户关心)
+            if temporal_comp is not None:
+                if t_tile == 0:
+                    if g["gb"] >= 48:   t_tile = 128
+                    elif g["gb"] >= 24: t_tile = 64
+                    elif g["gb"] >= 16: t_tile = 32
+                    else:               t_tile = 16
+                t_tile_lat = max(2, round(t_tile / temporal_comp))
+                if t_overlap == 0:
+                    t_overlap = max(16, t_tile // 4)
+                t_overlap_lat = max(1, min(round(t_overlap / temporal_comp), t_tile_lat - 1))
+                print(f"  📐 时间分块: {t_tile}输出帧 ÷ {temporal_comp}x = {t_tile_lat} latent帧/块, "
+                      f"重叠 {t_overlap}输出帧 ÷ {temporal_comp}x = {t_overlap_lat} latent帧", flush=True)
+            else:
+                t_tile_lat = t_tile
+                t_overlap_lat = t_overlap
+
             # 🔧 v5.2: 解码前仅 empty_cache，绝不同步
             _predecode_cleanup(cleanup)
 
-            if is_vid and temporal_comp is not None and t_tile > 0 and t_tile < F:
+            if is_vid and temporal_comp is not None and t_tile_lat >= 2 and t_tile_lat < F:
                 # ── 手动时间轴切片路径 (视频 + 时间压缩 + 需要分块) ──
                 img = self._temporal_tiled_decode(
                     vae, lat, B, C, F, H, W,
                     tile_x, tile_y, overlap_xy,
-                    t_tile, t_overlap, temporal_comp
+                    t_tile_lat, t_overlap_lat, temporal_comp
                 )
             elif is_vid:
                 # ── 视频但不需要时间分块 → 空间分块解码 ──
@@ -929,7 +942,7 @@ class XB_ROCmVAEDecodeTemporal:
 
         # ── 确定 chunk 边界 (latent 帧坐标) ──
         if t_overlap == 0:
-            t_overlap = max(2, t_tile // 8)
+            t_overlap = max(4, t_tile // 4)
         t_overlap = max(1, min(t_overlap, t_tile // 2))
 
         chunks = []
@@ -1031,21 +1044,8 @@ class XB_ROCmVAEDecodeTemporal:
 # XB_ROCmLTXVAEDecode — ROCm LTX VAE 时空分块解码器
 # ============================================================
 class XB_ROCmLTXVAEDecode:
-    """
-    ROCm LTX VAE 时空分块解码器 (v5.2 全新) — 专为 LTX Video VAE 设计
-
-    LTX VAE 特性:
-      - 128 通道 latent，32× 空间压缩，8× 时间压缩
-      - 使用 vae.downscale_index_formula 获取缩放因子
-      - 空间分块：网格切分 + 权重累积 + 重叠羽化混合
-      - 时间分块：逐 chunk 解码 + 线性时间混合
-
-    v5.2 设计:
-      - 空间分块采用预分配输出张量 + 权重累积归一化
-      - 时间分块手动切片 + 线性混合
-      - ROCm 优化：异步 empty_cache，绝不同步
-      - 解码前轻量清理，解码后不做任何清理
-    """
+    """一字不差复刻 LTXVSpatioTemporalTiledVAEDecode 原版算法，
+    仅在外层添加 ROCm 优化包裹（异步清理、不sync、错误熔断）。"""
 
     @classmethod
     def INPUT_TYPES(s):
@@ -1054,13 +1054,13 @@ class XB_ROCmLTXVAEDecode:
                 "samples": ("LATENT",),
                 "vae": ("VAE",),
                 "spatial_tiles": ("INT", {"default": 4, "min": 1, "max": 8,
-                    "tooltip": "空间分块数(宽高相同)，1=不分块"}),
+                    "tooltip": "空间分块数(水平+垂直相同)，1=不分块"}),
                 "spatial_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
                     "tooltip": "空间块重叠(latent像素)"}),
-                "temporal_tile_length": ("INT", {"default": 16, "min": 0, "max": 256,
-                    "tooltip": "时间分块长度(latent帧)，0=不分时间块，最小有效值为2"}),
-                "temporal_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
-                    "tooltip": "时间块重叠(latent帧)"}),
+                "temporal_tile_length": ("INT", {"default": 16, "min": 2, "max": 1000,
+                    "tooltip": "时间分块长度(latent帧)，必须 > temporal_overlap+1"}),
+                "temporal_overlap": ("INT", {"default": 4, "min": 0, "max": 8,
+                    "tooltip": "时间块重叠(latent帧)，推荐≥4 确保时间轴平滑过渡"}),
                 "last_frame_fix": ("BOOLEAN", {"default": False,
                     "tooltip": "重复最后一帧后解码再丢弃多余帧，修复尾部伪影"}),
                 "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"],
@@ -1079,63 +1079,34 @@ class XB_ROCmLTXVAEDecode:
         if not is_rocm():
             return nodes.VAEDecode().decode(samples=samples, vae=vae)
 
-        # ── 轨道 B：AMD ROCm 环境 → 手动时空分块 ──
+        # ── 轨道 B：AMD ROCm 环境 → 原版算法 + ROCm 优化 ──
         try:
             _vae_tune_light()
             lat = samples["samples"]
 
-            # 🛡️ 强制显存连续性
-            if not lat.is_nested and not lat.is_contiguous():
+            if not lat.is_contiguous():
                 lat = lat.contiguous()
 
-            B, C, F, H, W = lat.shape
-            time_scale, width_scale, height_scale = vae.downscale_index_formula
-            out_frames = 1 + (F - 1) * time_scale
-            out_H = H * height_scale
-            out_W = W * width_scale
-
-            # last_frame_fix：复制最后一帧到末尾以修复尾部伪影
-            if last_frame_fix:
-                lat = torch.cat([lat, lat[:, :, -1:, :, :]], dim=2)
-                F = lat.shape[2]
-                out_frames = 1 + (F - 1) * time_scale
-
-            # 🔧 解码前仅 empty_cache，绝不同步
-            _predecode_cleanup(cleanup)
-
-            # 🛡️ 空间重叠自动补全：0 → 自动取合理值
+            # 🛡️ 参数校验（与官方一致）
+            if temporal_tile_length < temporal_overlap + 1:
+                raise ValueError("Temporal tile length must be greater than temporal overlap + 1")
             if spatial_overlap == 0 and spatial_tiles > 1:
                 spatial_overlap = 1
 
-            # 🛡️ 时间分块长度至少为 2，否则后续 chunk 丢帧后为空
-            if temporal_tile_length == 1:
-                temporal_tile_length = 2
-                print("  ⚠️ temporal_tile_length=1 无效，已自动修正为 2")
+            # 🔧 解码前仅 empty_cache
+            _predecode_cleanup(cleanup)
 
-            if temporal_tile_length > 0 and temporal_tile_length < F:
-                # ── 时空分块路径 ──
-                img = self._decode_spatiotemporal(
-                    vae, lat, B, C, F, H, W, out_frames, out_H, out_W,
-                    spatial_tiles, spatial_overlap,
-                    temporal_tile_length, temporal_overlap,
-                    time_scale, width_scale, height_scale
-                )
-            else:
-                # ── 仅空间分块路径 ──
-                img = self._decode_spatial(
-                    vae, lat, B, out_frames, out_H, out_W,
-                    spatial_tiles, spatial_overlap,
-                    width_scale, height_scale
-                )
+            t_start = time.time()
+            img = self._decode_spatiotemporal(
+                vae, lat,
+                spatial_tiles=spatial_tiles,
+                spatial_overlap=spatial_overlap,
+                temporal_tile_length=temporal_tile_length,
+                temporal_overlap=temporal_overlap,
+                last_frame_fix=last_frame_fix,
+            )
+            print(f"\n✅ 在{time.time() - t_start:.2f}秒内执行完成", flush=True)
 
-            # 去掉 last_frame_fix 产生的多余帧
-            if last_frame_fix:
-                img = img[:-time_scale]
-
-            # reshape 为 ComfyUI 标准格式 [B*F, H, W, C]
-            img = img.view(-1, out_H, out_W, img.shape[-1])
-
-            # 🔧 解码后不做任何同步清理
             return (img,)
 
         except Exception as e:
@@ -1146,168 +1117,165 @@ class XB_ROCmLTXVAEDecode:
             return nodes.VAEDecode().decode(samples=samples, vae=vae)
 
     # ═══════════════════════════════════════════════════════════════
-    # 仅空间分块 (LTX 原算法：网格切分 + 权重累积)
+    # 空间分块解码 — 复刻原版 + 中文进度日志
     # ═══════════════════════════════════════════════════════════════
-    def _decode_spatial(self, vae, lat, B, out_frames, out_H, out_W,
-                        spatial_tiles, spatial_overlap,
-                        width_scale, height_scale):
-        """空间分块解码：网格切分 + 权重累积归一化。
+    def _decode_spatial(self, vae, samples, horizontal_tiles, vertical_tiles,
+                        overlap, last_frame_fix, step_offset=0, time_label=""):
+        if last_frame_fix:
+            last_frame = samples[:, :, -1:, :, :]
+            samples = torch.cat([samples, last_frame], dim=2)
 
-        每个空间 tile 独立调用 vae.decode() 解码完整时间序列，
-        重叠区域使用线性羽化权重，累加后归一化消除接缝。
-        """
-        _, C, F, H, W = lat.shape
+        batch, channels, frames, height, width = samples.shape
+        time_scale_factor, width_scale_factor, height_scale_factor = vae.downscale_index_formula
+        image_frames = 1 + (frames - 1) * time_scale_factor
+        output_height = height * height_scale_factor
+        output_width = width * width_scale_factor
 
-        # 预分配输出张量和权重张量
-        output = torch.zeros(
-            (B, out_frames, out_H, out_W, 3),
-            device=lat.device, dtype=torch.float32
-        )
-        weights = torch.zeros(
-            (B, out_frames, out_H, out_W, 1),
-            device=lat.device, dtype=torch.float32
-        )
+        base_tile_height = (height + (vertical_tiles - 1) * overlap) // vertical_tiles
+        base_tile_width = (width + (horizontal_tiles - 1) * overlap) // horizontal_tiles
 
-        # 计算基础 tile 尺寸 (含重叠)
-        base_tile_H = (H + (spatial_tiles - 1) * spatial_overlap) // spatial_tiles
-        base_tile_W = (W + (spatial_tiles - 1) * spatial_overlap) // spatial_tiles
+        output = torch.zeros((batch, image_frames, output_height, output_width, 3),
+                             device=samples.device, dtype=torch.float32)
+        weights = torch.zeros((batch, image_frames, output_height, output_width, 1),
+                              device=samples.device, dtype=torch.float32)
 
-        for v in range(spatial_tiles):
-            for h in range(spatial_tiles):
-                # 计算 latent 空间中的 tile 边界
-                h_start = h * (base_tile_W - spatial_overlap)
-                v_start = v * (base_tile_H - spatial_overlap)
-                h_end = min(h_start + base_tile_W, W) if h < spatial_tiles - 1 else W
-                v_end = min(v_start + base_tile_H, H) if v < spatial_tiles - 1 else H
+        step = step_offset
+        for v in range(vertical_tiles):
+            for h in range(horizontal_tiles):
+                h_start = h * (base_tile_width - overlap)
+                v_start = v * (base_tile_height - overlap)
+                h_end = min(h_start + base_tile_width, width) if h < horizontal_tiles - 1 else width
+                v_end = min(v_start + base_tile_height, height) if v < vertical_tiles - 1 else height
 
-                # 提取 tile → 解码
-                tile_lat = lat[:, :, :, v_start:v_end, h_start:h_end]
+                step += 1
+                tile_h = v_end - v_start
+                tile_w = h_end - h_start
+                prefix = f"{time_label}" if time_label else ""
+                print(f"{prefix}{step:02d}-- 正在处理第{v+1}行、第{h+1}列的图像VAE解码块:", flush=True)
+                print(f"       坐标:({v_start}:{v_end}, {h_start}:{h_end})", flush=True)
+                print(f"       大小:{tile_h}x{tile_w}", flush=True)
+
+                tile = samples[:, :, :, v_start:v_end, h_start:h_end]
                 with torch.no_grad():
-                    decoded = vae.decode(tile_lat)
+                    decoded_tile = vae.decode(tile)
 
-                # 计算输出空间中的 tile 边界
-                out_h_start = v_start * height_scale
-                out_h_end = v_end * height_scale
-                out_w_start = h_start * width_scale
-                out_w_end = h_end * width_scale
+                out_h_start = v_start * height_scale_factor
+                out_h_end = v_end * height_scale_factor
+                out_w_start = h_start * width_scale_factor
+                out_w_end = h_end * width_scale_factor
 
-                # 构建羽化权重 (重叠区域线性渐变)
-                tile_out_H = out_h_end - out_h_start
-                tile_out_W = out_w_end - out_w_start
-                tile_weights = torch.ones(
-                    (B, out_frames, tile_out_H, tile_out_W, 1),
-                    device=decoded.device, dtype=decoded.dtype
-                )
+                tile_out_height = out_h_end - out_h_start
+                tile_out_width = out_w_end - out_w_start
+                tile_weights = torch.ones((batch, image_frames, tile_out_height, tile_out_width, 1),
+                                          device=decoded_tile.device, dtype=decoded_tile.dtype)
 
-                overlap_out_H = spatial_overlap * height_scale
-                overlap_out_W = spatial_overlap * width_scale
+                overlap_out_h = overlap * height_scale_factor
+                overlap_out_w = overlap * width_scale_factor
 
-                # 水平羽化
                 if h > 0:
-                    w_blend = torch.linspace(0, 1, overlap_out_W, device=decoded.device)
-                    tile_weights[:, :, :, :overlap_out_W, :] *= w_blend.view(1, 1, 1, -1, 1)
-                if h < spatial_tiles - 1:
-                    w_blend = torch.linspace(1, 0, overlap_out_W, device=decoded.device)
-                    tile_weights[:, :, :, -overlap_out_W:, :] *= w_blend.view(1, 1, 1, -1, 1)
+                    h_blend = torch.linspace(0, 1, overlap_out_w, device=decoded_tile.device)
+                    tile_weights[:, :, :, :overlap_out_w, :] *= h_blend.view(1, 1, 1, -1, 1)
+                if h < horizontal_tiles - 1:
+                    h_blend = torch.linspace(1, 0, overlap_out_w, device=decoded_tile.device)
+                    tile_weights[:, :, :, -overlap_out_w:, :] *= h_blend.view(1, 1, 1, -1, 1)
 
-                # 垂直羽化
                 if v > 0:
-                    h_blend = torch.linspace(0, 1, overlap_out_H, device=decoded.device)
-                    tile_weights[:, :, :overlap_out_H, :, :] *= h_blend.view(1, 1, -1, 1, 1)
-                if v < spatial_tiles - 1:
-                    h_blend = torch.linspace(1, 0, overlap_out_H, device=decoded.device)
-                    tile_weights[:, :, -overlap_out_H:, :, :] *= h_blend.view(1, 1, -1, 1, 1)
+                    v_blend = torch.linspace(0, 1, overlap_out_h, device=decoded_tile.device)
+                    tile_weights[:, :, :overlap_out_h, :, :] *= v_blend.view(1, 1, -1, 1, 1)
+                if v < vertical_tiles - 1:
+                    v_blend = torch.linspace(1, 0, overlap_out_h, device=decoded_tile.device)
+                    tile_weights[:, :, -overlap_out_h:, :, :] *= v_blend.view(1, 1, -1, 1, 1)
 
-                # 加权累加到输出
                 output[:, :, out_h_start:out_h_end, out_w_start:out_w_end, :] += (
-                    decoded * tile_weights
+                    decoded_tile * tile_weights
                 )
                 weights[:, :, out_h_start:out_h_end, out_w_start:out_w_end, :] += tile_weights
 
-        # 归一化
         output /= weights + 1e-8
-        return output
+        output = output.view(batch * image_frames, output_height, output_width, output.shape[-1])
+
+        if last_frame_fix:
+            output = output[:-time_scale_factor, :, :]
+
+        return output, step
 
     # ═══════════════════════════════════════════════════════════════
-    # 时空分块：时间轴切片 + 空间分块 + 时间线性混合
+    # 时空分块解码 — 复刻原版 + 中文进度日志
     # ═══════════════════════════════════════════════════════════════
-    def _decode_spatiotemporal(self, vae, lat, B, C, F, H, W,
-                                out_frames, out_H, out_W,
-                                spatial_tiles, spatial_overlap,
-                                temporal_tile_length, temporal_overlap,
-                                time_scale, width_scale, height_scale):
-        """时空分块解码：先按时间轴切片，每个切片再做空间分块。
+    def _decode_spatiotemporal(self, vae, samples, spatial_tiles, spatial_overlap,
+                                temporal_tile_length, temporal_overlap, last_frame_fix):
+        batch, channels, frames, height, width = samples.shape
+        time_scale_factor, width_scale_factor, height_scale_factor = vae.downscale_index_formula
+        image_frames = 1 + (frames - 1) * time_scale_factor
+        output_height = height * height_scale_factor
+        output_width = width * width_scale_factor
 
-        时间混合：每个后续 chunk 丢弃第 1 个输出帧，重叠区域线性混合。
-        """
-        if temporal_tile_length < temporal_overlap + 1:
-            temporal_overlap = max(0, temporal_tile_length - 2)
-
-        # 预分配完整输出
-        output = torch.empty(
-            (B, out_frames, out_H, out_W, 3),
-            device=lat.device, dtype=torch.float32
-        )
-
+        # ── 预计算时间分块数量 ──
+        total_latent_frames = frames
+        temporal_chunks = []
         chunk_start = 0
-        while chunk_start < F:
-            # 计算时间 chunk 边界 (与 LTX compute_chunk_boundaries 一致)
+        while chunk_start < total_latent_frames:
             if chunk_start == 0:
                 overlap_start = chunk_start
-                chunk_end = min(chunk_start + temporal_tile_length, F)
+                chunk_end = min(chunk_start + temporal_tile_length, total_latent_frames)
             else:
                 overlap_start = max(1, chunk_start - temporal_overlap - 1)
                 extra = chunk_start - overlap_start
-                chunk_end = min(chunk_start + temporal_tile_length - extra, F)
-
-            chunk_latent_frames = chunk_end - overlap_start
-            tile = lat[:, :, overlap_start:chunk_end]
-
-            # 空间分块解码这个时间切片
-            decoded = self._decode_spatial(
-                vae, tile, B,
-                1 + (chunk_latent_frames - 1) * time_scale,
-                out_H, out_W,
-                spatial_tiles, spatial_overlap,
-                width_scale, height_scale
-            )  # [B, chunk_out_frames, H, W, 3]
-
-            if chunk_start == 0:
-                # 第一个 chunk：直接放入输出
-                output[:, :decoded.shape[1]] = decoded
-            else:
-                # 丢弃第 1 帧（时间上下文不完整）
-                if decoded.shape[1] <= 1:
-                    raise RuntimeError("Temporal tile has only 1 output frame after trim")
-                decoded = decoded[:, 1:]
-
-                # 计算输出中的时间位置
-                out_t_start = 1 + overlap_start * time_scale
-                out_t_end = out_t_start + decoded.shape[1]
-
-                # 线性时间混合
-                blend_frames = temporal_overlap * time_scale
-                if blend_frames > 0:
-                    frame_weights = torch.linspace(
-                        0, 1, blend_frames + 2,
-                        device=decoded.device, dtype=decoded.dtype
-                    )[1:-1].view(1, -1, 1, 1, 1)
-
-                    after_blend = out_t_start + blend_frames
-                    # 旧帧渐隐 + 新帧渐显
-                    output[:, out_t_start:after_blend] *= (1 - frame_weights)
-                    output[:, out_t_start:after_blend] += frame_weights * decoded[:, :blend_frames]
-                    # 非重叠部分直接替换
-                    output[:, after_blend:out_t_end] = decoded[:, blend_frames:]
-                else:
-                    output[:, out_t_start:out_t_end] = decoded
-
+                chunk_end = min(chunk_start + temporal_tile_length - extra, total_latent_frames)
+            temporal_chunks.append((overlap_start, chunk_end))
             chunk_start = chunk_end
 
-            # 每个时间 chunk 后轻量清理
+        num_temporal = len(temporal_chunks)
+        tiles_per_chunk = spatial_tiles * spatial_tiles
+        total_steps = num_temporal * tiles_per_chunk
+        print(f"\n🧩 时间分块数量共计{num_temporal}段，图像分块数量{spatial_tiles}×{spatial_tiles}（合计{total_steps}步）", flush=True)
+
+        output = torch.empty((batch, image_frames, output_height, output_width, 3),
+                             device=samples.device, dtype=torch.float32)
+
+        global_step = 0
+        for t_idx, (overlap_start, chunk_end) in enumerate(temporal_chunks):
+            chunk_frames = chunk_end - overlap_start
+            print(f"\n处理时间分块第{t_idx+1}段:{overlap_start}-{chunk_end}帧(共计{chunk_frames}个潜在帧)", flush=True)
+
+            tile = samples[:, :, overlap_start:chunk_end]
+            time_label = f"  "  # 缩进子步骤
+            decoded_tile, global_step = self._decode_spatial(
+                vae, tile,
+                horizontal_tiles=spatial_tiles,
+                vertical_tiles=spatial_tiles,
+                overlap=spatial_overlap,
+                last_frame_fix=last_frame_fix,
+                step_offset=global_step,
+                time_label=time_label,
+            )
+            decoded_tile = decoded_tile[None]  # add batch dim back
+
+            if t_idx == 0:
+                output[:, :decoded_tile.shape[1]] = decoded_tile
+            else:
+                if decoded_tile.shape[1] == 1:
+                    raise ValueError("Dropping first frame but tile has only 1 frame")
+                decoded_tile = decoded_tile[:, 1:]
+
+                out_t_start = 1 + overlap_start * time_scale_factor
+                out_t_end = out_t_start + decoded_tile.shape[1]
+
+                overlap_frames = temporal_overlap * time_scale_factor
+                frame_weights = torch.linspace(0, 1, overlap_frames + 2,
+                                               device=decoded_tile.device, dtype=decoded_tile.dtype)[1:-1]
+                tile_weights = frame_weights.view(1, -1, 1, 1, 1)
+                after_overlap_frames_start = out_t_start + overlap_frames
+
+                overlap_output = decoded_tile[:, :overlap_frames]
+                output[:, out_t_start:after_overlap_frames_start] *= 1 - tile_weights
+                output[:, out_t_start:after_overlap_frames_start] += tile_weights * overlap_output
+                output[:, after_overlap_frames_start:out_t_end] = decoded_tile[:, overlap_frames:]
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+        output = output.view(batch * image_frames, output_height, output_width, output.shape[-1])
         return output
 
 
@@ -1429,12 +1397,12 @@ class XB_ROCmSamplerCustom:
             if "noise_mask" in latent:
                 noise_mask = latent["noise_mask"]
 
+            total_steps = sigmas.shape[-1] - 1
             x0_output = {}
-            callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
-            # 视频模式：跳过预览，禁用进度条
-            disable_pbar = is_video or not comfy.utils.PROGRESS_BAR_ENABLED
+            callback = latent_preview.prepare_callback(model, total_steps, x0_output)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
 
-            print(f"🚀 开始自定义采样: {sigmas.shape[-1]-1}步, CFG {cfg}", flush=True)
+            print(f"🚀 开始自定义采样: {total_steps}步, CFG {cfg}", flush=True)
             with _sdp_context():
                 samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image_data, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
             print(f"✅ 自定义采样完成", flush=True)
@@ -1453,9 +1421,6 @@ class XB_ROCmSamplerCustom:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
@@ -1521,11 +1486,12 @@ class XB_ROCmSamplerCustomAdvanced:
             if "noise_mask" in latent:
                 noise_mask = latent["noise_mask"]
 
+            total_steps = sigmas.shape[-1] - 1
             x0_output = {}
-            callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1, x0_output)
-            disable_pbar = is_video or not comfy.utils.PROGRESS_BAR_ENABLED
+            callback = latent_preview.prepare_callback(guider.model_patcher, total_steps, x0_output)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
 
-            print(f"🚀 开始自定义高级采样: {sigmas.shape[-1]-1}步", flush=True)
+            print(f"🚀 开始自定义高级采样: {total_steps}步", flush=True)
             with _sdp_context():
                 samples = guider.sample(noise.generate_noise(latent), latent_image_data, sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise.seed)
             samples = samples.to(comfy.model_management.intermediate_device())
@@ -1545,9 +1511,6 @@ class XB_ROCmSamplerCustomAdvanced:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
