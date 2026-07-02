@@ -56,7 +56,7 @@ try:
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro
+    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New
     from .nodes_sageatt import XB_SageAttentionAccelerator
@@ -120,6 +120,7 @@ try:
         "XB_WanSoundImageToVideoExtend": XB_WanSoundImageToVideoExtend,
         "XB_WanSCAILToVideo": XB_WanSCAILToVideo,
         "XB_WanSCAILToVideoPro": XB_WanSCAILToVideoPro,
+        "XB_BerniniConditioning": XB_BerniniConditioning,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
@@ -259,6 +260,7 @@ try:
         "XB_ComicPromptParser": "XB-BOX - 📝 漫画提示词智能解析",
         "XB_ComicTextRenderer": "XB-BOX - 💬 漫画文字渲染 (精确坐标)",
         "XB_AutoBubbleTextRenderer": "XB-BOX - 🤖 漫画文字渲染 (全自动带涂改液)",
+        "XB_BerniniConditioning": "XB-BOX - 🎨 Bernini 条件注入（VAE分块）",
     }
 
     print_success("\n" + "="*50)

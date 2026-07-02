@@ -1510,3 +1510,76 @@ class XB_WanVAEDecodeTiled:
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+# ============================================================
+# XB_BerniniConditioning - Bernini VAE分块编码
+# ============================================================
+
+def _resize_long_edge(image, max_size, stride=16, method="area"):
+    h, w = image.shape[1], image.shape[2]
+    scale = min(max_size / max(h, w), 1.0)
+    nh = max(stride, round(h * scale / stride) * stride)
+    nw = max(stride, round(w * scale / stride) * stride)
+    return comfy.utils.common_upscale(image[:, :, :, :3].movedim(-1, 1), nw, nh, method, "disabled").movedim(1, -1)
+
+
+class XB_BerniniConditioning:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "source_video": ("IMAGE",),
+                "reference_video": ("IMAGE",),
+                "reference_image_0": ("IMAGE",),
+                "reference_image_1": ("IMAGE",),
+                "reference_image_2": ("IMAGE",),
+                "reference_image_3": ("IMAGE",),
+                "reference_image_4": ("IMAGE",),
+                "reference_image_5": ("IMAGE",),
+                "reference_image_6": ("IMAGE",),
+                "reference_image_7": ("IMAGE",),
+                "ref_max_size": ("INT", {"default": 848, "min": 16, "max": 8192, "step": 16}),
+                "scale_method": (_SCALE_METHODS, {"default": "area"}),
+                "crop_mode": (_CROP_MODES, {"default": "center"}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "go"
+    CATEGORY = "XB_ToolBox/Wan"
+
+    def go(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+            source_video=None, reference_video=None,
+            reference_image_0=None, reference_image_1=None, reference_image_2=None,
+            reference_image_3=None, reference_image_4=None, reference_image_5=None,
+            reference_image_6=None, reference_image_7=None,
+            ref_max_size=848, scale_method="area", crop_mode="center"):
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
+                             device=comfy.model_management.intermediate_device())
+        context = []
+        if source_video is not None:
+            vid = comfy.utils.common_upscale(source_video[:length, :, :, :3].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
+            context.append(_encode_vae(vae, vid[:, :, :, :3], vae_tile_size))
+        if reference_video is not None:
+            ref_vid = _resize_long_edge(reference_video[:length], ref_max_size, method=scale_method)
+            context.append(_encode_vae(vae, ref_vid[:, :, :, :3], vae_tile_size))
+        ref_imgs = [reference_image_0,reference_image_1,reference_image_2,reference_image_3,reference_image_4,reference_image_5,reference_image_6,reference_image_7]
+        for imgs in ref_imgs:
+            if imgs is None: continue
+            for i in range(imgs.shape[0]):
+                img = _resize_long_edge(imgs[i:i+1], ref_max_size, method=scale_method)
+                context.append(_encode_vae(vae, img[:,:,:,:3], vae_tile_size))
+        if context:
+            positive = node_helpers.conditioning_set_values(positive, {"context_latents": context})
+            negative = node_helpers.conditioning_set_values(negative, {"context_latents": context})
+        return (positive, negative, {"samples": latent})
