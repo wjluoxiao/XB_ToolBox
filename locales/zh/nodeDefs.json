@@ -1087,297 +1087,122 @@
     }
   },
   "XB_ROCmKSampler": {
-    "display_name": "XB-BOX - 🚀 ROCm 采样器",
+    "display_name": "XB-BOX - 采样器（原版优化）",
     "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "seed": {
-        "name": "随机种子"
-      },
-      "steps": {
-        "name": "采样步数"
-      },
-      "cfg": {
-        "name": "引导系数(CFG)"
-      },
-      "sampler": {
-        "name": "采样器"
-      },
-      "scheduler": {
-        "name": "调度器"
-      },
-      "positive": {
-        "name": "正面提示词"
-      },
-      "negative": {
-        "name": "负面提示词"
-      },
-      "latent": {
-        "name": "潜变量"
-      },
-      "denoise": {
-        "name": "降噪强度"
-      },
-      "cleanup": {
-        "name": "采样后清理"
-      }
+      "model": { "name": "模型" },
+      "seed": { "name": "种子" },
+      "steps": { "name": "步数" },
+      "cfg": { "name": "CFG" },
+      "sampler": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "latent": { "name": "潜空间" },
+      "denoise": { "name": "降噪" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "潜变量"
-      }
-    }
+    "outputs": { "0": { "name": "潜空间" } }
   },
   "XB_ROCmKSamplerAdvanced": {
-    "display_name": "XB-BOX - 🚀 ROCm 高级采样器",
+    "display_name": "XB-BOX - 高级采样器（原版优化）",
     "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "add_noise": {
-        "name": "添加噪声"
-      },
-      "noise_seed": {
-        "name": "噪声种子"
-      },
-      "steps": {
-        "name": "采样步数"
-      },
-      "cfg": {
-        "name": "引导系数(CFG)"
-      },
-      "sampler": {
-        "name": "采样器"
-      },
-      "scheduler": {
-        "name": "调度器"
-      },
-      "positive": {
-        "name": "正面提示词"
-      },
-      "negative": {
-        "name": "负面提示词"
-      },
-      "latent": {
-        "name": "潜变量"
-      },
-      "start_at_step": {
-        "name": "起始步数"
-      },
-      "end_at_step": {
-        "name": "结束步数"
-      },
-      "return_with_leftover_noise": {
-        "name": "返回残留噪声"
-      },
-      "cleanup": {
-        "name": "采样后清理"
-      }
+      "model": { "name": "模型" },
+      "add_noise": { "name": "加噪" },
+      "noise_seed": { "name": "噪声种子" },
+      "steps": { "name": "步数" },
+      "cfg": { "name": "CFG" },
+      "sampler": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "latent": { "name": "潜空间" },
+      "start_at_step": { "name": "起始步" },
+      "end_at_step": { "name": "结束步" },
+      "return_with_leftover_noise": { "name": "残留噪声" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "潜变量"
-      }
-    }
+    "outputs": { "0": { "name": "潜空间" } }
   },
   "XB_ROCmSamplerCustom": {
-    "display_name": "XB-BOX - ⚙️ ROCm 自定义采样器",
+    "display_name": "XB-BOX - 自定义采样器（原版优化）",
     "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "add_noise": {
-        "name": "添加噪声"
-      },
-      "noise_seed": {
-        "name": "噪声种子"
-      },
-      "cfg": {
-        "name": "引导系数(CFG)"
-      },
-      "positive": {
-        "name": "正面提示词"
-      },
-      "negative": {
-        "name": "负面提示词"
-      },
-      "sampler": {
-        "name": "采样器"
-      },
-      "sigmas": {
-        "name": "西格玛"
-      },
-      "latent_image": {
-        "name": "Latent图像"
-      },
-      "cleanup": {
-        "name": "采样后清理"
-      }
+      "model": { "name": "模型" },
+      "add_noise": { "name": "加噪" },
+      "noise_seed": { "name": "噪声种子" },
+      "cfg": { "name": "CFG" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "sampler": { "name": "采样器" },
+      "sigmas": { "name": "Sigma" },
+      "latent_image": { "name": "潜空间" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "输出Latent"
-      },
-      "1": {
-        "name": "降噪Latent"
-      }
-    }
+    "outputs": { "0": { "name": "输出" }, "1": { "name": "降噪输出" } }
   },
   "XB_ROCmSamplerCustomAdvanced": {
-    "display_name": "XB-BOX - ⚙️ ROCm 自定义高级采样器",
+    "display_name": "XB-BOX - 自定义高级采样器（原版优化）",
     "inputs": {
-      "noise": {
-        "name": "噪波"
-      },
-      "guider": {
-        "name": "引导器"
-      },
-      "sampler": {
-        "name": "采样器"
-      },
-      "sigmas": {
-        "name": "西格玛"
-      },
-      "latent_image": {
-        "name": "Latent图像"
-      },
-      "cleanup": {
-        "name": "采样后清理"
-      }
+      "noise": { "name": "噪声" },
+      "guider": { "name": "引导器" },
+      "sampler": { "name": "采样器" },
+      "sigmas": { "name": "Sigma" },
+      "latent_image": { "name": "潜空间" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "输出Latent"
-      },
-      "1": {
-        "name": "降噪Latent"
-      }
-    }
+    "outputs": { "0": { "name": "输出" }, "1": { "name": "降噪输出" } }
   },
   "XB_ROCmVAEDecode": {
-    "display_name": "XB-BOX - 🖼️ ROCm VAE 解码",
+    "display_name": "XB-BOX - VAE解码（原版优化）",
     "inputs": {
-      "samples": {
-        "name": "潜变量"
-      },
-      "vae": {
-        "name": "VAE模型"
-      },
-      "tile": {
-        "name": "空间分块(0=自动)"
-      },
-      "overlap": {
-        "name": "分块重叠(0=自动)"
-      },
-      "cleanup": {
-        "name": "清理力度"
-      }
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "tile": { "name": "分块大小(0=自动)" },
+      "overlap": { "name": "重叠(0=自动)" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "图像"
-      }
-    }
+    "outputs": { "0": { "name": "图像" } }
   },
   "XB_ROCmVAEEncode": {
-    "display_name": "XB-BOX - 📦 ROCm VAE 编码",
+    "display_name": "XB-BOX - VAE编码（原版优化）",
     "inputs": {
-      "pixels": {
-        "name": "图像"
-      },
-      "vae": {
-        "name": "VAE模型"
-      },
-      "tile": {
-        "name": "空间分块(0=自动)"
-      },
-      "overlap": {
-        "name": "分块重叠(0=自动)"
-      },
-      "temporal_size": {
-        "name": "时间分块帧数(0=自动)"
-      },
-      "temporal_overlap": {
-        "name": "时间重叠(0=自动)"
-      },
-      "cleanup": {
-        "name": "编码后清理"
-      }
+      "pixels": { "name": "图像" },
+      "vae": { "name": "VAE" },
+      "tile": { "name": "分块大小(0=自动)" },
+      "overlap": { "name": "重叠(0=自动)" },
+      "temporal_size": { "name": "时间分块(0=自动)" },
+      "temporal_overlap": { "name": "时间重叠(0=自动)" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "潜变量"
-      }
-    }
+    "outputs": { "0": { "name": "潜空间" } }
   },
   "XB_ROCmVAEDecodeTemporal": {
-    "display_name": "XB-BOX - 🎬 ROCm VAE 时空解码",
+    "display_name": "XB-BOX - VAE分块解码（原版优化）",
     "inputs": {
-      "samples": {
-        "name": "潜变量"
-      },
-      "vae": {
-        "name": "VAE模型"
-      },
-      "tile": {
-        "name": "空间分块(0=自动)"
-      },
-      "overlap": {
-        "name": "空间重叠(0=自动)"
-      },
-      "t_tile": {
-        "name": "时间分块帧数(0=自动)"
-      },
-      "t_overlap": {
-        "name": "时间重叠(0=自动)"
-      },
-      "cleanup": {
-        "name": "清理力度"
-      }
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "tile": { "name": "空间分块(0=自动)" },
+      "overlap": { "name": "空间重叠(0=自动)" },
+      "t_tile": { "name": "时间分块(0=自动)" },
+      "t_overlap": { "name": "时间重叠(0=自动)" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "图像"
-      }
-    }
+    "outputs": { "0": { "name": "图像" } }
   },
   "XB_ROCmLTXVAEDecode": {
-    "display_name": "XB-BOX - 🎬 ROCm LTX VAE 时空解码",
+    "display_name": "XB-BOX - VAE分块解码（原版优化）",
     "inputs": {
-      "samples": {
-        "name": "潜变量"
-      },
-      "vae": {
-        "name": "LTX VAE模型"
-      },
-      "spatial_tiles": {
-        "name": "空间分块数(1=不分块)"
-      },
-      "spatial_overlap": {
-        "name": "空间重叠(0=自动)"
-      },
-      "temporal_tile_length": {
-        "name": "时间分块长度(latent帧)"
-      },
-      "temporal_overlap": {
-        "name": "时间重叠(latent帧)"
-      },
-      "last_frame_fix": {
-        "name": "末帧修复"
-      },
-      "cleanup": {
-        "name": "清理力度"
-      }
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "tile": { "name": "空间分块(0=自动)" },
+      "overlap": { "name": "空间重叠(0=自动)" },
+      "t_tile": { "name": "时间分块(0=自动)" },
+      "t_overlap": { "name": "时间重叠(0=自动)" },
+      "cleanup": { "name": "执行前清理" }
     },
-    "outputs": {
-      "0": {
-        "name": "图像"
-      }
-    }
+    "outputs": { "0": { "name": "图像" } }
   },
   "XB_ROCmMemCleaner": {
-    "display_name": "XB-BOX - 🧹 ROCm 显存清理",
+    "display_name": "XB-BOX - 显存清理",
     "inputs": {
       "mode": {
         "name": "清理模式"
@@ -3289,5 +3114,136 @@
         "name": "检测信息"
       }
     }
+  },
+  "XB_KSampler": {
+    "display_name": "XB-BOX - 采样器（原版优化）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "seed": { "name": "种子" },
+      "steps": { "name": "步数" },
+      "cfg": { "name": "CFG" },
+      "sampler_name": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "latent_image": { "name": "潜空间" },
+      "denoise": { "name": "降噪" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "潜空间" } }
+  },
+  "XB_KSamplerAdvanced": {
+    "display_name": "XB-BOX - 高级采样器（原版优化）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "add_noise": { "name": "加噪" },
+      "noise_seed": { "name": "噪声种子" },
+      "steps": { "name": "步数" },
+      "cfg": { "name": "CFG" },
+      "sampler_name": { "name": "采样器" },
+      "scheduler": { "name": "调度器" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "latent_image": { "name": "潜空间" },
+      "start_at_step": { "name": "起始步" },
+      "end_at_step": { "name": "结束步" },
+      "return_with_leftover_noise": { "name": "返回残留噪声" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "潜空间" } }
+  },
+  "XB_SamplerCustom": {
+    "display_name": "XB-BOX - 自定义采样器（原版优化）",
+    "inputs": {
+      "model": { "name": "模型" },
+      "add_noise": { "name": "加噪" },
+      "noise_seed": { "name": "噪声种子" },
+      "cfg": { "name": "CFG" },
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "sampler": { "name": "采样器" },
+      "sigmas": { "name": "Sigma" },
+      "latent_image": { "name": "潜空间" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "输出" }, "1": { "name": "降噪输出" } }
+  },
+  "XB_SamplerCustomAdvanced": {
+    "display_name": "XB-BOX - 自定义高级采样器（原版优化）",
+    "inputs": {
+      "noise": { "name": "噪声" },
+      "guider": { "name": "引导器" },
+      "sampler": { "name": "采样器" },
+      "sigmas": { "name": "Sigma" },
+      "latent_image": { "name": "潜空间" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "输出" }, "1": { "name": "降噪输出" } }
+  },
+  "XB_VAEDecode": {
+    "display_name": "XB-BOX - VAE解码（原版优化）",
+    "inputs": {
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "图像" } }
+  },
+  "XB_VAEDecodeTiled": {
+    "display_name": "XB-BOX - VAE分块解码（原版优化）",
+    "inputs": {
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "tile_size": { "name": "分块大小" },
+      "overlap": { "name": "重叠" },
+      "temporal_size": { "name": "时间分块" },
+      "temporal_overlap": { "name": "时间重叠" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "图像" } }
+  },
+  "XB_VAEDecodeTiledImage": {
+    "display_name": "XB-BOX - VAE解码（原版优化）",
+    "inputs": {
+      "samples": { "name": "潜空间" },
+      "vae": { "name": "VAE" },
+      "tile_size": { "name": "分块大小" },
+      "overlap": { "name": "重叠" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "图像" } }
+  },
+  "XB_VAEEncode": {
+    "display_name": "XB-BOX - VAE编码（原版优化）",
+    "inputs": {
+      "pixels": { "name": "图像" },
+      "vae": { "name": "VAE" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "潜空间" } }
+  },
+  "XB_VAEEncodeTiled": {
+    "display_name": "XB-BOX - VAE分块编码（原版优化）",
+    "inputs": {
+      "pixels": { "name": "图像" },
+      "vae": { "name": "VAE" },
+      "tile_size": { "name": "分块大小" },
+      "overlap": { "name": "重叠" },
+      "temporal_size": { "name": "时间分块" },
+      "temporal_overlap": { "name": "时间重叠" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "潜空间" } }
+  },
+  "XB_VAEEncodeForInpaint": {
+    "display_name": "XB-BOX - VAE修补编码（原版优化）",
+    "inputs": {
+      "pixels": { "name": "图像" },
+      "vae": { "name": "VAE" },
+      "mask": { "name": "遮罩" },
+      "grow_mask_by": { "name": "遮罩扩展" },
+      "cleanup": { "name": "执行前清理" }
+    },
+    "outputs": { "0": { "name": "潜空间" } }
   }
 }

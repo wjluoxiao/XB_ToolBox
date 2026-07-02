@@ -122,35 +122,52 @@ class XB_SageAttentionAccelerator:
         selected_cfg = configs[preset]
         from sageattention import sageattn
 
+        _warned = {}  # 去重：每个警告只打印一次
+
         def attention_override_sage(func, q, k, v, heads, mask=None, attn_precision=None,
                                      skip_reshape=False, skip_output_reshape=False, **kwargs):
             in_dtype = v.dtype
 
-            if q.dtype == torch.float32 or k.dtype == torch.float32 or v.dtype == torch.float32:
-                q, k, v = q.to(torch.float16), k.to(torch.float16), v.to(torch.float16)
+            # 🛡️ 3D/4D 维度校验：非3D且非skip_reshape → 直接退回原生
+            if q.ndim != 3 and not skip_reshape:
+                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
 
+            # ── 在修改 q/k/v 物理形态之前，先完成所有断路检查 ──
             if skip_reshape:
+                # q 已是 4D: (b, heads, n, dim_head)，无需 reshape
                 b, _, _, dim_head = q.shape
                 tensor_layout = "HND"
             else:
-                b, _, dim_head = q.shape
-                dim_head //= heads
+                # q 是 3D: (b, n, heads*dim_head)，先提取维度信息，暂不 reshape
+                b, _, d = q.shape
+                dim_head = d // heads
+                tensor_layout = "NHD"
+
+            # 🛡️ 非2的幂Head Dim → 退回原生SDPA（此时 q 仍为原始形态）
+            if dim_head not in (16, 32, 64, 128, 256):
+                if "dim_head" not in _warned:
+                    print("\033[93m[SageAttn]\033[0m: Unsupported head_dim ({}) — falling back to SDPA.".format(dim_head))
+                    _warned["dim_head"] = True
+                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
+
+            # 🛡️ 有attn_mask → sage_config 路径不支持，退回原生SDPA（此时 q 仍为原始形态）
+            if mask is not None:
+                if "mask" not in _warned:
+                    print("\033[93m[SageAttn]\033[0m: Attention mask detected — falling back to SDPA.")
+                    _warned["mask"] = True
+                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
+
+            # ── 通过所有安全检查后，才进行 dtype 转换和 reshape ──
+            if q.dtype == torch.float32 or k.dtype == torch.float32 or v.dtype == torch.float32:
+                q, k, v = q.to(torch.float16), k.to(torch.float16), v.to(torch.float16)
+
+            if not skip_reshape:
                 q = q.view(b, -1, heads, dim_head)
                 k = k.view(b, -1, heads, dim_head)
                 v = v.view(b, -1, heads, dim_head)
-                tensor_layout = "NHD"
-
-            # 🛡️ 非2的幂Head Dim → 退回原生SDPA
-            if dim_head not in (16, 32, 64, 128, 256):
-                print("\033[93m[SageAttn]\033[0m: Unsupported head_dim ({}) — falling back to SDPA.".format(dim_head))
-                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
-                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
-
-            # 🛡️ 有attn_mask → sage_config 路径不支持，退回原生SDPA
-            if mask is not None:
-                print("\033[93m[SageAttn]\033[0m: Attention mask detected — falling back to SDPA.")
-                return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
-                           skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
 
             is_causal = kwargs.get("is_causal", False)
             out = sageattn(q, k, v, is_causal=is_causal, tensor_layout=tensor_layout,
