@@ -774,13 +774,13 @@ class XB_WanAnimate_RelayNode:
             latent_sampled["samples"] = latent_sampled["samples"][:, :, trim_latent_val:, :, :]
 
         try:
-            from .nodes_rocm import XB_ROCmVAEDecodeTemporal
+            from .nodes_vanilla_wrappers import _AliasVAEDecodeTemporal as XB_ROCmVAEDecodeTemporal
         except ImportError:
-            raise ImportError("🚨 [XB-BOX] 找不到 XB_ROCmVAEDecodeTemporal，请确保 nodes_rocm.py 未被删除！")
+            raise ImportError("🚨 [XB-BOX] 找不到 _AliasVAEDecodeTemporal，请确保 nodes_vanilla_wrappers.py 未被删除！")
 
-        cleanup_mode = b.get("cleanup", "双次缓存清理")
+        cleanup_mode = b.get("cleanup", "不做任何清理")
         decoder = XB_ROCmVAEDecodeTemporal()
-        decoded_image, = decoder.go(
+        decoded_image, = decoder.decode(
             samples=latent_sampled,
             vae=b["vae"],
             tile=b.get("vae_decode_tile_size", 320),
@@ -1476,12 +1476,12 @@ class XB_WanAnimate_RelayNode_New:
                 latent_sampled["samples"] = latent_sampled["samples"][:, :, trim_latent_val:, :, :]
 
             try:
-                from .nodes_rocm import XB_ROCmVAEDecodeTemporal
+                from .nodes_vanilla_wrappers import _AliasVAEDecodeTemporal as XB_ROCmVAEDecodeTemporal
             except ImportError:
-                raise ImportError("🚨 找不到 XB_ROCmVAEDecodeTemporal")
-            cleanup_mode = b.get("cleanup", "双次缓存清理")
+                raise ImportError("🚨 找不到 _AliasVAEDecodeTemporal")
+            cleanup_mode = b.get("cleanup", "不做任何清理")
             decoder = XB_ROCmVAEDecodeTemporal()
-            decoded_image, = decoder.go(
+            decoded_image, = decoder.decode(
                 samples=latent_sampled, vae=b["vae"],
                 tile=b.get("vae_decode_tile_size", 320), overlap=b.get("spatial_overlap", 32),
                 t_tile=b.get("temporal_chunk_size", 64), t_overlap=b.get("temporal_overlap", 8),
@@ -1923,12 +1923,12 @@ class XB_WanSCAIL_RelayNode_New:
 
             # --- 解码 ---
             try:
-                from .nodes_rocm import XB_ROCmVAEDecodeTemporal
+                from .nodes_vanilla_wrappers import _AliasVAEDecodeTemporal as XB_ROCmVAEDecodeTemporal
             except ImportError:
-                raise ImportError("🚨 找不到 XB_ROCmVAEDecodeTemporal")
-            cleanup_mode = b.get("cleanup", "双次缓存清理")
+                raise ImportError("🚨 找不到 _AliasVAEDecodeTemporal")
+            cleanup_mode = b.get("cleanup", "不做任何清理")
             decoder = XB_ROCmVAEDecodeTemporal()
-            decoded_image, = decoder.go(
+            decoded_image, = decoder.decode(
                 samples=latent_sampled, vae=b["vae"],
                 tile=b.get("vae_decode_tile_size", 192), overlap=b.get("spatial_overlap", 32),
                 t_tile=b.get("temporal_chunk_size", 64), t_overlap=b.get("temporal_overlap", 8),
