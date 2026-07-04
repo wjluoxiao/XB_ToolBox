@@ -3631,13 +3631,19 @@
         "name": "批次大小"
       },
       "vae_tile_size": {
-        "name": "VAE分块大小"
+        "name": "VAE编码分块大小"
       },
       "source_video": {
         "name": "源视频"
       },
       "reference_video": {
         "name": "参考视频"
+      },
+      "ref_max_size": {
+        "name": "参考图最大尺寸"
+      },
+      "scale_method": {
+        "name": "缩放方法"
       },
       "reference_image_0": {
         "name": "参考图0"
@@ -3662,15 +3668,6 @@
       },
       "reference_image_7": {
         "name": "参考图7"
-      },
-      "ref_max_size": {
-        "name": "参考图最大尺寸"
-      },
-      "scale_method": {
-        "name": "缩放方法"
-      },
-      "crop_mode": {
-        "name": "裁剪模式"
       }
     },
     "outputs": {

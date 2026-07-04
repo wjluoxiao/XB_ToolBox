@@ -1534,7 +1534,6 @@ class XB_BerniniConditioning:
                 "height": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
-                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
             },
             "optional": {
                 "source_video": ("IMAGE",),
@@ -1548,8 +1547,8 @@ class XB_BerniniConditioning:
                 "reference_image_6": ("IMAGE",),
                 "reference_image_7": ("IMAGE",),
                 "ref_max_size": ("INT", {"default": 848, "min": 16, "max": 8192, "step": 16}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
                 "scale_method": (_SCALE_METHODS, {"default": "area"}),
-                "crop_mode": (_CROP_MODES, {"default": "center"}),
             }
         }
 
@@ -1558,17 +1557,18 @@ class XB_BerniniConditioning:
     FUNCTION = "go"
     CATEGORY = "XB_ToolBox/Wan"
 
-    def go(self, positive, negative, vae, width, height, length, batch_size, vae_tile_size,
+    def go(self, positive, negative, vae, width, height, length, batch_size,
             source_video=None, reference_video=None,
-            reference_image_0=None, reference_image_1=None, reference_image_2=None,
-            reference_image_3=None, reference_image_4=None, reference_image_5=None,
+            reference_image_0=None, reference_image_1=None,
+            reference_image_2=None, reference_image_3=None,
+            reference_image_4=None, reference_image_5=None,
             reference_image_6=None, reference_image_7=None,
-            ref_max_size=848, scale_method="area", crop_mode="center"):
+            ref_max_size=848, vae_tile_size=256, scale_method="area"):
         latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
                              device=comfy.model_management.intermediate_device())
         context = []
         if source_video is not None:
-            vid = comfy.utils.common_upscale(source_video[:length, :, :, :3].movedim(-1, 1), width, height, scale_method, crop_mode).movedim(1, -1)
+            vid = comfy.utils.common_upscale(source_video[:length, :, :, :3].movedim(-1, 1), width, height, scale_method, "center").movedim(1, -1)
             context.append(_encode_vae(vae, vid[:, :, :, :3], vae_tile_size))
         if reference_video is not None:
             ref_vid = _resize_long_edge(reference_video[:length], ref_max_size, method=scale_method)
