@@ -25,6 +25,12 @@
       },
       "format": {
         "name": "模型格式"
+      },
+      "meta_batch": {
+        "name": "批次管理"
+      },
+      "vae": {
+        "name": "VAE解码"
       }
     },
     "outputs": {

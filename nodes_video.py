@@ -492,14 +492,16 @@ class XB_VideoLoader:
                     files.append(f)
         return {"required": {
                     "video": (sorted(files),),
+                    "force_rate": ("FLOAT", {"default": 0, "min": 0, "max": 60, "step": 1}),
                     "custom_width": ("INT", {"default": 0, "min": 0, "max": DIMMAX}),
                     "custom_height": ("INT", {"default": 0, "min": 0, "max": DIMMAX}),
                     "frame_load_cap": ("INT", {"default": 0, "min": 0, "max": BIGMAX, "step": 1}),
-                    "force_rate": ("FLOAT", {"default": 0, "min": 0, "max": 60, "step": 1}),
                     "skip_first_frames": ("INT", {"default": 0, "min": 0, "max": BIGMAX, "step": 1}),
                     "select_every_nth": ("INT", {"default": 1, "min": 1, "max": BIGMAX, "step": 1}),
                     },
                 "optional": {
+                    "meta_batch": ("VHS_BatchManager",),
+                    "vae": ("VAE",),
                     "format": get_load_formats(),
                 },
                 "hidden": {
