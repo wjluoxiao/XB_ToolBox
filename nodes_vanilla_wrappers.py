@@ -13,6 +13,7 @@ XB_ToolBox 原版优化节点 (Vanilla Wrappers) — v1.0
 import torch
 import gc
 import copy
+import inspect
 import comfy.model_management as mm
 import comfy.samplers
 import nodes
@@ -34,6 +35,28 @@ _CLEANUP_OPTIONS = [
     "卸载显存模型",
     "卸载全量模型",
 ]
+
+
+def _safe_call(target_func, **kwargs):
+    """向下兼容透传: 仅传入目标函数实际支持的参数，自动丢弃旧版不识别的参数。
+
+    典型场景: 新版 ComfyUI 的 VAEDecodeTiled.decode() 支持 temporal_size/temporal_overlap，
+    但秋叶整合包等旧版只有 tile_size/overlap。此函数用 inspect 探测签名并过滤。
+    Returns:
+        (result, dropped_params) — result 是调用结果，dropped_params 是被丢弃的参数字典
+    """
+    sig = inspect.signature(target_func)
+    valid = set(sig.parameters.keys())
+    accepted = {}
+    dropped = {}
+    for k, v in kwargs.items():
+        if k in valid:
+            accepted[k] = v
+        else:
+            dropped[k] = v
+    if dropped:
+        print(f"[XB_Wrapper] 旧版 ComfyUI 不支持参数 {list(dropped.keys())}，已自动跳过")
+    return target_func(**accepted), dropped
 
 
 def _execute_cleanup(level: str, label: str = ""):
@@ -221,10 +244,12 @@ class XB_VAEDecodeTiledImage:
     def decode(self, **kwargs):
         cleanup = kwargs.pop("cleanup", "不做任何清理")
         _execute_cleanup(cleanup, "VAE分块解码(图片)")
-        # 透传给官方 VAEDecodeTiled，时间参数用默认值
-        kwargs.setdefault("temporal_size", 64)
-        kwargs.setdefault("temporal_overlap", 8)
-        return nodes.VAEDecodeTiled().decode(**kwargs)
+        # 透传给官方 VAEDecodeTiled（向下兼容：旧版不支持时间参数时自动跳过）
+        result, _ = _safe_call(nodes.VAEDecodeTiled().decode,
+                               temporal_size=kwargs.get("temporal_size", 64),
+                               temporal_overlap=kwargs.get("temporal_overlap", 8),
+                               **kwargs)
+        return result
 
 
 class XB_VAEEncode:
@@ -425,9 +450,11 @@ class _AliasVAEDecode:
         _execute_cleanup(cleanup, "VAE解码")
         if "tile" in kwargs:
             kwargs["tile_size"] = kwargs.pop("tile") if kwargs["tile"] > 0 else 512
-        kwargs.setdefault("temporal_size", 64)
-        kwargs.setdefault("temporal_overlap", 8)
-        return nodes.VAEDecodeTiled().decode(**kwargs)
+        result, _ = _safe_call(nodes.VAEDecodeTiled().decode,
+                               temporal_size=kwargs.get("temporal_size", 64),
+                               temporal_overlap=kwargs.get("temporal_overlap", 8),
+                               **kwargs)
+        return result
 
 
 class _AliasVAEDecodeTemporal:
@@ -456,7 +483,9 @@ class _AliasVAEDecodeTemporal:
             kwargs["temporal_size"] = kwargs.pop("t_tile") if kwargs["t_tile"] > 0 else 64
         if "t_overlap" in kwargs:
             kwargs["temporal_overlap"] = kwargs.pop("t_overlap") if kwargs["t_overlap"] > 0 else 8
-        return nodes.VAEDecodeTiled().decode(**kwargs)
+        # 向下兼容: 旧版 ComfyUI 不支持时间参数时自动跳过
+        result, _ = _safe_call(nodes.VAEDecodeTiled().decode, **kwargs)
+        return result
 
 
 class _AliasVAEEncode:
