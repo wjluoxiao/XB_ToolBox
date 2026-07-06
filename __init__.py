@@ -85,6 +85,7 @@ try:
     from .nodes_string_merge import XB_StringMerge
     from .nodes_msr import XB_MSR
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
+    from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -178,7 +179,9 @@ try:
         "XB_MSR": XB_MSR,
         "XB_ComicPromptParser": XB_ComicPromptParser,
         "XB_ComicTextRenderer": XB_ComicTextRenderer,
-        "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer
+        "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer,
+        "XB_BerniniPromptRouter": XB_BerniniPromptRouter,
+        "XB_K2StyleRouter": XB_K2StyleRouter
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -261,6 +264,8 @@ try:
         "XB_ComicTextRenderer": "XB-BOX - 💬 漫画文字渲染 (精确坐标)",
         "XB_AutoBubbleTextRenderer": "XB-BOX - 🤖 漫画文字渲染 (全自动带涂改液)",
         "XB_BerniniConditioning": "XB-BOX - 🎨 Bernini 条件注入（VAE分块）",
+        "XB_BerniniPromptRouter": "XB-BOX - 🧠 Bernini 提示词路由（超级节点）",
+        "XB_K2StyleRouter": "XB-BOX - 🎨 K2 风格切换路由（超级节点）",
     }
 
     print_success("\n" + "="*50)
