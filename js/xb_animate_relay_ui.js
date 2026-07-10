@@ -5,7 +5,7 @@ import { app } from "../../scripts/app.js";
 // Animate & SCAIL 无限接力点 — 独立参考图 锁定/解锁 UI
 // ============================================================
 
-const RELAY_LOCK_NODES = ["XB_WanAnimate_RelayNode", "XB_WanAnimate_RelayNode_New"];
+const RELAY_LOCK_NODES = ["XB_WanAnimate_RelayNode", "XB_WanAnimate_RelayNode_New", "XB_WanInfiniteTalk_RelayNode_MultiRef", "XB_WanInfiniteTalk_RelayNode_AllInOne"];
 
 app.registerExtension({
     name: "xiaobai.animate_scail_relay_lock_ui",
@@ -18,7 +18,8 @@ app.registerExtension({
                 const node = this;
 
                 const isLocked = () => {
-                    const tw = node.widgets.find(w => w.name === "use_local_ref_image");
+                    let tw = node.widgets.find(w => w.name === "use_local_ref_image");
+                    if (!tw) tw = node.widgets.find(w => w.name === "start_image_mode");
                     if (!tw) return true;
                     return tw.value !== "独立参考图";
                 };

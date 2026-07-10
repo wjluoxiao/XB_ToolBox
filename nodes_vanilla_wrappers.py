@@ -81,6 +81,7 @@ def _execute_cleanup(level: str, label: str = ""):
     if level in ("卸载显存模型", "卸载全量模型"):
         mm.unload_all_models()
         mm.soft_empty_cache()
+        gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -194,12 +195,6 @@ class XB_VAEDecode:
     def decode(self, **kwargs):
         cleanup = kwargs.pop("cleanup", "不做任何清理")
         _execute_cleanup(cleanup, "VAE解码")
-        # 🛡️ AMD MIOpen 防护：确保 latent 是连续内存
-        samples = kwargs.get("samples")
-        if isinstance(samples, dict):
-            lat = samples.get("samples")
-            if hasattr(lat, 'is_contiguous') and not lat.is_contiguous():
-                kwargs["samples"] = {**samples, "samples": lat.contiguous()}
         return nodes.VAEDecode().decode(**kwargs)
 
 
@@ -510,7 +505,9 @@ class _AliasVAEEncode:
         _execute_cleanup(cleanup, "VAE编码")
         if "tile" in kwargs:
             kwargs["tile_size"] = kwargs.pop("tile") if kwargs["tile"] > 0 else 512
-        return nodes.VAEEncodeTiled().encode(**kwargs)
+        # 向下兼容: 旧版 ComfyUI 不支持时间参数时自动跳过
+        result, _ = _safe_call(nodes.VAEEncodeTiled().encode, **kwargs)
+        return result
 
 
 # LTX 别名直接复用 Temporal 别名类

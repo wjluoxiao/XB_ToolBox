@@ -673,8 +673,10 @@ def _process_infinite_talk_audio(model, model_patch, positive, negative, vae, wi
         motion_frames_latent = _encode_vae(vae, motion_frames[:, :, :, :3], vae_tile_size)
         trim_image = motion_frame_count
     else:
-        audio_start = trim_image = 0
-        audio_end = length
+        # 🔧 即使没有 previous_frames（如硬切），也要尊重全局音频偏移量
+        audio_start = global_frame_offset if global_frame_offset is not None else 0
+        trim_image = 0
+        audio_end = audio_start + length
         motion_frames_latent = concat_latent_image[:, :, :1] if concat_latent_image is not None else torch.zeros((1, 16, 1, height // 8, width // 8), device=latent.device)
 
     audio_embed = project_audio_features(model_patch.model.audio_proj, encoded_audio_list, audio_start, audio_end).to(model.model_dtype())

@@ -1077,8 +1077,8 @@ class XB_WanInfiniteTalk_RelayNode:
             # 总线模式：从原始长音频中裁出当前段
             raw_wf = raw_audio["waveform"] if raw_audio else torch.zeros((1, 1))
             raw_sr = raw_audio["sample_rate"] if raw_audio else 44100
-            seg_start_sample = int(b["_accumulated_frames"] / fps * raw_sr)
-            seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd]) / fps * raw_sr)
+            seg_start_sample = int((b["_accumulated_frames"] + trim_val) / fps * raw_sr)
+            seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd] + trim_val) / fps * raw_sr)
             seg_end_sample = min(seg_end_sample, raw_wf.shape[-1])
             cut_audio = {"waveform": raw_wf[..., seg_start_sample:seg_end_sample], "sample_rate": raw_sr} if seg_end_sample > seg_start_sample else None
         else:
@@ -1673,8 +1673,8 @@ class XB_WanInfiniteTalk_RelayNode_New:
             if bus_audio_mode:
                 raw_wf = raw_audio["waveform"] if raw_audio else torch.zeros((1, 1))
                 raw_sr = raw_audio["sample_rate"] if raw_audio else 44100
-                seg_start_sample = int(b["_accumulated_frames"] / fps * raw_sr)
-                seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd]) / fps * raw_sr)
+                seg_start_sample = int((b["_accumulated_frames"] + trim_val) / fps * raw_sr)
+                seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd] + trim_val) / fps * raw_sr)
                 seg_end_sample = min(seg_end_sample, raw_wf.shape[-1])
                 cut_audio = {"waveform": raw_wf[..., seg_start_sample:seg_end_sample], "sample_rate": raw_sr} if seg_end_sample > seg_start_sample else None
             else:
@@ -1961,3 +1961,546 @@ class XB_WanSCAIL_RelayNode_New:
         overlap = previous_frame_count
         total = max(0, segment_length * relay_count - overlap * (relay_count - 1))
         return (b, accumulated_video)
+
+
+# ============================================================
+# XB_WanInfiniteTalk_RelayNode_MultiRef — InfiniteTalk 多图接力点
+# ============================================================
+class XB_WanInfiniteTalk_RelayNode_MultiRef:
+    """
+    InfiniteTalk 无限对口型接力点（多图版）。
+    支持独立参考图上传，类似 Animate 接力点。
+    每个接力点完成：CLIPTextEncode → WanInfiniteTalkToVideo_Single → KSampler → VAEDecode → trim → 累加。
+    relay_count > 1 时本节点内部自动循环 N 次。
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))] if os.path.exists(input_dir) else []
+        files = sorted(files)
+        if not files:
+            files = ["[Folder empty_Please connect or upload]"]
+
+        return {
+            "required": {
+                "wan_infinitetalk_bus": ("WAN_INFINITETALK_BUS",),
+                "positive_prompt": ("STRING", {"multiline": True, "default": ""}),
+                "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "use_local_ref_image": (["继承总线全局图", "独立参考图"], {"default": "继承总线全局图"}),
+                "ref_image_file": (files, {"image_upload": True}),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1, "tooltip": "接力重叠帧数（运动过渡）"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",),
+                "prev_audio": ("AUDIO",),
+                "audio": ("AUDIO",),
+            }
+        }
+
+    RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
+    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_infinitetalk_bus, positive_prompt, segment_length, use_local_ref_image="继承总线全局图", ref_image_file="",
+                      motion_frame_count=9, relay_count=1, total_frames_display="",
+                      prev_video=None, prev_audio=None, audio=None):
+        b = wan_infinitetalk_bus.copy()
+        fps = b.get("fps", 25.0)
+        bus_audio_mode = b.get("_bus_audio_mode", False)
+        print(f"\n🏃‍♀️ [XB-BOX] Executing InfiniteTalk MultiRef Relay × {relay_count} relay(s)... 每段 {segment_length} 帧")
+
+        accumulated_video = prev_video
+        accumulated_audio = prev_audio
+
+        # --- 预处理独立参考图 ---
+        is_local = (use_local_ref_image in ("独立参考图", True, 1))
+        local_start_image = None
+        local_clip_vision_output = None
+        if is_local:
+            if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
+                raise ValueError("🚨 [XB-BOX] 多图接力点已开启独立参考图，但未选择图片文件！")
+            image_path = folder_paths.get_annotated_filepath(ref_image_file)
+            if not os.path.exists(image_path):
+                raise ValueError(f"🚨 [XB-BOX] 独立参考图文件未找到: {os.path.basename(image_path)}")
+            i = Image.open(image_path)
+            i = ImageOps.exif_transpose(i)
+            image_data = i.convert("RGB")
+            image_data = np.array(image_data).astype(np.float32) / 255.0
+            local_start_image = torch.from_numpy(image_data)[None,]
+            cv_model = b.get("clip_vision")
+            if cv_model is None:
+                raise ValueError("🚨 [XB-BOX] 独立参考图需要总线连接 clip_vision 模型！")
+            w, h = b["width"], b["height"]
+            sm = b.get("scale_method", "lanczos")
+            cm = b.get("crop_mode", "center")
+            clip_img = comfy.utils.common_upscale(local_start_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
+            local_clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
+            print(f"🖼️ [XB-BOX] 多图接力点使用独立参考图 ({image_data.shape[1]}×{image_data.shape[0]} → {w}×{h}, {sm}/{cm})")
+
+        completed = 0
+        for r in range(relay_count):
+            print(f"\n🔄 [XB-BOX] InfiniteTalk 接力 {r+1}/{relay_count}...")
+
+            if bus_audio_mode:
+                total_frames = b["_total_frames"]
+                accumulated = b["_accumulated_frames"]
+                remaining = total_frames - accumulated
+
+                if remaining <= 0:
+                    break
+
+                if remaining < segment_length:
+                    if accumulated == 0:
+                        need_raw = remaining
+                    else:
+                        need_raw = remaining + motion_frame_count
+                    actual_length = ((need_raw + 2) // 4) * 4 + 1
+                    if actual_length < 1:
+                        break
+                    print(f"\n⚠️ [XB-BOX] 最后一段: 剩余 {remaining} → need_raw={need_raw} → {actual_length} 帧 (4N+1)")
+                else:
+                    actual_length = segment_length
+
+                encoded_audio = b["_encoded_audio"]
+                raw_audio = b.get("_raw_audio")
+                use_segment_audio = False
+                print(f"\n🔊 [XB-BOX] 总线音频接力: 偏移 {accumulated} 帧 @ {fps:.0f}fps, 生成长度 {actual_length} 帧 ({accumulated}/{total_frames})")
+            else:
+                if audio is None:
+                    print(f"⏭️ [XB-BOX] 无音频输入，跳过接力 {r+1}")
+                    break
+
+                actual_length = segment_length
+                encoded_audio = None
+                raw_audio = audio
+                use_segment_audio = True
+                print(f"\n🎵 [XB-BOX] 独立音频接力: 生成长度 {actual_length} 帧")
+
+            # --- 帧数对齐 4N+1 ---
+            raw_length = actual_length
+            aligned_length = ((actual_length + 2) // 4) * 4 + 1
+            if aligned_length != raw_length:
+                print(f"⚠️ [XB-BOX] 帧数对齐: {raw_length} → {aligned_length} (4n+1)")
+                if not bus_audio_mode and audio is not None:
+                    pad_frames = aligned_length - raw_length
+                    pad_sec = pad_frames / fps
+                    sr = audio["sample_rate"]
+                    pad_samples = int(pad_sec * sr)
+                    pad_wf = torch.zeros((audio["waveform"].shape[0], pad_samples), dtype=audio["waveform"].dtype, device=audio["waveform"].device)
+                    raw_audio = {"waveform": torch.cat([audio["waveform"], pad_wf], dim=-1), "sample_rate": sr}
+            actual_length = aligned_length
+
+            # --- 音频编码（独立模式） ---
+            if not bus_audio_mode:
+                ae_cls = nodes.NODE_CLASS_MAPPINGS.get("AudioEncoderEncode")
+                if ae_cls is None:
+                    raise ImportError("AudioEncoderEncode not found")
+                ae = ae_cls()
+                encoded_audio, = getattr(ae, ae.FUNCTION)(b["audio_encoder"], raw_audio)
+
+            # --- 提示词 ---
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], positive_prompt)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b["negative_prompt"])
+
+            # --- 参考图/CLIP视觉 ---
+            prev = b.get("_previous_frames")
+            global_frame_offset = None
+            if bus_audio_mode:
+                global_frame_offset = b["_accumulated_frames"]
+
+            # 独立参考图：每个接力段使用独立编码；总线参考图：从总线获取
+            if is_local:
+                cur_start_image = local_start_image
+                cur_clip_output = local_clip_vision_output
+            else:
+                cur_start_image = b.get("start_image")
+                cur_clip_output = b.get("clip_vision_output")
+
+            # --- InfiniteTalk 底座 ---
+            core = XB_WanInfiniteTalkToVideo_Single()
+            model_out, pos, neg, latent, trim = core.process(
+                model=b["model"], model_patch=b["model_patch"],
+                positive=pos_cond, negative=neg_cond, vae=b["vae"],
+                width=b["width"], height=b["height"], length=actual_length,
+                audio_encoder_output_1=encoded_audio,
+                motion_frame_count=motion_frame_count, audio_scale=b["audio_scale"],
+                vae_tile_size=b["vae_encode_tile_size"],
+                clip_vision_output=cur_clip_output,
+                start_image=cur_start_image, previous_frames=prev,
+                segment_audio=use_segment_audio,
+                global_frame_offset=global_frame_offset,
+                scale_method=b.get("scale_method", "lanczos"),
+                crop_mode=b.get("crop_mode", "center"),
+            )
+
+            # --- 采样 ---
+            latent_out, = nodes.KSampler().sample(
+                model=model_out, seed=b["seed"],
+                steps=b["steps"], cfg=b["cfg"],
+                sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent, denoise=1.0,
+            )
+
+            # --- 解码 ---
+            decoded, = nodes.VAEDecode().decode(samples=latent_out, vae=b["vae"])
+
+            # --- 视频裁剪累加 ---
+            is4d = len(decoded.shape) == 4
+            cd = 0 if is4d else 1
+            total = decoded.shape[cd]
+            b["_previous_frames"] = decoded
+
+            trim_val = int(trim) if trim else 0
+            trim_val = min(trim_val, total - 1) if trim_val < total else 0
+            cut = decoded[trim_val:] if is4d else decoded[:, trim_val:]
+            final_video = _safe_video_accumulate(accumulated_video, cut, cd, label=f"TalkMultiRef-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+
+            # --- 音频裁剪累加 ---
+            ats = trim_val / fps if trim_val else 0.0
+            if bus_audio_mode:
+                raw_wf = raw_audio["waveform"] if raw_audio else torch.zeros((1, 1))
+                raw_sr = raw_audio["sample_rate"] if raw_audio else 44100
+                seg_start_sample = int((b["_accumulated_frames"] + trim_val) / fps * raw_sr)
+                seg_end_sample = int((b["_accumulated_frames"] + cut.shape[cd] + trim_val) / fps * raw_sr)
+                seg_end_sample = min(seg_end_sample, raw_wf.shape[-1])
+                cut_audio = {"waveform": raw_wf[..., seg_start_sample:seg_end_sample], "sample_rate": raw_sr} if seg_end_sample > seg_start_sample else None
+            else:
+                cut_audio = raw_audio
+                if ats > 0 and raw_audio:
+                    wf = raw_audio["waveform"]
+                    sr = raw_audio["sample_rate"]
+                    n = int(ats * sr)
+                    if n < wf.shape[-1]:
+                        cut_audio = {"waveform": wf[..., n:], "sample_rate": sr}
+                    else:
+                        cut_audio = None
+
+            if accumulated_audio is None:
+                final_audio = cut_audio
+            elif cut_audio is None:
+                final_audio = accumulated_audio
+            else:
+                pa, ca = accumulated_audio, cut_audio
+                if pa["sample_rate"] != ca["sample_rate"]:
+                    if torchaudio is None:
+                        raise ImportError("🚨 [XB-BOX] 音频采样率不一致需要 torchaudio 重采样，但 torchaudio 未安装！请运行: pip install torchaudio")
+                    ca_wf = torchaudio.functional.resample(ca["waveform"], ca["sample_rate"], pa["sample_rate"])
+                    ca = {"waveform": ca_wf, "sample_rate": pa["sample_rate"]}
+                pa_wf = pa["waveform"]
+                ca_wf = ca["waveform"].to(pa_wf.device)
+                if pa_wf.dim() >= 2 and ca_wf.dim() >= 2 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
+                    if pa_wf.shape[-2] == 1 and ca_wf.shape[-2] > 1:
+                        rpt = [1] * pa_wf.dim(); rpt[-2] = ca_wf.shape[-2]; pa_wf = pa_wf.repeat(*rpt)
+                    elif ca_wf.shape[-2] == 1 and pa_wf.shape[-2] > 1:
+                        rpt = [1] * ca_wf.dim(); rpt[-2] = pa_wf.shape[-2]; ca_wf = ca_wf.repeat(*rpt)
+                final_audio = {"waveform": torch.cat([pa_wf, ca_wf], dim=-1), "sample_rate": pa["sample_rate"]}
+
+            b["_global_frame_offset"] = b.get("_global_frame_offset", 0) + cut.shape[cd]
+            if bus_audio_mode:
+                b["_accumulated_frames"] += cut.shape[cd]
+            accumulated_video = final_video
+            accumulated_audio = final_audio
+            print(f"✅ [XB-BOX] 接力 {r+1}/{relay_count} 完成. out={cut.shape[cd]}f total={final_video.shape[cd]}f")
+            completed = r + 1
+
+        if completed < relay_count:
+            print(f"✅ [XB-BOX] 生成任务由 {completed} 个接力点已经完成，跳过剩余接力点！")
+        else:
+            print(f"🎉 [XB-BOX] InfiniteTalk 接力全部完成: {relay_count} 段, 总计 {accumulated_video.shape[0 if len(accumulated_video.shape)==4 else 1]} 帧")
+        # 👑 刷新总线全局状态：如果引入了独立参考图，将其升级为下游节点的新基准
+        if is_local_ref:
+            b["start_image"] = local_start_image
+            b["clip_vision_output"] = local_clip_vision_output
+            print("🌐 [XB-BOX] 总线状态已更新：独立参考图已成为下游节点的新全局空间基准。")
+
+        _refresh_models()
+        return (b, accumulated_video, accumulated_audio)
+
+
+# ============================================================
+# XB_WanInfiniteTalk_RelayNode_AllInOne — InfiniteTalk 全能接力点
+# ============================================================
+class XB_WanInfiniteTalk_RelayNode_AllInOne:
+    """
+    InfiniteTalk 无限对口型接力点（全能版）。
+    首帧来源三选一：独立参考图 | 继承总线全局图 | 继承前段尾帧。
+    自动对齐音频裁剪与重叠帧，确保跳帧和长度一致。
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))] if os.path.exists(input_dir) else []
+        files = sorted(files)
+        if not files:
+            files = ["[Folder empty_Please connect or upload]"]
+
+        return {
+            "required": {
+                "wan_infinitetalk_bus": ("WAN_INFINITETALK_BUS",),
+                "positive_prompt": ("STRING", {"multiline": True, "default": ""}),
+                "segment_length": ("INT", {"default": 81, "min": 1, "max": 8192, "step": 4}),
+                "start_image_mode": (["继承总线全局图", "独立参考图", "继承前段尾帧"], {"default": "继承总线全局图"}),
+                "ref_image_file": (files, {"image_upload": True}),
+                "motion_frame_count": ("INT", {"default": 9, "min": 1, "max": 33, "step": 1, "tooltip": "接力重叠帧数（运动过渡）。音频和视频裁剪会自动对齐"}),
+                "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
+                "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
+            },
+            "optional": {
+                "prev_video": ("IMAGE",),
+                "prev_audio": ("AUDIO",),
+                "audio": ("AUDIO",),
+            }
+        }
+
+    RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
+    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    FUNCTION = "execute_relay"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def execute_relay(self, wan_infinitetalk_bus, positive_prompt, segment_length, start_image_mode="继承总线全局图", ref_image_file="",
+                      motion_frame_count=9, relay_count=1, total_frames_display="",
+                      prev_video=None, prev_audio=None, audio=None):
+        b = wan_infinitetalk_bus.copy()
+        fps = b.get("fps", 25.0)
+        bus_audio_mode = b.get("_bus_audio_mode", False)
+        print(f"\n🏃‍♀️ [XB-BOX] Executing InfiniteTalk AllInOne Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 模式: {start_image_mode}")
+
+        accumulated_video = prev_video
+        accumulated_audio = prev_audio
+
+        # --- 预处理独立参考图 ---
+        is_local_ref = (start_image_mode == "独立参考图")
+        is_tail_frame = (start_image_mode == "继承前段尾帧")
+        local_start_image = None
+        local_clip_vision_output = None
+        if is_local_ref:
+            if not ref_image_file or ref_image_file == "[Folder empty_Please connect or upload]":
+                raise ValueError("🚨 [XB-BOX] 全能接力点已开启独立参考图，但未选择图片文件！")
+            image_path = folder_paths.get_annotated_filepath(ref_image_file)
+            if not os.path.exists(image_path):
+                raise ValueError(f"🚨 [XB-BOX] 独立参考图文件未找到: {os.path.basename(image_path)}")
+            i = Image.open(image_path)
+            i = ImageOps.exif_transpose(i)
+            image_data = i.convert("RGB")
+            image_data = np.array(image_data).astype(np.float32) / 255.0
+            local_start_image = torch.from_numpy(image_data)[None,]
+            cv_model = b.get("clip_vision")
+            if cv_model is None:
+                raise ValueError("🚨 [XB-BOX] 独立参考图需要总线连接 clip_vision 模型！")
+            w, h = b["width"], b["height"]
+            sm = b.get("scale_method", "lanczos")
+            cm = b.get("crop_mode", "center")
+            clip_img = comfy.utils.common_upscale(local_start_image.movedim(-1, 1), w, h, sm, cm).movedim(1, -1)
+            local_clip_vision_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
+            print(f"🖼️ [XB-BOX] 全能接力点使用独立参考图 ({image_data.shape[1]}×{image_data.shape[0]} → {w}×{h}, {sm}/{cm})")
+
+        completed = 0
+        for r in range(relay_count):
+            print(f"\n🔄 [XB-BOX] InfiniteTalk 接力 {r+1}/{relay_count}...")
+
+            if bus_audio_mode:
+                total_frames = b["_total_frames"]
+                accumulated = b["_accumulated_frames"]
+                remaining = total_frames - accumulated
+
+                if remaining <= 0:
+                    break
+
+                if remaining < segment_length:
+                    if accumulated == 0:
+                        need_raw = remaining
+                    else:
+                        need_raw = remaining + motion_frame_count
+                    actual_length = ((need_raw + 2) // 4) * 4 + 1
+                    if actual_length < 1:
+                        break
+                    print(f"\n⚠️ [XB-BOX] 最后一段: 剩余 {remaining} → need_raw={need_raw} → {actual_length} 帧 (4N+1)")
+                else:
+                    actual_length = segment_length
+
+                encoded_audio = b["_encoded_audio"]
+                raw_audio = b.get("_raw_audio")
+                use_segment_audio = False
+                print(f"\n🔊 [XB-BOX] 总线音频接力: 偏移 {accumulated} 帧 @ {fps:.0f}fps, 生成长度 {actual_length} 帧 ({accumulated}/{total_frames})")
+            else:
+                if audio is None:
+                    print(f"⏭️ [XB-BOX] 无音频输入，跳过接力 {r+1}")
+                    break
+
+                actual_length = segment_length
+                encoded_audio = None
+                raw_audio = audio
+                use_segment_audio = True
+                print(f"\n🎵 [XB-BOX] 独立音频接力: 生成长度 {actual_length} 帧")
+
+            # --- 帧数对齐 4N+1 ---
+            raw_length = actual_length
+            aligned_length = ((actual_length + 2) // 4) * 4 + 1
+            if aligned_length != raw_length:
+                print(f"⚠️ [XB-BOX] 帧数对齐: {raw_length} → {aligned_length} (4n+1)")
+                if not bus_audio_mode and audio is not None:
+                    pad_frames = aligned_length - raw_length
+                    pad_sec = pad_frames / fps
+                    sr = audio["sample_rate"]
+                    pad_samples = int(pad_sec * sr)
+                    pad_wf = torch.zeros((audio["waveform"].shape[0], pad_samples), dtype=audio["waveform"].dtype, device=audio["waveform"].device)
+                    raw_audio = {"waveform": torch.cat([audio["waveform"], pad_wf], dim=-1), "sample_rate": sr}
+            actual_length = aligned_length
+
+            if not bus_audio_mode:
+                ae_cls = nodes.NODE_CLASS_MAPPINGS.get("AudioEncoderEncode")
+                if ae_cls is None:
+                    raise ImportError("AudioEncoderEncode not found")
+                ae = ae_cls()
+                encoded_audio, = getattr(ae, ae.FUNCTION)(b["audio_encoder"], raw_audio)
+
+            pos_cond, = nodes.CLIPTextEncode().encode(b["clip"], positive_prompt)
+            neg_cond, = nodes.CLIPTextEncode().encode(b["clip"], b["negative_prompt"])
+
+            prev = b.get("_previous_frames")
+            global_frame_offset = b["_accumulated_frames"] if bus_audio_mode else None
+
+            # --- 动态决定当前段的首帧来源 ---
+            # 🔑 r==0 尊重用户选择; r>0 强制切换为"继承前段尾帧"，防止姿势回拉
+            current_step_mode = start_image_mode if r == 0 else "继承前段尾帧"
+
+            if current_step_mode == "独立参考图":
+                cur_start_image = local_start_image
+                cur_clip_output = local_clip_vision_output
+                # 💥 Hard Cut: 换参考图=镜头切换，必须清空前置重叠帧
+                #    否则旧画面的运动残影会强行揉进新画面，导致 20~40 帧的"恐怖渐变"
+                prev = None
+                print("🎬 [XB-BOX] 触发镜头硬切 (Hard Cut): 已清空前置重叠帧，启用独立参考图")
+
+            elif current_step_mode == "继承前段尾帧":
+                if prev is not None:
+                    is4d_prev = len(prev.shape) == 4
+                    cur_start_image = prev[-1:] if is4d_prev else prev[:, -1:]
+
+                    # VAE 解码可能输出 5D，必须压缩为 4D
+                    if not is4d_prev:
+                        while len(cur_start_image.shape) > 4:
+                            cur_start_image = cur_start_image[:, 0]
+
+                    cv_model = b.get("clip_vision")
+                    if cv_model is not None:
+                        w, h = b["width"], b["height"]
+                        sm = b.get("scale_method", "lanczos")
+                        cm = b.get("crop_mode", "center")
+                        clip_input = cur_start_image.clamp(0.0, 1.0).movedim(-1, 1)
+                        clip_img = comfy.utils.common_upscale(clip_input, w, h, sm, cm).movedim(1, -1)
+                        cur_clip_output, = nodes.CLIPVisionEncode().encode(cv_model, clip_img, "center")
+                        print(f"🔗 [XB-BOX] 尾帧推演: prev={prev.shape}→start={cur_start_image.shape}, clip_vision 已重新编码")
+                    else:
+                        cur_clip_output = b.get("clip_vision_output")
+                        print(f"🔗 [XB-BOX] 尾帧推演: prev={prev.shape}→start={cur_start_image.shape}, 无 clip_vision")
+                else:
+                    cur_start_image = b.get("start_image")
+                    cur_clip_output = b.get("clip_vision_output")
+                    print("⚠️ [XB-BOX] 尾帧推演无前置帧，回退到总线全局图")
+
+            else:  # "继承总线全局图"
+                cur_start_image = b.get("start_image")
+                cur_clip_output = b.get("clip_vision_output")
+                print("🌐 [XB-BOX] 全局图模式: 继承总线原始设定")
+            core = XB_WanInfiniteTalkToVideo_Single()
+            model_out, pos, neg, latent, trim = core.process(
+                model=b["model"], model_patch=b["model_patch"],
+                positive=pos_cond, negative=neg_cond, vae=b["vae"],
+                width=b["width"], height=b["height"], length=actual_length,
+                audio_encoder_output_1=encoded_audio,
+                motion_frame_count=motion_frame_count, audio_scale=b["audio_scale"],
+                vae_tile_size=b["vae_encode_tile_size"],
+                clip_vision_output=cur_clip_output,
+                start_image=cur_start_image, previous_frames=prev,
+                segment_audio=use_segment_audio,
+                global_frame_offset=global_frame_offset,
+                scale_method=b.get("scale_method", "lanczos"),
+                crop_mode=b.get("crop_mode", "center"),
+            )
+
+            latent_out, = nodes.KSampler().sample(
+                model=model_out, seed=b["seed"],
+                steps=b["steps"], cfg=b["cfg"],
+                sampler_name=b["sampler_name"], scheduler=b["scheduler"],
+                positive=pos, negative=neg, latent_image=latent, denoise=1.0,
+            )
+
+            decoded, = nodes.VAEDecode().decode(samples=latent_out, vae=b["vae"])
+
+            is4d = len(decoded.shape) == 4
+            cd = 0 if is4d else 1
+            total = decoded.shape[cd]
+            b["_previous_frames"] = decoded
+
+            # 🛡️ 关键对齐：trim_val 来自模型返回的重叠帧数，音频和视频裁剪统一使用此值
+            trim_val = int(trim) if trim else 0
+            trim_val = min(trim_val, total - 1) if trim_val < total else 0
+            cut = decoded[trim_val:] if is4d else decoded[:, trim_val:]
+            final_video = _safe_video_accumulate(accumulated_video, cut, cd, label=f"TalkAIO-{r+1}", concat_mode=b.get("concat_mode", "自动"))
+
+            # 🛡️ 音频裁剪与视频裁剪严格对齐：使用同一个 trim_val
+            ats = trim_val / fps if trim_val else 0.0
+            if bus_audio_mode:
+                raw_wf = raw_audio["waveform"] if raw_audio else torch.zeros((1, 1))
+                raw_sr = raw_audio["sample_rate"] if raw_audio else 44100
+                # 对齐到 trim_val 帧：从当前累计位置开始，取 actual_out 帧长度的音频
+                actual_out_frames = cut.shape[cd]
+                seg_start_sample = int((b["_accumulated_frames"] + trim_val) / fps * raw_sr)
+                seg_end_sample = int((b["_accumulated_frames"] + actual_out_frames + trim_val) / fps * raw_sr)
+                seg_end_sample = min(seg_end_sample, raw_wf.shape[-1])
+                cut_audio = {"waveform": raw_wf[..., seg_start_sample:seg_end_sample], "sample_rate": raw_sr} if seg_end_sample > seg_start_sample else None
+            else:
+                cut_audio = raw_audio
+                if ats > 0 and raw_audio:
+                    wf = raw_audio["waveform"]
+                    sr = raw_audio["sample_rate"]
+                    n = int(ats * sr)
+                    if n < wf.shape[-1]:
+                        cut_audio = {"waveform": wf[..., n:], "sample_rate": sr}
+                    else:
+                        cut_audio = None
+
+            if accumulated_audio is None:
+                final_audio = cut_audio
+            elif cut_audio is None:
+                final_audio = accumulated_audio
+            else:
+                pa, ca = accumulated_audio, cut_audio
+                if pa["sample_rate"] != ca["sample_rate"]:
+                    if torchaudio is None:
+                        raise ImportError("🚨 [XB-BOX] 音频采样率不一致需要 torchaudio 重采样，但 torchaudio 未安装！请运行: pip install torchaudio")
+                    ca_wf = torchaudio.functional.resample(ca["waveform"], ca["sample_rate"], pa["sample_rate"])
+                    ca = {"waveform": ca_wf, "sample_rate": pa["sample_rate"]}
+                pa_wf = pa["waveform"]
+                ca_wf = ca["waveform"].to(pa_wf.device)
+                if pa_wf.dim() >= 2 and ca_wf.dim() >= 2 and pa_wf.shape[:-1] != ca_wf.shape[:-1]:
+                    if pa_wf.shape[-2] == 1 and ca_wf.shape[-2] > 1:
+                        rpt = [1] * pa_wf.dim(); rpt[-2] = ca_wf.shape[-2]; pa_wf = pa_wf.repeat(*rpt)
+                    elif ca_wf.shape[-2] == 1 and pa_wf.shape[-2] > 1:
+                        rpt = [1] * ca_wf.dim(); rpt[-2] = pa_wf.shape[-2]; ca_wf = ca_wf.repeat(*rpt)
+                final_audio = {"waveform": torch.cat([pa_wf, ca_wf], dim=-1), "sample_rate": pa["sample_rate"]}
+
+            b["_global_frame_offset"] = b.get("_global_frame_offset", 0) + cut.shape[cd]
+            if bus_audio_mode:
+                b["_accumulated_frames"] += cut.shape[cd]
+            accumulated_video = final_video
+            accumulated_audio = final_audio
+            print(f"✅ [XB-BOX] 接力 {r+1}/{relay_count} 完成. out={cut.shape[cd]}f (trim={trim_val}f) total={final_video.shape[cd]}f")
+            completed = r + 1
+
+        if completed < relay_count:
+            print(f"✅ [XB-BOX] 生成任务由 {completed} 个接力点已经完成，跳过剩余接力点！")
+        else:
+            print(f"🎉 [XB-BOX] InfiniteTalk 接力全部完成: {relay_count} 段, 总计 {accumulated_video.shape[0 if len(accumulated_video.shape)==4 else 1]} 帧")
+        # 👑 刷新总线全局状态：如果引入了独立参考图，将其升级为下游节点的新基准
+        if is_local_ref:
+            b["start_image"] = local_start_image
+            b["clip_vision_output"] = local_clip_vision_output
+            print("🌐 [XB-BOX] 总线状态已更新：独立参考图已成为下游节点的新全局空间基准。")
+
+        _refresh_models()
+        return (b, accumulated_video, accumulated_audio)

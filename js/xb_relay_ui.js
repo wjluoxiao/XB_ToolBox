@@ -152,12 +152,16 @@ const RELAY_NODES_CALC = [
     "XB_WanAnimate_RelayNode_New",
     "XB_WanInfiniteTalk_RelayNode_New",
     "XB_WanSCAIL_RelayNode_New",
+    "XB_WanInfiniteTalk_RelayNode_MultiRef",
+    "XB_WanInfiniteTalk_RelayNode_AllInOne",
 ];
 
 const RELAY_OVERLAP = {
     "XB_WanAnimate_RelayNode_New":    "continue_motion_max_frames",
     "XB_WanInfiniteTalk_RelayNode_New": "motion_frame_count",
     "XB_WanSCAIL_RelayNode_New":      "previous_frame_count",
+    "XB_WanInfiniteTalk_RelayNode_MultiRef": "motion_frame_count",
+    "XB_WanInfiniteTalk_RelayNode_AllInOne": "motion_frame_count",
 };
 
 app.registerExtension({

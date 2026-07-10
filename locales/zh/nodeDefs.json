@@ -3687,5 +3687,103 @@
         "name": "潜空间"
       }
     }
+  },
+  "XB_WanInfiniteTalk_RelayNode_MultiRef": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk 无限对口型接力点（多图）",
+    "inputs": {
+      "wan_infinitetalk_bus": {
+        "name": "WAN_INFINITETALK_BUS"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "use_local_ref_image": {
+        "name": "继承/独立参考图"
+      },
+      "ref_image_file": {
+        "name": "选择参考图"
+      },
+      "motion_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "total_frames_display": {
+        "name": "总计生成帧数"
+      },
+      "prev_video": {
+        "name": "前置累加视频"
+      },
+      "prev_audio": {
+        "name": "前置累加音频"
+      },
+      "audio": {
+        "name": "音频输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      },
+      "2": {
+        "name": "🔊 累加音频流"
+      }
+    }
+  },
+  "XB_WanInfiniteTalk_RelayNode_AllInOne": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk 无限对口型接力点（全能）",
+    "inputs": {
+      "wan_infinitetalk_bus": {
+        "name": "WAN_INFINITETALK_BUS"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "segment_length": {
+        "name": "单次生成帧数"
+      },
+      "start_image_mode": {
+        "name": "首帧来源模式"
+      },
+      "ref_image_file": {
+        "name": "选择参考图"
+      },
+      "motion_frame_count": {
+        "name": "接力重叠帧数"
+      },
+      "relay_count": {
+        "name": "接力数量设定"
+      },
+      "total_frames_display": {
+        "name": "总计生成帧数"
+      },
+      "prev_video": {
+        "name": "前置累加视频"
+      },
+      "prev_audio": {
+        "name": "前置累加音频"
+      },
+      "audio": {
+        "name": "音频输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+      },
+      "1": {
+        "name": "🎞️ 累加视频流"
+      },
+      "2": {
+        "name": "🔊 累加音频流"
+      }
+    }
   }
 }
