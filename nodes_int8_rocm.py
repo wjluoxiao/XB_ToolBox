@@ -1,10 +1,10 @@
 """
 XB-ToolBox INT8 ROCm 节点
 ========================
-基于 ComfyUI-INT8-Fast-ROCM 适配，提供 INT8 W8A8 量化推理支持。
+基于 ComfyUI-INT8-Fast-ROCM 适配，提供 INT8 量化推理支持。
 
 节点列表：
-- XB_UNetLoaderINTW8A8ROCm    : INT8 UNet 模型加载器
+- XB_UNetLoaderINTROCm    : INT8 UNet 模型加载器
 - XB_INT8GroupedLoraROCm      : INT8 组合 LoRA
 - XB_INT8ModelSaveROCm        : INT8 模型保存
 - XB_INT8PreLoraLoaderROCm    : INT8 预加载 LoRA
@@ -1169,20 +1169,20 @@ class PreLoraLoaderROCm:
 
 
 # =============================================================================
-# UNetLoaderINTW8A8ROCm 节点
+# UNetLoaderINTROCm 节点
 # =============================================================================
 
 def _load_int8_unet_cached_patcher_rocm(unet_name, weight_dtype, model_type,
                                          on_the_fly_quantization, enable_convrot,
                                          lora_mode, pre_lora=None, disable_dynamic=False):
-    return UNetLoaderINTW8A8ROCm().load_unet(
+    return UNetLoaderINTROCm().load_unet(
         unet_name, weight_dtype, model_type, on_the_fly_quantization,
         enable_convrot=enable_convrot, lora_mode=lora_mode,
         pre_lora=pre_lora, disable_dynamic=disable_dynamic,
     )[0]
 
 
-class UNetLoaderINTW8A8ROCm:
+class UNetLoaderINTROCm:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -1201,7 +1201,7 @@ class UNetLoaderINTW8A8ROCm:
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "load_unet"
     CATEGORY = "loaders"
-    DESCRIPTION = "XB INT8 ROCm: 加载INT8量化扩散模型 (W8A8)"
+    DESCRIPTION = "XB INT8 ROCm: 加载INT8量化扩散模型"
 
     def load_unet(self, unet_name, weight_dtype, model_type, on_the_fly_quantization,
                   enable_convrot=False, lora_mode="None", pre_lora=None, disable_dynamic=False):

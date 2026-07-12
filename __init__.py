@@ -87,7 +87,7 @@ try:
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
     from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
     from .nodes_int8_rocm import (
-        UNetLoaderINTW8A8ROCm, INT8GroupedLoraROCm, INT8LoraROCm, INT8ModelSaveROCm, PreLoraLoaderROCm
+        UNetLoaderINTROCm, INT8GroupedLoraROCm, INT8LoraROCm, INT8ModelSaveROCm, PreLoraLoaderROCm
     )
     from .nodes_int8_clip_rocm import (
         CLIPLoaderINT8ROCm, DualCLIPLoaderINT8ROCm, INT8CLIPSaveROCm
@@ -191,7 +191,7 @@ try:
         "XB_BerniniPromptRouter": XB_BerniniPromptRouter,
         "XB_K2StyleRouter": XB_K2StyleRouter,
         # ── INT8 ROCm 量化节点 ──
-        "XB_UNetLoaderINTW8A8ROCm": UNetLoaderINTW8A8ROCm,
+        "XB_UNetLoaderINTROCm": UNetLoaderINTROCm,
         "XB_INT8LoraROCm": INT8LoraROCm,
         "XB_INT8GroupedLoraROCm": INT8GroupedLoraROCm,
         "XB_INT8ModelSaveROCm": INT8ModelSaveROCm,
@@ -286,7 +286,7 @@ try:
         "XB_BerniniPromptRouter": "XB-BOX - 🧠 Bernini 提示词路由（超级节点）",
         "XB_K2StyleRouter": "XB-BOX - 🎨 K2 风格切换路由（超级节点）",
         # ── INT8 ROCm 量化节点 ──
-        "XB_UNetLoaderINTW8A8ROCm": "XB-BOX - 🧊 INT8 UNet 加载器 (W8A8 ROCm)",
+        "XB_UNetLoaderINTROCm": "XB-BOX - 🧊 INT8 UNet 加载器 (ROCm)",
         "XB_INT8LoraROCm": "XB-BOX - 🧊 INT8 单LoRA (ROCm)",
         "XB_INT8GroupedLoraROCm": "XB-BOX - 🧊 INT8 组合 LoRA (ROCm)",
         "XB_INT8ModelSaveROCm": "XB-BOX - 🧊 INT8 模型保存 (ROCm)",

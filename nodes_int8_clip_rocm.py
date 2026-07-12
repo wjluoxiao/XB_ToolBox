@@ -135,7 +135,7 @@ class CLIPLoaderINT8ROCm:
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "load_clip"
     CATEGORY = "loaders"
-    TITLE = "Load CLIP INT8 ROCm (W8A8)"
+    TITLE = "Load CLIP INT8 ROCm"
     DESCRIPTION = "XB INT8 ROCm: 加载INT8文本编码器"
 
     def load_clip(self, clip_name, type="wan", weight_dtype="default",
@@ -170,7 +170,7 @@ class DualCLIPLoaderINT8ROCm(CLIPLoaderINT8ROCm):
             },
         }
 
-    TITLE = "Load Dual CLIP INT8 ROCm (W8A8)"
+    TITLE = "Load Dual CLIP INT8 ROCm"
     DESCRIPTION = "XB INT8 ROCm: 加载双INT8文本编码器"
 
     def load_clip(self, clip_name1, clip_name2, type="flux", weight_dtype="default",

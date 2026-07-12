@@ -3786,8 +3786,8 @@
       }
     }
   },
-  "XB_UNetLoaderINTW8A8ROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 UNet 加载器 (W8A8 ROCm)",
+  "XB_UNetLoaderINTROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 UNet 加载器 (ROCm)",
     "inputs": {
       "unet_name": {
         "name": "UNet模型"
