@@ -15,7 +15,8 @@
     "Audio": "音频工具",
     "Display": "显示标签",
     "Segment": "图像分割",
-    "Text": "文本工具"
+    "Text": "文本工具",
+    "INT8_Quant": "INT8量化"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",

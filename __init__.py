@@ -86,6 +86,12 @@ try:
     from .nodes_msr import XB_MSR
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
     from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
+    from .nodes_int8_rocm import (
+        UNetLoaderINTW8A8ROCm, INT8GroupedLoraROCm, INT8LoraROCm, INT8ModelSaveROCm, PreLoraLoaderROCm
+    )
+    from .nodes_int8_clip_rocm import (
+        CLIPLoaderINT8ROCm, DualCLIPLoaderINT8ROCm, INT8CLIPSaveROCm
+    )
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
@@ -183,7 +189,16 @@ try:
         "XB_ComicTextRenderer": XB_ComicTextRenderer,
         "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer,
         "XB_BerniniPromptRouter": XB_BerniniPromptRouter,
-        "XB_K2StyleRouter": XB_K2StyleRouter
+        "XB_K2StyleRouter": XB_K2StyleRouter,
+        # ── INT8 ROCm 量化节点 ──
+        "XB_UNetLoaderINTW8A8ROCm": UNetLoaderINTW8A8ROCm,
+        "XB_INT8LoraROCm": INT8LoraROCm,
+        "XB_INT8GroupedLoraROCm": INT8GroupedLoraROCm,
+        "XB_INT8ModelSaveROCm": INT8ModelSaveROCm,
+        "XB_INT8PreLoraLoaderROCm": PreLoraLoaderROCm,
+        "XB_CLIPLoaderINT8ROCm": CLIPLoaderINT8ROCm,
+        "XB_DualCLIPLoaderINT8ROCm": DualCLIPLoaderINT8ROCm,
+        "XB_INT8CLIPSaveROCm": INT8CLIPSaveROCm,
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -270,6 +285,15 @@ try:
         "XB_BerniniConditioning": "XB-BOX - 🎨 Bernini 条件注入（VAE分块）",
         "XB_BerniniPromptRouter": "XB-BOX - 🧠 Bernini 提示词路由（超级节点）",
         "XB_K2StyleRouter": "XB-BOX - 🎨 K2 风格切换路由（超级节点）",
+        # ── INT8 ROCm 量化节点 ──
+        "XB_UNetLoaderINTW8A8ROCm": "XB-BOX - 🧊 INT8 UNet 加载器 (W8A8 ROCm)",
+        "XB_INT8LoraROCm": "XB-BOX - 🧊 INT8 单LoRA (ROCm)",
+        "XB_INT8GroupedLoraROCm": "XB-BOX - 🧊 INT8 组合 LoRA (ROCm)",
+        "XB_INT8ModelSaveROCm": "XB-BOX - 🧊 INT8 模型保存 (ROCm)",
+        "XB_INT8PreLoraLoaderROCm": "XB-BOX - 🧊 INT8 预加载 LoRA (ROCm)",
+        "XB_CLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 CLIP 加载器 (ROCm)",
+        "XB_DualCLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 双CLIP加载器 (ROCm)",
+        "XB_INT8CLIPSaveROCm": "XB-BOX - 🧊 INT8 CLIP 保存 (ROCm)",
     }
 
     print_success("\n" + "="*50)

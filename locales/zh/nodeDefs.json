@@ -3785,5 +3785,159 @@
         "name": "🔊 累加音频流"
       }
     }
+  },
+  "XB_UNetLoaderINTW8A8ROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 UNet 加载器 (W8A8 ROCm)",
+    "inputs": {
+      "unet_name": {
+        "name": "UNet模型"
+      },
+      "weight_dtype": {
+        "name": "计算精度"
+      },
+      "model_type": {
+        "name": "模型类型"
+      },
+      "on_the_fly_quantization": {
+        "name": "即时量化"
+      },
+      "enable_convrot": {
+        "name": "ConvRot量化增强"
+      },
+      "lora_mode": {
+        "name": "LoRA模式"
+      },
+      "pre_lora": {
+        "name": "预加载LoRA"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "模型"
+      }
+    }
+  },
+  "XB_INT8GroupedLoraROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 组合 LoRA (ROCm)",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "模型"
+      }
+    }
+  },
+  "XB_INT8LoraROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 单LoRA (ROCm)",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "lora": {
+        "name": "LoRA文件"
+      },
+      "strength": {
+        "name": "强度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "模型"
+      }
+    }
+  },
+  "XB_INT8ModelSaveROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 模型保存 (ROCm)",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      }
+    }
+  },
+  "XB_INT8PreLoraLoaderROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 预加载 LoRA (ROCm)",
+    "inputs": {
+      "lora_name_1": {
+        "name": "LoRA文件"
+      },
+      "lora_strength_1": {
+        "name": "LoRA强度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "预加载LoRA"
+      }
+    }
+  },
+  "XB_CLIPLoaderINT8ROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 CLIP 加载器 (ROCm)",
+    "inputs": {
+      "clip_name": {
+        "name": "CLIP模型"
+      },
+      "type": {
+        "name": "模型类型"
+      },
+      "weight_dtype": {
+        "name": "计算精度"
+      },
+      "on_the_fly_quantization": {
+        "name": "即时量化"
+      },
+      "enable_convrot": {
+        "name": "ConvRot量化增强"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "CLIP模型"
+      }
+    }
+  },
+  "XB_DualCLIPLoaderINT8ROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 双CLIP加载器 (ROCm)",
+    "inputs": {
+      "clip_name1": {
+        "name": "CLIP模型1"
+      },
+      "clip_name2": {
+        "name": "CLIP模型2"
+      },
+      "type": {
+        "name": "模型类型"
+      },
+      "weight_dtype": {
+        "name": "计算精度"
+      },
+      "on_the_fly_quantization": {
+        "name": "即时量化"
+      },
+      "enable_convrot": {
+        "name": "ConvRot量化增强"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "CLIP模型"
+      }
+    }
+  },
+  "XB_INT8CLIPSaveROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 CLIP 保存 (ROCm)",
+    "inputs": {
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      }
+    }
   }
 }
