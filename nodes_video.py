@@ -22,8 +22,8 @@ class XB_ImageParamsMaster:
         return {
             "required": {
                 "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
-                "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 1}),
-                "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 1}),
+                "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
                 "strength_float": ("FLOAT", {"default": 1.00, "min": 0.00, "max": 10.00, "step": 0.01}),
                 "strength_int": ("INT", {"default": 1, "min": 0, "max": 1000, "step": 1}),
@@ -63,8 +63,8 @@ class XB_VideoParamsMaster:
             "required": {
                 "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
                 "duration_display": ("STRING", {"default": "Video Duration: 0.00 s", "multiline": False}),
-                "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 1}),
-                "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 1}),
+                "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 9999, "step": 1}),
                 "fps": ("INT", {"default": 16, "min": 1, "max": 120, "step": 1}),
                 "fps_float": ("FLOAT", {"default": 16.0, "min": 1.0, "max": 120.0, "step": 0.01}),
