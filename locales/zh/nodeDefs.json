@@ -1,4 +1,4 @@
-{
+﻿{
   "XB_VideoLoader": {
     "display_name": "XB-BOX - 🎬 视频加载器",
     "inputs": {
@@ -2729,6 +2729,65 @@
       }
     }
   },
+  "XB_WanDanceSwitcher": {
+    "display_name": "XB-BOX - 🎭 Wan 舞蹈切换器",
+    "inputs": {
+      "dance_style": {
+        "name": "舞蹈类型"
+      },
+      "motion_amplitude": {
+        "name": "动作幅度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "舞蹈风格提示词"
+      },
+      "1": {
+        "name": "整体描述提示词"
+      }
+    }
+  },
+  "XB_WanDancerCombo": {
+    "display_name": "XB-BOX - 💃 Wan Dancer 综合输入",
+    "inputs": {
+      "audio": {
+        "name": "音频文件"
+      },
+      "start_time": {
+        "name": "起始时间"
+      },
+      "end_time": {
+        "name": "结束时间"
+      },
+      "duration_display": {
+        "name": "时长显示"
+      },
+      "video_frames": {
+        "name": "视频帧数"
+      },
+      "audio_inject_scale": {
+        "name": "音频注入比例"
+      },
+      "dance_style": {
+        "name": "舞蹈类型"
+      },
+      "motion_amplitude": {
+        "name": "动作幅度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎵 音频"
+      },
+      "1": {
+        "name": "整体描述提示词"
+      },
+      "2": {
+        "name": "舞蹈风格提示词"
+      }
+    }
+  },
   "XB_WanSCAIL_ParamBus": {
     "display_name": "XB-BOX - 🤖 SCAIL 无限时长总线",
     "inputs": {
@@ -3989,6 +4048,295 @@
       },
       "filename_prefix": {
         "name": "文件名前缀"
+      }
+    }
+  },
+  "XB_CosyVoice3_ModelLoader": {
+    "display_name": "XB-BOX - 🔊 CosyVoice3 模型加载",
+    "inputs": {
+      "model_version": {
+        "name": "模型版本"
+      },
+      "download_source": {
+        "name": "下载源"
+      },
+      "device": {
+        "name": "运行设备"
+      },
+      "force_redownload": {
+        "name": "强制重新下载"
+      },
+      "force_reload": {
+        "name": "强制重新加载"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎤 CosyVoice模型"
+      }
+    }
+  },
+  "XB_CosyVoice3_ZeroShot": {
+    "display_name": "XB-BOX - 🎤 CosyVoice3 零样本克隆",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "text": {
+        "name": "合成文本"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "text_frontend": {
+        "name": "文本正则化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 合成音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_CrossLingual": {
+    "display_name": "XB-BOX - 🌐 CosyVoice3 跨语言合成",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "text": {
+        "name": "合成文本"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "target_language": {
+        "name": "目标语言"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "text_frontend": {
+        "name": "文本正则化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 合成音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_VoiceConversion": {
+    "display_name": "XB-BOX - 🔄 CosyVoice3 语音转换",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "source_audio": {
+        "name": "源音频"
+      },
+      "target_audio": {
+        "name": "目标音色参考"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "seed": {
+        "name": "随机种子"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 转换后音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_AudioCrop": {
+    "display_name": "XB-BOX - ✂️ CosyVoice3 音频裁剪",
+    "inputs": {
+      "audio": {
+        "name": "输入音频"
+      },
+      "start_time": {
+        "name": "起始时间"
+      },
+      "end_time": {
+        "name": "结束时间"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "✂️ 裁剪后音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_Dialog": {
+    "display_name": "XB-BOX - 💬 CosyVoice3 多人对话",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "dialog_text": {
+        "name": "对话文本"
+      },
+      "speaker_A_Audio": {
+        "name": "说话人A参考音频"
+      },
+      "speaker_B_Audio": {
+        "name": "说话人B参考音频"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "speaker_C_Audio": {
+        "name": "说话人C参考音频"
+      },
+      "speaker_D_Audio": {
+        "name": "说话人D参考音频"
+      },
+      "seed": {
+        "name": "随机种子"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "💬 对话音频"
+      },
+      "1": {
+        "name": "🗣️ 说话人A音频"
+      },
+      "2": {
+        "name": "🗣️ 说话人B音频"
+      },
+      "3": {
+        "name": "🗣️ 说话人C音频"
+      },
+      "4": {
+        "name": "🗣️ 说话人D音频"
+      },
+      "5": {
+        "name": "📋 消息"
+      }
+    }
+  },
+  "XB_CosyVoice3_Instruct2": {
+    "display_name": "XB-BOX - 🎭 CosyVoice3 指令控制",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "text": {
+        "name": "合成文本"
+      },
+      "instruct_text": {
+        "name": "风格指令"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "text_frontend": {
+        "name": "文本正则化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 合成音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_SaveSpeaker": {
+    "display_name": "XB-BOX - 💾 CosyVoice3 保存说话人",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "reference_text": {
+        "name": "参考文本"
+      },
+      "speaker_name": {
+        "name": "说话人名称"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "💾 保存路径"
+      }
+    }
+  },
+  "XB_CosyVoice3_SpeakerClone": {
+    "display_name": "XB-BOX - 🗣️ CosyVoice3 说话人克隆",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "text": {
+        "name": "合成文本"
+      },
+      "speaker_preset": {
+        "name": "说话人预设"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "text_frontend": {
+        "name": "文本正则化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 合成音频"
+      }
+    }
+  },
+  "XB_CosyVoice3_SpeakerInstruct2": {
+    "display_name": "XB-BOX - 🎭 CosyVoice3 说话人指令",
+    "inputs": {
+      "model": {
+        "name": "CosyVoice模型"
+      },
+      "text": {
+        "name": "合成文本"
+      },
+      "instruct_text": {
+        "name": "风格指令"
+      },
+      "speaker_preset": {
+        "name": "说话人预设"
+      },
+      "speed": {
+        "name": "语速"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "text_frontend": {
+        "name": "文本正则化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔊 合成音频"
       }
     }
   }

@@ -1,0 +1,46 @@
+# ============================================================
+# XB_ToolBox 全部依赖 (小白工具箱)
+# 安装方式: pip install -r requirements.txt
+# ============================================================
+
+# ── 核心依赖 (ComfyUI 环境通常已安装) ──
+torch
+numpy
+Pillow
+tqdm
+
+# ── 工具箱主节点依赖 ──
+av                                    # PyAV - 音频解码 (AudioSlicer)
+aiohttp                               # 异步HTTP (音频波形端点)
+opencv-python                         # 图像处理 (漫画/视频节点)
+easyocr                               # OCR 文字识别 (漫画工具)
+onnxruntime                           # ONNX 推理 (人像分割)
+torchaudio                            # 音频重采样 (Pipeline)
+imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
+triton                                # ROCm INT8 内核加速 (可选, AMD GPU)
+
+# ── CosyVoice3 音频节点依赖 ──
+modelscope                            # ModelScope 模型下载
+huggingface_hub                       # HuggingFace 模型下载
+transformers>=4.40.0                  # 模型/分词器
+librosa>=0.10.0                       # 音频处理
+soundfile>=0.12.0                     # 音频文件读写
+requests                              # HTTP 请求
+HyperPyYAML>=1.2.0                    # YAML 配置解析
+ruamel.yaml<0.18                      # YAML 读写
+conformer>=0.3.2                      # Conformer 模型组件
+omegaconf>=2.3.0                      # OmegaConf 配置
+inflect>=7.0.0                        # 英文单词变形
+hydra-core>=1.3.0                     # Hydra 配置框架
+pydantic>=2.0.0                       # 数据验证
+x-transformers>=2.0.0                 # Transformer 扩展
+openai-whisper                        # 语音转文字 (自动转录)
+diffusers>=0.29.0                     # Diffusers 扩散模型
+wetext>=0.1.0                         # 文本规范化
+pyarrow>=14.0.0                       # Arrow 数据处理
+pyworld>=0.3.0                        # 基频提取 (WORLD vocoder)
+scipy                                 # 科学计算
+einops                                # 张量操作
+tiktoken                              # BPE 分词器
+regex                                 # 高级正则表达式
+matplotlib                            # 可视化 (训练/绘图)

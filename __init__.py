@@ -1,4 +1,4 @@
-import os
+﻿import os
 import traceback
 
 from server import PromptServer
@@ -56,7 +56,7 @@ try:
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
-    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_BerniniConditioning)
+    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
     from .nodes_sageatt import XB_SageAttentionAccelerator
@@ -93,6 +93,18 @@ try:
         CLIPLoaderINT8ROCm, DualCLIPLoaderINT8ROCm, INT8CLIPSaveROCm
     )
 
+    # ── CosyVoice3 音频节点 ──
+    from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
+    from .cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
+    from .cosyvoice3.nodes.cross_lingual import XB_CosyVoice3_CrossLingual
+    from .cosyvoice3.nodes.voice_conversion import XB_CosyVoice3_VoiceConversion
+    from .cosyvoice3.nodes.audio_crop import XB_CosyVoice3_AudioCrop
+    from .cosyvoice3.nodes.dialog import XB_CosyVoice3_Dialog
+    from .cosyvoice3.nodes.instruct2 import XB_CosyVoice3_Instruct2
+    from .cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
+    from .cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
+    from .cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
+
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
         "XB_ChunkVisualization": XB_ChunkVisualization,
@@ -128,6 +140,8 @@ try:
         "XB_WanSCAILToVideo": XB_WanSCAILToVideo,
         "XB_WanSCAILToVideoPro": XB_WanSCAILToVideoPro,
         "XB_WanDancerVideo": XB_WanDancerVideo,
+        "XB_WanDanceSwitcher": XB_WanDanceSwitcher,
+        "XB_WanDancerCombo": XB_WanDancerCombo,
         "XB_BerniniConditioning": XB_BerniniConditioning,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
@@ -200,6 +214,17 @@ try:
         "XB_CLIPLoaderINT8ROCm": CLIPLoaderINT8ROCm,
         "XB_DualCLIPLoaderINT8ROCm": DualCLIPLoaderINT8ROCm,
         "XB_INT8CLIPSaveROCm": INT8CLIPSaveROCm,
+        # ── CosyVoice3 音频节点 ──
+        "XB_CosyVoice3_ModelLoader": XB_CosyVoice3_ModelLoader,
+        "XB_CosyVoice3_ZeroShot": XB_CosyVoice3_ZeroShot,
+        "XB_CosyVoice3_CrossLingual": XB_CosyVoice3_CrossLingual,
+        "XB_CosyVoice3_VoiceConversion": XB_CosyVoice3_VoiceConversion,
+        "XB_CosyVoice3_AudioCrop": XB_CosyVoice3_AudioCrop,
+        "XB_CosyVoice3_Dialog": XB_CosyVoice3_Dialog,
+        "XB_CosyVoice3_Instruct2": XB_CosyVoice3_Instruct2,
+        "XB_CosyVoice3_SaveSpeaker": XB_CosyVoice3_SaveSpeaker,
+        "XB_CosyVoice3_SpeakerClone": XB_CosyVoice3_SpeakerClone,
+        "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -295,6 +320,17 @@ try:
         "XB_CLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 CLIP 加载器 (ROCm)",
         "XB_DualCLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 双CLIP加载器 (ROCm)",
         "XB_INT8CLIPSaveROCm": "XB-BOX - 🧊 INT8 CLIP 保存 (ROCm)",
+        # ── CosyVoice3 音频节点 ──
+        "XB_CosyVoice3_ModelLoader": "XB-BOX - 🔊 CosyVoice3 模型加载",
+        "XB_CosyVoice3_ZeroShot": "XB-BOX - 🎤 CosyVoice3 零样本克隆",
+        "XB_CosyVoice3_CrossLingual": "XB-BOX - 🌐 CosyVoice3 跨语言合成",
+        "XB_CosyVoice3_VoiceConversion": "XB-BOX - 🔄 CosyVoice3 语音转换",
+        "XB_CosyVoice3_AudioCrop": "XB-BOX - ✂️ CosyVoice3 音频裁剪",
+        "XB_CosyVoice3_Dialog": "XB-BOX - 💬 CosyVoice3 多人对话",
+        "XB_CosyVoice3_Instruct2": "XB-BOX - 🎭 CosyVoice3 指令控制",
+        "XB_CosyVoice3_SaveSpeaker": "XB-BOX - 💾 CosyVoice3 保存说话人",
+        "XB_CosyVoice3_SpeakerClone": "XB-BOX - 🗣️ CosyVoice3 说话人克隆",
+        "XB_CosyVoice3_SpeakerInstruct2": "XB-BOX - 🎭 CosyVoice3 说话人指令",
     }
 
     print_success("\n" + "="*50)

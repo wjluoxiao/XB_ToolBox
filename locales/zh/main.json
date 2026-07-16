@@ -16,7 +16,11 @@
     "Display": "显示标签",
     "Segment": "图像分割",
     "Text": "文本工具",
-    "INT8_Quant": "INT8量化"
+    "INT8_Quant": "INT8量化",
+    "🔊FL CosyVoice3/Loaders": "CosyVoice3 · 模型加载",
+    "🔊FL CosyVoice3/Synthesis": "CosyVoice3 · 语音合成",
+    "🔊FL CosyVoice3/Audio": "CosyVoice3 · 音频工具",
+    "🔊FL CosyVoice3/Utilities": "CosyVoice3 · 实用工具"
   },
   "Mode A (128x128x32)": "模式A (128x128x32)",
   "Mode B (128x64x96)": "模式 B (128x64x96)",

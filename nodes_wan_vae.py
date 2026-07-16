@@ -1608,6 +1608,214 @@ class XB_WanVAEDecodeTiled:
                 samples=samples, vae=vae,
                 tile_size=tile_size, overlap=spatial_overlap,
                 temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
+
+# ============================================================
+# XB_WanDanceSwitcher — Wan 舞蹈切换器
+# ============================================================
+class XB_WanDanceSwitcher:
+    """Wan 舞蹈切换器 — 选择舞蹈类型和动作幅度，输出对应提示词。
+    
+    替换原工作流中 CustomCombo + RegexExtract + StringReplace + StringConcatenate 节点组，
+    简化为一键切换。输出与原版完全一致的中文提示词。
+    """
+    _DANCE_STYLES = [
+        "古典舞",
+        "韩舞",
+        "街舞",
+        "拉丁舞",
+        "踢踏舞",
+    ]
+    _AMPLITUDES = [
+        "低",
+        "中等",
+        "高",
+        "最大",
+    ]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "dance_style": (cls._DANCE_STYLES, {"default": "古典舞"}),
+                "motion_amplitude": (cls._AMPLITUDES, {"default": "中等"}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("舞蹈风格提示词", "整体描述提示词")
+    FUNCTION = "switch"
+    CATEGORY = "XB_ToolBox/Wan"
+
+    def switch(self, dance_style, motion_amplitude):
+        # 输出1 (接18号节点): 舞蹈风格名称（原版 RegexExtract 输出）
+        # 输出2 (接20号节点): 整体描述提示词（原版 StringConcatenate 输出）
+        dance_prompt = f"一个人正在跳舞，舞蹈种类是{dance_style}"
+        full_prompt = f"{dance_prompt},图像清晰程度高,人物动作幅度{motion_amplitude}"
+
+        return (dance_style, full_prompt)
+
+# ============================================================
+# XB_WanDancerCombo — Wan Dancer 综合输入 (音频切片 + 特征提取 + 舞蹈选择)
+# ============================================================
+import os as _os
+import folder_paths as _folder_paths
+
+class XB_WanDancerCombo:
+    """Wan Dancer 综合输入节点 —— 融合音频切片 + 音频特征提取 + 舞蹈切换器。
+
+    界面照抄 AudioSlicerV1，内部集成了 WanDancerEncodeAudio 的全套音频特征提取
+    和 XB_WanDanceSwitcher 的舞蹈类型/动作幅度选择。
+
+    输入: 音频文件 + 起止时间 + 视频帧数 + 注入比例 + 舞蹈类型 + 动作幅度
+    输出: 切片音频 + 舞蹈风格提示词(含FPS) + 整体描述提示词
+    """
+    _DANCE_STYLES = ["古典舞", "韩舞", "街舞", "拉丁舞", "踢踏舞"]
+    _AMPLITUDES  = ["低", "中等", "高", "最大"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = _folder_paths.get_input_directory()
+        audio_files = ["none"]
+        if _os.path.exists(input_dir):
+            for f in sorted(_os.listdir(input_dir)):
+                if f.lower().endswith(('.mp3','.wav','.flac','.ogg','.m4a','.aac','.opus','.wma','.webm')):
+                    audio_files.append(f)
+
+        return {
+            "required": {
+                "audio": (audio_files,),
+                "start_time": ("FLOAT", {"default": 0.00, "min": 0.00, "max": 99999.00, "step": 0.01}),
+                "end_time":   ("FLOAT", {"default": 10.00, "min": 0.00, "max": 99999.00, "step": 0.01}),
+                "duration_display": ("STRING", {"default": "0 帧", "multiline": False}),
+                "video_frames": ("INT", {"default": 149, "min": 1, "max": 8192, "step": 4, "tooltip": "视频总帧数"}),
+                "audio_inject_scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "音频注入强度"}),
+                "dance_style": (cls._DANCE_STYLES, {"default": "古典舞"}),
+                "motion_amplitude": (cls._AMPLITUDES, {"default": "中等"}),
+            }
+        }
+
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING")
+    RETURN_NAMES = ("音频", "整体描述提示词", "舞蹈风格提示词")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Wan"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, audio, **kwargs):
+        return True
+
+    def process(self, audio, start_time, end_time, duration_display,
+                video_frames, audio_inject_scale, dance_style, motion_amplitude):
+        # ── 1. 音频切片 (照抄 AudioSlicerV1) ──
+        from .nodes_audio_slicer import _load_audio_file, _make_audio, _snap_4n1
+
+        if audio == "none":
+            waveform = torch.zeros((1, 1), dtype=torch.float32)
+            sample_rate = 44100
+        else:
+            result = _load_audio_file(_os.path.join(_folder_paths.get_input_directory(), audio))
+            if result is None:
+                waveform = torch.zeros((1, 1), dtype=torch.float32)
+                sample_rate = 44100
+            else:
+                waveform, sample_rate = result
+
+        if waveform.shape[0] > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)
+
+        total_duration = waveform.shape[1] / sample_rate
+        start_time = max(0.0, min(start_time, total_duration))
+        end_time = max(start_time, min(end_time, total_duration))
+
+        start_sample = int(start_time * sample_rate)
+        end_sample = int(end_time * sample_rate)
+        if end_sample <= start_sample:
+            end_sample = min(start_sample + int(0.1 * sample_rate), waveform.shape[1])
+
+        sliced_waveform = waveform[:, start_sample:end_sample]
+
+        # ── 2. 音频特征提取 (照抄 WanDancerEncodeAudio) ──
+        try:
+            import torchaudio as _torchaudio
+        except ImportError:
+            raise ImportError(
+                "\n❌ XB_WanDancerCombo 需要 torchaudio 库。\n"
+                "   请运行: pip install torchaudio"
+            )
+        try:
+            from comfy_extras.nodes_wandancer import (
+                quick_tempo_estimate, estimate_tempo_from_onset,
+                _compute_mel_spectrogram, power_to_db, compute_onset_envelope,
+                compute_mfcc, compute_chroma_cens, detect_onset_peaks,
+                track_beats
+            )
+        except ImportError as e:
+            raise ImportError(
+                "\n❌ XB_WanDancerCombo 需要 ComfyUI 内置的 WanDancer 模块\n"
+                "   (comfy_extras.nodes_wandancer)，但当前版本未找到。\n"
+                "   请升级 ComfyUI 到 0.28.0 或更新版本！\n"
+                f"   原始错误: {e}"
+            )
+
+        try:
+            import scipy.signal, scipy.ndimage, scipy.fft, scipy.sparse  # noqa: F401  WanDancer 特征提取依赖
+        except ImportError:
+            raise ImportError(
+                "\n❌ XB_WanDancerCombo 需要 scipy 库。\n"
+                "   请运行: pip install scipy"
+            )
+
+        wf_enc = sliced_waveform.squeeze()
+        sr_enc = sample_rate
+        base_fps = 30
+        hop_length = 512
+        model_sr = 22050
+        n_fft = 2048
+
+        start_bpm = quick_tempo_estimate(wf_enc.cpu().numpy(), sr_enc, hop_length=hop_length)
+
+        resample_sr = base_fps * hop_length
+        wf_enc = _torchaudio.functional.resample(wf_enc.unsqueeze(0), sr_enc, resample_sr).squeeze(0)
+
+        waveform_np = wf_enc.cpu().numpy()
+        mel_spec = _compute_mel_spectrogram(waveform_np, model_sr, n_fft, hop_length, n_mels=128)
+        mel_spec_db = power_to_db(mel_spec, amin=1e-10, top_db=80.0, ref=1.0)
+        envelope = compute_onset_envelope(mel_spec_db, n_fft, hop_length)
+        mfcc = compute_mfcc(mel_spec_db, n_mfcc=20)
+        chroma = compute_chroma_cens(y=waveform_np, sr=model_sr, hop_length=hop_length).T
+        peak_idxs = detect_onset_peaks(envelope, sr=model_sr, hop_length=hop_length)
+        peak_onehot = np.zeros_like(envelope, dtype=np.float32)
+        peak_onehot[peak_idxs] = 1.0
+        beat_tracking_tempo = estimate_tempo_from_onset(envelope, sr=model_sr, hop_length=hop_length, start_bpm=start_bpm)
+        beat_idxs = track_beats(envelope, beat_tracking_tempo, model_sr, hop_length, tightness=100, trim=True)
+        beat_onehot = np.zeros_like(envelope, dtype=np.float32)
+        beat_onehot[beat_idxs] = 1.0
+
+        audio_feature = np.concatenate(
+            [envelope[:, None], mfcc, chroma, peak_onehot[:, None], beat_onehot[:, None]], axis=-1)
+        audio_feature = torch.from_numpy(audio_feature).unsqueeze(0).to(comfy.model_management.intermediate_device())
+
+        # fps 基于切片后音频的特征长度计算（与原版 WanDancerEncodeAudio 逻辑完全一致）
+        fps = float(base_fps / int(audio_feature.shape[1] / video_frames + 0.5))
+        if int(fps + 0.5) != 30:
+            fps_string = " 帧率是{:.4f}".format(fps)
+        else:
+            fps_string = ", 帧率是30fps。"
+
+        # ── 3. 构建音频输出 (含 audio_encoder_output 特征) ──
+        audio_out = {
+            "waveform": sliced_waveform.unsqueeze(0).unsqueeze(0),
+            "sample_rate": sample_rate,
+            "audio_feature": audio_feature,
+            "fps": fps,
+            "audio_inject_scale": audio_inject_scale,
+        }
+
+        # ── 4. 提示词生成 (照抄 WanDanceSwitcher) ──
+        dance_prompt = f"{dance_style}{fps_string}"
+        full_prompt = f"一个人正在跳舞，舞蹈种类是{dance_style},图像清晰程度高,人物动作幅度{motion_amplitude}"
+
+        return (audio_out, full_prompt, dance_prompt)
+
 # ============================================================
 # XB_BerniniConditioning - Bernini VAE分块编码
 # ============================================================
