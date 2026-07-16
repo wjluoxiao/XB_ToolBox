@@ -1446,6 +1446,102 @@ class XB_WanSCAILToVideoPro:
         return (positive, negative, out_latent, video_frame_offset + length)
 
 # ==============================================================================
+# 7.6 🎬 WanDancerVideo — Wan Dancer 音视频生成 (VAE 分块版)
+# ==============================================================================
+# ============================================================
+# XB_WanDancerVideo — Wan Dancer 转视频 (VAE 分块)
+# ============================================================
+class XB_WanDancerVideo:
+    """Wan Dancer Video with VAE tiling —— 完全复刻官方 WanDancerVideo 逻辑，
+    仅将 vae.encode() 替换为 _encode_vae() 以支持空间/时间分块。"""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "width": ("INT", {"default": 480, "min": 16, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 832, "min": 16, "max": 8192, "step": 16}),
+                "length": ("INT", {"default": 149, "min": 1, "max": 8192, "step": 4, "tooltip": "生成视频的总帧数"}),
+                "vae_tile_size": ("INT", {"default": 256, "min": 64, "max": 3840, "step": 32}),
+            },
+            "optional": {
+                "clip_vision_output": ("CLIP_VISION_OUTPUT",),
+                "clip_vision_output_ref": ("CLIP_VISION_OUTPUT",),
+                "start_image": ("IMAGE",),
+                "mask": ("MASK",),
+                "audio_encoder_output": ("AUDIO_ENCODER_OUTPUT",),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Pipeline"
+
+    def process(self, positive, negative, vae, width, height, length, vae_tile_size,
+                start_image=None, mask=None,
+                clip_vision_output=None, clip_vision_output_ref=None,
+                audio_encoder_output=None):
+        latent = torch.zeros([1, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
+                            device=comfy.model_management.intermediate_device())
+
+        if start_image is not None:
+            start_image = comfy.utils.common_upscale(
+                start_image[:length].movedim(-1, 1), width, height, "bilinear", "center"
+            ).movedim(1, -1)
+            image = torch.zeros((length, height, width, start_image.shape[-1]),
+                               device=start_image.device, dtype=start_image.dtype)
+            image[:start_image.shape[0]] = start_image
+
+            # 🔧 核心改动：使用 _encode_vae 替代 vae.encode()，支持空间/时间分块
+            concat_latent_image = _encode_vae(vae, image[:, :, :, :3], vae_tile_size)
+
+            if mask is None:
+                concat_mask = torch.ones(
+                    (1, 1, latent.shape[2], concat_latent_image.shape[-2], concat_latent_image.shape[-1]),
+                    device=start_image.device, dtype=start_image.dtype)
+                concat_mask[:, :, :((start_image.shape[0] - 1) // 4) + 1] = 0.0
+            else:
+                concat_mask = 1 - mask[:length].unsqueeze(0)
+                concat_mask = comfy.utils.common_upscale(
+                    concat_mask, concat_latent_image.shape[-2], concat_latent_image.shape[-1],
+                    "nearest-exact", "disabled")
+                concat_mask = torch.cat(
+                    [torch.repeat_interleave(concat_mask[:, 0:1], repeats=4, dim=1), concat_mask[:, 1:]], dim=1)
+                concat_mask = concat_mask.view(
+                    1, concat_mask.shape[1] // 4, 4,
+                    concat_latent_image.shape[-2], concat_latent_image.shape[-1]
+                ).transpose(1, 2)
+
+            positive = node_helpers.conditioning_set_values(
+                positive, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+            negative = node_helpers.conditioning_set_values(
+                negative, {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(
+                positive, {"clip_vision_output": clip_vision_output, "clip_vision_output_ref": clip_vision_output_ref})
+            negative = node_helpers.conditioning_set_values(
+                negative, {"clip_vision_output": clip_vision_output, "clip_vision_output_ref": clip_vision_output_ref})
+
+        if audio_encoder_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {
+                "audio_embed": audio_encoder_output["audio_feature"],
+                "fps": audio_encoder_output["fps"],
+                "audio_inject_scale": audio_encoder_output.get("audio_inject_scale", 1.0)
+            })
+            negative = node_helpers.conditioning_set_values(negative, {
+                "audio_embed": audio_encoder_output["audio_feature"],
+                "fps": audio_encoder_output["fps"],
+                "audio_inject_scale": audio_encoder_output.get("audio_inject_scale", 1.0)
+            })
+
+        out_latent = {"samples": latent}
+        return (positive, negative, out_latent)
+
+# ==============================================================================
 # 8. 🧊 Wan VAE 时空分块解码（独立节点）
 # ==============================================================================
 # 8. 🧊 Wan VAE 时空分块解码（独立节点）

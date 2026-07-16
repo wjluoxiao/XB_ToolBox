@@ -2677,6 +2677,58 @@
       }
     }
   },
+  "XB_WanDancerVideo": {
+    "display_name": "XB-BOX - 💃 Wan Dancer 音视频生成 (VAE分块)",
+    "inputs": {
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE模型"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "length": {
+        "name": "生成帧数"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块大小"
+      },
+      "clip_vision_output": {
+        "name": "CLIP视觉输出"
+      },
+      "clip_vision_output_ref": {
+        "name": "CLIP视觉参考输出"
+      },
+      "start_image": {
+        "name": "起始图像"
+      },
+      "mask": {
+        "name": "遮罩"
+      },
+      "audio_encoder_output": {
+        "name": "音频编码器输出"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
+    }
+  },
   "XB_WanSCAIL_ParamBus": {
     "display_name": "XB-BOX - 🤖 SCAIL 无限时长总线",
     "inputs": {
