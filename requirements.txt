@@ -15,7 +15,6 @@ opencv-python                         # 图像处理 (漫画/视频节点)
 easyocr                               # OCR 文字识别 (漫画工具)
 onnxruntime                           # ONNX 推理 (人像分割)
 imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
-triton                                # ROCm INT8 内核加速 (可选, AMD GPU)
 
 # ── CosyVoice3 音频节点依赖 ──
 modelscope                            # ModelScope 模型下载
