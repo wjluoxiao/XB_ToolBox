@@ -4,7 +4,6 @@
 # ============================================================
 
 # ── 核心依赖 (ComfyUI 环境通常已安装) ──
-torch
 numpy
 Pillow
 tqdm
@@ -15,7 +14,6 @@ aiohttp                               # 异步HTTP (音频波形端点)
 opencv-python                         # 图像处理 (漫画/视频节点)
 easyocr                               # OCR 文字识别 (漫画工具)
 onnxruntime                           # ONNX 推理 (人像分割)
-torchaudio                            # 音频重采样 (Pipeline)
 imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
 triton                                # ROCm INT8 内核加速 (可选, AMD GPU)
 
