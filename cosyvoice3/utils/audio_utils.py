@@ -1,4 +1,4 @@
-﻿"""
+"""
 Audio Utilities for XB CosyVoice3
 Handles audio format conversions and processing
 """

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import traceback
 
 from server import PromptServer

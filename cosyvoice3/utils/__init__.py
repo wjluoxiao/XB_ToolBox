@@ -1,1 +1,1 @@
-﻿# XB CosyVoice3 Utilities
+# XB CosyVoice3 Utilities

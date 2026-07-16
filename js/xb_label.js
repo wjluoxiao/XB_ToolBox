@@ -1,4 +1,4 @@
-﻿import { app } from "../../scripts/app.js";
+import { app } from "../../scripts/app.js";
 
 // ============================================================
 // XB_CanvasLabel — 文字标签节点

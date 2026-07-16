@@ -1,1 +1,1 @@
-﻿# XB CosyVoice3 Nodes
+# XB CosyVoice3 Nodes
