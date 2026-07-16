@@ -13,7 +13,7 @@ av                                    # PyAV - 音频解码 (AudioSlicer)
 aiohttp                               # 异步HTTP (音频波形端点)
 opencv-python                         # 图像处理 (漫画/视频节点)
 easyocr                               # OCR 文字识别 (漫画工具)
-onnxruntime                           # ONNX 推理 (人像分割)
+onnxruntime>=1.18.0                     # ONNX 推理 (人像分割 + CosyVoice3)
 imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
 
 # ── CosyVoice3 音频节点依赖 ──

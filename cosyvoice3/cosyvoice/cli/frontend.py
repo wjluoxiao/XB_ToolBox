@@ -14,7 +14,6 @@
 from functools import partial
 from typing import Generator
 import json
-import onnxruntime
 import torch
 import numpy as np
 import whisper
@@ -24,14 +23,30 @@ import torchaudio
 import os
 import re
 import inflect
-try:
-    import ttsfrd
-    use_ttsfrd = True
-except ImportError:
-    print("failed to import ttsfrd, use wetext instead")
-    from wetext import Normalizer as ZhNormalizer
-    from wetext import Normalizer as EnNormalizer
-    use_ttsfrd = False
+
+# ── AMD ROCm / 跨平台兼容层 ──
+# 自动选择最佳 ONNX Runtime 执行提供器，优先 GPU 加速
+import onnxruntime
+
+def _get_onnx_providers():
+    """自动检测最佳 ONNX Runtime 执行提供器。
+    优先级: ROCM > DML > CUDA > CPU
+    """
+    available = onnxruntime.get_available_providers()
+    if 'ROCMExecutionProvider' in available:
+        return ['ROCMExecutionProvider', 'CPUExecutionProvider']
+    elif 'DmlExecutionProvider' in available:
+        return ['DmlExecutionProvider', 'CPUExecutionProvider']
+    elif torch.cuda.is_available() and 'CUDAExecutionProvider' in available:
+        return ['CUDAExecutionProvider', 'CPUExecutionProvider']
+    else:
+        return ['CPUExecutionProvider']
+
+_ONNX_PROVIDERS = _get_onnx_providers()
+print(f"[XB CosyVoice3 Frontend] ONNX providers: {_ONNX_PROVIDERS}")
+# 本地环境不使用阿里内部 ttsfrd，直接用 wetext
+from wetext import Normalizer as ZhNormalizer
+from wetext import Normalizer as EnNormalizer
 from cosyvoice.utils.file_utils import logging, load_wav
 from cosyvoice.utils.frontend_utils import contains_chinese, replace_blank, replace_corner_mark, remove_bracket, spell_out_number, split_paragraph, is_only_punctuation
 
@@ -51,26 +66,17 @@ class CosyVoiceFrontEnd:
         option = onnxruntime.SessionOptions()
         option.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
         option.intra_op_num_threads = 1
-        self.campplus_session = onnxruntime.InferenceSession(campplus_model, sess_options=option, providers=["CPUExecutionProvider"])
+        self.campplus_session = onnxruntime.InferenceSession(campplus_model, sess_options=option, providers=_ONNX_PROVIDERS)
         self.speech_tokenizer_session = onnxruntime.InferenceSession(speech_tokenizer_model, sess_options=option,
-                                                                     providers=["CUDAExecutionProvider" if torch.cuda.is_available() else
-                                                                                "CPUExecutionProvider"])
+                                                                     providers=_ONNX_PROVIDERS)
         if os.path.exists(spk2info):
             self.spk2info = torch.load(spk2info, map_location=self.device)
         else:
             self.spk2info = {}
         self.allowed_special = allowed_special
-        self.use_ttsfrd = use_ttsfrd
-        if self.use_ttsfrd:
-            self.frd = ttsfrd.TtsFrontendEngine()
-            ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-            assert self.frd.initialize('{}/../../pretrained_models/CosyVoice-ttsfrd/resource'.format(ROOT_DIR)) is True, \
-                'failed to initialize ttsfrd resource'
-            self.frd.set_lang_type('pinyinvg')
-        else:
-            self.zh_tn_model = ZhNormalizer(remove_erhua=False)
-            self.en_tn_model = EnNormalizer()
-            self.inflect_parser = inflect.engine()
+        self.zh_tn_model = ZhNormalizer(remove_erhua=False)
+        self.en_tn_model = EnNormalizer()
+        self.inflect_parser = inflect.engine()
 
     def _extract_text_token(self, text):
         if isinstance(text, Generator):
@@ -131,26 +137,22 @@ class CosyVoiceFrontEnd:
         if text_frontend is False or text == '':
             return [text] if split is True else text
         text = text.strip()
-        if self.use_ttsfrd:
-            texts = [i["text"] for i in json.loads(self.frd.do_voicegen_frd(text))["sentences"]]
-            text = ''.join(texts)
+        if contains_chinese(text):
+            text = self.zh_tn_model.normalize(text)
+            text = text.replace("\n", "")
+            text = replace_blank(text)
+            text = replace_corner_mark(text)
+            text = text.replace(".", "。")
+            text = text.replace(" - ", "，")
+            text = remove_bracket(text)
+            text = re.sub(r'[，,、]+$', '。', text)
+            texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "zh", token_max_n=80,
+                                         token_min_n=60, merge_len=20, comma_split=False))
         else:
-            if contains_chinese(text):
-                text = self.zh_tn_model.normalize(text)
-                text = text.replace("\n", "")
-                text = replace_blank(text)
-                text = replace_corner_mark(text)
-                text = text.replace(".", "。")
-                text = text.replace(" - ", "，")
-                text = remove_bracket(text)
-                text = re.sub(r'[，,、]+$', '。', text)
-                texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "zh", token_max_n=80,
-                                             token_min_n=60, merge_len=20, comma_split=False))
-            else:
-                text = self.en_tn_model.normalize(text)
-                text = spell_out_number(text, self.inflect_parser)
-                texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "en", token_max_n=80,
-                                             token_min_n=60, merge_len=20, comma_split=False))
+            text = self.en_tn_model.normalize(text)
+            text = spell_out_number(text, self.inflect_parser)
+            texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "en", token_max_n=80,
+                                         token_min_n=60, merge_len=20, comma_split=False))
         texts = [i for i in texts if not is_only_punctuation(i)]
         return texts if split is True else text
 

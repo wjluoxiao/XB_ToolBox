@@ -213,12 +213,8 @@ def load_cosyvoice_model(
 
     try:
         # Import from vendored cosyvoice package (bundled with this node pack)
-        import sys
-        vendored_path = os.path.join(os.path.dirname(__file__), "..")
-        if vendored_path not in sys.path:
-            sys.path.insert(0, vendored_path)
-
-        from cosyvoice.cli.cosyvoice import CosyVoice, CosyVoice2, CosyVoice3, AutoModel
+        # 使用相对导入确保加载本地的 cosyvoice 副本，避免与旧版冲突
+        from ..cosyvoice.cli.cosyvoice import CosyVoice, CosyVoice2, CosyVoice3, AutoModel
 
         # Determine device
         if device is None:

@@ -34,11 +34,70 @@ def contains_chinese(text):
 # Whisper model cache for auto-transcription
 _whisper_model = None
 
+def _ensure_ffmpeg():
+    """确保 ffmpeg 可用。返回 ffmpeg 绝对路径，供 Whisper 使用。"""
+    import shutil, subprocess
+    candidates = []
+    # 1. 从 PATH 中找
+    found = shutil.which("ffmpeg")
+    if found:
+        candidates.append(found)
+    # 2. imageio-ffmpeg 内置便携版
+    try:
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if os.path.exists(exe) and exe not in candidates:
+            candidates.append(exe)
+    except Exception:
+        pass
+    # 3. 验证并返回第一个可用的
+    for exe in candidates:
+        try:
+            subprocess.run([exe, "-version"], capture_output=True, timeout=5, check=True)
+            print(f"[XB CosyVoice3 ZeroShot] ffmpeg ready: {exe}")
+            return exe
+        except Exception:
+            continue
+    return None
+
+# 全局缓存 ffmpeg 路径
+_ffmpeg_path = None
+
+def _get_ffmpeg():
+    global _ffmpeg_path
+    if _ffmpeg_path is None:
+        _ffmpeg_path = _ensure_ffmpeg()
+    return _ffmpeg_path
+
+# Monkey-patch whisper 让它用我们的 ffmpeg
+_original_transcribe = None
+
+def _patch_whisper():
+    """让 whisper 使用我们找到的 ffmpeg 绝对路径。"""
+    global _original_transcribe
+    ffmpeg = _get_ffmpeg()
+    if not ffmpeg:
+        return  # 没有 ffmpeg，走降级逻辑
+    import whisper.audio
+    import subprocess
+    # 替换 whisper 的 subprocess 调用
+    _original_popen = subprocess.Popen
+    class _FfmpegPopen(subprocess.Popen):
+        def __init__(self, args, **kwargs):
+            if isinstance(args, list) and args[0] == "ffmpeg":
+                args = [ffmpeg] + args[1:]
+            elif isinstance(args, str) and args.startswith("ffmpeg"):
+                args = ffmpeg + args[5:]
+            super().__init__(args, **kwargs)
+    subprocess.Popen = _FfmpegPopen
+    print(f"[XB CosyVoice3 ZeroShot] Whisper patched to use: {ffmpeg}")
+
 def get_whisper_model():
     """Get cached Whisper model for transcription"""
     global _whisper_model
     if _whisper_model is None:
         try:
+            _patch_whisper()
             import whisper
             print("[XB CosyVoice3 ZeroShot] Loading Whisper model for auto-transcription...")
             _whisper_model = whisper.load_model("base")
