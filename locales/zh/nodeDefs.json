@@ -756,6 +756,25 @@
       }
     }
   },
+  "XB_Sage_BlockSwap": {
+    "display_name": "XB-BOX - 🚀 Sage + 分块 黄金搭档",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "sage_preset": {
+        "name": "Sage加速模式"
+      },
+      "blocks_to_swap": {
+        "name": "模型分块数量"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "模型"
+      }
+    }
+  },
   "XB_WanSoundImageToVideo": {
     "display_name": "XB-BOX - 🎵 音频图像转视频分块(WanSound)",
     "inputs": {

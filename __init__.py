@@ -53,6 +53,7 @@ try:
     from .nodes_vram import XTX_Data_Radar
     from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
+    from .nodes_blockswap_sage import XB_Sage_BlockSwap
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
     from .nodes_tile import XB_SamplerChunkMaster
@@ -116,6 +117,7 @@ try:
         "XB_VideoCombine": XB_VideoCombine,
         "XB_UNetBlockSwap": XB_UNetBlockSwap,
         "XB_CheckpointBlockSwap": XB_CheckpointBlockSwap,
+        "XB_Sage_BlockSwap": XB_Sage_BlockSwap,
         "XB_DynamicBus": XB_DynamicBus,
         "XB_UNetNameBroadcaster": XB_UNetNameBroadcaster,
         "XB_CLIPNameBroadcaster": XB_CLIPNameBroadcaster,
@@ -238,6 +240,7 @@ try:
         "XB_VideoCombine": "XB-BOX - 🎬 视频拼接输出",
         "XB_UNetBlockSwap": "XB-BOX - UNet Block Swap",
         "XB_CheckpointBlockSwap": "XB-BOX - Checkpoint Block Swap",
+        "XB_Sage_BlockSwap": "XB-BOX - Sage + BlockSwap (Golden Duo)",
         "XB_DynamicBus": "XB-BOX - Dynamic Bus",
         "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
         "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
