@@ -90,12 +90,15 @@ class XB_CosyVoice3_Dialog:
         sample_rate = audio['sample_rate']
         duration = waveform.shape[-1] / sample_rate
 
+        if duration < 0.5:
+            raise ValueError(
+                f"说话人 {speaker_name} 的参考音频太短（{duration:.1f} 秒），"
+                f"请提供至少 0.5 秒的音频，建议 3~10 秒效果最佳。"
+            )
         if duration > 30:
             raise ValueError(
-                f"Speaker {speaker_name} reference audio is too long ({duration:.1f} seconds). "
-                f"CosyVoice only supports reference audio up to 30 seconds. "
-                f"Please use the XB Audio Crop node to trim your audio. "
-                f"Recommended: 3-10 seconds for best quality."
+                f"说话人 {speaker_name} 的参考音频太长（{duration:.1f} 秒），"
+                f"请裁剪到 30 秒以内，建议 3~10 秒。"
             )
         return duration
 
@@ -340,14 +343,14 @@ class XB_CosyVoice3_Dialog:
                     speaker_c_audio, speaker_d_audio, message)
 
         except Exception as e:
-            error_msg = f"Error generating dialog: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 Dialog] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
+            if isinstance(e, ValueError):
+                error_msg = str(e)
+                print(f"\n[XB CosyVoice3 Dialog] [!] {error_msg}")
+            else:
+                error_msg = f"对话生成失败: {str(e)}"
+                print(f"\n[XB CosyVoice3 Dialog] [!] {error_msg}")
 
-            # Return empty audio on error
+            # 返回空音频，不阻塞工作流
             empty_audio = {"waveform": torch.zeros(1, 1, 22050), "sample_rate": 22050}
             return (empty_audio, empty_audio, empty_audio, empty_audio, empty_audio, error_msg)
 

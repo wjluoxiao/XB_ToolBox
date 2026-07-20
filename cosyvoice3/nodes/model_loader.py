@@ -114,10 +114,6 @@ class XB_CosyVoice3_ModelLoader:
             return (model_info,)
 
         except Exception as e:
-            error_msg = f"Error loading model: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 ModelLoader] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
+            error_msg = f"模型加载失败: {str(e)}"
+            print(f"[XB CosyVoice3 ModelLoader] [!] {error_msg}")
             raise RuntimeError(error_msg)

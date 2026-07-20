@@ -100,21 +100,15 @@ class XB_CosyVoice3_VoiceConversion:
         target_sample_rate = target_audio['sample_rate']
         target_duration = target_waveform.shape[-1] / target_sample_rate
 
+        if source_duration < 0.5:
+            raise ValueError(f"源音频太短（{source_duration:.1f} 秒），请提供至少 0.5 秒的音频。")
         if source_duration > 30:
-            error_msg = (
-                f"Source audio is too long ({source_duration:.1f} seconds). "
-                f"CosyVoice only supports audio up to 30 seconds. "
-                f"Please use the XB Audio Crop node to trim your audio."
-            )
-            raise ValueError(error_msg)
+            raise ValueError(f"源音频太长（{source_duration:.1f} 秒），请裁剪到 30 秒以内。")
 
+        if target_duration < 0.5:
+            raise ValueError(f"目标参考音频太短（{target_duration:.1f} 秒），请提供至少 0.5 秒的音频。")
         if target_duration > 30:
-            error_msg = (
-                f"Target audio is too long ({target_duration:.1f} seconds). "
-                f"CosyVoice only supports audio up to 30 seconds. "
-                f"Please use the XB Audio Crop node to trim your audio."
-            )
-            raise ValueError(error_msg)
+            raise ValueError(f"目标参考音频太长（{target_duration:.1f} 秒），请裁剪到 30 秒以内。")
 
         source_temp = None
         target_temp = None
@@ -202,18 +196,9 @@ class XB_CosyVoice3_VoiceConversion:
             return (audio,)
 
         except Exception as e:
-            error_msg = f"Error in voice conversion: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 VC] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-
-            # Return empty audio on error
-            empty_audio = {
-                "waveform": torch.zeros(1, 1, 22050),
-                "sample_rate": 22050
-            }
+            error_msg = f"语音转换失败: {str(e)}"
+            print(f"[XB CosyVoice3 VC] [!] {error_msg}")
+            empty_audio = {"waveform": torch.zeros(1, 1, 22050), "sample_rate": 22050}
             return (empty_audio,)
 
         finally:

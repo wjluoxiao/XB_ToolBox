@@ -252,11 +252,7 @@ def load_cosyvoice_model(
         return model
 
     except Exception as e:
-        print(f"\n{'='*60}")
-        print(f"[XB CosyVoice3] ERROR loading model: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        print(f"{'='*60}\n")
+        print(f"[XB CosyVoice3] [!] 模型加载失败: {str(e)}")
         raise
 
 

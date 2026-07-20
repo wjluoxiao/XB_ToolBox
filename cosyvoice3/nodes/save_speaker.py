@@ -246,12 +246,8 @@ class XB_CosyVoice3_SaveSpeaker:
             return (save_path,)
 
         except Exception as e:
-            error_msg = f"Error saving speaker preset: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 SaveSpeaker] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
+            error_msg = f"保存说话人失败: {str(e)}"
+            print(f"[XB CosyVoice3 SaveSpeaker] [!] {error_msg}")
             raise RuntimeError(error_msg)
 
         finally:

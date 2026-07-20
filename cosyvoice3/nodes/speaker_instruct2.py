@@ -264,15 +264,7 @@ class XB_CosyVoice3_SpeakerInstruct2:
             return (audio,)
 
         except Exception as e:
-            error_msg = f"Error in speaker instruct2: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 SpeakerInstruct2] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-
-            empty_audio = {
-                "waveform": torch.zeros(1, 1, 22050),
-                "sample_rate": 22050,
-            }
+            error_msg = f"说话人指令合成失败: {str(e)}"
+            print(f"[XB CosyVoice3 SpeakerInstruct2] [!] {error_msg}")
+            empty_audio = {"waveform": torch.zeros(1, 1, 22050), "sample_rate": 22050}
             return (empty_audio,)

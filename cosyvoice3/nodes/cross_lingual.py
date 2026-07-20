@@ -111,14 +111,10 @@ class XB_CosyVoice3_CrossLingual:
         ref_sample_rate = reference_audio['sample_rate']
         ref_duration = ref_waveform.shape[-1] / ref_sample_rate
 
+        if ref_duration < 0.5:
+            raise ValueError(f"参考音频太短（{ref_duration:.1f} 秒），请提供至少 0.5 秒的音频，建议 3~10 秒效果最佳。")
         if ref_duration > 30:
-            error_msg = (
-                f"Reference audio is too long ({ref_duration:.1f} seconds). "
-                f"CosyVoice only supports reference audio up to 30 seconds. "
-                f"Please use the XB Audio Crop node to trim your audio to 30 seconds or less. "
-                f"Recommended: 3-10 seconds for best quality."
-            )
-            raise ValueError(error_msg)
+            raise ValueError(f"参考音频太长（{ref_duration:.1f} 秒），请裁剪到 30 秒以内，建议 3~10 秒。")
 
         temp_file = None
 
@@ -225,18 +221,9 @@ class XB_CosyVoice3_CrossLingual:
             return (audio,)
 
         except Exception as e:
-            error_msg = f"Error in cross-lingual synthesis: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 CrossLingual] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-
-            # Return empty audio on error
-            empty_audio = {
-                "waveform": torch.zeros(1, 1, 22050),
-                "sample_rate": 22050
-            }
+            error_msg = f"跨语言合成失败: {str(e)}"
+            print(f"[XB CosyVoice3 CrossLingual] [!] {error_msg}")
+            empty_audio = {"waveform": torch.zeros(1, 1, 22050), "sample_rate": 22050}
             return (empty_audio,)
 
         finally:
