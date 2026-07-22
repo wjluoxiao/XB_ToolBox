@@ -1,9 +1,55 @@
+"""
+XB-SageAttention Accelerator
+=============================
+保持原版 KJNodes 设计, 仅添加 GPU 信息日志。
+
+工作模式:
+  - 关闭:           直接透传模型
+  - 自动:           委托 KJNodes auto 逻辑 (sageattn 默认参数)
+  - 内置模式 A~D:   自定义 sage_config (M/N/GROUP/WAVE/WARP/NSTAGES)
+  - 自定模式 A~C:   自定义 sage_config (配合外部调参软件)
+
+A卡兼容:
+  - RDNA3:  Sage 1.0.6 不支持 sage_config, 选中内置/自定时会 fallback 到 SDPA
+  - RDNA4:  Sage 2.2.0 完全兼容
+  - N卡:    Sage 2.x 完全兼容
+"""
+
 import torch
 from comfy.ldm.modules.attention import wrap_attn
 
-# ============================================================
-# XB_SageAttentionAccelerator — SageAttention 加速器
-# ============================================================
+
+# ── GPU 信息 (仅日志用途) ──
+def _is_rocm():
+    try:
+        return torch.cuda.is_available() and hasattr(torch.version, "hip") and torch.version.hip is not None
+    except Exception:
+        return False
+
+def _gpu_label():
+    try:
+        if not torch.cuda.is_available():
+            return "CPU"
+        if _is_rocm():
+            arch = ""
+            try:
+                raw = torch.cuda.get_device_properties(0).gcnArchName
+                arch = " " + raw.split(":")[0] if raw else ""
+            except Exception:
+                pass
+            return f"ROCm{arch}"
+        return "CUDA"
+    except Exception:
+        return "Unknown"
+
+_GPU = _gpu_label()
+print(f"[XB-SageAttn] GPU: {_GPU}, Sage节点已就绪")
+
+
+# ══════════════════════════════════════════════════════════
+#  XB_SageAttentionAccelerator (保持原版设计)
+# ══════════════════════════════════════════════════════════
+
 class XB_SageAttentionAccelerator:
     """SageAttention 加速补丁节点。
 
@@ -13,6 +59,7 @@ class XB_SageAttentionAccelerator:
       - 内置模式 A~D:   使用指定 sage_config 参数 (M/N/GROUP/WAVE/WARP/NSTAGES)
       - 自定模式 A~C:   自定义 sage_config 参数
     """
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -37,18 +84,17 @@ class XB_SageAttentionAccelerator:
     CATEGORY = "XB_ToolBox/VRAM_Hacks"
 
     def patch(self, model, preset):
-        # ── 关闭：节点完全不生效，直接透传模型 ──
         if preset == "关闭":
-            print("\033[96m[XB-BOX]\033[0m: SageAttention 已关闭，模型直接透传")
+            print(f"\033[96m[XB-SageAttn]\033[0m: 已关闭, 模型透传 (GPU={_GPU})")
             return (model,)
 
-        # ── 全局容错：任何异常（缺 sageattention / 缺 MSVC / DLL 错误 等）自动跳过 ──
         try:
             return self._apply_patch(model, preset)
         except Exception as e:
             import traceback
-            print(f"\n\033[93m[XB_ToolBox 警告] SageAttention 节点异常，自动跳过！工作流继续运行。\033[0m")
-            print(f"\033[93m[XB_ToolBox 错误信息]\033[0m {e}")
+            print(f"\n\033[93m[XB-SageAttn 警告] 节点异常，自动跳过！工作流继续运行。\033[0m")
+            print(f"\033[93m[XB-SageAttn 错误] GPU={_GPU}, preset={preset}\033[0m")
+            print(f"\033[93m[XB-SageAttn 详情]\033[0m {e}")
             traceback.print_exc()
             return (model,)
 
@@ -105,46 +151,42 @@ class XB_SageAttentionAccelerator:
             m.model_options["transformer_options"]["optimized_attention_override"] = \
                 lambda func, *args, **kwargs: attention_sage.__wrapped__(*args, **kwargs)
 
-            print("\033[96m[XB-BOX]\033[0m: SageAttention 引擎切换至 \033[92m自动 (KJNodes auto)\033[0m")
+            print(f"\033[96m[XB-SageAttn]\033[0m: 引擎 → \033[92m自动 (KJNodes auto)\033[0m (GPU={_GPU})")
             return (m,)
 
         # ── 内置/自定模式：使用指定 sage_config 参数 ──
         configs = {
             "内置模式 A (128x128x32)": {'M': 128,  'N': 128, 'GROUP': 32, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 1},
-            "内置模式 B (128x64x96)": {'M': 128,  'N': 64, 'GROUP': 96, 'WAVE': 3, 'WARP': 8, 'NSTAGES': 2},
-            "内置模式 C (128x16x16)": {'M': 128,  'N': 16, 'GROUP': 16, 'WAVE': 2, 'WARP': 4, 'NSTAGES': 2},
-            "内置模式 D (64x64x16)": {'M': 64,  'N': 64, 'GROUP': 16, 'WAVE': 4, 'WARP': 4, 'NSTAGES': 2},
+            "内置模式 B (128x64x96)":  {'M': 128,  'N': 64,  'GROUP': 96, 'WAVE': 3, 'WARP': 8, 'NSTAGES': 2},
+            "内置模式 C (128x16x16)":  {'M': 128,  'N': 16,  'GROUP': 16, 'WAVE': 2, 'WARP': 4, 'NSTAGES': 2},
+            "内置模式 D (64x64x16)":   {'M': 64,   'N': 64,  'GROUP': 16, 'WAVE': 4, 'WARP': 4, 'NSTAGES': 2},
             "自定模式 A (机智启动器)": {'M': 128, 'N': 128, 'GROUP': 16, 'WAVE': 4, 'WARP': 8, 'NSTAGES': 1},
-            "自定模式 B (机智启动器)": {'M': 128, 'N': 16, 'GROUP': 8, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 2},
-            "自定模式 C (机智启动器)": {'M': 64, 'N': 128, 'GROUP': 96, 'WAVE': 2, 'WARP': 2, 'NSTAGES': 1},
+            "自定模式 B (机智启动器)": {'M': 128, 'N': 16,  'GROUP': 8,  'WAVE': 2, 'WARP': 8, 'NSTAGES': 2},
+            "自定模式 C (机智启动器)": {'M': 64,  'N': 128, 'GROUP': 96, 'WAVE': 2, 'WARP': 2, 'NSTAGES': 1},
         }
 
         selected_cfg = configs[preset]
         from sageattention import sageattn
 
-        _warned = {}  # 去重：每个警告只打印一次
+        _warned = {}
 
         def attention_override_sage(func, q, k, v, heads, mask=None, attn_precision=None,
                                      skip_reshape=False, skip_output_reshape=False, **kwargs):
             in_dtype = v.dtype
 
-            # 🛡️ 3D/4D 维度校验：非3D且非skip_reshape → 直接退回原生
+            # 3D/4D 维度校验
             if q.ndim != 3 and not skip_reshape:
                 return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
                            skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
 
-            # ── 在修改 q/k/v 物理形态之前，先完成所有断路检查 ──
             if skip_reshape:
-                # q 已是 4D: (b, heads, n, dim_head)，无需 reshape
                 b, _, _, dim_head = q.shape
                 tensor_layout = "HND"
             else:
-                # q 是 3D: (b, n, heads*dim_head)，先提取维度信息，暂不 reshape
                 b, _, d = q.shape
                 dim_head = d // heads
                 tensor_layout = "NHD"
 
-            # 🛡️ 有attn_mask → SageAttention 不支持，退回原生SDPA
             if mask is not None:
                 if "mask" not in _warned:
                     print("\033[93m[SageAttn]\033[0m: Attention mask detected — falling back to SDPA.")
@@ -152,7 +194,7 @@ class XB_SageAttentionAccelerator:
                 return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
                            skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
 
-            # ── 动态补零策略：非标 dim_head 补齐到标准值，让 SageAttention 满血加速 ──
+            # 动态补零策略
             _STANDARD_DIMS = (16, 32, 64, 128, 256)
             _orig_dim_head = dim_head
             _pad_target = None
@@ -168,7 +210,6 @@ class XB_SageAttentionAccelerator:
                         _warned["pad"] = True
                     _scale = (float(_pad_target) / float(_orig_dim_head)) ** 0.25
                 else:
-                    # dim_head > 256，无法补零，降级 SDPA
                     if "large_dim" not in _warned:
                         print("\033[93m[SageAttn]\033[0m: dim_head ({}) exceeds max supported — falling back to SDPA."
                               .format(_orig_dim_head))
@@ -176,7 +217,6 @@ class XB_SageAttentionAccelerator:
                     return func(q, k, v, heads, mask=mask, attn_precision=attn_precision,
                                skip_reshape=skip_reshape, skip_output_reshape=skip_output_reshape, **kwargs)
 
-            # ── 通过安全检查后，进行 dtype 转换和 reshape（用原始 dim_head）──
             if q.dtype == torch.float32 or k.dtype == torch.float32 or v.dtype == torch.float32:
                 q, k, v = q.to(torch.float16), k.to(torch.float16), v.to(torch.float16)
 
@@ -185,19 +225,16 @@ class XB_SageAttentionAccelerator:
                 k = k.view(b, -1, heads, _orig_dim_head)
                 v = v.view(b, -1, heads, _orig_dim_head)
 
-            # 🛡️ 备份原始未补零张量 — fallback 时的救命稻草，防止维度爆炸
             _orig_q, _orig_k, _orig_v = q, k, v
 
-            # ── 动态补零：在最后一维（head_dim）补零并对 Q/K 做温度修正 ──
             if _pad_target is not None:
                 _pad_len = _pad_target - _orig_dim_head
                 q = torch.nn.functional.pad(q, (0, _pad_len))
                 k = torch.nn.functional.pad(k, (0, _pad_len))
                 v = torch.nn.functional.pad(v, (0, _pad_len))
-                # 修正 softmax 温度：SageAttn 内部用 sqrt(pad_dim)，我们需等效 sqrt(orig_dim)
                 q = q * _scale
                 k = k * _scale
-                dim_head = _pad_target  # 后续代码（如 sageattn 计算）用 padded dim_head
+                dim_head = _pad_target
 
             is_causal = kwargs.get("is_causal", False)
             try:
@@ -208,7 +245,6 @@ class XB_SageAttentionAccelerator:
                     print("\033[93m[SageAttn]\033[0m: SageAttention kernel failed (dim_head={}) — falling back to SDPA. "
                           "Error: {}".format(_orig_dim_head, str(e)[:120]))
                     _warned["sage_fallback"] = True
-                # 🛡️ 使用备份的原始未补零张量，避免 128 维 vs 120 维的形状爆炸
                 if skip_reshape:
                     return func(_orig_q, _orig_k, _orig_v, heads, mask=mask, attn_precision=attn_precision,
                                skip_reshape=True, skip_output_reshape=skip_output_reshape, **kwargs)
@@ -219,10 +255,9 @@ class XB_SageAttentionAccelerator:
                     return func(q_3d, k_3d, v_3d, heads, mask=mask, attn_precision=attn_precision,
                                skip_reshape=False, skip_output_reshape=False, **kwargs)
 
-            # ── 补零模式：切掉补零部分，恢复原始 dim_head ──
             if _pad_target is not None:
                 out = out[..., :_orig_dim_head]
-                dim_head = _orig_dim_head  # 恢复，供后续 reshape 使用
+                dim_head = _orig_dim_head
 
             if tensor_layout == "HND":
                 if not skip_output_reshape:
@@ -242,6 +277,6 @@ class XB_SageAttentionAccelerator:
 
         m.model_options["transformer_options"]["optimized_attention_override"] = attention_override_sage
 
-        print(f"\033[96m[XB-BOX]\033[0m: SageAttention engine switched to \033[92m{preset}\033[0m")
+        print(f"\033[96m[XB-SageAttn]\033[0m: 引擎 → \033[92m{preset}\033[0m (GPU={_GPU})")
 
         return (m,)

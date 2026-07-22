@@ -4358,5 +4358,317 @@
         "name": "🔊 合成音频"
       }
     }
+  },
+  "XB_llamaModelLoader": {
+    "display_name": "XB-llama - 📦 模型加载器",
+    "inputs": {
+      "model": {
+        "name": "LLM模型"
+      },
+      "mmproj": {
+        "name": "视觉投影(mmproj)"
+      },
+      "chat_handler": {
+        "name": "对话处理器"
+      },
+      "n_ctx": {
+        "name": "上下文长度"
+      },
+      "vram_limit": {
+        "name": "显存上限(GB)"
+      },
+      "image_min_tokens": {
+        "name": "图像最小Token"
+      },
+      "image_max_tokens": {
+        "name": "图像最大Token"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🤖 Llama模型"
+      }
+    }
+  },
+  "XB_llamaInstruct": {
+    "display_name": "XB-llama - 💬 指令推理",
+    "inputs": {
+      "llama_model": {
+        "name": "Llama模型"
+      },
+      "preset_prompt": {
+        "name": "预设提示词"
+      },
+      "custom_prompt": {
+        "name": "自定义提示词"
+      },
+      "system_prompt": {
+        "name": "系统提示词"
+      },
+      "inference_mode": {
+        "name": "推理模式"
+      },
+      "max_frames": {
+        "name": "最大帧数"
+      },
+      "max_size": {
+        "name": "最大图像尺寸"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "force_offload": {
+        "name": "强制卸载"
+      },
+      "save_states": {
+        "name": "保存对话状态"
+      },
+      "parameters": {
+        "name": "推理参数"
+      },
+      "images": {
+        "name": "输入图像"
+      },
+      "queue_handler": {
+        "name": "队列控制"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📝 输出文本"
+      },
+      "1": {
+        "name": "📋 输出列表"
+      },
+      "2": {
+        "name": "🔑 状态UID"
+      }
+    }
+  },
+  "XB_llamaParameters": {
+    "display_name": "XB-llama - ⚙️ 推理参数",
+    "inputs": {
+      "max_tokens": {
+        "name": "最大Token数"
+      },
+      "top_k": {
+        "name": "Top-K采样"
+      },
+      "top_p": {
+        "name": "Top-P采样"
+      },
+      "min_p": {
+        "name": "Min-P采样"
+      },
+      "typical_p": {
+        "name": "Typical-P采样"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "repeat_penalty": {
+        "name": "重复惩罚"
+      },
+      "frequency_penalty": {
+        "name": "频率惩罚"
+      },
+      "present_penalty": {
+        "name": "存在惩罚"
+      },
+      "mirostat_mode": {
+        "name": "Mirostat模式"
+      },
+      "mirostat_eta": {
+        "name": "Mirostat学习率"
+      },
+      "mirostat_tau": {
+        "name": "Mirostat目标熵"
+      },
+      "state_uid": {
+        "name": "状态UID"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "⚙️ 推理参数"
+      }
+    }
+  },
+  "XB_llamaUnloadModel": {
+    "display_name": "XB-llama - 🗑️ 卸载模型",
+    "inputs": {
+      "any": {
+        "name": "任意输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔗 任意输出"
+      }
+    }
+  },
+  "XB_llamaCleanStates": {
+    "display_name": "XB-llama - 🧹 清理状态",
+    "inputs": {
+      "any": {
+        "name": "任意输入"
+      },
+      "state_uid": {
+        "name": "状态UID"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔗 任意输出"
+      }
+    }
+  },
+  "XB_llamaParseJSON": {
+    "display_name": "XB-llama - 📋 解析JSON",
+    "inputs": {
+      "input": {
+        "name": "JSON字符串"
+      },
+      "key": {
+        "name": "键名(点号分隔)"
+      },
+      "default": {
+        "name": "默认值"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔹 任意类型"
+      },
+      "1": {
+        "name": "📝 字符串"
+      },
+      "2": {
+        "name": "🔢 整数"
+      },
+      "3": {
+        "name": "📊 浮点数"
+      },
+      "4": {
+        "name": "✅ 布尔值"
+      }
+    }
+  },
+  "XB_llamaJSON2BBox": {
+    "display_name": "XB-llama - 🎯 JSON转BBox",
+    "inputs": {
+      "json": {
+        "name": "JSON字符串"
+      },
+      "mode": {
+        "name": "坐标模式"
+      },
+      "label": {
+        "name": "标签过滤"
+      },
+      "image": {
+        "name": "图像(可选)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 BBox列表"
+      },
+      "1": {
+        "name": "🖼️ 图像列表"
+      }
+    }
+  },
+  "XB_llamaBBox2SEGS": {
+    "display_name": "XB-llama - ✂️ BBox转SEGS",
+    "inputs": {
+      "bboxes": {
+        "name": "BBox列表"
+      },
+      "image": {
+        "name": "图像"
+      },
+      "dilation": {
+        "name": "扩展像素"
+      },
+      "feather": {
+        "name": "羽化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "✂️ SEGS"
+      }
+    }
+  },
+  "XB_llamaBBox2Mask": {
+    "display_name": "XB-llama - 🎭 BBox转Mask",
+    "inputs": {
+      "bboxes": {
+        "name": "BBox列表"
+      },
+      "image": {
+        "name": "图像"
+      },
+      "dilation": {
+        "name": "扩展像素"
+      },
+      "feather": {
+        "name": "羽化"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎭 遮罩"
+      }
+    }
+  },
+  "XB_llamaBBoxes2BBox": {
+    "display_name": "XB-llama - 🔍 BBoxes取BBox",
+    "inputs": {
+      "bboxes": {
+        "name": "BBox列表"
+      },
+      "image_index": {
+        "name": "图像索引"
+      },
+      "bbox_index": {
+        "name": "BBox索引"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📦 BBox"
+      }
+    }
+  },
+  "XB_llamaUnpackCodeBlock": {
+    "display_name": "XB-llama - 📝 解包代码块",
+    "inputs": {
+      "input": {
+        "name": "输入文本"
+      },
+      "label": {
+        "name": "代码语言标签"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📝 纯文本"
+      }
+    }
+  },
+  "XB_llamaPromptEnhancer": {
+    "display_name": "XB-llama - ✨ 提示词增强预设",
+    "inputs": {
+      "preset": {
+        "name": "预设模板"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📝 系统提示词"
+      }
+    }
   }
 }

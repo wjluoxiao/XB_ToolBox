@@ -94,6 +94,19 @@ try:
         CLIPLoaderINT8ROCm, DualCLIPLoaderINT8ROCm, INT8CLIPSaveROCm
     )
 
+    # ── Llama 节点 (LLM/VLM) ──
+    try:
+        from .nodes_llama import (
+            XB_llamaModelLoader, XB_llamaInstruct, XB_llamaParameters,
+            XB_llamaUnloadModel, XB_llamaCleanStates, XB_llamaParseJSON,
+            XB_llamaJSON2BBox, XB_llamaBBox2SEGS, XB_llamaBBox2Mask,
+            XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
+        )
+        _LLAMA_AVAILABLE = True
+    except ImportError as e:
+        print_warning(f"[XB-llama] llama-cpp-python 未安装, Llama 节点不可用: {e}")
+        _LLAMA_AVAILABLE = False
+
     # ── CosyVoice3 音频节点 ──
     from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
     from .cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
@@ -229,6 +242,23 @@ try:
         "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
     }
 
+    # ── 条件注册 Llama 节点 ──
+    if _LLAMA_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_llamaModelLoader": XB_llamaModelLoader,
+            "XB_llamaInstruct": XB_llamaInstruct,
+            "XB_llamaParameters": XB_llamaParameters,
+            "XB_llamaUnloadModel": XB_llamaUnloadModel,
+            "XB_llamaCleanStates": XB_llamaCleanStates,
+            "XB_llamaParseJSON": XB_llamaParseJSON,
+            "XB_llamaJSON2BBox": XB_llamaJSON2BBox,
+            "XB_llamaBBox2SEGS": XB_llamaBBox2SEGS,
+            "XB_llamaBBox2Mask": XB_llamaBBox2Mask,
+            "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
+            "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
+            "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
+        })
+
     NODE_DISPLAY_NAME_MAPPINGS = { 
         "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
         "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
@@ -335,6 +365,23 @@ try:
         "XB_CosyVoice3_SpeakerClone": "XB-BOX - 🗣️ CosyVoice3 说话人克隆",
         "XB_CosyVoice3_SpeakerInstruct2": "XB-BOX - 🎭 CosyVoice3 说话人指令",
     }
+
+    # ── 条件注册 Llama 显示名 ──
+    if _LLAMA_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_llamaModelLoader": "XB-llama - 📦 模型加载器",
+            "XB_llamaInstruct": "XB-llama - 💬 指令推理",
+            "XB_llamaParameters": "XB-llama - ⚙️ 推理参数",
+            "XB_llamaUnloadModel": "XB-llama - 🗑️ 卸载模型",
+            "XB_llamaCleanStates": "XB-llama - 🧹 清理状态",
+            "XB_llamaParseJSON": "XB-llama - 📋 解析JSON",
+            "XB_llamaJSON2BBox": "XB-llama - 🎯 JSON转BBox",
+            "XB_llamaBBox2SEGS": "XB-llama - ✂️ BBox转SEGS",
+            "XB_llamaBBox2Mask": "XB-llama - 🎭 BBox转Mask",
+            "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
+            "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
+            "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
+        })
 
     print_success("\n" + "="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")

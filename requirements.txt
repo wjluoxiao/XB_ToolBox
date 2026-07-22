@@ -16,6 +16,14 @@ easyocr                               # OCR 文字识别 (漫画工具)
 onnxruntime>=1.18.0                     # ONNX 推理 (人像分割 + CosyVoice3)
 imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
 
+# ── Llama 节点依赖 (LLM/VLM 本地推理) ──
+diskcache                             # 磁盘缓存
+gguf                                  # GGUF 模型格式解析
+# llama-cpp-python                    # ⚠️ 需手动安装! 请根据你的 GPU 选择对应轮子:
+#   N卡 (CUDA): https://github.com/JamePeng/llama-cpp-python/releases
+#   A卡 (ROCm): 需自行编译 ROCm/HIP 版本, 参考编译文档
+#   安装示例: pip install llama_cpp_python-0.3.44-cp312-cp312-win_amd64.whl
+
 # ── CosyVoice3 音频节点依赖 ──
 modelscope                            # ModelScope 模型下载
 huggingface_hub                       # HuggingFace 模型下载
