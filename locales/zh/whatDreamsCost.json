@@ -1,0 +1,157 @@
+{
+  "LTXDirector": {
+    "display_name": "LTX 导演（分镜规划）",
+    "inputs": {
+      "positive_prompt": { "name": "正面提示词" },
+      "negative_prompt": { "name": "负面提示词" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "frame_rate": { "name": "帧率" },
+      "model_type": { "name": "模型类型" }
+    },
+    "outputs": {
+      "0": { "name": "引导数据" },
+      "1": { "name": "运动引导数据" }
+    }
+  },
+  "LTXDirectorGuide": {
+    "display_name": "LTX 导演引导（注意力控制）",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "guide_data": { "name": "引导数据" },
+      "vae": { "name": "VAE模型" },
+      "reference_image": { "name": "参考图" },
+      "strength": { "name": "引导强度" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" }
+    }
+  },
+  "LTXDirectorCropGuides": {
+    "display_name": "LTX 导演裁切引导",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "guide_data": { "name": "引导数据" },
+      "vae": { "name": "VAE模型" },
+      "latent": { "name": "潜变量" },
+      "reference_image": { "name": "参考图" },
+      "crop_strength": { "name": "裁切强度" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "LTXKeyframer": {
+    "display_name": "LTX 关键帧插入",
+    "inputs": {
+      "vae": { "name": "VAE模型" },
+      "latent": { "name": "潜变量" },
+      "multi_input": { "name": "多图输入" },
+      "num_images": { "name": "图片数量" },
+      "insert_frame_1": { "name": "插入帧 1" },
+      "strength_1": { "name": "强度 1" }
+    },
+    "outputs": {
+      "0": { "name": "潜变量" }
+    }
+  },
+  "LTXSequencer": {
+    "display_name": "LTX 序列引导",
+    "inputs": {
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE模型" },
+      "latent": { "name": "潜变量" },
+      "multi_input": { "name": "多图输入" },
+      "num_images": { "name": "图片数量" },
+      "insert_mode": { "name": "插入模式" },
+      "frame_rate": { "name": "帧率" }
+    },
+    "outputs": {
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" },
+      "2": { "name": "潜变量" }
+    }
+  },
+  "MultiImageLoader": {
+    "display_name": "多图加载器",
+    "inputs": {
+      "image_paths": { "name": "图片路径" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "interpolation": { "name": "插值方式" },
+      "resize_method": { "name": "缩放方式" },
+      "multiple_of": { "name": "倍数对齐" },
+      "img_compression": { "name": "图片压缩" }
+    },
+    "outputs": {
+      "0": { "name": "多图批次" },
+      "1": { "name": "图1" },
+      "2": { "name": "图2" },
+      "3": { "name": "图3" },
+      "4": { "name": "图4" },
+      "5": { "name": "图5" }
+    }
+  },
+  "SpeechLengthCalculator": {
+    "display_name": "语音时长计算器",
+    "inputs": {
+      "text": { "name": "台词文本" },
+      "fps": { "name": "帧率" },
+      "additional_time": { "name": "额外时间" },
+      "text_input": { "name": "文本输入(连线)" }
+    },
+    "outputs": {
+      "0": { "name": "慢速帧数(100wpm)" },
+      "1": { "name": "平均帧数(130wpm)" },
+      "2": { "name": "快速帧数(160wpm)" },
+      "3": { "name": "台词文本" }
+    }
+  },
+  "LoadAudioUI": {
+    "display_name": "音频加载器",
+    "inputs": {
+      "audio": { "name": "音频文件" },
+      "start_time": { "name": "开始时间" },
+      "end_time": { "name": "结束时间" },
+      "duration": { "name": "时长" },
+      "audioUI": { "name": "音频UI" }
+    },
+    "outputs": {
+      "0": { "name": "音频" },
+      "1": { "name": "时长(秒)" }
+    }
+  },
+  "LoadVideoUI": {
+    "display_name": "视频加载器",
+    "inputs": {
+      "video": { "name": "视频文件" },
+      "start_time": { "name": "开始时间" },
+      "end_time": { "name": "结束时间" },
+      "duration": { "name": "时长" },
+      "start_frame": { "name": "起始帧" },
+      "end_frame": { "name": "结束帧" },
+      "duration_frames": { "name": "时长帧数" },
+      "resize_method": { "name": "缩放方式" },
+      "custom_width": { "name": "自定义宽度" },
+      "custom_height": { "name": "自定义高度" },
+      "frame_rate": { "name": "帧率" },
+      "display_mode": { "name": "显示模式" },
+      "crop_x": { "name": "裁切X" },
+      "crop_y": { "name": "裁切Y" },
+      "crop_w": { "name": "裁切宽" },
+      "crop_h": { "name": "裁切高" }
+    },
+    "outputs": {
+      "0": { "name": "图像" },
+      "1": { "name": "音频" },
+      "2": { "name": "时长(秒)" },
+      "3": { "name": "帧数" }
+    }
+  }
+}
