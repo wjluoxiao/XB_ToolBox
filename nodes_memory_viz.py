@@ -132,6 +132,50 @@ def _query_lhm():
         log.debug("aimdo-viz: LHM 查询失败: %s", e)
         return None, None, None
 
+def _lhm_get_shared_memory():
+    """通过 LHM 读取 GPU 共享显存使用情况 (D3D Shared Memory)"""
+    computer = _lhm_state.get("computer")
+    if computer is None:
+        return None, None
+    
+    try:
+        for hw in computer.Hardware:
+            hw.Update()
+            hw_type = str(hw.HardwareType)
+            if "GpuAmd" not in hw_type:
+                continue
+            
+            hw_name = str(hw.Name).lower()
+            is_dgpu = any(kw in hw_name for kw in ["rx", "7900", "7800", "7700", "7600",
+                                                      "6900", "6800", "6700", "6600",
+                                                      "5700", "5600", "5500", "vega",
+                                                      "radeon vii", "fury"])
+            if not is_dgpu:
+                continue
+            
+            shared_used = None
+            shared_total = None
+            for sensor in hw.Sensors:
+                s_name = str(sensor.Name).lower()
+                s_val = sensor.Value
+                if s_val is None:
+                    continue
+                if "d3d shared memory used" == s_name:
+                    shared_used = s_val
+                elif "d3d shared memory total" == s_name:
+                    shared_total = s_val
+            
+            if shared_used is not None and shared_total is not None:
+                # LHM 返回的是 MB，转换为字节
+                return shared_used * 1024 * 1024, shared_total * 1024 * 1024
+            elif shared_used is not None:
+                return shared_used * 1024 * 1024, None
+        
+        return None, None
+    except Exception as e:
+        log.debug("aimdo-viz: LHM 共享显存查询失败: %s", e)
+        return None, None
+
 def _detect_amd_gpu():
     """检测是否为 AMD GPU 并初始化监控后端"""
     if _amd_state["checked"]:
@@ -745,6 +789,12 @@ async def aimdo_vram_status(request):
     total_pinned = sum(m.get("pinned_ram", 0) for m in models)
     total_loaded_ram = sum(m.get("loaded_ram", 0) for m in models)
 
+    # ── 共享显存（AMD LHM / NVIDIA NVML 可选） ──
+    shared_mem_used = None
+    shared_mem_total = None
+    if _lhm_state.get("available"):
+        shared_mem_used, shared_mem_total = _lhm_get_shared_memory()
+
     return web.json_response({
         "enabled": True,
         "aimdo_active": aimdo_active,
@@ -771,6 +821,8 @@ async def aimdo_vram_status(request):
         "process_ram": process_ram,
         "pinned_ram": total_pinned,
         "loaded_ram": total_loaded_ram,
+        "shared_mem_used": shared_mem_used,
+        "shared_mem_total": shared_mem_total,
         "models": models,
     })
 

@@ -677,7 +677,7 @@ function createPanel() {
     // Same pattern as ComfyActionbar.vue: during a drag we expose a drop zone inside
     // .actionbar-container; mouseup-while-hovering reparents the panel into that container
     // and switches it to a flat horizontal mini-bar layout via the .aimdo-docked class.
-    let isDocked = !!saved.docked;
+    let isDocked = saved.docked != null ? saved.docked : true;  // 默认吸附顶栏
     let dockSide = saved.dockSide === "left" ? "left" : "right";
     let dockExpanded = false;     // session-only: body shown as overlay below the docked mini-bar
     let autoDockPending = false;  // true while the post-load redock poll is running
@@ -1060,62 +1060,87 @@ function createPanel() {
     popoutBtn.style.fontSize = "1em";
     popoutBtn.textContent = "\u2924";
     popoutBtn.title = _t("popout");
+    let pipBusy = false;
     popoutBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        if (pipWindow && !pipWindow.closed) { pipWindow.close(); return; }
+        // 防止快速双击导致重复打开
+        if (pipBusy) return;
+        
+        // 如果 PiP 已打开，关闭它
+        if (pipWindow && !pipWindow.closed) {
+            pipWindow.close();
+            return;
+        }
+        
         if (!window.documentPictureInPicture) {
             alert("Picture-in-Picture isn't supported here. Try Chrome or Edge.");
             return;
         }
-        // PiP rewrites size to fill its window; .aimdo-docked's !important rules would fight it
-        if (isDocked) undock();
-        const r = panel.getBoundingClientRect();
-        pipWindow = await window.documentPictureInPicture.requestWindow({
-            width: Math.max(280, Math.round(r.width)),
-            height: Math.max(200, Math.round(r.height)),
-        });
-        // mirror the stylesheet into the PiP window. Wait for the cloned <link> to finish
-        // loading before continuing, otherwise the panel briefly renders unstyled while the
-        // CSS file is being fetched in the PiP document.
-        const styleSrc = document.getElementById("aimdo-viz-stylesheet");
-        if (styleSrc) {
-            const clone = styleSrc.cloneNode(true);
-            await new Promise((resolve) => {
-                clone.addEventListener("load", resolve, { once: true });
-                clone.addEventListener("error", resolve, { once: true });  // proceed anyway after a 404
-                pipWindow.document.head.appendChild(clone);
+        
+        pipBusy = true;
+        popoutBtn.textContent = "\u2923";  // 改变图标表示 PiP 已激活
+        popoutBtn.style.color = "var(--aimdo-vram)";
+        
+        try {
+            if (isDocked) undock();
+            const r = panel.getBoundingClientRect();
+            pipWindow = await window.documentPictureInPicture.requestWindow({
+                width: Math.max(280, Math.round(r.width)),
+                height: Math.max(200, Math.round(r.height)),
             });
-        }
-        // mirror the active theme onto PiP's <html> — the cloned stylesheet contains
-        // every theme's overrides, the data attribute picks which block applies
-        const themeAttr = document.documentElement.dataset.aimdoTheme;
-        if (themeAttr) pipWindow.document.documentElement.dataset.aimdoTheme = themeAttr;
-        // remember origins so we can restore on close
-        const moved = [];
-        const remember = el => moved.push({ el, parent: el.parentNode, next: el.nextSibling });
-        remember(panel);
-        for (const m of [rootMenu, unloadMenu, ...allSubmenus]) remember(m);
-        const origPanelCss = panel.style.cssText;
-        // fill the PiP window; drop the fixed positioning the main-page math expects
-        Object.assign(panel.style, {
-            position: "static", left: "auto", top: "auto", right: "auto", bottom: "auto",
-            transform: "none",
-            width: "100%", height: "100vh", maxWidth: "none", maxHeight: "none",
-            border: "none", borderRadius: "0", boxShadow: "none",
-        });
-        pipWindow.document.body.style.margin = "0";
-        pipWindow.document.body.style.background = C.bg;
-        for (const { el } of moved) pipWindow.document.body.appendChild(el);
-        pipWindow.addEventListener("pagehide", () => {
-            panel.style.cssText = origPanelCss;
-            for (const { el, parent, next } of moved) {
-                if (!parent) continue;
-                if (next && next.parentNode === parent) parent.insertBefore(el, next);
-                else parent.appendChild(el);
+            
+            const styleSrc = document.getElementById("aimdo-viz-stylesheet");
+            if (styleSrc) {
+                const clone = styleSrc.cloneNode(true);
+                await new Promise((resolve) => {
+                    clone.addEventListener("load", resolve, { once: true });
+                    clone.addEventListener("error", resolve, { once: true });
+                    pipWindow.document.head.appendChild(clone);
+                });
             }
+            
+            const themeAttr = document.documentElement.dataset.aimdoTheme;
+            if (themeAttr) pipWindow.document.documentElement.dataset.aimdoTheme = themeAttr;
+            
+            const moved = [];
+            const remember = el => moved.push({ el, parent: el.parentNode, next: el.nextSibling });
+            remember(panel);
+            for (const m of [rootMenu, unloadMenu, ...allSubmenus]) remember(m);
+            const origPanelCss = panel.style.cssText;
+            
+            Object.assign(panel.style, {
+                position: "static", left: "auto", top: "auto", right: "auto", bottom: "auto",
+                transform: "none",
+                width: "100%", height: "100vh", maxWidth: "none", maxHeight: "none",
+                border: "none", borderRadius: "0", boxShadow: "none",
+            });
+            pipWindow.document.body.style.margin = "0";
+            pipWindow.document.body.style.background = C.bg;
+            for (const { el } of moved) pipWindow.document.body.appendChild(el);
+            
+            pipWindow.addEventListener("pagehide", () => {
+                panel.style.cssText = origPanelCss;
+                for (const { el, parent, next } of moved) {
+                    if (!parent) continue;
+                    try {
+                        if (next && next.parentNode === parent) parent.insertBefore(el, next);
+                        else parent.appendChild(el);
+                    } catch {}
+                }
+                pipWindow = null;
+                pipBusy = false;
+                popoutBtn.textContent = "\u2924";
+                popoutBtn.style.color = "";
+                // 恢复面板位置
+                setTimeout(() => { applyConstraints(); applyOffsets(); }, 50);
+            }, { once: true });
+        } catch (err) {
+            console.warn("aimdo-viz: PiP failed", err);
             pipWindow = null;
-            applyOffsets();
-        }, { once: true });
+            pipBusy = false;
+            popoutBtn.textContent = "\u2924";
+            popoutBtn.style.color = "";
+        }
     });
 
     const toggleBtn = document.createElement("span");
@@ -2052,6 +2077,7 @@ function ensureStructure(body) {
             <div style="display:flex;gap:10px;font-size:0.833em;color:var(--aimdo-textDim);margin-top:2px;">
                 <span class="content-info-peak"></span>
                 <span class="content-info-cache"></span>
+                <span class="content-info-shared"></span>
                 <span class="aimdo-gpu-util content-info-gpu" title="${_t("gpuLineTitle")}" style="cursor:pointer;"></span>
                 <span class="content-info-temp"></span>
                 <span class="content-info-power" title="${_t("gpuPowerTitle")}"></span>
@@ -2098,6 +2124,7 @@ function ensureStructure(body) {
         vramLegend: _q(".content-vram-legend"),
         infoPeak: _q(".content-info-peak"),
         infoCache: _q(".content-info-cache"),
+        infoShared: _q(".content-info-shared"),
         infoGpu: _q(".content-info-gpu"),
         infoTemp: _q(".content-info-temp"),
         infoPower: _q(".content-info-power"),
@@ -2849,6 +2876,18 @@ function renderData(body, data) {
 
     cr.infoPeak.textContent = _t("peak") + ": " + formatBytes(peakVramUsed);
     cr.infoCache.textContent = _t("cache") + ": " + formatBytes(data.torch_reserved - data.torch_active);
+    
+    // 共享显存
+    if (data.shared_mem_used != null && data.shared_mem_total != null) {
+        cr.infoShared.style.display = "";
+        cr.infoShared.textContent = "共享: " + formatBytes(data.shared_mem_used) + "|" + formatBytes(data.shared_mem_total);
+    } else if (data.shared_mem_used != null) {
+        cr.infoShared.style.display = "";
+        cr.infoShared.textContent = "共享: " + formatBytes(data.shared_mem_used);
+    } else {
+        cr.infoShared.style.display = "none";
+    }
+    
     if (data.gpu_util != null) {
         cr.infoGpu.style.display = "";
         cr.infoGpu.style.color = gpuUtilColor(data.gpu_util);
