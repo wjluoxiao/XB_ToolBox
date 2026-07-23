@@ -56,6 +56,7 @@ try:
     from .nodes_blockswap_sage import XB_Sage_BlockSwap
     from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_dashboard import XB_Dashboard_Zen
+    from .nodes_memory_viz import XB_MemoryVisualization
     from .nodes_tile import XB_SamplerChunkMaster
     from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
@@ -135,6 +136,7 @@ try:
         "XB_UNetNameBroadcaster": XB_UNetNameBroadcaster,
         "XB_CLIPNameBroadcaster": XB_CLIPNameBroadcaster,
         "XB_Dashboard_Zen": XB_Dashboard_Zen,
+        "XB_MemoryVisualization": XB_MemoryVisualization,
         "XB_SamplerChunkMaster": XB_SamplerChunkMaster,
         "XB_WanImageToVideo": XB_WanImageToVideo,
         "XB_WanFirstLastFrameToVideo": XB_WanFirstLastFrameToVideo,
@@ -275,6 +277,7 @@ try:
         "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
         "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
         "XB_Dashboard_Zen": "XB-BOX - Dashboard Zen",
+        "XB_MemoryVisualization": "XB 📊 硬件监控面板 (Memory Visualization)",
         "XB_SamplerChunkMaster": "XB-BOX - Sampler Chunk Master",
         "XB_WanImageToVideo": "XB-BOX - Wan Image2Video",
         "XB_WanFirstLastFrameToVideo": "XB-BOX - Wan First/Last Frame2Video",

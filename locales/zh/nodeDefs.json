@@ -4670,5 +4670,14 @@
         "name": "📝 系统提示词"
       }
     }
+  },
+  "XB_MemoryVisualization": {
+    "display_name": "XB 📊 硬件监控面板 (Memory Visualization)",
+    "description": "实时显存内存监控面板——显示GPU/CPU/内存/磁盘等硬件资源使用情况。将此节点添加到工作流即可在界面右下角激活可拖拽的监控面板。",
+    "inputs": {
+      "any_input": {
+        "name": "任意输入（可选）"
+      }
+    }
   }
 }

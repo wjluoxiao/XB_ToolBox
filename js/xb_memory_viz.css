@@ -1,0 +1,670 @@
+/*
+  aimdo memory visualization — static styles.
+
+  JS still owns dynamic values (positions, widths, scale/zoom, drop-zone hover state).
+  All theme palettes live here, indexed by data-aimdo-theme on <html>. JS toggles
+  that attribute and reads computed CSS variables back into a small C palette
+  object — needed because <canvas> can't see CSS custom properties.
+*/
+
+/* ---------------- themes ----------------
+   :root holds the default theme. Other themes override only what differs from
+   default — JS toggles them by writing data-aimdo-theme on <html>.
+   fadeOutFrom / fadeOutTo are comma-separated RGB triplets parsed by JS for
+   the canvas fade animation; CSS itself doesn't consume them.
+*/
+:root {
+    --aimdo-bg:           #181818;
+    --aimdo-rowBg:        #1f1f1f;
+    --aimdo-headerBg:     #202020;
+    --aimdo-border:       #2a2a2a;
+    --aimdo-btn:          #2a2a2a;
+    --aimdo-btnText:      #888;
+    --aimdo-text:         #b0b0b0;
+    --aimdo-textDim:      #707070;
+    --aimdo-running:      #b0b0b0;
+    --aimdo-vram:         #e67e22;
+    --aimdo-torch:        #2ecc71;
+    --aimdo-pinned:       #4a9eff;
+    --aimdo-loadedRam:    #0b3d66;
+    --aimdo-unloaded:     #3a3a3a;
+    --aimdo-torchCache:   #1a7a3a;
+    --aimdo-python:       #9b59b6;
+    --aimdo-other:        #505050;
+    --aimdo-graphBg:      #0e0e0e;
+    --aimdo-gridLine:     #1e1e1e;
+    --aimdo-totalLine:    #d0d0d0;
+    --aimdo-gpuUtil:      #c9a227;
+    --aimdo-gpuUtilHi:    #e74c3c;
+    --aimdo-capLine:      #555;
+    --aimdo-barBg:        #222;
+    --aimdo-fadeOutFrom:  200, 60, 60;
+    --aimdo-fadeOutTo:    58, 58, 58;
+
+    /* model type colors (match LiteGraph slot colors) */
+    --aimdo-type-model:         #B39DDB;
+    --aimdo-type-vae:           #FF6E6E;
+    --aimdo-type-clip:          #FFD500;
+    --aimdo-type-clip_vision:   #A8DADC;
+    --aimdo-type-controlnet:    #76B900;
+    --aimdo-type-style_model:   #C2FFAE;
+    --aimdo-type-gligen:        #9B59B6;
+    --aimdo-type-upscale_model: #7AB1FF;
+}
+
+[data-aimdo-theme="light"] {
+    --aimdo-bg: #f5f5f5; --aimdo-rowBg: #ebebeb; --aimdo-headerBg: #e2e2e2;
+    --aimdo-border: #a8a8a8; --aimdo-btn: #c8c8c8; --aimdo-btnText: #333;
+    --aimdo-text: #1a1a1a; --aimdo-textDim: #555;
+    --aimdo-graphBg: #fdfdfd; --aimdo-gridLine: #c8c8c8; --aimdo-barBg: #b8b8b8;
+    --aimdo-vram: #c2410c; --aimdo-torch: #15803d; --aimdo-pinned: #1d4ed8;
+    --aimdo-loadedRam: #7c9cc8;
+    --aimdo-unloaded: #888; --aimdo-torchCache: #166534; --aimdo-python: #6d28d9;
+    --aimdo-other: #666;
+    --aimdo-totalLine: #222; --aimdo-gpuUtil: #854d0e; --aimdo-gpuUtilHi: #b91c1c;
+    --aimdo-capLine: #555; --aimdo-running: #333;
+    --aimdo-fadeOutFrom: 180, 60, 60; --aimdo-fadeOutTo: 136, 136, 136;
+
+    --aimdo-type-model: #7c3aed; --aimdo-type-vae: #dc2626; --aimdo-type-clip: #ca8a04;
+    --aimdo-type-clip_vision: #0891b2; --aimdo-type-controlnet: #15803d;
+    --aimdo-type-style_model: #22c55e; --aimdo-type-gligen: #9333ea; --aimdo-type-upscale_model: #1e40af;
+}
+
+[data-aimdo-theme="sepia"] {
+    --aimdo-bg: #f4ecd8; --aimdo-rowBg: #ebe1c9; --aimdo-headerBg: #e0d4b6;
+    --aimdo-border: #b8a982; --aimdo-btn: #d6c89e; --aimdo-btnText: #6b5a3e;
+    --aimdo-text: #3a2f1e; --aimdo-textDim: #7a6a4e;
+    --aimdo-graphBg: #faf6e8; --aimdo-gridLine: #d8cba8; --aimdo-barBg: #c9b88a;
+    --aimdo-vram: #b8732e; --aimdo-torch: #6b8e23; --aimdo-pinned: #5a7a8c;
+    --aimdo-loadedRam: #3a5a6c;
+    --aimdo-unloaded: #c9b88a; --aimdo-torchCache: #4a6e23; --aimdo-python: #7a4a8a;
+    --aimdo-other: #8a7a5a;
+    --aimdo-totalLine: #4a3a2a; --aimdo-gpuUtil: #8a6818; --aimdo-gpuUtilHi: #a83a2a;
+    --aimdo-capLine: #8a7a5a; --aimdo-running: #5a4a3a;
+    --aimdo-fadeOutFrom: 168, 88, 68; --aimdo-fadeOutTo: 201, 184, 138;
+
+    --aimdo-type-model: #7a5e8a; --aimdo-type-vae: #b03030; --aimdo-type-clip: #a87818;
+    --aimdo-type-clip_vision: #5a8a8a; --aimdo-type-controlnet: #6b8e23;
+    --aimdo-type-style_model: #7a9a5a; --aimdo-type-gligen: #7a4a8a; --aimdo-type-upscale_model: #5a7a9a;
+}
+
+/* Pip-Boy CRT — green screen housed in metallic gray-brown chrome */
+[data-aimdo-theme="fallout"] {
+    --aimdo-bg: #0a1a0a; --aimdo-rowBg: #0f2510; --aimdo-headerBg: #2a2520;
+    --aimdo-border: #5a4a3a; --aimdo-btn: #3a3530; --aimdo-btnText: #c8b89a;
+    --aimdo-text: #7fff7f; --aimdo-textDim: #3a8a3a;
+    --aimdo-graphBg: #051005; --aimdo-gridLine: #1a4a1a; --aimdo-barBg: #0f2510;
+    --aimdo-vram: #88ff66; --aimdo-torch: #ccff44; --aimdo-pinned: #44ffcc;
+    --aimdo-loadedRam: #2a7a5a;
+    --aimdo-unloaded: #1a4a1a; --aimdo-torchCache: #5a9a3a; --aimdo-python: #aaff88;
+    --aimdo-other: #2a4a2a;
+    --aimdo-totalLine: #7fff7f; --aimdo-gpuUtil: #ffcc44; --aimdo-gpuUtilHi: #ff5555;
+    --aimdo-capLine: #3a8a3a; --aimdo-running: #88ff66;
+    --aimdo-fadeOutFrom: 220, 80, 80; --aimdo-fadeOutTo: 26, 74, 26;
+
+    --aimdo-type-model: #aaff88; --aimdo-type-vae: #ff8866; --aimdo-type-clip: #ffdd44;
+    --aimdo-type-clip_vision: #88ffdd; --aimdo-type-controlnet: #aaff44;
+    --aimdo-type-style_model: #ccffaa; --aimdo-type-gligen: #ff88cc; --aimdo-type-upscale_model: #66ddff;
+}
+
+/* pastel pink with mint/lavender accents so data colors stay distinguishable */
+[data-aimdo-theme="pink"] {
+    --aimdo-bg: #fff0f5; --aimdo-rowBg: #ffeaf2; --aimdo-headerBg: #ffd6e8;
+    --aimdo-border: #e8a4c4; --aimdo-btn: #ffc4d6; --aimdo-btnText: #7a3a5a;
+    --aimdo-text: #4a1f3a; --aimdo-textDim: #8a4a6a;
+    --aimdo-graphBg: #fff5fa; --aimdo-gridLine: #f5cadc; --aimdo-barBg: #f5c0d4;
+    --aimdo-vram: #e91e63; --aimdo-torch: #10a37f; --aimdo-pinned: #a78bfa;
+    --aimdo-loadedRam: #7a5ec0;
+    --aimdo-unloaded: #d8b4c0; --aimdo-torchCache: #0f8a6a; --aimdo-python: #7c3aed;
+    --aimdo-other: #a878a0;
+    --aimdo-totalLine: #4a1f3a; --aimdo-gpuUtil: #e0a04a; --aimdo-gpuUtilHi: #d32f5e;
+    --aimdo-capLine: #b67a8a; --aimdo-running: #5a2a4a;
+    --aimdo-fadeOutFrom: 220, 80, 110; --aimdo-fadeOutTo: 216, 180, 192;
+
+    --aimdo-type-model: #e91e63; --aimdo-type-vae: #ef4444; --aimdo-type-clip: #f59e0b;
+    --aimdo-type-clip_vision: #0ea5a4; --aimdo-type-controlnet: #65a30d;
+    --aimdo-type-style_model: #f472b6; --aimdo-type-gligen: #a855f7; --aimdo-type-upscale_model: #3b82f6;
+}
+
+/* Inherits ComfyUI's design tokens via var() so the panel adopts whatever
+   palette the host is in (light/dark mode is read live through the cascade).
+   --aimdo-type-* and --aimdo-fadeOut* are intentionally omitted — the
+   LiteGraph slot hues and fade RGB triplets from :root carry through. */
+[data-aimdo-theme="comfy"] {
+    --aimdo-bg:         var(--comfy-menu-bg);
+    --aimdo-rowBg:      var(--comfy-menu-secondary-bg);
+    --aimdo-headerBg:   var(--comfy-menu-bg);
+    --aimdo-border:     var(--border-color);
+    --aimdo-btn:        var(--comfy-input-bg);
+    --aimdo-btnText:    var(--input-text);
+    --aimdo-text:       var(--input-text);
+    --aimdo-textDim:    var(--descrip-text);
+    --aimdo-running:    var(--input-text);
+    --aimdo-graphBg:    var(--comfy-menu-secondary-bg);
+    --aimdo-gridLine:   var(--border-color);
+    --aimdo-barBg:      var(--comfy-input-bg);
+    --aimdo-totalLine:  var(--fg-color);
+    --aimdo-capLine:    var(--border-color);
+
+    --aimdo-vram:       var(--color-gold-500);
+    --aimdo-torch:      var(--color-jade-600);
+    --aimdo-pinned:     var(--color-azure-400);
+    --aimdo-loadedRam:  var(--color-cobalt-800);
+    --aimdo-unloaded:   var(--color-ash-800);
+    --aimdo-torchCache: var(--color-jade-600);
+    --aimdo-python:     var(--color-magenta-700);
+    --aimdo-other:      var(--color-neutral-550);
+    --aimdo-gpuUtil:    var(--color-gold-500);
+    --aimdo-gpuUtilHi:  var(--color-coral-500);
+
+    /* Neutral fade endpoints chosen to read OK against both light and dark
+       Comfy backgrounds — the dark-tuned :root defaults would streak black
+       on light mode. */
+    --aimdo-fadeOutFrom: 200, 100, 80;
+    --aimdo-fadeOutTo:   128, 128, 128;
+}
+
+/* CUSTOM THEME: Lucifer - Black and Red */
+[data-aimdo-theme="lucifer"] {
+    --aimdo-bg: #000000;
+    --aimdo-rowBg: #050000;
+    --aimdo-headerBg: #000000;
+    --aimdo-border: #FF0000;
+    --aimdo-btn: #110000;
+    --aimdo-btnText: #FF0000;
+    --aimdo-text: #ffffff;
+    --aimdo-textDim: #880000;
+    --aimdo-running: #ffffff;
+    --aimdo-vram: #FF0000;
+    --aimdo-torch: #CC0000;
+    --aimdo-pinned: #880000;
+    --aimdo-loadedRam: #440000;
+    --aimdo-unloaded: #222222;
+    --aimdo-torchCache: #660000;
+    --aimdo-python: #FF0000;
+    --aimdo-other: #444444;
+    --aimdo-graphBg: #000000;
+    --aimdo-gridLine: #220000;
+    --aimdo-totalLine: #ffffff;
+    --aimdo-gpuUtil: #FF0000;
+    --aimdo-gpuUtilHi: #FF5555;
+    --aimdo-capLine: #FF0000;
+    --aimdo-barBg: #110000;
+    --aimdo-fadeOutFrom: 255, 0, 0;
+    --aimdo-fadeOutTo: 0, 0, 0;
+
+    /* model type colors — all red to match the Obsidian Redline aesthetic */
+    --aimdo-type-model: #FF0000;
+    --aimdo-type-vae: #FF0000;
+    --aimdo-type-clip: #FF0000;
+    --aimdo-type-clip_vision: #FF0000;
+    --aimdo-type-controlnet: #FF0000;
+    --aimdo-type-style_model: #FF0000;
+    --aimdo-type-gligen: #FF0000;
+    --aimdo-type-upscale_model: #FF0000;
+}
+
+/* ---------------- panel ---------------- */
+#aimdo-viz-panel {
+    position: fixed;
+    background: var(--aimdo-bg);
+    color: var(--aimdo-text);
+    border: 1px solid var(--aimdo-border);
+    border-radius: 8px;
+    padding: 0;
+    font-family: monospace;
+    font-size: var(--aimdo-font-size, 12px);
+    z-index: 50;
+    min-width: 200px;
+    width: 340px;
+    max-width: 100vw;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+}
+
+/* docked: flatten the panel into a horizontal row that fits the topbar actionbar */
+#aimdo-viz-panel.aimdo-docked {
+    position: static !important;
+    left: auto !important; top: auto !important; right: auto !important; bottom: auto !important;
+    width: auto !important; height: auto !important;
+    min-width: 0 !important; max-width: none !important; max-height: none !important;
+    border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; background: transparent !important;
+    flex-direction: row !important;
+    align-items: center;
+    zoom: 1 !important;
+    transform: none !important;
+}
+
+/* ---------------- header ---------------- */
+.aimdo-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px;
+    background: var(--aimdo-headerBg);
+    border-radius: 8px 8px 0 0;
+    cursor: move;
+}
+.aimdo-title {
+    font-weight: bold;
+    color: var(--aimdo-text);
+    white-space: nowrap;
+}
+/* 2x3 circular-dot drag handle — matches the grip icon on ComfyUI's docked actionbar.
+   Only shown when docked; floating mode lets the entire header act as the drag surface.
+   The shape is an SVG mask painted by background-color: border-radius can't anti-alias
+   a 2px circle reliably, and a radial-gradient ends up chunkier than what Chrome draws
+   for true SVG primitives. SVG renders the same crisp dots in both browsers. */
+.aimdo-drag-handle {
+    display: none;
+    box-sizing: content-box;
+    width: 6px;
+    height: 10px;
+    padding: 0 4px;
+    background-color: var(--aimdo-textDim);
+    -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 10'><circle cx='1' cy='1' r='0.8'/><circle cx='5' cy='1' r='0.8'/><circle cx='1' cy='5' r='0.8'/><circle cx='5' cy='5' r='0.8'/><circle cx='1' cy='9' r='0.8'/><circle cx='5' cy='9' r='0.8'/></svg>");
+    mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 10'><circle cx='1' cy='1' r='0.8'/><circle cx='5' cy='1' r='0.8'/><circle cx='1' cy='5' r='0.8'/><circle cx='5' cy='5' r='0.8'/><circle cx='1' cy='9' r='0.8'/><circle cx='5' cy='9' r='0.8'/></svg>");
+    -webkit-mask-size: 6px 10px;
+    mask-size: 6px 10px;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-origin: content-box;
+    mask-origin: content-box;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+    align-self: center;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-drag-handle {
+    display: inline-block;
+    padding: 0 8px;
+}
+.aimdo-drag-handle:active { cursor: grabbing; }
+.aimdo-drag-handle:hover { background-color: var(--aimdo-text); }
+.aimdo-header-right {
+    display: flex; align-items: center; gap: 6px;
+    margin-left: auto;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-header {
+    padding: 2px 8px 2px 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    flex-shrink: 0;
+    cursor: default;
+}
+
+/* ---------------- buttons ---------------- */
+.aimdo-btn {
+    cursor: pointer;
+    font-size: 0.833em;
+    line-height: 1;
+    padding: 1px 6px;
+    background: var(--aimdo-btn);
+    border-radius: 3px;
+    color: var(--aimdo-btnText);
+    white-space: nowrap;
+}
+.aimdo-btn-icon {
+    cursor: pointer;
+    color: var(--aimdo-btnText);
+    padding: 0 4px;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-btn {
+    font-size: 0.917em;
+    padding: 3px 6px;
+}
+
+/* play / cancel-running button — same shape as other header buttons, but the icon
+   carries the state color (green play, red stop). Hover lifts the background. */
+.aimdo-exec-btn {
+    cursor: pointer;
+    user-select: none;
+    display: inline-block;
+    text-align: center;
+    min-width: 1em;  /* keeps width stable across ┬╗ / ┬á */
+    font-size: 0.833em;
+    line-height: 1;
+    padding: 2px 6px;
+    background: var(--aimdo-btn);
+    border-radius: 3px;
+    color: var(--aimdo-torch);
+    white-space: nowrap;
+    transition: filter 0.1s;
+}
+.aimdo-exec-btn:hover { filter: brightness(1.4); }
+.aimdo-exec-btn.is-running { color: var(--aimdo-gpuUtilHi); }
+#aimdo-viz-panel.aimdo-docked .aimdo-exec-btn {
+    font-size: 1em;
+    padding: 2.5px 10px;
+}
+
+/* ---------------- mini-bar ---------------- */
+.aimdo-mini-bar {
+    display: none;
+    padding: 4px 10px 6px;
+    font-size: 0.833em;
+    color: var(--aimdo-textDim);
+}
+.aimdo-mini-row {
+    display: flex; justify-content: space-between; gap: 6px; margin-bottom: 2px;
+}
+.aimdo-mini-track {
+    background: var(--aimdo-barBg);
+    border-radius: 2px;
+    height: 4px;
+    overflow: hidden;
+    display: flex;
+    margin-bottom: 4px;
+}
+.aimdo-mini-track-last {
+    margin-bottom: 0;
+}
+/* GPU section: one row per metric — bar + value on the same line. The compact 8px
+   font + 3px bar kicks in only when temp/power are also visible (the .is-multibar
+   class); with only util showing, the row keeps the regular mini-bar styling so it
+   matches RAM/VRAM/CPU above. */
+.aimdo-mini-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.mini-gpu-section.is-multibar .aimdo-mini-inline,
+.mini-disk-section.is-multibar .aimdo-mini-inline {
+    line-height: 1;
+    font-size: 0.667em;
+}
+.mini-gpu-section.is-multibar .aimdo-mini-inline .aimdo-mini-track,
+.mini-disk-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 3px; }
+.aimdo-mini-inline .aimdo-mini-track {
+    flex: 1 1 0;
+    margin-bottom: 0;
+}
+.aimdo-mini-inline > .mini-gpu-usage,
+.aimdo-mini-inline > .mini-temp-usage,
+.aimdo-mini-inline > .mini-power-usage,
+.aimdo-mini-inline > .mini-disk-read-usage,
+.aimdo-mini-inline > .mini-disk-write-usage {
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 32px;
+}
+/* push the header value to the right even when the GPU label is hidden */
+.mini-gpu-header-value {
+    margin-left: auto;
+}
+/* single-bar mode: hide the inline value next to the bar — the value lives in
+   the title row instead so the layout matches RAM/VRAM/CPU above. */
+.mini-gpu-section:not(.is-multibar) .aimdo-mini-inline > .mini-gpu-usage,
+.mini-gpu-section:not(.is-multibar) .aimdo-mini-inline > .mini-temp-usage,
+.mini-gpu-section:not(.is-multibar) .aimdo-mini-inline > .mini-power-usage {
+    display: none;
+}
+.aimdo-mini-fill {
+    height: 100%;
+    width: 0;
+    transition: width 0.35s ease-out, background 0.35s ease-out;
+}
+.mini-disk-read-fill  { background: var(--aimdo-pinned); }
+.mini-disk-write-fill { background: var(--aimdo-vram); }
+.mini-faults-fill     { background: var(--aimdo-gpuUtil); }
+
+/* Optional group dividers: a thin line between logical groups (memory,
+   storage, compute). The .mini-group-start class marks the first section
+   of each non-leading group. Sections of the same group sit flush; if every
+   section in a group is hidden the divider still lands on the next visible
+   group-start (acceptable, matches the leading-edge quirk elsewhere). */
+.aimdo-mini-bar.has-separators > .mini-group-start {
+    border-top: 1px solid var(--aimdo-border);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-bar.has-separators > .mini-group-start {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: 0;
+    border-left: 1px solid var(--aimdo-border);
+    padding-left: 16px;
+    margin-left: 6px;
+}
+
+/* free disk space: one row per selected drive, mountpoint left, bar middle, "free" right.
+   Mountpoint column is fixed-width so multiple drives align vertically. */
+.mini-diskspace-section.is-multibar .aimdo-mini-inline { line-height: 1; font-size: 0.667em; }
+.mini-diskspace-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 3px; }
+.mini-diskspace-drive-row > .mini-diskspace-mp {
+    flex-shrink: 0;
+    text-align: left;
+    min-width: 18px;
+    max-width: 36px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mini-diskspace-drive-row > .mini-diskspace-usage {
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 32px;
+}
+.mini-diskspace-section.no-units .mini-diskspace-drive-row > .mini-diskspace-usage {
+    min-width: 18px;
+}
+
+/* docked mini-bar: horizontal, fixed-width sections */
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-bar {
+    display: flex !important; flex-direction: row !important;
+    padding: 0 !important; gap: 12px; align-items: center;
+    flex: 1 1 auto; min-width: 0;
+    font-size: 0.75em;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-row {
+    flex-wrap: wrap;
+    gap: 0 6px;
+    margin-bottom: 3px;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-row > span {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-bar > * {
+    width: var(--aimdo-dock-section-w, 110px);
+    min-width: var(--aimdo-dock-section-w, 110px);
+    flex: 0 0 auto;
+    overflow: hidden;
+}
+
+/* ---------------- body ---------------- */
+#aimdo-viz-body {
+    padding: 8px 10px;
+    flex: 1 1 auto;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#aimdo-viz-panel.aimdo-docked #aimdo-viz-body { display: none !important; }
+#aimdo-viz-panel.aimdo-docked.aimdo-docked-expanded #aimdo-viz-body {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 1500;
+    width: 420px;
+    max-height: 60vh;
+    background: var(--aimdo-bg);
+    color: var(--aimdo-text);
+    border: 1px solid var(--aimdo-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+}
+
+/* ---------------- bar segments (mini-bar + main content rows) ---------------- */
+.aimdo-seg            { height: 100%; }
+.aimdo-seg-vram       { background: var(--aimdo-vram); }
+.aimdo-seg-torch      { background: var(--aimdo-torch); }
+.aimdo-seg-torchCache { background: var(--aimdo-torchCache); }
+.aimdo-seg-pinned     { background: var(--aimdo-pinned); }
+.aimdo-seg-loadedRam  { background: var(--aimdo-loadedRam); }
+.aimdo-seg-python     { background: var(--aimdo-python); }
+.aimdo-seg-other      { background: var(--aimdo-other); }
+.aimdo-seg-unloaded   { background: var(--aimdo-unloaded); }
+
+/* ---------------- model rows (scroll area) ---------------- */
+#aimdo-models                                { scrollbar-width: thin; scrollbar-color: var(--aimdo-btn) transparent; }
+#aimdo-models::-webkit-scrollbar             { width: 8px; }
+#aimdo-models::-webkit-scrollbar-track       { background: transparent; }
+#aimdo-models::-webkit-scrollbar-thumb       { background: var(--aimdo-btn); border-radius: 4px; }
+#aimdo-models::-webkit-scrollbar-thumb:hover { background: var(--aimdo-textDim); }
+
+.aimdo-model-row {
+    margin-top: 6px;
+    background: var(--aimdo-rowBg);
+    /* transparent border reserves space so the row height stays constant when the colored stroke toggles */
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+.aimdo-model-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+}
+.aimdo-model-name {
+    cursor: pointer; user-select: none;
+    padding: 1px 4px; margin: -1px -4px;
+    border-radius: 3px;
+    transition: background 0.1s;
+}
+.aimdo-model-name:hover { background: var(--aimdo-btn); }
+.aimdo-model-chevron {
+    color: var(--aimdo-textDim);
+    margin-right: 4px;
+    font-size: 0.75em;
+}
+.aimdo-model-right {
+    display: flex; align-items: center; gap: 6px;
+}
+.aimdo-model-bar {
+    background: var(--aimdo-barBg);
+    border-radius: 3px;
+    height: 10px;
+    overflow: hidden;
+    display: flex;
+}
+.aimdo-model-legend {
+    display: flex; gap: 8px;
+    font-size: 0.833em;
+    color: var(--aimdo-textDim);
+    margin-top: 2px;
+}
+.aimdo-unload-btn, .aimdo-reset-wm-btn {
+    cursor: pointer;
+    font-size: 0.75em;
+    padding: 0px 4px;
+    background: var(--aimdo-btn);
+    border-radius: 2px;
+    color: var(--aimdo-btnText);
+}
+
+.aimdo-graph-canvas { cursor: crosshair; }
+
+/* graph-height resize bar — highlights on hover and stays lit while dragging */
+.aimdo-graph-resize {
+    height: 4px; cursor: ns-resize;
+    flex-shrink: 0; margin: 1px 0;
+}
+.aimdo-graph-resize:hover,
+.aimdo-graph-resize.is-dragging { background: var(--aimdo-btn); }
+
+/* ---------------- menus (root + submenus + unload menu) ---------------- */
+.aimdo-menu {
+    display: none;
+    position: fixed;
+    z-index: 1500;
+    background: var(--aimdo-headerBg);
+    color: var(--aimdo-text);
+    border: 1px solid var(--aimdo-border);
+    border-radius: 4px;
+    padding: 2px 0;
+    min-width: 120px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    font-family: monospace;
+    font-size: 0.833em;
+}
+.aimdo-menu-item {
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.aimdo-menu-item:hover {
+    background: var(--aimdo-btn);
+}
+.aimdo-menu-item.is-disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.aimdo-menu-header {
+    padding: 4px 10px 2px;
+    color: var(--aimdo-textDim);
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-top: 1px solid var(--aimdo-border);
+    margin-top: 2px;
+    cursor: default;
+}
+.aimdo-menu-item.is-disabled:hover {
+    background: transparent;
+}
+.aimdo-menu-parent {
+    padding: 4px 10px; cursor: default; white-space: nowrap;
+    display: flex; justify-content: space-between; gap: 12px;
+}
+.aimdo-menu-parent:hover {
+    background: var(--aimdo-btn);
+}
+.aimdo-chevron { color: var(--aimdo-textDim); }
+.aimdo-check {
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+}
+
+/* ---------------- resize handles ---------------- */
+.aimdo-edge-handle { position: absolute; z-index: 1; }
+.aimdo-edge-left   { top: 28px; bottom: 0; left: 0; width: 4px; cursor: ew-resize; }
+.aimdo-edge-right  { top: 28px; bottom: 0; right: 0; width: 4px; cursor: ew-resize; }
+.aimdo-edge-bottom { left: 4px; right: 4px; bottom: 0; height: 4px; cursor: ns-resize; }
+.aimdo-corner-handle {
+    position: absolute; right: 0; bottom: 0;
+    width: 8px; height: 8px; cursor: nwse-resize; z-index: 2;
+    background: linear-gradient(135deg,
+        transparent 50%,
+        var(--aimdo-textDim) 50%, var(--aimdo-textDim) 60%,
+        transparent 60%, transparent 75%,
+        var(--aimdo-textDim) 75%, var(--aimdo-textDim) 85%,
+        transparent 85%);
+    border-bottom-right-radius: 4px;
+    opacity: 0.55;
+}
+.aimdo-corner-handle:hover { opacity: 1; }
+#aimdo-viz-panel.aimdo-docked .aimdo-edge-handle,
+#aimdo-viz-panel.aimdo-docked .aimdo-corner-handle { display: none !important; }
+
+/* ---------------- drop zone (shown during a drag toward the topbar) ---------------- */
+.aimdo-dropzone {
+    position: relative; z-index: 1501;
+    align-self: stretch; margin: 6px;
+    padding: 0 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: monospace; font-size: 0.917em;
+    border: 2px dashed #3b82f6; border-radius: 6px;
+    background: rgba(59,130,246,0.4); color: #fff;
+    pointer-events: auto; min-width: 160px;
+    opacity: 0.9;
+    transition: transform 0.12s, opacity 0.12s, box-shadow 0.12s, border-width 0.12s;
+}
+.aimdo-dropzone-left  { order: -2; }
+.aimdo-dropzone-right { order: 2; }
+.aimdo-dropzone.is-hover {
+    opacity: 1; transform: scale(1.04);
+    border-width: 3px; box-shadow: 0 0 20px rgba(59,130,246,0.45);
+}

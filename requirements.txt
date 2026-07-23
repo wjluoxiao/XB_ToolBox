@@ -16,6 +16,12 @@ easyocr                               # OCR 文字识别 (漫画工具)
 onnxruntime>=1.18.0                     # ONNX 推理 (人像分割 + CosyVoice3)
 imageio-ffmpeg                        # FFmpeg 回退 (视频服务器)
 
+# ── 硬件监控面板依赖 (Memory Visualization) ──
+psutil                                # CPU/内存/磁盘系统信息
+pythonnet                             # .NET 桥接 (LibreHardwareMonitor GPU 监控)
+# LibreHardwareMonitorLib.dll 已内置在工具箱目录中，无需额外下载
+# NVIDIA GPU: 可选安装 nvidia-ml-py 以获得更精准的显存数据
+
 # ── Llama 节点依赖 (LLM/VLM 本地推理) ──
 diskcache                             # 磁盘缓存
 gguf                                  # GGUF 模型格式解析
