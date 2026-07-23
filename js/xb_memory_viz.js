@@ -1060,87 +1060,62 @@ function createPanel() {
     popoutBtn.style.fontSize = "1em";
     popoutBtn.textContent = "\u2924";
     popoutBtn.title = _t("popout");
-    let pipBusy = false;
     popoutBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        // 防止快速双击导致重复打开
-        if (pipBusy) return;
-        
-        // 如果 PiP 已打开，关闭它
-        if (pipWindow && !pipWindow.closed) {
-            pipWindow.close();
-            return;
-        }
-        
+        if (pipWindow && !pipWindow.closed) { pipWindow.close(); return; }
         if (!window.documentPictureInPicture) {
             alert("Picture-in-Picture isn't supported here. Try Chrome or Edge.");
             return;
         }
-        
-        pipBusy = true;
-        popoutBtn.textContent = "\u2923";  // 改变图标表示 PiP 已激活
-        popoutBtn.style.color = "var(--aimdo-vram)";
-        
-        try {
-            if (isDocked) undock();
-            const r = panel.getBoundingClientRect();
-            pipWindow = await window.documentPictureInPicture.requestWindow({
-                width: Math.max(280, Math.round(r.width)),
-                height: Math.max(200, Math.round(r.height)),
+        // PiP rewrites size to fill its window; .aimdo-docked's !important rules would fight it
+        if (isDocked) undock();
+        const r = panel.getBoundingClientRect();
+        pipWindow = await window.documentPictureInPicture.requestWindow({
+            width: Math.max(280, Math.round(r.width)),
+            height: Math.max(200, Math.round(r.height)),
+        });
+        // mirror the stylesheet into the PiP window. Wait for the cloned <link> to finish
+        // loading before continuing, otherwise the panel briefly renders unstyled while the
+        // CSS file is being fetched in the PiP document.
+        const styleSrc = document.getElementById("aimdo-viz-stylesheet");
+        if (styleSrc) {
+            const clone = styleSrc.cloneNode(true);
+            await new Promise((resolve) => {
+                clone.addEventListener("load", resolve, { once: true });
+                clone.addEventListener("error", resolve, { once: true });  // proceed anyway after a 404
+                pipWindow.document.head.appendChild(clone);
             });
-            
-            const styleSrc = document.getElementById("aimdo-viz-stylesheet");
-            if (styleSrc) {
-                const clone = styleSrc.cloneNode(true);
-                await new Promise((resolve) => {
-                    clone.addEventListener("load", resolve, { once: true });
-                    clone.addEventListener("error", resolve, { once: true });
-                    pipWindow.document.head.appendChild(clone);
-                });
-            }
-            
-            const themeAttr = document.documentElement.dataset.aimdoTheme;
-            if (themeAttr) pipWindow.document.documentElement.dataset.aimdoTheme = themeAttr;
-            
-            const moved = [];
-            const remember = el => moved.push({ el, parent: el.parentNode, next: el.nextSibling });
-            remember(panel);
-            for (const m of [rootMenu, unloadMenu, ...allSubmenus]) remember(m);
-            const origPanelCss = panel.style.cssText;
-            
-            Object.assign(panel.style, {
-                position: "static", left: "auto", top: "auto", right: "auto", bottom: "auto",
-                transform: "none",
-                width: "100%", height: "100vh", maxWidth: "none", maxHeight: "none",
-                border: "none", borderRadius: "0", boxShadow: "none",
-            });
-            pipWindow.document.body.style.margin = "0";
-            pipWindow.document.body.style.background = C.bg;
-            for (const { el } of moved) pipWindow.document.body.appendChild(el);
-            
-            pipWindow.addEventListener("pagehide", () => {
-                panel.style.cssText = origPanelCss;
-                for (const { el, parent, next } of moved) {
-                    if (!parent) continue;
-                    try {
-                        if (next && next.parentNode === parent) parent.insertBefore(el, next);
-                        else parent.appendChild(el);
-                    } catch {}
-                }
-                pipWindow = null;
-                pipBusy = false;
-                popoutBtn.textContent = "\u2924";
-                popoutBtn.style.color = "";
-                // 恢复面板位置
-                setTimeout(() => { applyConstraints(); applyOffsets(); }, 50);
-            }, { once: true });
-        } catch (err) {
-            console.warn("aimdo-viz: PiP failed", err);
-            pipWindow = null;
-            pipBusy = false;
-            popoutBtn.textContent = "\u2924";
-            popoutBtn.style.color = "";
         }
+        // mirror the active theme onto PiP's <html> — the cloned stylesheet contains
+        // every theme's overrides, the data attribute picks which block applies
+        const themeAttr = document.documentElement.dataset.aimdoTheme;
+        if (themeAttr) pipWindow.document.documentElement.dataset.aimdoTheme = themeAttr;
+        // remember origins so we can restore on close
+        const moved = [];
+        const remember = el => moved.push({ el, parent: el.parentNode, next: el.nextSibling });
+        remember(panel);
+        for (const m of [rootMenu, unloadMenu, ...allSubmenus]) remember(m);
+        const origPanelCss = panel.style.cssText;
+        // fill the PiP window; drop the fixed positioning the main-page math expects
+        Object.assign(panel.style, {
+            position: "static", left: "auto", top: "auto", right: "auto", bottom: "auto",
+            transform: "none",
+            width: "100%", height: "100vh", maxWidth: "none", maxHeight: "none",
+            border: "none", borderRadius: "0", boxShadow: "none",
+        });
+        pipWindow.document.body.style.margin = "0";
+        pipWindow.document.body.style.background = C.bg;
+        for (const { el } of moved) pipWindow.document.body.appendChild(el);
+        pipWindow.addEventListener("pagehide", () => {
+            panel.style.cssText = origPanelCss;
+            for (const { el, parent, next } of moved) {
+                if (!parent) continue;
+                if (next && next.parentNode === parent) parent.insertBefore(el, next);
+                else parent.appendChild(el);
+            }
+            pipWindow = null;
+            applyOffsets();
+        }, { once: true });
     });
 
     const toggleBtn = document.createElement("span");

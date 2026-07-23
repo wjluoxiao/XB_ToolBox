@@ -42,15 +42,34 @@ def _init_lhm():
     
     try:
         import pythonnet
+    except ImportError:
+        print("[XB 硬件监控] ⚠️ pythonnet 未安装，AMD GPU 详细监控不可用。安装命令: pip install pythonnet")
+        log.info("aimdo-viz: pythonnet 未安装")
+        return False
+    
+    try:
         pythonnet.load('coreclr')
+    except Exception as e:
+        print(f"[XB 硬件监控] ⚠️ .NET CoreCLR 加载失败: {e}")
+        print("  请安装 .NET 8.0 运行时: https://dotnet.microsoft.com/en-us/download/dotnet/8.0")
+        log.info("aimdo-viz: coreclr 加载失败: %s", e)
+        return False
+    
+    try:
         import clr
-        
-        dll_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                                "LibreHardwareMonitorLib.dll")
-        if not os.path.exists(dll_path):
-            log.info("aimdo-viz: LibreHardwareMonitorLib.dll 未找到")
-            return False
-        
+    except Exception as e:
+        print(f"[XB 硬件监控] ⚠️ clr 模块加载失败: {e}")
+        return False
+    
+    dll_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                            "LibreHardwareMonitorLib.dll")
+    if not os.path.exists(dll_path):
+        print(f"[XB 硬件监控] ⚠️ LibreHardwareMonitorLib.dll 未找到: {dll_path}")
+        print("  请确保 DLL 文件在 XB_ToolBox 目录中")
+        log.info("aimdo-viz: LibreHardwareMonitorLib.dll 未找到")
+        return False
+    
+    try:
         clr.AddReference(dll_path)
         from LibreHardwareMonitor.Hardware import Computer
         
@@ -60,10 +79,12 @@ def _init_lhm():
         
         _lhm_state["computer"] = computer
         _lhm_state["available"] = True
+        print("[XB 硬件监控] ✅ AMD GPU 详细监控已就绪 (LibreHardwareMonitor)")
         log.info("aimdo-viz: LibreHardwareMonitor 初始化成功")
         return True
     except Exception as e:
-        log.debug("aimdo-viz: LHM 初始化失败: %s", e)
+        print(f"[XB 硬件监控] ⚠️ LibreHardwareMonitor 初始化失败: {e}")
+        log.info("aimdo-viz: LHM 初始化失败: %s", e)
         _lhm_state["available"] = False
         return False
 
@@ -222,6 +243,8 @@ def _detect_amd_gpu():
             _amd_state["available"] = True
             return True
     
+    print("[XB 硬件监控] ⚠️ AMD GPU 详细监控不可用，仅显示 VRAM 基本信息")
+    print("  请检查: 1) pythonnet 已安装  2) .NET 8.0 运行时已安装  3) LibreHardwareMonitorLib.dll 在工具箱目录中")
     log.info("aimdo-viz: AMD GPU 监控不可用，仅显示 VRAM")
     _amd_state["available"] = True
     return True
