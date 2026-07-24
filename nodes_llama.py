@@ -1294,21 +1294,25 @@ class XB_llamaPromptEnhancer:
         return {
             "required": {
                 "preset": ([
-                    "Qwen-Image [EN]", "Qwen-Image [ZH]",
-                    "Qwen-Image 2512 [EN]", "Qwen-Image 2512 [ZH]",
-                    "Qwen-Image-Edit [EN]", "Qwen-Image-Edit [ZH]",
-                    "Qwen-Image-Edit 2509 [EN]", "Qwen-Image-Edit 2509 [ZH]",
-                    "Qwen-Image-Edit 2511 [EN]", "Qwen-Image-Edit 2511 [ZH]",
-                    "Krea2 T2I [EN]", "Krea2 T2I [ZH]",
+                    "Animagine XL [EN]", "Animagine XL [ZH]",
                     "Boogu T2I [EN]", "Boogu T2I [ZH]",
-                    "Z-Image Turbo [ZH]", "Z-Image Turbo [EN]",
-                    "Flux.2 T2I [EN]", "Flux.2 T2I [ZH]",
+                    "ERNIE-Image T2I [EN]", "ERNIE-Image T2I [ZH]",
                     "Flux.2 I2I [EN]", "Flux.2 I2I [ZH]",
-                    "Wan T2V [EN]", "Wan T2V [ZH]",
+                    "Flux.2 Klein I2I [EN]", "Flux.2 Klein I2I [ZH]",
+                    "Flux.2 Klein T2I [EN]", "Flux.2 Klein T2I [ZH]",
+                    "Flux.2 T2I [EN]", "Flux.2 T2I [ZH]",
+                    "Ideogram 4.0 T2I [EN]", "Ideogram 4.0 T2I [ZH]",
+                    "Krea2 T2I [EN]", "Krea2 T2I [ZH]",
+                    "LTX2.3 T2V [EN]", "LTX2.3 T2V [ZH]",
+                    "Lumina-Next T2I [EN]", "Lumina-Next T2I [ZH]",
+                    "Pony V6 XL [EN]", "Pony V6 XL [ZH]",
+                    "Qwen-Image 2512 [EN]", "Qwen-Image 2512 [ZH]",
+                    "Qwen-Image-Edit 2511 [EN]", "Qwen-Image-Edit 2511 [ZH]",
+                    "Wan FLF2V [EN]", "Wan FLF2V [ZH]",
                     "Wan I2V [EN]", "Wan I2V [ZH]",
                     "Wan I2V Full-Auto [EN]", "Wan I2V Full-Auto [ZH]",
-                    "Wan FLF2V [EN]", "Wan FLF2V [ZH]",
-                    "LTX2.3 T2V [EN]", "LTX2.3 T2V [ZH]",
+                    "Wan T2V [EN]", "Wan T2V [ZH]",
+                    "Z-Image Turbo [ZH]", "Z-Image Turbo [EN]",
                 ],),
             }
         }
@@ -1320,22 +1324,10 @@ class XB_llamaPromptEnhancer:
 
     def main(self, preset):
         match preset:
-            case "Qwen-Image [EN]":
-                return (QWEN_IMAGE_EN,)
-            case "Qwen-Image [ZH]":
-                return (QWEN_IMAGE_ZH,)
             case "Qwen-Image 2512 [EN]":
                 return (QWEN_IMAGE_2512_EN,)
             case "Qwen-Image 2512 [ZH]":
                 return (QWEN_IMAGE_2512_ZH,)
-            case "Qwen-Image-Edit [EN]":
-                return (QWEN_IMAGE_EDIT,)
-            case "Qwen-Image-Edit [ZH]":
-                return (QWEN_IMAGE_EDIT_ZH,)
-            case "Qwen-Image-Edit 2509 [EN]":
-                return (QWEN_IMAGE_EDIT_2509,)
-            case "Qwen-Image-Edit 2509 [ZH]":
-                return (QWEN_IMAGE_EDIT_2509_ZH,)
             case "Qwen-Image-Edit 2511 [EN]":
                 return (QWEN_IMAGE_EDIT_2511,)
             case "Qwen-Image-Edit 2511 [ZH]":
@@ -1380,6 +1372,34 @@ class XB_llamaPromptEnhancer:
                 return (LTX2_3_T2V_EN,)
             case "LTX2.3 T2V [ZH]":
                 return (LTX2_3_T2V_ZH,)
+            case "Animagine XL [EN]":
+                return (ANIMAGINE_T2I_EN,)
+            case "Animagine XL [ZH]":
+                return (ANIMAGINE_T2I_ZH,)
+            case "Lumina-Next T2I [EN]":
+                return (LUMINA_T2I_EN,)
+            case "Lumina-Next T2I [ZH]":
+                return (LUMINA_T2I_ZH,)
+            case "Pony V6 XL [EN]":
+                return (PONY_V6_T2I_EN,)
+            case "Pony V6 XL [ZH]":
+                return (PONY_V6_T2I_ZH,)
+            case "ERNIE-Image T2I [EN]":
+                return (ERNIE_IMAGE_T2I_EN,)
+            case "ERNIE-Image T2I [ZH]":
+                return (ERNIE_IMAGE_T2I_ZH,)
+            case "Ideogram 4.0 T2I [EN]":
+                return (IDEOGRAM_V4_T2I_EN,)
+            case "Ideogram 4.0 T2I [ZH]":
+                return (IDEOGRAM_V4_T2I_ZH,)
+            case "Flux.2 Klein T2I [EN]":
+                return (FLUX2_KLEIN_T2I_EN,)
+            case "Flux.2 Klein T2I [ZH]":
+                return (FLUX2_KLEIN_T2I_ZH,)
+            case "Flux.2 Klein I2I [EN]":
+                return (FLUX2_KLEIN_I2I_EN,)
+            case "Flux.2 Klein I2I [ZH]":
+                return (FLUX2_KLEIN_I2I_ZH,)
             case _:
                 raise ValueError(f'未知预设: "{preset}"')
 
