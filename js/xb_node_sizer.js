@@ -71,6 +71,8 @@ const SIZES = {
     "XB_AudioSlicerV1": [360, 200],
     "XB_AudioSlicerV2": [360, 200],
     "XB_AudioSlicerV3": [360, 200],
+    "XB_DigitalHumanParams_Single": [360, 200],
+    "XB_DigitalHumanParams_Dual": [360, 200],
     "XB_StringMerge": [360, 200],
     "XB_MSR": [360, 200],
 };

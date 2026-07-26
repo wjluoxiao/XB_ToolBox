@@ -35,36 +35,42 @@ _amd_state = {"checked": False, "available": False, "gpu_name": None,
               "power_cache": None, "cache_time": 0}
 
 def _init_lhm():
-    """初始化 LibreHardwareMonitor (跨厂商硬件监控)"""
+    """初始化 LibreHardwareMonitor (仅 Windows)"""
     if _lhm_state["checked"]:
         return _lhm_state["available"]
     _lhm_state["checked"] = True
     
+    # LibreHardwareMonitorLib.dll 是 Windows 专有 DLL，Linux 直接跳过
+    if platform.system() != "Windows":
+        log.info("aimdo-viz: 非 Windows 系统，跳过 LHM")
+        return False
+    
     try:
         import pythonnet
     except ImportError:
-        print("[XB 硬件监控] ⚠️ pythonnet 未安装，AMD GPU 详细监控不可用。安装命令: pip install pythonnet")
+        print("[XB 硬件监控] [WARN] pythonnet 未安装，AMD GPU 详细监控不可用。安装: pip install pythonnet")
         log.info("aimdo-viz: pythonnet 未安装")
         return False
     
     try:
         pythonnet.load('coreclr')
     except Exception as e:
-        print(f"[XB 硬件监控] ⚠️ .NET CoreCLR 加载失败: {e}")
-        print("  请安装 .NET 8.0 运行时: https://dotnet.microsoft.com/en-us/download/dotnet/8.0")
+        print(f"[XB 硬件监控] [WARN] .NET CoreCLR 加载失败: {e}")
+        print("  请安装 .NET Windows Desktop Runtime 10.0.10:")
+        print("  https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.10/windowsdesktop-runtime-10.0.10-win-x64.exe")
         log.info("aimdo-viz: coreclr 加载失败: %s", e)
         return False
     
     try:
         import clr
     except Exception as e:
-        print(f"[XB 硬件监控] ⚠️ clr 模块加载失败: {e}")
+        print(f"[XB 硬件监控] [WARN] clr 模块加载失败: {e}")
         return False
     
     dll_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
                             "LibreHardwareMonitorLib.dll")
     if not os.path.exists(dll_path):
-        print(f"[XB 硬件监控] ⚠️ LibreHardwareMonitorLib.dll 未找到: {dll_path}")
+        print(f"[XB 硬件监控] [WARN] LibreHardwareMonitorLib.dll 未找到: {dll_path}")
         print("  请确保 DLL 文件在 XB_ToolBox 目录中")
         log.info("aimdo-viz: LibreHardwareMonitorLib.dll 未找到")
         return False
@@ -79,11 +85,11 @@ def _init_lhm():
         
         _lhm_state["computer"] = computer
         _lhm_state["available"] = True
-        print("[XB 硬件监控] ✅ AMD GPU 详细监控已就绪 (LibreHardwareMonitor)")
+        print("[XB 硬件监控] [OK] AMD GPU 详细监控已就绪 (LibreHardwareMonitor)")
         log.info("aimdo-viz: LibreHardwareMonitor 初始化成功")
         return True
     except Exception as e:
-        print(f"[XB 硬件监控] ⚠️ LibreHardwareMonitor 初始化失败: {e}")
+        print(f"[XB 硬件监控] [WARN] LibreHardwareMonitor 初始化失败: {e}")
         log.info("aimdo-viz: LHM 初始化失败: %s", e)
         _lhm_state["available"] = False
         return False
@@ -218,13 +224,12 @@ def _detect_amd_gpu():
     log.info("aimdo-viz: 检测到 AMD GPU: %s", gpu_name)
     _amd_state["gpu_name"] = gpu_name
     
-    # 方案 1: LibreHardwareMonitor (推荐，支持 RDNA 3)
+    # 方案 1: LibreHardwareMonitor (仅 Windows，支持 RDNA 3)
     if _init_lhm():
         _amd_state["available"] = True
-        log.info("aimdo-viz: 使用 LibreHardwareMonitor 监控 AMD GPU")
         return True
     
-    # 方案 2: rocm-smi CLI (Linux / 未来 Windows)
+    # 方案 2: rocm-smi CLI (Linux 主方案，Windows 备选)
     import shutil
     candidates = []
     if platform.system() == "Windows":
@@ -234,17 +239,38 @@ def _detect_amd_gpu():
             "rocm-smi.exe",
         ]
     else:
-        candidates = ["rocm-smi", "/opt/rocm/bin/rocm-smi"]
+        # Linux: rocm-smi 通常通过 ROCm 包安装
+        candidates = [
+            "rocm-smi",
+            "/opt/rocm/bin/rocm-smi",
+            "/usr/bin/rocm-smi",
+            "/usr/lib/rocm/bin/rocm-smi",
+        ]
     
     for path in candidates:
-        if "*" not in path and shutil.which(path):
+        if shutil.which(path):
             _amd_state["rocm_smi_path"] = path
             log.info("aimdo-viz: 使用 rocm-smi: %s", path)
             _amd_state["available"] = True
+            print("[XB 硬件监控] [OK] AMD GPU 监控已就绪 (rocm-smi)")
             return True
     
-    print("[XB 硬件监控] ⚠️ AMD GPU 详细监控不可用，仅显示 VRAM 基本信息")
-    print("  请检查: 1) pythonnet 已安装  2) .NET 8.0 运行时已安装  3) LibreHardwareMonitorLib.dll 在工具箱目录中")
+    # 无可用后端，打印平台相关提示
+    sys_name = platform.system()
+    if sys_name == "Windows":
+        print("[XB 硬件监控] [WARN] AMD GPU 详细监控不可用，仅显示 VRAM")
+        print("  请检查: 1) pythonnet 已安装  2) .NET Windows Desktop Runtime 10.0.10")
+        print("  下载: https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.10/windowsdesktop-runtime-10.0.10-win-x64.exe")
+        print("  3) LibreHardwareMonitorLib.dll 在工具箱目录中")
+    elif sys_name == "Linux":
+        print("[XB 硬件监控] [WARN] AMD GPU 详细监控不可用，仅显示 VRAM")
+        print("  请安装 ROCm SMI: sudo apt install rocm-smi-lib rocm-smi")
+        print("  或: pip install amdsmi && 确认 /opt/rocm/bin/rocm-smi 可用")
+    elif sys_name == "Darwin":
+        print("[XB 硬件监控] [WARN] macOS AMD GPU 详细监控不可用，仅显示 VRAM")
+        print("  macOS 暂不支持 GPU 传感器读取，仅能显示 VRAM 基本信息")
+    else:
+        print("[XB 硬件监控] [WARN] AMD GPU 详细监控不可用，仅显示 VRAM")
     log.info("aimdo-viz: AMD GPU 监控不可用，仅显示 VRAM")
     _amd_state["available"] = True
     return True
@@ -281,16 +307,25 @@ def _query_amd_gpu():
                 data = _json.loads(proc.stdout)
                 for card_key in data:
                     card = data[card_key]
+                    # 尝试多种可能的 JSON key（不同 rocm-smi 版本格式不同）
+                    util_str = (card.get("GPU use (%)") or card.get("GPU utilization (%)")
+                                or card.get("GPU Utilization (%)") or "0")
+                    temp_str = (card.get("Temperature (C)") or card.get("Temperature (Sensor edge) (C)")
+                                or card.get("Temperature (Edge) (C)") or "0")
+                    power_str = (card.get("Average Graphics Package Power (W)")
+                                 or card.get("Graphics Package Power (W)")
+                                 or card.get("Current Graphics Package Power (W)")
+                                 or card.get("GPU Package Power (W)") or "0")
                     try:
-                        _amd_state["util_cache"] = int(float(card.get("GPU use (%)", "0")))
+                        _amd_state["util_cache"] = int(float(util_str))
                     except (ValueError, TypeError):
                         _amd_state["util_cache"] = None
                     try:
-                        _amd_state["temp_cache"] = float(card.get("Temperature (C)", "0"))
+                        _amd_state["temp_cache"] = float(temp_str)
                     except (ValueError, TypeError):
                         _amd_state["temp_cache"] = None
                     try:
-                        _amd_state["power_cache"] = float(card.get("Average Graphics Package Power (W)", 0)) * 1000
+                        _amd_state["power_cache"] = float(power_str) * 1000
                     except (ValueError, TypeError):
                         _amd_state["power_cache"] = None
                     break

@@ -75,6 +75,15 @@
 
 ### 必备依赖
 
+**第一步：安装 .NET 运行时（AMD GPU 必需）**
+
+下载并安装 Windows Desktop Runtime 10.0.10：
+```
+https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.10/windowsdesktop-runtime-10.0.10-win-x64.exe
+```
+
+**第二步：安装 Python 依赖**
+
 ```bash
 pip install psutil pythonnet
 ```
@@ -83,6 +92,7 @@ pip install psutil pythonnet
 |------|------|------|
 | `psutil` | CPU/内存/磁盘/进程信息 | ✅ 是 |
 | `pythonnet` | .NET 桥接，驱动 LibreHardwareMonitor | ✅ 是 |
+| `.NET Windows Desktop Runtime 10.0.10` | pythonnet 运行所需 | ✅ 是 |
 | `LibreHardwareMonitorLib.dll` | GPU 传感器读取（已内置） | ✅ 是 |
 | `nvidia-ml-py` | NVIDIA GPU 精准显存数据 | ⚠️ 可选 |
 
@@ -398,7 +408,7 @@ A: 检查 ComfyUI 控制台是否有 JavaScript 报错。常见原因：
 
 A: 
 - **NVIDIA**：安装 `nvidia-ml-py` 并重启
-- **AMD**：确认 `pythonnet` 已安装，查看控制台日志
+- **AMD**：确认 `pythonnet` 已安装且 .NET Windows Desktop Runtime 10.0.10 已安装，查看控制台日志
 
 ### Q: 面板太大/太小？
 

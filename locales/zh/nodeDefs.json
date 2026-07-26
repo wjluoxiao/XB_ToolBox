@@ -2073,6 +2073,140 @@
       }
     }
   },
+  "XB_DigitalHumanParams_Single": {
+    "display_name": "XB-BOX - 🤖 数字人参数调节（单人）",
+    "inputs": {
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "fps": {
+        "name": "帧率整数"
+      },
+      "fps_float": {
+        "name": "帧率浮点"
+      },
+      "audio": {
+        "name": "音频文件"
+      },
+      "start_time": {
+        "name": "音频开始时间"
+      },
+      "end_time": {
+        "name": "音频结束时间"
+      },
+      "duration_display": {
+        "name": "输出总帧数"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "宽度"
+      },
+      "1": {
+        "name": "高度"
+      },
+      "2": {
+        "name": "总帧数"
+      },
+      "3": {
+        "name": "帧率整数"
+      },
+      "4": {
+        "name": "帧率浮点"
+      },
+      "5": {
+        "name": "音频"
+      }
+    }
+  },
+  "XB_DigitalHumanParams_Dual": {
+    "display_name": "XB-BOX - 🤖 数字人参数调节（双人）",
+    "inputs": {
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "fps": {
+        "name": "帧率整数"
+      },
+      "fps_float": {
+        "name": "帧率浮点"
+      },
+      "audio1": {
+        "name": "音频文件1"
+      },
+      "start1": {
+        "name": "音频1开始时间"
+      },
+      "end1": {
+        "name": "音频1结束时间"
+      },
+      "mute_count1": {
+        "name": "音频1消音数量"
+      },
+      "mutes1_data": {
+        "name": "消音数据1"
+      },
+      "audio2": {
+        "name": "音频文件2"
+      },
+      "start2": {
+        "name": "音频2开始时间"
+      },
+      "end2": {
+        "name": "音频2结束时间"
+      },
+      "mute_count2": {
+        "name": "音频2消音数量"
+      },
+      "mutes2_data": {
+        "name": "消音数据2"
+      },
+      "merge_mode": {
+        "name": "合并模式"
+      },
+      "total_display": {
+        "name": "合并总帧数"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "宽度"
+      },
+      "1": {
+        "name": "高度"
+      },
+      "2": {
+        "name": "总帧数"
+      },
+      "3": {
+        "name": "帧率整数"
+      },
+      "4": {
+        "name": "帧率浮点"
+      },
+      "5": {
+        "name": "音频1"
+      },
+      "6": {
+        "name": "音频2"
+      },
+      "7": {
+        "name": "合并音频"
+      }
+    }
+  },
   "XB_WanInfiniteTalk_ParamBus": {
     "display_name": "XB-BOX - 🎵 InfiniteTalk 无限对口型总线（单人）",
     "inputs": {
@@ -4678,6 +4812,79 @@
       "any_input": {
         "name": "任意输入（可选）"
       }
+    }
+  },
+  "XB_LTX23_InfiniteStreamer": {
+    "display_name": "XB-BOX - 🔄 LTX2.3 无限时长 (8+3步双次采样)",
+    "inputs": {
+      "model": { "name": "模型" },
+      "video_vae": { "name": "视频 VAE" },
+      "audio_vae": { "name": "音频 VAE" },
+      "clip": { "name": "CLIP" },
+      "latent_upscale_model": { "name": "潜空间放大模型" },
+      "start_image": { "name": "参考图" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "total_frames": { "name": "总帧数" },
+      "fps": { "name": "帧率" },
+      "audio": { "name": "音频" },
+      "segment_frames": { "name": "每段生成帧数" },
+      "overlap_frames": { "name": "接力重叠帧数（建议8的倍数）" },
+      "positive_prompt": { "name": "正面提示词" },
+      "negative_prompt": { "name": "负面提示词" },
+      "seed": { "name": "随机种子" },
+      "sampler_gen": { "name": "低分辨率采样器（8步）" },
+      "sampler_upscale": { "name": "高分辨率采样器（3步）" },
+      "gen_sigmas": { "name": "低分辨率 Sigmas（8步）" },
+      "upscale_sigmas": { "name": "高分辨率 Sigmas（3步）" },
+      "img_compression": { "name": "图像压缩率" },
+      "img2video_strength": { "name": "参考图注入强度" },
+      "prev_video": { "name": "前段累积视频" },
+      "vae_tile_size": { "name": "VAE分块尺寸" },
+      "vae_overlap": { "name": "VAE空间重叠" },
+      "vae_temporal_size": { "name": "时间分块尺寸" },
+      "vae_temporal_overlap": { "name": "时间重叠" }
+    },
+    "outputs": {
+      "0": { "name": "🎞️ 累积视频" },
+      "1": { "name": "🔊 原始音频" },
+      "2": { "name": "输出帧率" },
+      "3": { "name": "📁 输出文件路径" }
+    }
+  },
+  "XB_LTX23_InfiniteStreamer_Single": {
+    "display_name": "XB-BOX - 🔄 LTX2.3 无限时长 (8步单次采样)",
+    "inputs": {
+      "model": { "name": "模型" },
+      "video_vae": { "name": "视频 VAE" },
+      "audio_vae": { "name": "音频 VAE" },
+      "clip": { "name": "CLIP" },
+      "start_image": { "name": "参考图" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "total_frames": { "name": "总帧数" },
+      "fps": { "name": "帧率" },
+      "audio": { "name": "音频" },
+      "segment_frames": { "name": "每段生成帧数" },
+      "overlap_frames": { "name": "接力重叠帧数（建议8的倍数）" },
+      "positive_prompt": { "name": "正面提示词" },
+      "negative_prompt": { "name": "负面提示词" },
+      "seed": { "name": "随机种子" },
+      "sampler_gen": { "name": "采样器（8步）" },
+      "gen_sigmas": { "name": "Sigmas（8步）" },
+      "img_compression": { "name": "图像压缩率" },
+      "img2video_strength": { "name": "参考图注入强度" },
+      "prev_video": { "name": "前段累积视频" },
+      "vae_tile_size": { "name": "VAE分块尺寸" },
+      "vae_overlap": { "name": "VAE空间重叠" },
+      "vae_temporal_size": { "name": "时间分块尺寸" },
+      "vae_temporal_overlap": { "name": "时间重叠" }
+    },
+    "outputs": {
+      "0": { "name": "🎞️ 累积视频" },
+      "1": { "name": "🔊 原始音频" },
+      "2": { "name": "输出帧率" },
+      "3": { "name": "📁 输出文件路径" }
     }
   }
 }

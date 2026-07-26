@@ -61,6 +61,7 @@ try:
     from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
+    from .nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
     from .nodes_sageatt import XB_SageAttentionAccelerator
     from .nodes_wan_t5 import XB_WanT5Loader
     from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
@@ -69,6 +70,7 @@ try:
 
     from .nodes_label import XB_CanvasLabel
     from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
+    from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
@@ -208,6 +210,7 @@ try:
         "XB_WanSCAIL_RelayNode_New": XB_WanSCAIL_RelayNode_New,
         "XB_WanInfiniteTalk_RelayNode_MultiRef": XB_WanInfiniteTalk_RelayNode_MultiRef,
         "XB_WanInfiniteTalk_RelayNode_AllInOne": XB_WanInfiniteTalk_RelayNode_AllInOne,
+        "XB_LTX23_InfiniteStreamer": XB_LTX23_InfiniteStreamer,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
         "XB_CanvasLabel": XB_CanvasLabel,
@@ -215,6 +218,8 @@ try:
         "XB_AudioSlicerV1": XB_AudioSlicerV1,
         "XB_AudioSlicerV2": XB_AudioSlicerV2,
         "XB_AudioSlicerV3": XB_AudioSlicerV3,
+        "XB_DigitalHumanParams_Single": XB_DigitalHumanParams_Single,
+        "XB_DigitalHumanParams_Dual": XB_DigitalHumanParams_Dual,
         "XB_StringMerge": XB_StringMerge,
         "XB_MSR": XB_MSR,
         "XB_ComicPromptParser": XB_ComicPromptParser,
@@ -329,6 +334,7 @@ try:
         "XB_WanSCAIL_RelayNode_New": "XB-BOX - 🆕 SCAIL 无限接力点 (New)",
         "XB_WanInfiniteTalk_RelayNode_MultiRef": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (多图)",
         "XB_WanInfiniteTalk_RelayNode_AllInOne": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (全能)",
+        "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 无限时长 (8步 + 302拼接)",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
@@ -336,6 +342,8 @@ try:
         "XB_AudioSlicerV1": "XB-BOX - 🎵 音频切片V1（单人）",
         "XB_AudioSlicerV2": "XB-BOX - 🎵 音频切片V2（双人）",
         "XB_AudioSlicerV3": "XB-BOX - 🎵 音频切片V3（高级）",
+        "XB_DigitalHumanParams_Single": "XB-BOX - 🤖 数字人参数调节（单人）",
+        "XB_DigitalHumanParams_Dual": "XB-BOX - 🤖 数字人参数调节（双人）",
         "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块",
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
