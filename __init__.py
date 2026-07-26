@@ -334,7 +334,7 @@ try:
         "XB_WanSCAIL_RelayNode_New": "XB-BOX - 🆕 SCAIL 无限接力点 (New)",
         "XB_WanInfiniteTalk_RelayNode_MultiRef": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (多图)",
         "XB_WanInfiniteTalk_RelayNode_AllInOne": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (全能)",
-        "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 无限时长 (8步 + 302拼接)",
+        "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 数字人无限时长对口型",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
