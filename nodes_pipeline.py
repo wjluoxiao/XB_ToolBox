@@ -598,7 +598,7 @@ class XB_WanAnimate_ParamBus:
             c = kwargs.get("crop_mode", "center")
             scaled = comfy.utils.common_upscale(ref.movedim(-1, 1), w, h, m, c).movedim(1, -1)
             kwargs["clip_vision_output"], = nodes.CLIPVisionEncode().encode(cv, scaled, "center")
-            print(f"👁️ [XB-BOX] Animate CLIP视觉编码 ({ref.shape[1]}×{ref.shape[2]} → {w}×{h}, {m}/{c})")
+            print(f"👁️ [XB-BOX] Animate CLIP视觉编码 ({ref.shape[2]}×{ref.shape[1]} → {w}×{h}, {m}/{c})")
         return (kwargs,)
 
 
