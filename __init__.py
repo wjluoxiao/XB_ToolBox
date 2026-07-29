@@ -104,6 +104,7 @@ try:
             XB_llamaUnloadModel, XB_llamaCleanStates, XB_llamaParseJSON,
             XB_llamaJSON2BBox, XB_llamaBBox2SEGS, XB_llamaBBox2Mask,
             XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
+            XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
         )
         _LLAMA_AVAILABLE = True
     except ImportError as e:
@@ -264,6 +265,8 @@ try:
             "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
             "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
             "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
+            "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
+            "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -392,6 +395,8 @@ try:
             "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
             "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
             "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
+            "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
+            "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
         })
 
     print_success("\n" + "="*50)

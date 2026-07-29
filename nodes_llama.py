@@ -38,6 +38,9 @@ from scipy.ndimage import gaussian_filter
 from .support_llama.cqdm import cqdm
 from .support_llama.gguf_layers import get_layer_count
 from .support_llama.prompt_enhancer_preset import *
+from .support_llama.presets.storyboard import (
+    STORYBOARD_SKELETON, MODEL_RULES, STYLE_RULES, CAMERA_LOGIC, LANGUAGE_RULES, build_storyboard_prompt
+)
 
 import folder_paths
 import comfy.model_management as mm
@@ -795,12 +798,12 @@ class XB_llamaInstruct:
                 messages.append({"role": "user", "content": user_content})
                 output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_parameters)
                 out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-                out2 = [out1]
+                out2 = [line for line in out1.split('\n') if line.strip()]
         else:
             messages.append({"role": "user", "content": user_content})
             output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_parameters)
             out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-            out2 = [out1]
+            out2 = [line for line in out1.split('\n') if line.strip()]
 
         if save_states:
             print(f"[XB-llama] 保存状态 id={uid}...")
@@ -1404,6 +1407,436 @@ class XB_llamaPromptEnhancer:
                 raise ValueError(f'未知预设: "{preset}"')
 
 
+class XB_llamaStoryboardEnhancer:
+    """分镜增强预设 — 模块化动态拼装 System Prompt"""
+
+    _MODEL_KEYS = list(MODEL_RULES.keys())
+    _STYLE_KEYS = list(STYLE_RULES.keys())
+    _CAMERA_KEYS = list(CAMERA_LOGIC.keys())
+    _LANG_KEYS = ["英文[EN]", "中文[ZH]"]
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model_target": (s._MODEL_KEYS, {
+                    "default": s._MODEL_KEYS[0],
+                    "tooltip": "选择目标生成模型, 后台自动注入对应的语法规则。\nFlux2-Klein: 自然语言散文流\nQwen-2511: 结构化 DiT 流\nWan/LTX: 视频运镜流\nAnimagine/Pony: 二次元标签流"
+                }),
+                "story_style": (s._STYLE_KEYS, {
+                    "default": s._STYLE_KEYS[0],
+                    "tooltip": "强制绑定全局美术风格、光影基调和色彩方案, 防止风格跑偏"
+                }),
+                "camera_logic": (s._CAMERA_KEYS, {
+                    "default": s._CAMERA_KEYS[0],
+                    "tooltip": "镜头组接逻辑: 控制空间变换方式和景别推进节奏\n固定场景: 单一空间, 景别收缩\n动态跟随: 锁定主角, 空间流动\n史诗跳跃: 大尺度场景跳跃\n情感对话: 心理距离驱动"
+                }),
+                "character_anchor": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": "主角锁定描述 (强烈建议填写!)\n如: 一只穿着蓝色背带裤、戴着草帽的白毛胖兔子"
+                }),
+                "frame_count": ("INT", {
+                    "default": 6,
+                    "min": 2, "max": 16, "step": 1,
+                    "tooltip": "生成的分镜帧数 (2~16)\n四格漫画用4帧, 短视频用6~8帧, 长视频预演用12~16帧"
+                }),
+                "language": (s._LANG_KEYS, {
+                    "default": s._LANG_KEYS[0],
+                    "tooltip": "输出提示词的语言\nEnglish: 英文输出 (兼容所有模型)\n中文: 中文输出 (适合 Qwen-Image / ERNIE-Image 等中文原生模型)"
+                }),
+                "user_story": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": "输入你的故事、场景或灵感片段...\n支持中文/英文, 一段话即可"
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("system_prompt",)
+    FUNCTION = "main"
+    CATEGORY = "XB-llama"
+
+    def main(self, model_target, story_style, camera_logic, character_anchor, frame_count, language, user_story):
+        if not user_story.strip():
+            raise ValueError("请在 user_story 输入框中填写你的故事或场景描述!")
+
+        final_prompt = build_storyboard_prompt(
+            character_anchor=character_anchor,
+            frame_count=frame_count,
+            model_target=model_target,
+            story_style=story_style,
+            camera_logic=camera_logic,
+            language=language,
+            user_story=user_story,
+        )
+        return (final_prompt,)
+
+
+class XB_llamaStoryboardInstruct:
+    """分镜推理 — 融合分镜增强与指令推理的一体化节点"""
+
+    # 仅分镜推理节点使用的简化模型列表
+    _MODEL_KEYS = ["Flux2-Klein", "Qwen-Edit"]
+    _STYLE_KEYS = list(STYLE_RULES.keys())
+    _CAMERA_KEYS = list(CAMERA_LOGIC.keys())
+    _LANG_KEYS = ["英文[EN]", "中文[ZH]"]
+    _PRESET_MODES = ["分镜模式 (Storyboard)", "故事模式 (Story Writing)"]
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "llama_model": ("LLAMACPPMODEL",),
+                "preset_mode": (s._PRESET_MODES, {
+                    "default": s._PRESET_MODES[0],
+                    "tooltip": "分镜模式: 生成N帧分镜提示词序列, 每帧一行, 可直连 CLIPTextEncode 批量出图\n故事模式: 根据设定创作配有分镜插图的短篇故事"
+                }),
+                "model_target": (s._MODEL_KEYS, {
+                    "default": s._MODEL_KEYS[0],
+                    "tooltip": "仅在分镜模式下生效 — 选择目标生成模型的对齐语法"
+                }),
+                "story_style": (s._STYLE_KEYS, {
+                    "default": s._STYLE_KEYS[0],
+                    "tooltip": "全局美术风格与光影基调\n选'自定义'则不施加风格约束"
+                }),
+                "camera_logic": (s._CAMERA_KEYS, {
+                    "default": s._CAMERA_KEYS[0],
+                    "tooltip": "镜头组接与空间变换逻辑"
+                }),
+                "frame_count": ("INT", {
+                    "default": 6, "min": 2, "max": 16, "step": 1,
+                    "tooltip": "分镜模式: 生成的分镜帧数\n故事模式: 故事配图数量"
+                }),
+                "language": (s._LANG_KEYS, {
+                    "default": s._LANG_KEYS[0],
+                    "tooltip": "输出提示词/故事的语言"
+                }),
+                "character_anchor": ("STRING", {
+                    "default": "", "multiline": True,
+                    "placeholder": "👤 角色设定\n如: 一只穿着蓝色背带裤、戴着草帽的白毛胖兔子"
+                }),
+                "background_setting": ("STRING", {
+                    "default": "", "multiline": True,
+                    "placeholder": "🏞️ 背景设定\n如: 魔法森林深处, 住着会说话的蘑菇和小精灵"
+                }),
+                "story_synopsis": ("STRING", {
+                    "default": "", "multiline": True,
+                    "placeholder": "📝 故事梗概\n如: 小兔子在拔萝卜时发现了一颗会发光的魔法萝卜..."
+                }),
+                "inference_mode": (["one by one", "images", "video"], {
+                    "default": "images",
+                    "tooltip": "one by one: 逐张读取 (多图时每张单独推理)\nimages: 一次性读取所有图片\nvideo: 将输入图像视为视频帧"
+                }),
+                "max_frames": ("INT", {
+                    "default": 24, "min": 2, "max": 1024, "step": 1,
+                    "tooltip": "从输入视频中均匀采样的帧数 (仅 video 模式)"
+                }),
+                "max_size": ("INT", {
+                    "default": 384, "min": 128, "max": 16384, "step": 64,
+                    "tooltip": "images/video 模式下输入图像的最大尺寸"
+                }),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "force_offload": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "推理后卸载模型以释放显存"
+                }),
+                "save_states": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "在内存中保留此对话的上下文"
+                }),
+            },
+            "optional": {
+                "parameters": ("LLAMACPPARAMS",),
+                "images": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("output", "output_list")
+    OUTPUT_IS_LIST = (False, True)
+    FUNCTION = "process"
+    CATEGORY = "XB-llama"
+
+    # ── 故事模式 System Prompt (增强版) ──
+    STORY_MODE_SKELETON = '''# Role: 短篇故事作家 & 视觉叙事大师
+You are a master storyteller who crafts immersive short stories. Your task is to write a complete short story based on the provided character, setting, and synopsis. The story will be accompanied by {Frame_Count} vivid illustration scenes placed at key narrative moments.
+
+## 风格基调
+{Style_Rules}
+
+## 输出语言
+{Language_Rule}
+
+## 写作要求
+1. 写一个完整的短篇故事，有开头、发展、高潮和结尾。故事长度控制在800~1500字。
+2. 在故事的关键转折点、精彩场景或情绪高峰处，插入 {Frame_Count} 个配图标记。
+3. 每个配图标记独占一行，格式为: {Frame_Prefix}一段完整的、可直接用于AI绘图的视觉化场景描述
+4. 配图描述需要包含: 景别、主体外貌动作、环境细节、光影氛围、艺术风格。必须是一段流畅的自然语言。
+5. 故事正文和配图标记交织呈现: 先写一段故事，遇到精彩场景就插入配图标记，然后继续写故事。
+6. 开头的第1个配图标记用于确立世界观和主角形象，最后的配图标记用于故事收尾的经典画面。
+7. 不输出任何开场白、解释或结尾总结。直接从故事正文开始。
+
+## 人物设定
+{Character_Anchor}
+
+## 背景设定
+{Background_Setting}
+
+## 故事梗概
+{Story_Synopsis}
+'''
+
+    @staticmethod
+    def _timed_completion(llm, label, **kwargs):
+        import time
+        t0 = time.perf_counter()
+        output = llm.create_chat_completion(**kwargs)
+        t1 = time.perf_counter()
+        elapsed = t1 - t0
+        try:
+            tokens = output.get("usage", {}).get("completion_tokens", 0)
+        except Exception:
+            tokens = 0
+        tps = tokens / elapsed if elapsed > 0 else 0
+        print(f"[XB-llama] {label} → {tokens} tokens / {elapsed:.2f}s = {tps:.1f} T/s")
+        return output
+
+    def _build_system_prompt(self, preset_mode, model_target, story_style, camera_logic,
+                             frame_count, language, character_anchor, background_setting, story_synopsis):
+        """根据模式构建系统提示词"""
+        lang_rule = LANGUAGE_RULES.get(language, LANGUAGE_RULES["英文[EN]"])
+        safe_anchor = character_anchor.strip() or "the main subject"
+        safe_bg = background_setting.strip() or "an undefined setting"
+        safe_synopsis = story_synopsis.strip() or "Please create a narrative based on the given character and setting."
+
+        if preset_mode == "分镜模式 (Storyboard)":
+            prompt = build_storyboard_prompt(
+                character_anchor=safe_anchor,
+                frame_count=frame_count,
+                model_target=model_target,
+                story_style=story_style,
+                camera_logic=camera_logic,
+                language=language,
+                user_story=f"Character: {safe_anchor}\nSetting: {safe_bg}\nSynopsis: {safe_synopsis}",
+            )
+            # 追加输出格式指令 — 使用 Scene_NN / 分镜图_NN 格式
+            if language == "中文[ZH]":
+                fmt = (
+                    f"\n\n## 8. 输出格式修正 (Output Format Override)\n"
+                    f"上述第8条中的XML标签格式作废。请使用以下新格式:\n"
+                    f"- 每帧独占一行, 格式为: 分镜图_NN：提示词文本\n"
+                    f"- NN 为两位数字 (01, 02, ..., {frame_count:02d})\n"
+                    f"- 不要使用 <frame_N> XML 标签\n"
+                    f"- 不要输出任何额外文字或解释\n"
+                    f"示例:\n"
+                    f"分镜图_01：全景镜头, 一只白毛胖兔子戴着草帽站在魔法森林入口...\n"
+                    f"分镜图_02：中景镜头, 兔子蹲在一颗发光的金色萝卜前..."
+                )
+            else:
+                fmt = (
+                    f"\n\n## 8. Output Format Override\n"
+                    f"The XML tag format in section 8 above is VOID. Use this new format instead:\n"
+                    f"- One frame per line, format: Scene_NN: prompt text\n"
+                    f"- NN is a two-digit number (01, 02, ..., {frame_count:02d})\n"
+                    f"- Do NOT use <frame_N> XML tags\n"
+                    f"- Do NOT output any extra text or explanations\n"
+                    f"Example:\n"
+                    f"Scene_01: Wide shot, a white fluffy rabbit wearing a straw hat standing at the entrance of a magical forest...\n"
+                    f"Scene_02: Medium shot, the rabbit crouching before a glowing golden carrot..."
+                )
+            return prompt + fmt
+
+        else:  # 故事模式
+            style_rule = STYLE_RULES.get(story_style, STYLE_RULES["治愈绘本 (Fairy Tale Illustration)"])
+            frame_prefix = "分镜图_NN：" if language == "中文[ZH]" else "Scene_NN:"
+            prompt = self.STORY_MODE_SKELETON.format(
+                Frame_Count=str(frame_count),
+                Style_Rules=style_rule,
+                Language_Rule=lang_rule,
+                Frame_Prefix=frame_prefix,
+                Character_Anchor=safe_anchor,
+                Background_Setting=safe_bg,
+                Story_Synopsis=safe_synopsis,
+            )
+            return prompt
+
+    def process(self, llama_model, preset_mode, model_target, story_style, camera_logic,
+                frame_count, language, character_anchor, background_setting, story_synopsis,
+                inference_mode, max_frames, max_size, seed, force_offload, save_states,
+                parameters=None, images=None):
+        # ── 模型加载 ──
+        if not LLAMA_CPP_STORAGE.llm:
+            LLAMA_CPP_STORAGE.load_model(llama_model)
+
+        if parameters is None:
+            parameters = {}
+        _params = parameters.copy()
+        _params.pop("state_uid", None)
+
+        # ── 构建 System Prompt ──
+        system_prompt = self._build_system_prompt(
+            preset_mode, model_target, story_style, camera_logic,
+            frame_count, language, character_anchor, background_setting, story_synopsis,
+        )
+
+        video_input = inference_mode == "video"
+        if video_input and images is not None:
+            system_prompt = "请将输入的图片序列当做视频而不是静态帧序列。\n" + system_prompt
+
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # ── 构建用户消息 ──
+        user_content = []
+        parts = []
+        if character_anchor.strip():
+            parts.append(f"Character: {character_anchor.strip()}")
+        if background_setting.strip():
+            parts.append(f"Setting: {background_setting.strip()}")
+        if story_synopsis.strip():
+            parts.append(f"Story: {story_synopsis.strip()}")
+        user_text = "\n".join(parts) if parts else "Please generate based on the system instructions."
+        user_content.append({"type": "text", "text": user_text})
+
+        # ── 图像处理 ──
+        has_images = images is not None
+        if has_images:
+            _ch = LLAMA_CPP_STORAGE.chat_handler
+            if _ch is None:
+                raise ValueError("检测到图像输入, 但 chat_handler=None (纯文本模型)!\n请选择支持视觉的 chat_handler。")
+            if hasattr(_ch, "clip_model_path") and _ch.clip_model_path is None:
+                raise ValueError("检测到图像输入, 但 mmproj 未正确加载!\n请确认在模型加载器中选择了正确的 mmproj 文件。")
+
+            frames = images
+            if video_input:
+                indices = np.linspace(0, len(images) - 1, max_frames, dtype=int)
+                frames = [images[i] for i in indices]
+
+            if inference_mode == "one by one":
+                image_content = {"type": "image_url", "image_url": {"url": ""}}
+                user_content.append(image_content)
+                messages.append({"role": "user", "content": user_content})
+                print(f"[XB-llama] 开始处理 {len(frames)} 张图像 (one by one)")
+
+                import time
+                _total_tokens = 0
+                _t0 = time.perf_counter()
+                tmp_list = []
+                out2 = []
+                for i, image in enumerate(cqdm(frames)):
+                    if mm.processing_interrupted():
+                        raise mm.InterruptProcessingException()
+                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                    for item in user_content:
+                        if item.get("type") == "image_url":
+                            item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
+                            break
+                    output = LLAMA_CPP_STORAGE.llm.create_chat_completion(messages=messages, seed=seed, **_params)
+                    text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                    out2.append(text)
+                    if len(frames) > 1:
+                        tmp_list.append(f"====== Image {i + 1} ======")
+                    tmp_list.append(text)
+                    try:
+                        _total_tokens += output.get("usage", {}).get("completion_tokens", 0)
+                    except Exception:
+                        pass
+                _elapsed = time.perf_counter() - _t0
+                _tps = _total_tokens / _elapsed if _elapsed > 0 else 0
+                print(f"[XB-llama] one by one 完成 → {_total_tokens} tokens / {_elapsed:.2f}s = {_tps:.1f} T/s")
+                out1 = "\n\n".join(tmp_list)
+            else:
+                for image in frames:
+                    if len(frames) > 1:
+                        data = image2base64(np.clip(255.0 * scale_image(image, max_size), 0, 255).astype(np.uint8))
+                    else:
+                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                    image_content = {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+                    user_content.append(image_content)
+
+                messages.append({"role": "user", "content": user_content})
+                output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_params)
+                out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                out2 = [line for line in out1.split('\n') if line.strip()]
+        else:
+            messages.append({"role": "user", "content": user_content})
+            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_params)
+            out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+            out2 = [line for line in out1.split('\n') if line.strip()]
+
+        # ── 后处理 ──
+        if force_offload:
+            LLAMA_CPP_STORAGE.clean()
+        else:
+            if LLAMA_CPP_STORAGE.current_config.get("chat_handler", "") in ["Qwen3.5", "Qwen3.5-Thinking"]:
+                try:
+                    LLAMA_CPP_STORAGE.llm.n_tokens = 0
+                    LLAMA_CPP_STORAGE.llm._ctx.memory_clear(True)
+                    if LLAMA_CPP_STORAGE.llm.is_hybrid and LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr is not None:
+                        LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr.clear()
+                except Exception:
+                    pass
+
+        del messages
+        gc.collect()
+        return (out1, out2)
+
+
+# ============================================================================
+# 节点注册
+# ============================================================================
+
+        # ── 图像处理 ──
+        has_images = images is not None
+        if has_images:
+            _ch = LLAMA_CPP_STORAGE.chat_handler
+            if _ch is None:
+                raise ValueError("检测到图像输入, 但 chat_handler=None (纯文本模型)!\n请选择支持视觉的 chat_handler。")
+            if hasattr(_ch, "clip_model_path") and _ch.clip_model_path is None:
+                raise ValueError("检测到图像输入, 但 mmproj 未正确加载!\n请确认在模型加载器中选择了正确的 mmproj 文件。")
+
+            frames = images
+            if video_input:
+                indices = np.linspace(0, len(images) - 1, max_frames, dtype=int)
+                frames = [images[i] for i in indices]
+
+            for image in frames:
+                if len(frames) > 1:
+                    data = image2base64(np.clip(255.0 * scale_image(image, max_size), 0, 255).astype(np.uint8))
+                else:
+                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}})
+
+        messages.append({"role": "user", "content": user_content})
+
+        # ── 推理 ──
+        if has_images:
+            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_params)
+        else:
+            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_params)
+
+        out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+        out2 = [line for line in out1.split('\n') if line.strip()]
+
+        # ── 后处理 ──
+        if force_offload:
+            LLAMA_CPP_STORAGE.clean()
+        else:
+            if LLAMA_CPP_STORAGE.current_config.get("chat_handler", "") in ["Qwen3.5", "Qwen3.5-Thinking"]:
+                try:
+                    LLAMA_CPP_STORAGE.llm.n_tokens = 0
+                    LLAMA_CPP_STORAGE.llm._ctx.memory_clear(True)
+                    if LLAMA_CPP_STORAGE.llm.is_hybrid and LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr is not None:
+                        LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr.clear()
+                except Exception:
+                    pass
+
+        del messages
+        gc.collect()
+        return (out1, out2)
+
+
 # =============================================================================
 # 节点注册
 # =============================================================================
@@ -1421,6 +1854,8 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
     "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
     "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
+    "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
+    "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1436,4 +1871,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
     "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
     "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
+    "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
+    "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
 }

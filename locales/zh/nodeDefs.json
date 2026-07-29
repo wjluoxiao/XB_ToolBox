@@ -4805,6 +4805,48 @@
       }
     }
   },
+  "XB_llamaStoryboardEnhancer": {
+    "display_name": "XB-llama - ✨ 分镜增强预设",
+    "description": "模块化分镜工具——选择目标模型、故事风格、镜头调度，输入角色锚点和故事文本，一键生成适配特定模型语法的分镜提示词序列。",
+    "inputs": {
+      "model_target": { "name": "🎯 目标模型" },
+      "story_style": { "name": "🎨 故事风格" },
+      "camera_logic": { "name": "🎬 镜头调度" },
+      "character_anchor": { "name": "👤 角色锚点" },
+      "frame_count": { "name": "🎞️ 分镜帧数" },
+      "language": { "name": "🌐 输出语言" },
+      "user_story": { "name": "📖 故事文本" }
+    },
+    "outputs": { "0": { "name": "📝 系统提示词" } }
+  },
+  "XB_llamaStoryboardInstruct": {
+    "display_name": "XB-llama - 💬 分镜推理",
+    "description": "一体化分镜推理节点——融合分镜增强预设与指令推理，根据模式自动构建System Prompt并调用LLM生成分镜序列、短篇故事或反推增强提示词。",
+    "inputs": {
+      "llama_model": { "name": "🦙 Llama模型" },
+      "preset_mode": { "name": "🎯 预设模式" },
+      "model_target": { "name": "🖼️ 目标模型" },
+      "story_style": { "name": "🎨 故事风格" },
+      "camera_logic": { "name": "🎬 镜头调度" },
+      "frame_count": { "name": "🎞️ 分镜数量" },
+      "language": { "name": "🌐 输出语言" },
+      "character_anchor": { "name": "👤 角色设定" },
+      "background_setting": { "name": "🏞️ 背景设定" },
+      "story_synopsis": { "name": "📝 故事梗概" },
+      "inference_mode": { "name": "📹 推理模式" },
+      "max_frames": { "name": "🎬 最大帧数" },
+      "max_size": { "name": "📏 最大图像尺寸" },
+      "seed": { "name": "🎲 随机种子" },
+      "force_offload": { "name": "🗑️ 生成后卸载" },
+      "save_states": { "name": "💾 保存对话状态" },
+      "parameters": { "name": "⚙️ 推理参数" },
+      "images": { "name": "🖼️ 输入图像" }
+    },
+    "outputs": {
+      "0": { "name": "📝 输出文本" },
+      "1": { "name": "📋 输出列表" }
+    }
+  },
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 硬件监控面板 (Memory Visualization)",
     "description": "实时显存内存监控面板——显示GPU/CPU/内存/磁盘等硬件资源使用情况。将此节点添加到工作流即可在界面右下角激活可拖拽的监控面板。",

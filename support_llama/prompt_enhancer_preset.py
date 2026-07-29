@@ -24,3 +24,4 @@ from .presets.wan_i2v import *
 from .presets.wan_i2v_full_auto import *
 from .presets.wan_t2v import *
 from .presets.z_image_turbo import *
+from .presets.storyboard import *
