@@ -73,6 +73,12 @@ const SIZES = {
     "XB_AudioSlicerV3": [360, 200],
     "XB_DigitalHumanParams_Single": [360, 200],
     "XB_DigitalHumanParams_Dual": [360, 200],
+    "XB_ModelLoaderV1": [360, 200],
+    "XB_ModelLoaderV2": [360, 200],
+    "XB_ModelLoaderV3": [360, 200],
+    "XB_ModelLoaderV1_GGUF": [360, 200],
+    "XB_ModelLoaderV2_GGUF": [360, 200],
+    "XB_ModelLoaderV3_GGUF": [360, 200],
     "XB_StringMerge": [360, 200],
     "XB_MSR": [360, 200],
 };

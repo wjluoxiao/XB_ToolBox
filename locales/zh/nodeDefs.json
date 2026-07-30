@@ -4809,42 +4809,100 @@
     "display_name": "XB-llama - ✨ 分镜增强预设",
     "description": "模块化分镜工具——选择目标模型、故事风格、镜头调度，输入角色锚点和故事文本，一键生成适配特定模型语法的分镜提示词序列。",
     "inputs": {
-      "model_target": { "name": "🎯 目标模型" },
-      "story_style": { "name": "🎨 故事风格" },
-      "camera_logic": { "name": "🎬 镜头调度" },
-      "character_anchor": { "name": "👤 角色锚点" },
-      "frame_count": { "name": "🎞️ 分镜帧数" },
-      "language": { "name": "🌐 输出语言" },
-      "user_story": { "name": "📖 故事文本" }
+      "model_target": {
+        "name": "🎯 目标模型"
+      },
+      "story_style": {
+        "name": "🎨 故事风格"
+      },
+      "camera_logic": {
+        "name": "🎬 镜头调度"
+      },
+      "character_anchor": {
+        "name": "👤 角色锚点"
+      },
+      "frame_count": {
+        "name": "🎞️ 分镜帧数"
+      },
+      "language": {
+        "name": "🌐 输出语言"
+      },
+      "user_story": {
+        "name": "📖 故事文本"
+      }
     },
-    "outputs": { "0": { "name": "📝 系统提示词" } }
+    "outputs": {
+      "0": {
+        "name": "📝 系统提示词"
+      }
+    }
   },
   "XB_llamaStoryboardInstruct": {
     "display_name": "XB-llama - 💬 分镜推理",
     "description": "一体化分镜推理节点——融合分镜增强预设与指令推理，根据模式自动构建System Prompt并调用LLM生成分镜序列、短篇故事或反推增强提示词。",
     "inputs": {
-      "llama_model": { "name": "🦙 Llama模型" },
-      "preset_mode": { "name": "🎯 预设模式" },
-      "model_target": { "name": "🖼️ 目标模型" },
-      "story_style": { "name": "🎨 故事风格" },
-      "camera_logic": { "name": "🎬 镜头调度" },
-      "frame_count": { "name": "🎞️ 分镜数量" },
-      "language": { "name": "🌐 输出语言" },
-      "character_anchor": { "name": "👤 角色设定" },
-      "background_setting": { "name": "🏞️ 背景设定" },
-      "story_synopsis": { "name": "📝 故事梗概" },
-      "inference_mode": { "name": "📹 推理模式" },
-      "max_frames": { "name": "🎬 最大帧数" },
-      "max_size": { "name": "📏 最大图像尺寸" },
-      "seed": { "name": "🎲 随机种子" },
-      "force_offload": { "name": "🗑️ 生成后卸载" },
-      "save_states": { "name": "💾 保存对话状态" },
-      "parameters": { "name": "⚙️ 推理参数" },
-      "images": { "name": "🖼️ 输入图像" }
+      "llama_model": {
+        "name": "🦙 Llama模型"
+      },
+      "preset_mode": {
+        "name": "🎯 预设模式"
+      },
+      "model_target": {
+        "name": "🖼️ 目标模型"
+      },
+      "story_style": {
+        "name": "🎨 故事风格"
+      },
+      "camera_logic": {
+        "name": "🎬 镜头调度"
+      },
+      "frame_count": {
+        "name": "🎞️ 分镜数量"
+      },
+      "language": {
+        "name": "🌐 输出语言"
+      },
+      "character_anchor": {
+        "name": "👤 角色设定"
+      },
+      "background_setting": {
+        "name": "🏞️ 背景设定"
+      },
+      "story_synopsis": {
+        "name": "📝 故事梗概"
+      },
+      "inference_mode": {
+        "name": "📹 推理模式"
+      },
+      "max_frames": {
+        "name": "🎬 最大帧数"
+      },
+      "max_size": {
+        "name": "📏 最大图像尺寸"
+      },
+      "seed": {
+        "name": "🎲 随机种子"
+      },
+      "force_offload": {
+        "name": "🗑️ 生成后卸载"
+      },
+      "save_states": {
+        "name": "💾 保存对话状态"
+      },
+      "parameters": {
+        "name": "⚙️ 推理参数"
+      },
+      "images": {
+        "name": "🖼️ 输入图像"
+      }
     },
     "outputs": {
-      "0": { "name": "📝 输出文本" },
-      "1": { "name": "📋 输出列表" }
+      "0": {
+        "name": "📝 输出文本"
+      },
+      "1": {
+        "name": "📋 输出列表"
+      }
     }
   },
   "XB_MemoryVisualization": {
@@ -4859,36 +4917,446 @@
   "XB_LTX23_InfiniteStreamer": {
     "display_name": "XB-BOX - 🔄 LTX2.3 数字人无限时长对口型",
     "inputs": {
-      "model": { "name": "模型" },
-      "video_vae": { "name": "视频 VAE" },
-      "audio_vae": { "name": "音频 VAE" },
-      "clip": { "name": "CLIP" },
-      "start_image": { "name": "参考图" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "total_frames": { "name": "总帧数" },
-      "fps": { "name": "帧率" },
-      "audio": { "name": "音频" },
-      "segment_frames": { "name": "每段生成帧数" },
-      "overlap_frames": { "name": "接力重叠帧数" },
-      "positive_prompt": { "name": "正面提示词" },
-      "negative_prompt": { "name": "负面提示词" },
-      "seed": { "name": "随机种子" },
-      "sampler_gen": { "name": "采样器" },
-      "gen_sigmas": { "name": "Sigmas" },
-      "img_compression": { "name": "图像压缩率" },
-      "img2video_strength": { "name": "参考图注入强度" },
-      "prev_video": { "name": "前段累积视频" },
-      "vae_tile_size": { "name": "VAE分块尺寸" },
-      "vae_overlap": { "name": "VAE空间重叠" },
-      "vae_temporal_size": { "name": "时间分块尺寸" },
-      "vae_temporal_overlap": { "name": "时间重叠" }
+      "model": {
+        "name": "模型"
+      },
+      "video_vae": {
+        "name": "视频 VAE"
+      },
+      "audio_vae": {
+        "name": "音频 VAE"
+      },
+      "clip": {
+        "name": "CLIP"
+      },
+      "start_image": {
+        "name": "参考图"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "total_frames": {
+        "name": "总帧数"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "audio": {
+        "name": "音频"
+      },
+      "segment_frames": {
+        "name": "每段生成帧数"
+      },
+      "overlap_frames": {
+        "name": "接力重叠帧数"
+      },
+      "positive_prompt": {
+        "name": "正面提示词"
+      },
+      "negative_prompt": {
+        "name": "负面提示词"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "sampler_gen": {
+        "name": "采样器"
+      },
+      "gen_sigmas": {
+        "name": "Sigmas"
+      },
+      "img_compression": {
+        "name": "图像压缩率"
+      },
+      "img2video_strength": {
+        "name": "参考图注入强度"
+      },
+      "prev_video": {
+        "name": "前段累积视频"
+      },
+      "vae_tile_size": {
+        "name": "VAE分块尺寸"
+      },
+      "vae_overlap": {
+        "name": "VAE空间重叠"
+      },
+      "vae_temporal_size": {
+        "name": "时间分块尺寸"
+      },
+      "vae_temporal_overlap": {
+        "name": "时间重叠"
+      }
     },
     "outputs": {
-      "0": { "name": "🎞️ 累积视频" },
-      "1": { "name": "🔊 原始音频" },
-      "2": { "name": "输出帧率" },
-      "3": { "name": "📁 输出文件路径" }
+      "0": {
+        "name": "🎞️ 累积视频"
+      },
+      "1": {
+        "name": "🔊 原始音频"
+      },
+      "2": {
+        "name": "输出帧率"
+      },
+      "3": {
+        "name": "📁 输出文件路径"
+      }
+    }
+  },
+  "XB_ModelLoaderV1": {
+    "display_name": "XB-BOX - 📦 模型加载大全V1",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model": {
+        "name": "模型"
+      },
+      "clip": {
+        "name": "CLIP"
+      },
+      "clip_type": {
+        "name": "CLIP类型"
+      },
+      "clip_device": {
+        "name": "CLIP设备"
+      },
+      "lora_1": {
+        "name": "LoRA 1"
+      },
+      "lora_1_on": {
+        "name": "LoRA 1 开关"
+      },
+      "lora_1_strength": {
+        "name": "LoRA 1 强度"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "sage_preset": {
+        "name": "生成加速模式"
+      },
+      "blocks_to_swap": {
+        "name": "模型分块数量"
+      },
+      "model_weight_dtype": {
+        "name": "模型数据类型"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      },
+      "1": {
+        "name": "CLIP"
+      },
+      "2": {
+        "name": "VAE"
+      }
+    }
+  },
+  "XB_ModelLoaderV2": {
+    "display_name": "XB-BOX - 📦 模型加载大全V2 (高噪+低噪)",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model_high": {
+        "name": "高噪模型"
+      },
+      "lora_high_1": {
+        "name": "高噪LoRA 1"
+      },
+      "lora_high_1_on": {
+        "name": "高噪LoRA 1 开关"
+      },
+      "lora_high_1_strength": {
+        "name": "高噪LoRA 1 强度"
+      },
+      "sage_high": {
+        "name": "高噪加速模式"
+      },
+      "blockswap_high": {
+        "name": "高噪分块数量"
+      },
+      "model_low": {
+        "name": "低噪模型"
+      },
+      "lora_low_1": {
+        "name": "低噪LoRA 1"
+      },
+      "lora_low_1_on": {
+        "name": "低噪LoRA 1 开关"
+      },
+      "lora_low_1_strength": {
+        "name": "低噪LoRA 1 强度"
+      },
+      "sage_low": {
+        "name": "低噪加速模式"
+      },
+      "blockswap_low": {
+        "name": "低噪分块数量"
+      },
+      "clip": {
+        "name": "CLIP"
+      },
+      "clip_type": {
+        "name": "CLIP类型"
+      },
+      "clip_device": {
+        "name": "CLIP设备"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "model_high_weight_dtype": {
+        "name": "高噪模型数据类型"
+      },
+      "model_low_weight_dtype": {
+        "name": "低噪模型数据类型"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "高噪模型"
+      },
+      "1": {
+        "name": "低噪模型"
+      },
+      "2": {
+        "name": "CLIP"
+      },
+      "3": {
+        "name": "VAE"
+      }
+    }
+  },
+  "XB_ModelLoaderV3": {
+    "display_name": "XB-BOX - 📦 模型加载大全V3 (双CLIP+双VAE)",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model": {
+        "name": "模型"
+      },
+      "clip1": {
+        "name": "CLIP1"
+      },
+      "clip2": {
+        "name": "CLIP2"
+      },
+      "lora_1": {
+        "name": "LoRA 1"
+      },
+      "lora_1_on": {
+        "name": "LoRA 1 开关"
+      },
+      "lora_1_strength": {
+        "name": "LoRA 1 强度"
+      },
+      "vae1": {
+        "name": "VAE1"
+      },
+      "vae2": {
+        "name": "VAE2"
+      },
+      "sage_preset": {
+        "name": "生成加速模式"
+      },
+      "blocks_to_swap": {
+        "name": "模型分块数量"
+      },
+      "model_weight_dtype": {
+        "name": "模型数据类型"
+      },
+      "clip_type": {
+        "name": "双CLIP类型"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      },
+      "1": {
+        "name": "CLIP"
+      },
+      "2": {
+        "name": "VAE1"
+      },
+      "3": {
+        "name": "VAE2"
+      }
+    }
+  },
+  "XB_ModelLoaderV1_GGUF": {
+    "display_name": "XB-BOX - 📦 模型加载大全V1 (GGUF)",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model": {
+        "name": "GGUF模型"
+      },
+      "clip": {
+        "name": "GGUF CLIP"
+      },
+      "clip_type": {
+        "name": "CLIP类型"
+      },
+      "lora_1": {
+        "name": "LoRA 1"
+      },
+      "lora_1_on": {
+        "name": "LoRA 1 开关"
+      },
+      "lora_1_strength": {
+        "name": "LoRA 1 强度"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "sage_preset": {
+        "name": "生成加速模式"
+      },
+      "blocks_to_swap": {
+        "name": "模型分块数量"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      },
+      "1": {
+        "name": "CLIP"
+      },
+      "2": {
+        "name": "VAE"
+      }
+    }
+  },
+  "XB_ModelLoaderV2_GGUF": {
+    "display_name": "XB-BOX - 📦 模型加载大全V2 (GGUF)",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model_high": {
+        "name": "高噪GGUF模型"
+      },
+      "lora_high_1": {
+        "name": "高噪LoRA 1"
+      },
+      "lora_high_1_on": {
+        "name": "高噪LoRA 1 开关"
+      },
+      "lora_high_1_strength": {
+        "name": "高噪LoRA 1 强度"
+      },
+      "sage_high": {
+        "name": "高噪加速模式"
+      },
+      "blockswap_high": {
+        "name": "高噪分块数量"
+      },
+      "model_low": {
+        "name": "低噪GGUF模型"
+      },
+      "lora_low_1": {
+        "name": "低噪LoRA 1"
+      },
+      "lora_low_1_on": {
+        "name": "低噪LoRA 1 开关"
+      },
+      "lora_low_1_strength": {
+        "name": "低噪LoRA 1 强度"
+      },
+      "sage_low": {
+        "name": "低噪加速模式"
+      },
+      "blockswap_low": {
+        "name": "低噪分块数量"
+      },
+      "clip": {
+        "name": "GGUF CLIP"
+      },
+      "clip_type": {
+        "name": "CLIP类型"
+      },
+      "vae": {
+        "name": "VAE"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "高噪模型"
+      },
+      "1": {
+        "name": "低噪模型"
+      },
+      "2": {
+        "name": "CLIP"
+      },
+      "3": {
+        "name": "VAE"
+      }
+    }
+  },
+  "XB_ModelLoaderV3_GGUF": {
+    "display_name": "XB-BOX - 📦 模型加载大全V3 (GGUF)",
+    "inputs": {
+      "model_type": {
+        "name": "模型类型"
+      },
+      "model": {
+        "name": "GGUF模型"
+      },
+      "clip1": {
+        "name": "GGUF CLIP1"
+      },
+      "clip2": {
+        "name": "GGUF CLIP2"
+      },
+      "clip_type": {
+        "name": "双CLIP类型"
+      },
+      "lora_1": {
+        "name": "LoRA 1"
+      },
+      "lora_1_on": {
+        "name": "LoRA 1 开关"
+      },
+      "lora_1_strength": {
+        "name": "LoRA 1 强度"
+      },
+      "vae1": {
+        "name": "VAE1"
+      },
+      "vae2": {
+        "name": "VAE2"
+      },
+      "sage_preset": {
+        "name": "生成加速模式"
+      },
+      "blocks_to_swap": {
+        "name": "模型分块数量"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      },
+      "1": {
+        "name": "CLIP"
+      },
+      "2": {
+        "name": "VAE1"
+      },
+      "3": {
+        "name": "VAE2"
+      }
     }
   }
 }

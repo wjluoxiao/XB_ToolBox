@@ -29,10 +29,29 @@ async def choose_folder(request):
 
 
 from .nodes_audio_slicer import handle_audio_waveform
+from .nodes_model_loader_v1 import _filter_by_keyword
 
 @PromptServer.instance.routes.post("/xb_toolbox/audio_waveform")
 async def get_audio_waveform(request):
     return await handle_audio_waveform(request)
+
+
+@PromptServer.instance.routes.post("/xb_toolbox/model_list")
+async def get_model_list(request):
+    """根据关键字返回过滤后的模型/CLIP/VAE/LoRA列表"""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"})
+    keyword = data.get("keyword", "")
+    if not keyword:
+        return web.json_response({"models": [], "clips": [], "vaes": [], "loras": []})
+    return web.json_response({
+        "models": sorted(set(_filter_by_keyword("diffusion_models", keyword) + _filter_by_keyword("unet_gguf", keyword))),
+        "clips": sorted(set(_filter_by_keyword("text_encoders", keyword) + _filter_by_keyword("clip_gguf", keyword))),
+        "vaes": _filter_by_keyword("vae", keyword),
+        "loras": _filter_by_keyword("loras", keyword),
+    })
 
 
 def print_success(msg):
@@ -71,6 +90,8 @@ try:
     from .nodes_label import XB_CanvasLabel
     from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
     from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
+    from .nodes_model_loader_v1 import XB_ModelLoaderV1, XB_ModelLoaderV2, XB_ModelLoaderV3
+    from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
@@ -221,6 +242,12 @@ try:
         "XB_AudioSlicerV3": XB_AudioSlicerV3,
         "XB_DigitalHumanParams_Single": XB_DigitalHumanParams_Single,
         "XB_DigitalHumanParams_Dual": XB_DigitalHumanParams_Dual,
+        "XB_ModelLoaderV1": XB_ModelLoaderV1,
+        "XB_ModelLoaderV2": XB_ModelLoaderV2,
+        "XB_ModelLoaderV3": XB_ModelLoaderV3,
+        "XB_ModelLoaderV1_GGUF": XB_ModelLoaderV1_GGUF,
+        "XB_ModelLoaderV2_GGUF": XB_ModelLoaderV2_GGUF,
+        "XB_ModelLoaderV3_GGUF": XB_ModelLoaderV3_GGUF,
         "XB_StringMerge": XB_StringMerge,
         "XB_MSR": XB_MSR,
         "XB_ComicPromptParser": XB_ComicPromptParser,
@@ -347,6 +374,12 @@ try:
         "XB_AudioSlicerV3": "XB-BOX - 🎵 音频切片V3（高级）",
         "XB_DigitalHumanParams_Single": "XB-BOX - 🤖 数字人参数调节（单人）",
         "XB_DigitalHumanParams_Dual": "XB-BOX - 🤖 数字人参数调节（双人）",
+        "XB_ModelLoaderV1": "XB-BOX - 📦 模型加载大全V1",
+        "XB_ModelLoaderV2": "XB-BOX - 📦 模型加载大全V2",
+        "XB_ModelLoaderV3": "XB-BOX - 📦 模型加载大全V3",
+        "XB_ModelLoaderV1_GGUF": "XB-BOX - 📦 模型加载大全V1 (GGUF)",
+        "XB_ModelLoaderV2_GGUF": "XB-BOX - 📦 模型加载大全V2 (GGUF)",
+        "XB_ModelLoaderV3_GGUF": "XB-BOX - 📦 模型加载大全V3 (GGUF)",
         "XB_WanInfiniteTalkToVideo": "XB-BOX - 🎵 语音转视频分块",
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
