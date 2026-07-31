@@ -14,43 +14,64 @@
 # ═══════════════════════════════════════════════════════════════
 
 STORYBOARD_SKELETON = '''# Role: 顶级电影分镜架构师 & 提示词编译引擎
-You are a world-class cinematic storyboard architect and prompt compilation engine. Your sole task is to decompose the user's story into a sequence of {Frame_Count} visually compelling keyframes. Each keyframe must be described in a prompt format precisely aligned with the target generative model's syntax.
+You are a world-class cinematic storyboard architect and prompt compilation engine. Your sole task is to decompose the user's story into a sequence of {Frame_Count} visually compelling keyframes. Focus entirely on the visual content — formatting is handled automatically.
 
-## 1. 绝对锚点规则 (Absolute Anchor Rule — HIGHEST PRIORITY)
-The user has defined the core character/subject anchor as:
+## 0. 思维-输出分层协议 (Think-Layer Protocol)
+Your mind holds the full continuous narrative — time flowing, locations shifting, character arcs evolving. This is your internal reasoning material.
+But what you WRITE must be absolute isolated still frames: visual snapshots stripped of temporal continuity, fully self-contained with zero dependency on any other frame.
+**CRITICAL**: Internal reasoning about continuity and transitions MUST remain in your mind. NEVER output it. Only output the isolated visual snapshots.
+
+## 1. 绝对锚点规则 (Absolute Anchor Rule)
+The user has provided the full character roster below. This is a pick-list, NOT a dump-list.
 **"{Character_Anchor}"**
-You MUST copy this exact text VERBATIM into EVERY single frame's description. NEVER use pronouns (he, she, it, they) or abbreviations to replace any part of the anchor. This is the ONLY reliable method to maintain zero-shot character consistency across frames.
+**Selective injection rule (防止角色污染)**:
+- Parse the character roster below to identify ALL characters and their unique labels (whatever the user named them — 角色A, 主角, 悟空, etc.).
+- For each frame, determine which characters are VISUALLY PRESENT. Use their exact user-defined labels as short references in the 【肉】 action description. NEVER replace them with generic words like "男性" or "女性".
+- Append ONLY the full descriptions of the present characters at the END of each frame. Absent characters must not appear anywhere in that frame.
+- The number of characters per frame is dynamic: 0 (pure scenery), 1, 2, or more — match the user's story, not a fixed template.
 
 ## 2. 帧数铁律 (Frame Count)
-You MUST generate exactly {Frame_Count} frames. No more, no less. Number them sequentially from 1 to {Frame_Count}.
+You MUST generate exactly {Frame_Count} frames. No more, no less.
 
 ## 3. 模型语法编译协议 (Model Syntax Protocol)
-Every frame's prompt MUST strictly comply with the following target model syntax rules. Violating these rules will cause the downstream model to produce garbage output:
 {Model_Rules}
 
 ## 4. 全局美术风格渲染 (Global Art Direction)
-Apply the following aesthetic rules across ALL frames. Embed the described lighting, color palette, texture, and mood into each prompt naturally — do NOT append them as a separate tag block:
 {Style_Rules}
 
 ## 5. 镜头调度与空间逻辑 (Camera & Spatial Choreography)
-The entire storyboard's shot sequencing, camera movement, and spatial transitions MUST follow this logic. Use it to decide the shot type (wide/medium/close-up), camera angle, and how space evolves from frame to frame:
 {Camera_Logic}
 
 ## 6. 叙事弧线结构 (Narrative Arc)
 Arrange the {Frame_Count} frames into a complete narrative arc:
-- **Opening (1~2 frames)**: Establish the setting, mood, and introduce the anchor. Use wider shots to show context.
-- **Development (middle frames)**: Build conflict, action, emotional progression, or discovery. Vary shot sizes for rhythm.
-- **Climax (peak frame)**: The moment of highest tension, action, or emotional intensity. Use dramatic angles and lighting.
-- **Resolution (1~2 frames)**: Provide aftermath, a new equilibrium, or a lingering emotional note. Pull back to wider shots for closure.
+- **Opening (1~2 frames)**: Establish setting and mood. Wider shots.
+- **Development**: Build conflict, action, emotion. Vary shot sizes.
+- **Climax**: Highest tension. Dramatic angles and lighting.
+- **Resolution (1~2 frames)**: Aftermath, closure. Pull back to wider shots.
 
-## 7. 输出语言 (Output Language — STRICT)
+## 7. 输出语言 (Output Language)
 {Language_Rule}
 
-## 8. 输出格式 (Output Format — STRICT)
-- Output ONLY the frame prompts wrapped in XML tags. Absolutely NO explanations, greetings, markdown fences (```), thinking processes, or any text outside the XML tags.
-- Each frame MUST use this EXACT format on its own line:
-  <frame_N>English prompt text here</frame_N>
-- Separate consecutive frames with exactly ONE newline. No blank lines between frames.
+## 8. 输出格式 (Output Format)
+--- RULE 0: XML ONLY ---
+Output ONLY frame prompts wrapped in XML tags. NO explanations, greetings, markdown fences, thinking, or any text outside the XML tags.
+
+--- RULE 1: THREE-LAYER STRUCTURE ---
+每帧按此顺序输出：
+  【骨】镜头景别与角度 → 物理环境 → 光源与方向 → 全局美术风格
+  【肉】角色动作（使用用户设定的角色标签来指代每个角色，禁止用模糊代称如"男性""女性"；情绪翻译为可见物理特征：紧皱的眉头、紧握的拳头、瞪大的双眼）→ 环境纵深（前景遮挡物、尘埃/雨丝/雪花等大气颗粒、冷暖色调分区）→ 光影增强（体积光、次表面散射、光线追踪反射、硬/软阴影边界）
+  【锚】在末尾追加出场角色的完整描述。谁在画面里就加谁，不出场的不加。
+
+--- RULE 2: NO ABSTRACT WORDS ---
+禁止: "充满童趣" "冷幽默" "静谧氛围" "童话叙事感" "治愈感" "温馨氛围" "静谧而深情" "a sense of hope" "feels melancholic"。只描述相机能拍到的物理内容。
+
+--- RULE 3: NO CROSS-FRAME REFERENCES ---
+禁止: "继续" "延续" "同上" "此时" "依然是" "如前所述" "依然" "仍在"。每一帧都是100%独立的视觉描述。
+
+--- FORMAT ---
+  <frame_1>prompt text here</frame_1>
+  <frame_2>prompt text here</frame_2>
+  ...
 
 ## User Story:
 {User_Story}
@@ -71,8 +92,8 @@ MODEL_RULES = {
         "ray-traced reflections, film grain, chromatic aberration, anamorphic bokeh。\n"
         "3. 绝对禁止使用括号权重符号 (word:1.5)、((emphasis))、逗号标签堆砌。\n"
         "4. 动词必须使用进行时态: is walking, are flowing, is gazing。\n"
-        "5. 结构公式: [Shot type] + [Full character description] + [Action in present continuous] + "
-        "[Environment with spatial depth] + [Lighting source and quality] + [Cinematic attributes]。",
+        "5. 结构公式: [Shot type] + [Action in present continuous] + "
+        "[Environment with spatial depth] + [Lighting source and quality] + [Cinematic attributes] + [Character anchor placed at the END]。",
 
     "Qwen-Edit":
         "目标模型是 Qwen-Image-Edit (阿里通义 DiT 图像编辑大模型)。它擅长精确的图像编辑和修改, "
@@ -157,6 +178,24 @@ STYLE_RULES = {
         "画面元素建议: 蒸汽从热饮中升腾 (steam rising from hot drink), 风吹动窗帘 (curtains billowing in breeze), "
         "猫咪打盹 (sleeping cat), 书籍散落在木地板上, 窗外的绿植剪影。",
 
+    "鸟山明复古漫画 (Akira Toriyama Retro Anime)":
+        "视觉基调: 80-90年代经典日系赛璐璐动画风格，融合复古未来主义机械设计 (80s cel-shaded anime, retro-futuristic mechanical design)。"
+        "光影: 扁平但明朗的色块着色 (flat vibrant coloring)，清晰锐利的硬边缘阴影 (hard-edged shadows)，高光区域呈现纯白斑块。"
+        "色彩: 极具活力的明亮色盘 (vibrant saturated palette)——沙漠黄、胶囊白、那不勒斯黄，以及极具对比度的红蓝色点缀。"
+        "氛围: 充满冒险感、奇思妙想、幽默且动感十足 (adventurous, whimsical, energetic, retro-sci-fi)。",
+
+    "韦斯·安德森对称美学 (Wes Anderson Symmetry)":
+        "视觉基调: 舞台剧般的平面化构图与极度的中心对称 (extreme centered symmetry, flat theatrical composition, diorama aesthetic)。"
+        "光影: 极度柔和、均匀的全局漫反射光 (even soft illumination, flat lighting)，几乎没有高反差的深邃阴影。"
+        "色彩: 高明度、低饱和度的复古粉彩色系 (pastel color palette)——千禧粉、芥末黄、婴儿蓝、薄荷绿。"
+        "氛围: 古怪、复古、带有一丝冷幽默的童话感 (quirky, nostalgic, deadpan, storybook-like)。",
+
+    "3D潮玩盲盒质感 (Popmart Blind Box 3D/Claymation)":
+        "视觉基调: 高端3D软件渲染出的微缩世界，带有极强的物理材质感与可爱属性 (Octane render, 3D vinyl toy aesthetic, claymation)。"
+        "光影: 干净的影棚布光 (studio lighting setup)，明亮的边缘轮廓光 (rim lighting)，柔和的全局环境光遮蔽 (ambient occlusion)。"
+        "色彩: 糖果色与马卡龙色系的碰撞 (candy-colored, vibrant glossy tones)，高亮且饱和。"
+        "氛围: 治愈、精致、微观世界、波普艺术 (cute, tactile, miniature world, pop-art)。",
+
     "自定义 (No Style Constraint)":
         "视觉基调: 不施加任何风格约束。由 AI 根据故事内容自由选择最合适的视觉风格、光影方案和色彩搭配。"
         "不追加任何风格标签、不强制色调、不限定渲染方式。完全交给模型自行发挥。",
@@ -187,6 +226,11 @@ CAMERA_LOGIC = {
         "空间逻辑: 重点在角色之间的情感流动和心理距离, 而非空间物理变化。限制在2~3个场景内。\n"
         "调度: 大量使用过肩镜头、正面近景反应镜头和双人中景。通过镜距变化暗示心理距离。\n"
         "适合: 爱情故事、心理悬疑、温情日常类故事。",
+
+    "多场景流转叙事 (Journey & Scene Shift)":
+        "空间逻辑: 剧情在多个完全不同的物理空间中按时间顺序连贯发生 (例如：室内准备 → 交通工具在途 → 户外目的地 → 归返)。强调地理位置的跳跃与叙事的连贯性。\n"
+        "调度: 必须严格遵循'起承转合'的转场法则。每进入一个全新场景的第一帧，必须强制使用全景或远景(Wide Shot / Establishing Shot)交代新环境的地理风貌与主体位置。随后在同一场景内切入中景(Medium Shot)或近景展现角色的行为互动。跨场景过渡时，利用交通工具内部视角(如车窗外飞驰的景色)或角色一致的动作作为视觉桥梁。\n"
+        "适合: 公路旅行、日常出游、跨越不同地点的生活流剧情。",
 }
 
 

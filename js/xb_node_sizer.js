@@ -79,6 +79,8 @@ const SIZES = {
     "XB_ModelLoaderV1_GGUF": [360, 200],
     "XB_ModelLoaderV2_GGUF": [360, 200],
     "XB_ModelLoaderV3_GGUF": [360, 200],
+    "XB_NodeStatusSwitch": [360, 200],
+    "XB_FluxMultiImageEncode": [360, 200],
     "XB_StringMerge": [360, 200],
     "XB_MSR": [360, 200],
 };

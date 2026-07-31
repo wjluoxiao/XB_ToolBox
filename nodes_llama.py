@@ -1758,11 +1758,13 @@ You are a master storyteller who crafts immersive short stories. Your task is to
                 messages.append({"role": "user", "content": user_content})
                 output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_params)
                 out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                out1 = _merge_frame_lines(out1)
                 out2 = [line for line in out1.split('\n') if line.strip()]
         else:
             messages.append({"role": "user", "content": user_content})
             output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_params)
             out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+            out1 = _merge_frame_lines(out1)
             out2 = [line for line in out1.split('\n') if line.strip()]
 
         # ── 后处理 ──
@@ -1783,58 +1785,123 @@ You are a master storyteller who crafts immersive short stories. Your task is to
         return (out1, out2)
 
 
-# ============================================================================
-# 节点注册
-# ============================================================================
+# =============================================================================
+# 分镜输出标准化: 将多行分镜合并为每帧一行
+# =============================================================================
 
-        # ── 图像处理 ──
-        has_images = images is not None
-        if has_images:
-            _ch = LLAMA_CPP_STORAGE.chat_handler
-            if _ch is None:
-                raise ValueError("检测到图像输入, 但 chat_handler=None (纯文本模型)!\n请选择支持视觉的 chat_handler。")
-            if hasattr(_ch, "clip_model_path") and _ch.clip_model_path is None:
-                raise ValueError("检测到图像输入, 但 mmproj 未正确加载!\n请确认在模型加载器中选择了正确的 mmproj 文件。")
+import re as _re
 
-            frames = images
-            if video_input:
-                indices = np.linspace(0, len(images) - 1, max_frames, dtype=int)
-                frames = [images[i] for i in indices]
+def _merge_frame_lines(text: str) -> str:
+    """将分镜提示词中的换行合并：以分镜标记为锚点，每帧 = 一行"""
+    if not text:
+        return text
+    # 分镜标记: 分镜图_NN： / 分镜图_NN: / Scene_NN: / <frame_N>
+    frame_pattern = _re.compile(r'^(分镜图_\d+[：:]|Scene_\d+:|<frame_\d+>)')
 
-            for image in frames:
-                if len(frames) > 1:
-                    data = image2base64(np.clip(255.0 * scale_image(image, max_size), 0, 255).astype(np.uint8))
-                else:
-                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}})
+    lines = text.split('\n')
+    merged = []
+    buf = ""
 
-        messages.append({"role": "user", "content": user_content})
-
-        # ── 推理 ──
-        if has_images:
-            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_params)
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if frame_pattern.match(stripped):
+            if buf:
+                merged.append(buf)
+            buf = stripped
         else:
-            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_params)
+            if buf:
+                buf += stripped  # 接在前一帧后面
+            else:
+                buf = stripped  # 没有前导标记的行, 可能是 XML 标签外的文本, 跳过或保留
 
-        out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-        out2 = [line for line in out1.split('\n') if line.strip()]
+    if buf:
+        merged.append(buf)
 
-        # ── 后处理 ──
-        if force_offload:
-            LLAMA_CPP_STORAGE.clean()
+    return '\n'.join(merged)
+
+
+class XB_llamaStoryboardProcessor:
+    """分镜词处理器 — Show Text 显示 + 抽卡模式切换 + 分镜范围选择"""
+
+    _cached_text = ""
+    _cached_frames = []
+
+    @classmethod
+    def _parse_frames(cls, text):
+        import re
+        frames = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r'(分镜图_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+                continue
+            m = re.match(r'(Scene_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+        return frames
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        draw_options = ["全部"] + [f"分镜图_{i:02d}" for i in range(1, 17)]
+        return {
+            "required": {
+                "draw_mode": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "开启", "label_off": "关闭",
+                }),
+                "draw_range": (draw_options, {"default": "全部"}),
+            },
+            "optional": {
+                "text_input": ("*", {"force_input": True}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("output_list",)
+    OUTPUT_IS_LIST = (True,)
+    FUNCTION = "process"
+    CATEGORY = "XB-llama"
+
+    def process(self, draw_mode, draw_range, text_input=None):
+        # ── 缓存 & 显示文本 ──
+        if text_input:
+            frames = self._parse_frames(text_input)
+            if frames:
+                XB_llamaStoryboardProcessor._cached_frames = frames
+                XB_llamaStoryboardProcessor._cached_text = text_input
+            display_text = text_input
         else:
-            if LLAMA_CPP_STORAGE.current_config.get("chat_handler", "") in ["Qwen3.5", "Qwen3.5-Thinking"]:
-                try:
-                    LLAMA_CPP_STORAGE.llm.n_tokens = 0
-                    LLAMA_CPP_STORAGE.llm._ctx.memory_clear(True)
-                    if LLAMA_CPP_STORAGE.llm.is_hybrid and LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr is not None:
-                        LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr.clear()
-                except Exception:
-                    pass
+            # 上游被 mute 时无新输入, 使用缓存文本保持预览
+            display_text = XB_llamaStoryboardProcessor._cached_text or ""
 
-        del messages
-        gc.collect()
-        return (out1, out2)
+        if not draw_mode:
+            # 关闭模式: text_input → 逐行列表输出
+            lines = [line for line in display_text.split('\n') if line.strip()]
+            if not lines:
+                lines = ["[等待输入...]"]
+            return {"ui": {"text": [display_text]}, "result": (lines,)}
+
+        # 开启模式: 绕过上游, 从缓存中按 draw_range 取词
+        if not XB_llamaStoryboardProcessor._cached_frames:
+            return {"ui": {"text": [display_text]}, "result": (["[抽卡] 暂无缓存, 请先关闭抽卡模式运行一次"],)}
+
+        if draw_range == "全部":
+            result = [prompt for _, prompt in XB_llamaStoryboardProcessor._cached_frames]
+        else:
+            result = []
+            for name, prompt in XB_llamaStoryboardProcessor._cached_frames:
+                if name == draw_range:
+                    result.append(prompt)
+                    break
+            if not result:
+                result = [f"生成一张纯色背景图片，正中央用大号白色粗体文字写着：未找到{draw_range}"]
+        return {"ui": {"text": [display_text]}, "result": (result,)}
+
 
 
 # =============================================================================
@@ -1856,6 +1923,7 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
     "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
     "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
+    "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1873,4 +1941,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
     "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
     "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
+    "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
 }

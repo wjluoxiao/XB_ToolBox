@@ -92,6 +92,8 @@ try:
     from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
     from .nodes_model_loader_v1 import XB_ModelLoaderV1, XB_ModelLoaderV2, XB_ModelLoaderV3
     from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
+    from .nodes_status_switch import XB_NodeStatusSwitch
+    from .nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
@@ -126,6 +128,7 @@ try:
             XB_llamaJSON2BBox, XB_llamaBBox2SEGS, XB_llamaBBox2Mask,
             XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
             XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
+            XB_llamaStoryboardProcessor,
         )
         _LLAMA_AVAILABLE = True
     except ImportError as e:
@@ -233,6 +236,8 @@ try:
         "XB_WanInfiniteTalk_RelayNode_MultiRef": XB_WanInfiniteTalk_RelayNode_MultiRef,
         "XB_WanInfiniteTalk_RelayNode_AllInOne": XB_WanInfiniteTalk_RelayNode_AllInOne,
         "XB_LTX23_InfiniteStreamer": XB_LTX23_InfiniteStreamer,
+        "XB_NodeStatusSwitch": XB_NodeStatusSwitch,
+        "XB_FluxMultiImageEncode": XB_FluxMultiImageEncode,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
         "XB_CanvasLabel": XB_CanvasLabel,
@@ -294,6 +299,7 @@ try:
             "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
             "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
             "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
+            "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -365,6 +371,8 @@ try:
         "XB_WanInfiniteTalk_RelayNode_MultiRef": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (多图)",
         "XB_WanInfiniteTalk_RelayNode_AllInOne": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (全能)",
         "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 数字人无限时长对口型",
+        "XB_NodeStatusSwitch": "XB-BOX - ⚡ 节点状态开关",
+        "XB_FluxMultiImageEncode": "XB-BOX - 🖼️ FLUX多图编码",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
@@ -430,6 +438,7 @@ try:
             "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
             "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
             "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
+            "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
         })
 
     print_success("\n" + "="*50)

@@ -4905,6 +4905,26 @@
       }
     }
   },
+  "XB_llamaStoryboardProcessor": {
+    "display_name": "XB-llama - 🎞️ 分镜词处理器",
+    "description": "分镜词处理器——Show Text 显示 + 抽卡模式。关闭: text_input 逐行列表输出; 开启: JS 自动 mute 上游节点, 从缓存中按分镜范围输出提示词。",
+    "inputs": {
+      "text_input": {
+        "name": "📝 文本输入"
+      },
+      "draw_mode": {
+        "name": "🎮 抽卡模式"
+      },
+      "draw_range": {
+        "name": "🎯 抽卡范围"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📋 输出列表"
+      }
+    }
+  },
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 硬件监控面板 (Memory Visualization)",
     "description": "实时显存内存监控面板——显示GPU/CPU/内存/磁盘等硬件资源使用情况。将此节点添加到工作流即可在界面右下角激活可拖拽的监控面板。",
@@ -5356,6 +5376,59 @@
       },
       "3": {
         "name": "VAE2"
+      }
+    }
+  },
+  "XB_NodeStatusSwitch": {
+    "display_name": "XB-BOX - ⚡ 节点状态开关",
+    "inputs": {
+      "enabled": {
+        "name": "启用开关"
+      },
+      "trigger_on": {
+        "name": "触发条件"
+      },
+      "action": {
+        "name": "操作模式"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "启用状态输出"
+      }
+    }
+  },
+  "XB_FluxMultiImageEncode": {
+    "display_name": "XB-BOX - 🖼 FLUX多图编码",
+    "inputs": {
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "image1": {
+        "name": "图片1"
+      },
+      "longer_edge": {
+        "name": "长边缩放值"
+      },
+      "image2": {
+        "name": "图片2（可选）"
+      },
+      "image3": {
+        "name": "图片3（可选）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
       }
     }
   }
