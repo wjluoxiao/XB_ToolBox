@@ -96,6 +96,7 @@ try:
     from .nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
     from .nodes_image_scale import XB_ImageScale
+    from .nodes_hailuo_video import XB_HailuoH3VideoParams
     from .nodes_reference_any import XB_ReferenceAny
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
@@ -245,6 +246,7 @@ try:
         "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
         "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
         "XB_ImageScale": XB_ImageScale,
+        "XB_HailuoH3VideoParams": XB_HailuoH3VideoParams,
         "XB_ReferenceAny": XB_ReferenceAny,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
@@ -386,6 +388,7 @@ try:
         "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
         "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",
         "XB_ImageScale": "XB-BOX - 📐 批量缩放图像",
+        "XB_HailuoH3VideoParams": "XB-BOX - 🌊 海螺H3视频参数",
         "XB_ReferenceAny": "XB-BOX - 🔗 引用任意",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
