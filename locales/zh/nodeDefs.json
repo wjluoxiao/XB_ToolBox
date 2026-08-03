@@ -4925,6 +4925,73 @@
       }
     }
   },
+  "XB_llamaStoryboardProcessorPro": {
+    "display_name": "XB-llama - 🎞️ 分镜词处理器Pro",
+    "description": "分镜词处理器Pro——完全复刻原版 + 背景/角色嗅探。从每段分镜词中提取背景和角色标签，分别输出到独立端口。角色不足时对应端口输出「全部关闭」。",
+    "inputs": {
+      "text_input": {
+        "name": "📝 文本输入"
+      },
+      "draw_mode": {
+        "name": "🎮 抽卡模式"
+      },
+      "draw_range": {
+        "name": "🎯 抽卡范围"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📋 输出列表"
+      },
+      "1": {
+        "name": "🏞️ 背景"
+      },
+      "2": {
+        "name": "👤 角色_1"
+      },
+      "3": {
+        "name": "👤 角色_2"
+      },
+      "4": {
+        "name": "👤 角色_3"
+      }
+    }
+  },
+  "XB_RoleSceneDispatcher": {
+    "display_name": "XB-llama - 🎬 角色场景调度器",
+    "description": "角色场景调度器——逐帧配对提示词+背景+角色。接收分镜提示词列表, 嗅探每帧所需的背景和角色标签, 从上游图片中匹配并输出等长列表, ComfyUI Zip 对齐实现逐帧切换参考图。",
+    "inputs": {
+      "text_input": {
+        "name": "📝 分镜提示词"
+      },
+      "draw_mode": {
+        "name": "🎮 抽卡模式"
+      },
+      "draw_range": {
+        "name": "🎯 抽卡范围"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📋 提示词"
+      },
+      "1": {
+        "name": "🏞️ 背景图"
+      },
+      "2": {
+        "name": "👤 角色01"
+      },
+      "3": {
+        "name": "👤 角色02"
+      },
+      "4": {
+        "name": "👤 角色03"
+      },
+      "5": {
+        "name": "👤 角色04"
+      }
+    }
+  },
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 硬件监控面板 (Memory Visualization)",
     "description": "实时显存内存监控面板——显示GPU/CPU/内存/磁盘等硬件资源使用情况。将此节点添加到工作流即可在界面右下角激活可拖拽的监控面板。",
@@ -5399,37 +5466,61 @@
     }
   },
   "XB_FluxMultiImageEncode": {
-    "display_name": "XB-BOX - 🖼 FLUX多图编码",
+    "display_name": "XB-BOX - 🖼️ FLUX多图编码",
     "inputs": {
-      "positive": {
-        "name": "正面条件"
-      },
-      "negative": {
-        "name": "负面条件"
-      },
-      "vae": {
-        "name": "VAE"
-      },
-      "image1": {
-        "name": "图片1"
-      },
-      "longer_edge": {
-        "name": "长边缩放值"
-      },
-      "image2": {
-        "name": "图片2（可选）"
-      },
-      "image3": {
-        "name": "图片3（可选）"
-      }
+      "positive": { "name": "正面条件" },
+      "negative": { "name": "负面条件" },
+      "vae": { "name": "VAE" },
+      "image1": { "name": "图片1" },
+      "longer_edge": { "name": "长边缩放值" }
     },
     "outputs": {
-      "0": {
-        "name": "正面条件"
-      },
-      "1": {
-        "name": "负面条件"
-      }
+      "0": { "name": "正面条件" },
+      "1": { "name": "负面条件" }
     }
+  },
+  "XB_ReferenceAny": {
+    "display_name": "XB-BOX - 🔗 引用任意",
+    "inputs": {
+      "选择": { "name": "选择通道" }
+    },
+    "outputs": {
+      "0": { "name": "输出" }
+    }
+  },
+  "XB_TextEncodeQwenImageEdit": {
+    "display_name": "XB-BOX - 📝 Qwen图像编辑编码",
+    "inputs": {
+      "clip": { "name": "CLIP模型" },
+      "prompt": { "name": "提示词" },
+      "vae": { "name": "VAE（可选）" },
+      "image1": { "name": "图片1" }
+    },
+    "outputs": {
+      "0": { "name": "条件" }
+    }
+  },
+  "XB_TextEncodeQwenImageEditPlus": {
+    "display_name": "XB-BOX - 📝 Qwen图像编辑编码Plus",
+    "inputs": {
+      "clip": { "name": "CLIP模型" },
+      "prompt": { "name": "提示词" },
+      "vae": { "name": "VAE（可选）" },
+      "image1": { "name": "图片1" }
+    },
+    "outputs": {
+      "0": { "name": "条件" }
+    }
+  },
+  "XB_ImageScale": {
+    "display_name": "XB-BOX - 📐 批量缩放图像",
+    "inputs": {
+      "upscale_method": { "name": "缩放方法" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "crop": { "name": "裁剪" },
+      "image1": { "name": "图片1" }
+    },
+    "outputs": {}
   }
 }

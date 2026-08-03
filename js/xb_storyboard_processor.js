@@ -9,7 +9,7 @@
 import { app } from "../../scripts/app.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
 
-const NODE_TYPE = "XB_llamaStoryboardProcessor";
+const NODE_TYPES = ["XB_llamaStoryboardProcessor", "XB_llamaStoryboardProcessorPro"];
 const MODE_ACTIVE = 0;
 const MODE_MUTE   = 2;
 
@@ -85,7 +85,7 @@ function populateShowText(node, text) {
 app.registerExtension({
     name: "XB_ToolBox.StoryboardProcessor",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== NODE_TYPE) return;
+        if (!NODE_TYPES.includes(nodeData.name)) return;
 
         const origCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -108,13 +108,55 @@ app.registerExtension({
                 origConn?.apply?.(this, [type, index, slot, connected, link_info, ...rest]);
                 if (wMode) applyUpstreamMode(self, wMode.value);
             };
+
+            // ── Pro 节点: 嗅探假 widget ──
+            if (nodeData.name === "XB_llamaStoryboardProcessorPro") {
+                const fakeW = {
+                    name: "_sniff", value: "", type: "hidden",
+                    computeSize: () => [0, 0],
+                    onRemove: () => {},
+                    callback: () => {},
+                    draw: () => {},
+                    serializeValue: () => "",
+                };
+                const drIdx = self.widgets.findIndex(w => w.name === "draw_range");
+                if (drIdx >= 0) { self.widgets.splice(drIdx, 0, fakeW); }
+                else { self.widgets.unshift(fakeW); }
+
+                setTimeout(() => {
+                    const wDr = self.widgets.find(w => w.name === "draw_range");
+                    if (wDr?.value?.length > 10) wDr.value = "全部";
+                }, 100);
+            }
         };
 
-        // ── Show Text : onExecuted 接收 ui.text 并渲染 widget ──
+        // ── Show Text + 嗅探值更新 ──
         const origExec = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function (message) {
             origExec?.apply?.(this, arguments);
             populateShowText(this, message.text);
+
+            // Pro 节点: 更新嗅探假 widget 的值
+            if (nodeData.name === "XB_llamaStoryboardProcessorPro") {
+                const sniffBg  = message.sniff_bg  || "全部关闭";
+                const sniffCh1 = message.sniff_ch1 || "全部关闭";
+                const sniffCh2 = message.sniff_ch2 || "全部关闭";
+                const sniffCh3 = message.sniff_ch3 || "全部关闭";
+                const combined = [sniffBg, sniffCh1, sniffCh2, sniffCh3]
+                    .filter(v => v !== "全部关闭").join(" ") || "全部关闭";
+                const wSniff = this.widgets.find(w => w.name === "_sniff");
+                if (wSniff) wSniff.value = combined;
+            }
         };
+    },
+
+    // 页面刷新后所有节点加载完毕 → 应用初始 mute 状态
+    async loadedGraphNode(node) {
+        if (NODE_TYPES.includes(node.type)) {
+            setTimeout(() => {
+                const wMode = (node.widgets || []).find(w => w.name === "draw_mode");
+                if (wMode) applyUpstreamMode(node, wMode.value);
+            }, 300);
+        }
     },
 });

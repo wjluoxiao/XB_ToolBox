@@ -1573,7 +1573,7 @@ You are a master storyteller who crafts immersive short stories. Your task is to
 1. 写一个完整的短篇故事，有开头、发展、高潮和结尾。故事长度控制在800~1500字。
 2. 在故事的关键转折点、精彩场景或情绪高峰处，插入 {Frame_Count} 个配图标记。
 3. 每个配图标记独占一行，格式为: {Frame_Prefix}一段完整的、可直接用于AI绘图的视觉化场景描述
-4. 配图描述需要包含: 景别、主体外貌动作、环境细节、光影氛围、艺术风格。必须是一段流畅的自然语言。
+4. 配图描述需要包含: 景别、主体外貌动作、环境细节、光影氛围、艺术风格。必须是一段流畅的自然语言。末尾必须附带两个标签: 先写"背景A"+当前场景的背景描述，再写每个出场角色的完整描述（如"角色A..."、"角色B..."）。谁在画面里就标注谁，不出场的不标。背景标签始终保留。 
 5. 故事正文和配图标记交织呈现: 先写一段故事，遇到精彩场景就插入配图标记，然后继续写故事。
 6. 开头的第1个配图标记用于确立世界观和主角形象，最后的配图标记用于故事收尾的经典画面。
 7. 不输出任何开场白、解释或结尾总结。直接从故事正文开始。
@@ -1759,12 +1759,14 @@ You are a master storyteller who crafts immersive short stories. Your task is to
                 output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_params)
                 out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
                 out1 = _merge_frame_lines(out1)
+                out1 = _re.sub(r'(背景|角色)\s+([A-E])', r'\1\2', out1)
                 out2 = [line for line in out1.split('\n') if line.strip()]
         else:
             messages.append({"role": "user", "content": user_content})
             output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_params)
             out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
             out1 = _merge_frame_lines(out1)
+            out1 = _re.sub(r'(背景|角色)\s+([A-E])', r'\1\2', out1)
             out2 = [line for line in out1.split('\n') if line.strip()]
 
         # ── 后处理 ──
@@ -1903,6 +1905,271 @@ class XB_llamaStoryboardProcessor:
         return {"ui": {"text": [display_text]}, "result": (result,)}
 
 
+class XB_llamaStoryboardProcessorPro:
+    """分镜词处理器Pro — 完全复刻原版 + 背景/角色嗅探输出"""
+
+    _cached_text = ""
+    _cached_frames = []
+
+    @classmethod
+    def _parse_frames(cls, text):
+        import re
+        frames = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r'(分镜图_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+                continue
+            m = re.match(r'(Scene_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+        return frames
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        draw_options = ["全部"] + [f"分镜图_{i:02d}" for i in range(1, 17)]
+        return {
+            "required": {
+                "draw_mode": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "开启", "label_off": "关闭",
+                }),
+                "draw_range": (draw_options, {"default": "全部"}),
+            },
+            "optional": {
+                "text_input": ("*", {"force_input": True}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("output_list", "背景", "角色_1", "角色_2", "角色_3")
+    OUTPUT_IS_LIST = (True, False, False, False, False)
+    FUNCTION = "process"
+    CATEGORY = "XB-llama"
+
+    @staticmethod
+    def _sniff_all(prompt, pattern):
+        """嗅探提示词中所有匹配项, 按出现顺序返回截断到10字的列表"""
+        import re
+        matches = re.findall(pattern, prompt)
+        return [(m[:10] if len(m) > 10 else m) for m in matches]
+
+    # 非贪婪正则: 匹配到下一个标签或字符串末尾为止
+    _RE_BG = r'背景[ABCDE].*?(?=角色[ABCDE]|背景[ABCDE]|$)'
+    _RE_CH = r'角色[ABCDE].*?(?=角色[ABCDE]|背景[ABCDE]|$)'
+
+    def process(self, draw_mode, draw_range, text_input=None):
+        # ── 完全复刻原版逻辑 ──
+        if text_input:
+            frames = self._parse_frames(text_input)
+            if frames:
+                XB_llamaStoryboardProcessorPro._cached_frames = frames
+                XB_llamaStoryboardProcessorPro._cached_text = text_input
+            display_text = text_input
+        else:
+            display_text = XB_llamaStoryboardProcessorPro._cached_text or ""
+
+        if not draw_mode:
+            lines = [line for line in display_text.split('\n') if line.strip()]
+            if not lines:
+                lines = ["[等待输入...]"]
+            result = lines
+        elif not XB_llamaStoryboardProcessorPro._cached_frames:
+            result = ["[抽卡] 暂无缓存, 请先关闭抽卡模式运行一次"]
+        elif draw_range == "全部":
+            result = [prompt for _, prompt in XB_llamaStoryboardProcessorPro._cached_frames]
+        else:
+            result = []
+            for name, prompt in XB_llamaStoryboardProcessorPro._cached_frames:
+                if name == draw_range:
+                    result.append(prompt)
+                    break
+            if not result:
+                result = [f"生成一张纯色背景图片，正中央用大号白色粗体文字写着：未找到{draw_range}"]
+
+        # ── 嗅探当前帧 (先归一化空格: 背景 A → 背景A) ──
+        target_prompt = result[0] if result else ""
+        import re as _re2
+        target_prompt = _re2.sub(r'(背景|角色)\s+([A-E])', r'\1\2', target_prompt)
+        bg_matches = self._sniff_all(target_prompt, XB_llamaStoryboardProcessorPro._RE_BG)
+        ch_raw     = self._sniff_all(target_prompt, XB_llamaStoryboardProcessorPro._RE_CH)
+
+        # 去重: 只保留首次出现的角色 (如 角色A/角色C/角色A → 角色A/角色C)
+        seen = set()
+        ch_matches = []
+        for c in ch_raw:
+            key = c[:3]  # "角色A" / "角色B" 等前3字为唯一标识
+            if key not in seen:
+                seen.add(key)
+                ch_matches.append(c)
+
+        bg_str  = bg_matches[0] if bg_matches else "全部关闭"
+        ch1_str = ch_matches[0] if len(ch_matches) > 0 else "全部关闭"
+        ch2_str = ch_matches[1] if len(ch_matches) > 1 else "全部关闭"
+        ch3_str = ch_matches[2] if len(ch_matches) > 2 else "全部关闭"
+
+        return {
+            "ui": {
+                "text": [display_text],
+                "sniff_bg": bg_str,
+                "sniff_ch1": ch1_str,
+                "sniff_ch2": ch2_str,
+                "sniff_ch3": ch3_str,
+            },
+            "result": (result, bg_str, ch1_str, ch2_str, ch3_str)
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  灵活输入类型
+# ═══════════════════════════════════════════════════════════════
+
+class _AnyType(str):
+    def __ne__(self, other):
+        return False
+
+class _FlexibleInputType(dict):
+    def __init__(self, type_):
+        self.type_ = type_
+    def __getitem__(self, key):
+        return (self.type_,)
+    def __contains__(self, key):
+        return True
+
+
+class XB_RoleSceneDispatcher:
+    """角色场景调度器 — 逐帧配对提示词+背景+角色, ComfyUI Zip 对齐"""
+
+    _cached_text = ""
+    _cached_frames = []
+    _RE_BG = r'背景[ABCDE].*?(?=角色[ABCDE]|背景[ABCDE]|$)'
+    _RE_CH = r'角色[ABCDE].*?(?=角色[ABCDE]|背景[ABCDE]|$)'
+
+    @classmethod
+    def _parse_frames(cls, text):
+        import re
+        frames = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r'(分镜图_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+                continue
+            m = re.match(r'(Scene_\d+)', line)
+            if m:
+                frames.append((m.group(1), line))
+        return frames
+
+    @staticmethod
+    def _sniff_labels(prompt, pattern):
+        import re
+        raw = re.findall(pattern, prompt)
+        seen = set()
+        result = []
+        for m in raw:
+            key = m[:3]
+            if key not in seen:
+                seen.add(key)
+                result.append(key)
+        return result
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        draw_options = ["全部"] + [f"分镜图_{i:02d}" for i in range(1, 17)]
+        return {
+            "required": {
+                "text_input": ("*", {"force_input": True}),
+                "draw_mode": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "开启", "label_off": "关闭",
+                }),
+                "draw_range": (draw_options, {"default": "全部"}),
+            },
+            "optional": _FlexibleInputType("IMAGE"),
+        }
+
+    RETURN_TYPES = ("STRING", "IMAGE", "IMAGE", "IMAGE", "IMAGE", "IMAGE")
+    RETURN_NAMES = ("提示词", "背景图", "角色01", "角色02", "角色03", "角色04")
+    OUTPUT_IS_LIST = (True, True, True, True, True, True)
+    FUNCTION = "execute"
+    CATEGORY = "XB-llama"
+
+    @staticmethod
+    def _normalize(text):
+        """归一化标签空格: 背景 A → 背景A, 角色 B → 角色B"""
+        import re
+        return re.sub(r'(背景|角色)\s+([A-E])', r'\1\2', text)
+
+    def execute(self, draw_mode, draw_range, text_input=None, **kwargs):
+        import torch
+        text_input = text_input or ""
+        text_input = self._normalize(text_input)
+
+        # ── 抽卡模式: 缓存 ──
+        if text_input:
+            frames = self._parse_frames(text_input)
+            if frames:
+                XB_RoleSceneDispatcher._cached_frames = frames
+                XB_RoleSceneDispatcher._cached_text = text_input
+
+        if not draw_mode:
+            prompts = [line for line in text_input.split('\n') if line.strip()]
+        elif not XB_RoleSceneDispatcher._cached_frames:
+            prompts = ["[抽卡] 暂无缓存, 请先关闭抽卡模式运行一次"]
+        elif draw_range == "全部":
+            prompts = [p for _, p in XB_RoleSceneDispatcher._cached_frames]
+        else:
+            prompts = []
+            for name, p in XB_RoleSceneDispatcher._cached_frames:
+                if name == draw_range:
+                    prompts.append(p)
+                    break
+            if not prompts:
+                prompts = [f"生成一张纯色背景图片，正中央用大号白色粗体文字写着：未找到{draw_range}"]
+
+        n = len(prompts)
+        if n == 0:
+            return ([], [], [], [], [], [])
+
+        # 生成占位空图 (严禁传 None)
+        empty_image = None
+        for v in kwargs.values():
+            if v is not None and isinstance(v, torch.Tensor):
+                empty_image = torch.zeros_like(v)
+                break
+        if empty_image is None:
+            empty_image = torch.zeros((1, 64, 64, 3), dtype=torch.float32, device="cpu")
+
+        bg_out, c1_out, c2_out, c3_out, c4_out = [], [], [], [], []
+
+        for prompt in prompts:
+            bg_labels = self._sniff_labels(prompt, self._RE_BG)
+            bg_tensor = empty_image
+            for lbl in bg_labels:
+                if lbl in kwargs and kwargs[lbl] is not None:
+                    bg_tensor = kwargs[lbl]
+                    break
+
+            ch_labels = self._sniff_labels(prompt, self._RE_CH)
+            ch_tensors = []
+            for lbl in ch_labels:
+                if lbl in kwargs and kwargs[lbl] is not None:
+                    ch_tensors.append(kwargs[lbl])
+
+            bg_out.append(bg_tensor)
+            c1_out.append(ch_tensors[0] if len(ch_tensors) > 0 else empty_image)
+            c2_out.append(ch_tensors[1] if len(ch_tensors) > 1 else empty_image)
+            c3_out.append(ch_tensors[2] if len(ch_tensors) > 2 else empty_image)
+            c4_out.append(ch_tensors[3] if len(ch_tensors) > 3 else empty_image)
+
+        display_text = text_input or XB_RoleSceneDispatcher._cached_text or ""
+        return {"ui": {"text": [display_text]}, "result": (prompts, bg_out, c1_out, c2_out, c3_out, c4_out)}
+
 
 # =============================================================================
 # 节点注册
@@ -1924,6 +2191,8 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
     "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
     "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
+    "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
+    "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1942,4 +2211,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
     "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
     "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
+    "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
+    "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
 }

@@ -94,6 +94,9 @@ try:
     from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
     from .nodes_status_switch import XB_NodeStatusSwitch
     from .nodes_flux_encode import XB_FluxMultiImageEncode
+    from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
+    from .nodes_image_scale import XB_ImageScale
+    from .nodes_reference_any import XB_ReferenceAny
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
@@ -128,7 +131,8 @@ try:
             XB_llamaJSON2BBox, XB_llamaBBox2SEGS, XB_llamaBBox2Mask,
             XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
             XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
-            XB_llamaStoryboardProcessor,
+            XB_llamaStoryboardProcessor, XB_llamaStoryboardProcessorPro,
+            XB_RoleSceneDispatcher,
         )
         _LLAMA_AVAILABLE = True
     except ImportError as e:
@@ -238,6 +242,10 @@ try:
         "XB_LTX23_InfiniteStreamer": XB_LTX23_InfiniteStreamer,
         "XB_NodeStatusSwitch": XB_NodeStatusSwitch,
         "XB_FluxMultiImageEncode": XB_FluxMultiImageEncode,
+        "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
+        "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
+        "XB_ImageScale": XB_ImageScale,
+        "XB_ReferenceAny": XB_ReferenceAny,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
         "XB_CanvasLabel": XB_CanvasLabel,
@@ -300,6 +308,8 @@ try:
             "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
             "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
             "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
+            "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
+            "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -373,6 +383,10 @@ try:
         "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 数字人无限时长对口型",
         "XB_NodeStatusSwitch": "XB-BOX - ⚡ 节点状态开关",
         "XB_FluxMultiImageEncode": "XB-BOX - 🖼️ FLUX多图编码",
+        "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
+        "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",
+        "XB_ImageScale": "XB-BOX - 📐 批量缩放图像",
+        "XB_ReferenceAny": "XB-BOX - 🔗 引用任意",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
         "XB_HumanSegModelLoader": "XB-BOX - 📥 人物分割模型加载",
         "XB_CanvasLabel": "XB-BOX - 🏷️ Canvas Label (文字标签)",
@@ -439,6 +453,8 @@ try:
             "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
             "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
             "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
+            "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
+            "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
         })
 
     print_success("\n" + "="*50)
