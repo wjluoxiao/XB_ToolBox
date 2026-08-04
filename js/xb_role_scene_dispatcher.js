@@ -15,7 +15,7 @@ const MODE_MUTE   = 2;
 
 // mute 仅 text_input 的上游节点, 图片输入不受影响
 function muteTextUpstream(node, drawMode) {
-    const inp = (node.inputs || []).find(i => i.name === "text_input");
+    const inp = (node.inputs || []).find(i => i.type !== "IMAGE" && i.name !== "draw_mode");
     if (!inp?.link) return;
     const graph = node.graph ?? app.graph;
     if (!graph) return;
@@ -38,23 +38,7 @@ app.registerExtension({
         const orig = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const r = orig?.apply(this, arguments);
-            const self = this;
-            setTimeout(() => patchInstance(self), 50);
-
-            // draw_mode → mute text_input upstream only
-            const wMode = (self.widgets || []).find(w => w.name === "draw_mode");
-            if (wMode) {
-                const origCb = wMode.callback;
-                wMode.callback = function (value) {
-                    origCb?.apply?.(this, arguments);
-                    muteTextUpstream(self, value);
-                };
-            }
-            const origConn2 = self.onConnectionsChange;
-            self.onConnectionsChange = function (type, index, slot, connected, link_info, ...rest) {
-                origConn2?.apply?.(this, [type, index, slot, connected, link_info, ...rest]);
-                if (wMode) muteTextUpstream(self, wMode.value);
-            };
+            setTimeout(() => patchInstance(this), 50);
             return r;
         };
 
@@ -107,25 +91,37 @@ function patchInstance(self) {
     if (self.__xb_disp) return;
     self.__xb_disp = true;
 
-    // Ensure at least one dynamic input
-    const hasDynamic = (self.inputs || []).some(inp => inp.name !== "text_input");
-    if (!hasDynamic) self.addInput("", "IMAGE");
+    // 【修复1】按 type==="IMAGE" 过滤，免疫汉化插件改 name
+    const hasDynamic = (self.inputs || []).some(inp => inp.type === "IMAGE");
+
+    // 【修复2】用 "*" 替代 ""，新版 LiteGraph 不隐藏非空名槽
+    if (!hasDynamic) self.addInput("*", "IMAGE");
+
+    // draw_mode → mute text_input upstream only
+    const wMode = (self.widgets || []).find(w => w.name === "draw_mode");
+    if (wMode) {
+        const origCb = wMode.callback;
+        wMode.callback = function (value) {
+            origCb?.apply?.(this, arguments);
+            muteTextUpstream(self, value);
+        };
+    }
 
     self.stabilizeInputsOutputs = function () {
         const inputs = this.inputs || [];
         const dynIndices = [];
         for (let i = 0; i < inputs.length; i++) {
-            if (inputs[i].name !== "text_input") dynIndices.push(i);
+            if (inputs[i].type === "IMAGE") dynIndices.push(i);
         }
 
         if (dynIndices.length === 0) {
-            this.addInput("", "IMAGE");
+            this.addInput("*", "IMAGE");
             return true;
         }
 
         const lastDyn = inputs[dynIndices[dynIndices.length - 1]];
         if (lastDyn?.link != null) {
-            this.addInput("", "IMAGE");
+            this.addInput("*", "IMAGE");
             dynIndices.push(inputs.length - 1);
         }
 
@@ -138,7 +134,7 @@ function patchInstance(self) {
                 ch = true;
             } else if (inp.link != null) {
                 const src = getUpstreamNode(this, idx);
-                const nm = src?.title || "";
+                const nm = src?.title || "*";
                 if (inp.name !== nm) { inp.name = nm; ch = true; }
             }
         }
@@ -148,6 +144,8 @@ function patchInstance(self) {
     const origConn = self.onConnectionsChange;
     self.onConnectionsChange = function (type, index, slot, connected, link_info, ...rest) {
         origConn?.apply?.(this, [type, index, slot, connected, link_info, ...rest]);
+        const w = (this.widgets || []).find(wd => wd.name === "draw_mode");
+        if (w) muteTextUpstream(this, w.value);
         this.scheduleStabilize?.();
     };
 
