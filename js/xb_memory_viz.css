@@ -284,6 +284,42 @@
 }
 .aimdo-drag-handle:active { cursor: grabbing; }
 .aimdo-drag-handle:hover { background-color: var(--aimdo-text); }
+
+/* 关闭显示状态：隐藏全部内容，仅保留拖拽手柄 + 齿轮按钮 */
+#aimdo-viz-panel.aimdo-hidden.aimdo-docked .aimdo-mini-bar,
+#aimdo-viz-panel.aimdo-hidden .aimdo-mini-bar { display: none !important; }
+#aimdo-viz-panel.aimdo-hidden .aimdo-title { display: none !important; }
+#aimdo-viz-panel.aimdo-hidden .aimdo-header-right { display: none !important; }
+#aimdo-viz-panel.aimdo-hidden .aimdo-header {
+    padding: 0 !important;
+    background: transparent !important;
+}
+#aimdo-viz-panel.aimdo-hidden .aimdo-drag-handle {
+    display: inline-block !important;
+    cursor: pointer;
+    width: auto;
+    height: 28px;
+    padding: 0 6px !important;
+    margin-right: 4px;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    position: relative;
+}
+#aimdo-viz-panel.aimdo-hidden .aimdo-drag-handle::after {
+    content: "⋮";
+    display: block;
+    color: var(--aimdo-btnText);
+    font-size: 20px;
+    line-height: 28px;
+    text-align: center;
+}
+#aimdo-viz-panel.aimdo-hidden .aimdo-drag-handle:hover::after {
+    color: var(--aimdo-vram);
+}
+#aimdo-viz-panel.aimdo-hidden .aimdo-drag-handle:hover::after {
+    color: var(--aimdo-vram);
+}
+#aimdo-viz-panel.aimdo-hidden #aimdo-viz-body { display: none !important; }
 .aimdo-header-right {
     display: flex; align-items: center; gap: 6px;
     margin-left: auto;
@@ -311,6 +347,27 @@
     cursor: pointer;
     color: var(--aimdo-btnText);
     padding: 0 4px;
+}
+/* 齿轮设置按钮 — 仿 ComfyUI 工具栏按钮风格 */
+.aimdo-gear-btn {
+    display: none;
+    cursor: pointer;
+    padding: 3px 9px;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--aimdo-btnText);
+    background: var(--aimdo-btn);
+    border: 1px solid var(--aimdo-border);
+    border-radius: 5px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.aimdo-gear-btn:hover {
+    color: var(--aimdo-text);
+    background: var(--aimdo-vram);
+    border-color: var(--aimdo-vram);
+}
+#aimdo-viz-panel.aimdo-docked .aimdo-gear-btn { display: inline-block; }
+#aimdo-viz-panel.aimdo-hidden .aimdo-gear-btn { display: inline-block !important; }
 }
 #aimdo-viz-panel.aimdo-docked .aimdo-btn {
     font-size: 0.917em;

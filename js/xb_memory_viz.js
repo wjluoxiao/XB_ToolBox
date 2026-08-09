@@ -820,7 +820,37 @@ function createPanel() {
     const dragHandle = document.createElement("span");
     dragHandle.className = "aimdo-drag-handle";
     dragHandle.title = _t("dragMove");
+    // 隐藏状态下点击拖拽手柄恢复显示
+    dragHandle.addEventListener("click", (e) => {
+        if (!panelVisible) {
+            e.stopPropagation();
+            e.preventDefault();
+            showPanel();
+        }
+    });
     header.appendChild(dragHandle);
+
+    // ── 齿轮设置按钮（仿 DaSiWa，左键点击打开菜单，停靠折叠后仍可见）──
+    const gearBtn = document.createElement("span");
+    gearBtn.className = "aimdo-gear-btn";
+    gearBtn.textContent = "\u2699";  // ⚙ gear icon
+    gearBtn.title = "硬件监控设置";
+    gearBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (rootMenu.style.display === "block") {
+            rootMenu.style.display = "none";
+            closeAllSubmenus();
+            return;
+        }
+        const r = gearBtn.getBoundingClientRect();
+        rootMenu.style.zoom = panelScale;
+        rootMenu.style.left = Math.max(4, r.left) / panelScale + "px";
+        rootMenu.style.top = (r.bottom + 2) / panelScale + "px";
+        rootMenu.style.display = "block";
+    });
+    header.appendChild(gearBtn);
+
     const titleSpan = document.createElement("span");
     titleSpan.className = "aimdo-title";
     titleSpan.textContent = _t("title");
@@ -1160,6 +1190,29 @@ function createPanel() {
         saveState({ collapsed });
     });
 
+    // ── 关闭/开启显示（独立于原有的折叠/展开，等同于设置面板的开关）──
+    let panelVisible = true;  // 不与已有的 collapsed 冲突
+
+    function hidePanel() {
+        if (!isDocked) return;
+        panelVisible = false;
+        panel.classList.add("aimdo-hidden");
+        saveState({ panelVisible: false });
+    }
+
+    function showPanel() {
+        if (!isDocked) return;
+        panelVisible = true;
+        panel.classList.remove("aimdo-hidden");
+        saveState({ panelVisible: true });
+    }
+
+    // 初始化：读取上次的显示状态
+    if (saved.panelVisible === false && isDocked) {
+        panelVisible = false;
+        panel.classList.add("aimdo-hidden");
+    }
+
     headerRight.appendChild(unloadBtn);
     headerRight.appendChild(popoutBtn);
     headerRight.appendChild(toggleBtn);
@@ -1204,6 +1257,8 @@ function createPanel() {
 
     header.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
+        // 隐藏状态下不启动拖拽，点击直接恢复显示
+        if (!panelVisible) return;
         // when docked, only the drag handle starts a drag — the title and buttons
         // around it must stay plain-clickable. floating mode keeps the whole header.
         if (isDocked && !dragHandle.contains(e.target)) return;
@@ -1860,6 +1915,24 @@ function createPanel() {
     renderDockItem();
     rootMenu.appendChild(dockItem);
 
+    // 关闭/开启显示开关（dock 模式下可用）
+    const toggleDockItem = document.createElement("div");
+    toggleDockItem.className = "aimdo-menu-item";
+    function renderToggleDockItem() {
+        toggleDockItem.style.display = isDocked ? "" : "none";
+        toggleDockItem.innerHTML = `<span class="aimdo-check">${!panelVisible ? "✓" : ""}</span>${panelVisible ? "关闭显示" : "开启显示"}`;
+        toggleDockItem.title = panelVisible ? "隐藏面板内容，仅保留齿轮按钮" : "恢复面板显示";
+    }
+    toggleDockItem.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (panelVisible) hidePanel(); else showPanel();
+        renderToggleDockItem();
+        rootMenu.style.display = "none";
+        closeAllSubmenus();
+    });
+    rootMenu.appendChild(toggleDockItem);
+    renderToggleDockItem();
+
     // reset peak VRAM marker + clear history graph; this used to live on the header
     const resetItem = document.createElement("div");
     resetItem.className = "aimdo-menu-item";
@@ -1990,6 +2063,7 @@ function createPanel() {
     body._miniBar = miniBar;
     body._panel = panel;
     body._updateExecBtnState = updateExecBtnState;
+
     return body;
 }
 
