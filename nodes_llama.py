@@ -1407,6 +1407,267 @@ class XB_llamaPromptEnhancer:
                 raise ValueError(f'未知预设: "{preset}"')
 
 
+class XB_llamaMiniMaxPreset:
+    """MiniMax H3 提示词预设 — T2VA/I2VA/FL2VA/L2VA/Ref2VA + 动态参数注入"""
+
+    _STYLES = [
+        "不指定 / Unspecified",
+        # 🎬 电影感
+        "Cinematic / 电影感", "Live-action / 实拍",
+        "Vintage film / 复古胶片", "Black & White / 黑白电影",
+        "Documentary / 纪录片",
+        # 📷 商业摄影
+        "Minimalist commercial / 极简广告",
+        "Macro photography / 微距摄影",
+        "Aerial drone / 航拍",
+        # 🎨 动画
+        "2D-animated / 二维动画", "3D CG / 三维CG",
+        "Anime / 日系二次元", "American Comic / 美式漫画",
+        "Pixar-style 3D / 皮克斯3D", "Stop-motion / 定格动画",
+        "Hand-drawn glow / 手绘发光", "Pixel art / 像素艺术",
+        # 🚀 科幻前卫
+        "Cyberpunk / 赛博朋克", "Steampunk / 蒸汽朋克",
+        "Glitch art / 故障艺术",
+        # 🧶 特殊材质
+        "Wool felt / 羊毛毡", "Origami / 折纸",
+        # 🖌️ 美术
+        "Watercolor / 水彩", "Claymation / 粘土动画",
+        "Ink wash / 水墨", "Oil painting / 油画",
+        "Paper collage / 纸艺拼贴", "Paper cutout / 剪纸",
+        "Pencil sketch / 铅笔素描", "Ukiyo-e / 浮世绘",
+        # 🏮 中国风
+        "Dunhuang Murals / 敦煌壁画",
+        "Blue-white Porcelain / 青花瓷",
+        "Gongbi Painting / 工笔画",
+        "Shadow Puppetry / 皮影戏",
+        "Chinese Illustration / 中国风插画",
+        "New Year Painting / 年画",
+    ]
+
+    _STYLE_HINTS = {
+        "Cinematic / 电影感": "cinematic lighting with shallow depth of field, film grain, and professional color grading",
+        "Live-action / 实拍": "photorealistic live-action footage with natural lighting and authentic set design",
+        "Vintage film / 复古胶片": "vintage film stock with warm color grading, subtle grain, and nostalgic atmosphere",
+        "Black & White / 黑白电影": "high-contrast black-and-white cinematography with dramatic shadows",
+        "Documentary / 纪录片": "observational documentary style with natural handheld camera work and candid framing",
+        "Minimalist commercial / 极简广告": "clean minimalist product cinematography with smooth dolly moves, soft even lighting, and uncluttered compositions",
+        "Macro photography / 微距摄影": "extreme close-up macro lens with razor-thin depth of field, revealing fine textures and details",
+        "Aerial drone / 航拍": "sweeping aerial drone shots with wide vistas, slow majestic reveals, and expansive landscape views",
+        "2D-animated / 二维动画": "traditional 2D hand-drawn animation with expressive line art and fluid character motion",
+        "3D CG / 三维CG": "high-quality 3D rendering with realistic materials, global illumination, and smooth animation",
+        "Anime / 日系二次元": "Japanese anime cel-shading with vibrant saturated colors, clean linework, and expressive character designs",
+        "American Comic / 美式漫画": "American comic book style with bold black ink outlines, halftone dot shading, and dynamic compositions",
+        "Pixar-style 3D / 皮克斯3D": "Pixar-quality 3D with smooth curved surfaces, rich vibrant colors, expressive character animation, and polished lighting",
+        "Stop-motion / 定格动画": "stop-motion animation with tactile frame-by-frame movement, visible material textures, and charming imperfections",
+        "Hand-drawn glow / 手绘发光": "rough hand-drawn animation with glowing neon-colored line art overlaid on dark backgrounds",
+        "Pixel art / 像素艺术": "retro pixel art with limited color palette, crisp blocky pixels, and vintage video game aesthetic",
+        "Cyberpunk / 赛博朋克": "high-contrast neon-lit cyberpunk cityscape with rain-slicked streets, holographic displays, and chrome cybernetics",
+        "Steampunk / 蒸汽朋克": "intricate brass machinery and Victorian-era steam technology with copper pipes, gears, and sepia tones",
+        "Glitch art / 故障艺术": "digital glitch distortion with RGB color channel split, scan lines, data corruption artifacts, and VHS noise",
+        "Wool felt / 羊毛毡": "soft wool felt textile art with fuzzy tactile textures, handcrafted warmth, and visible fiber details",
+        "Origami / 折纸": "crisp folded paper geometry with sharp clean creases, layered paper surfaces, and subtle paper texture",
+        "Watercolor / 水彩": "flowing watercolor with translucent color washes, soft bleeding edges, and delicate pigment diffusion",
+        "Claymation / 粘土动画": "claymation with malleable sculpted figures, visible fingerprints, and stop-motion imperfections",
+        "Ink wash / 水墨": "traditional Chinese ink wash painting with fluid brushstrokes, ink gradients, and poetic negative space",
+        "Oil painting / 油画": "rich oil painting with visible brushstrokes, impasto texture, and luminous layered glazes",
+        "Paper collage / 纸艺拼贴": "layered paper collage with torn uneven edges, varied paper textures, and handcrafted composition",
+        "Paper cutout / 剪纸": "Chinese paper cutout art with intricate silhouette patterns, symmetrical designs, and bold red-on-white contrast",
+        "Pencil sketch / 铅笔素描": "graphite pencil sketch with expressive hatching, smudged shading, and the raw energy of hand drawing",
+        "Ukiyo-e / 浮世绘": "traditional Japanese ukiyo-e woodblock print with flat color areas, bold outlines, and Edo-period aesthetic",
+        "Dunhuang Murals / 敦煌壁画": "ancient Dunhuang cave mural art with flowing celestial beings (apsaras), mineral pigments, weathered fresco textures, and rich ochre and turquoise color palette",
+        "Blue-white Porcelain / 青花瓷": "classic Chinese blue-and-white porcelain aesthetic with cobalt blue hand-painted patterns on pristine white glaze, featuring scrolling vines and delicate motifs",
+        "Gongbi Painting / 工笔画": "meticulous Chinese gongbi brush painting with ultra-fine detailed outlines, flat mineral color washes, silk mounting, and exquisite precision in every hair and petal",
+        "Shadow Puppetry / 皮影戏": "traditional Chinese shadow puppetry with intricately carved leather silhouettes, warm amber backlighting, articulated joint movement, and theatrical staging",
+        "Chinese Illustration / 中国风插画": "modern Chinese illustration blending traditional ink aesthetics with contemporary digital art, featuring elegant flowing lines, poetic composition, and dreamlike color harmony",
+        "New Year Painting / 年画": "vibrant Chinese folk New Year woodblock print with bold primary colors, auspicious symbols, chubby children, and festive door-god imagery",
+    }
+
+    _MUSIC = [
+        "不指定 / Unspecified",
+        # 🎹 器乐
+        "Piano / 钢琴", "Orchestral / 管弦乐",
+        "Acoustic / 原声吉他",
+        # 🎛️ 电子
+        "Electronic / 电子", "Ambient / 氛围",
+        "Synthwave / 合成器浪潮", "Chiptune / 芯片音乐",
+        "Lo-fi / Lo-fi",
+        # 🎞️ 叙事
+        "Epic / 史诗", "Suspense / 悬疑",
+        "Romantic Strings / 浪漫弦乐",
+        # 🥁 节奏
+        "Rock / 摇滚", "Jazz / 爵士",
+        "Hip-Hop / 嘻哈", "Funk / 放克",
+        # ⛪ 人声
+        "Acapella Choir / 纯人声合唱",
+        # 🔇 极简
+        "Minimalist Foley / 极简拟音",
+        # 🏮 中国风
+        "Chinese Folk / 国风民乐",
+        "Chinese Opera / 戏曲",
+        "Guqin / 古琴",
+    ]
+
+    _MUSIC_HINTS = {
+        "Piano / 钢琴": "a solo piano piece at a slow to moderate tempo, with sparse delicate notes and natural reverb",
+        "Orchestral / 管弦乐": "a full orchestral arrangement with swelling strings, warm brass, and woodwinds, building from soft to majestic",
+        "Acoustic / 原声吉他": "an acoustic guitar piece with gentle fingerpicking patterns and warm natural wood resonance",
+        "Electronic / 电子": "an electronic track with layered synthesizers, digital beats, and atmospheric pads",
+        "Ambient / 氛围": "a minimal ambient soundscape with long sustained tones, subtle textures, and no distinct rhythm",
+        "Synthwave / 合成器浪潮": "a pulsing Synthwave track with heavy analog bass, retro drum machines, neon-soaked pads, and a steady driving rhythm",
+        "Chiptune / 芯片音乐": "a retro 8-bit chiptune track with square-wave melodies, simple waveforms, and nostalgic video game sound",
+        "Lo-fi / Lo-fi": "a lo-fi beat with vinyl crackle, mellow chords, soft drum loops, and a relaxed downtempo groove",
+        "Epic / 史诗": "an epic cinematic score with powerful brass, thundering percussion, soaring choir, and dramatic dynamic swells",
+        "Suspense / 悬疑": "a tense suspense score with low-frequency drones, sudden dissonant stabs, creeping tension, and unsettling silence",
+        "Romantic Strings / 浪漫弦乐": "a romantic string arrangement with lush violins, gentle cello, harp glissandos, and a tender emotional arc",
+        "Rock / 摇滚": "a rock track with electric guitar riffs, driving drums, bass groove, and energetic dynamics",
+        "Jazz / 爵士": "a jazz piece with walking bass, brushed drums, improvisational piano or saxophone, and a smoky club atmosphere",
+        "Hip-Hop / 嘻哈": "a hip-hop beat with heavy 808 bass, crisp trap snares, hi-hat rolls, and a grooving rhythmic flow",
+        "Funk / 放克": "a funk groove with a bouncy slap bassline, tight rhythm guitar, brass stabs, and an infectious syncopated rhythm",
+        "Acapella Choir / 纯人声合唱": "a pure acapella choir with layered vocal harmonies and no instruments, evoking sacred, ethereal, or haunting atmosphere",
+        "Minimalist Foley / 极简拟音": "minimalist foley and ambient silence — only crisp physical sound effects like subtle clicks, soft whooshes, and spatial emptiness, with no melodic music at all",
+        "Chinese Folk / 国风民乐": "a traditional Chinese folk piece with guzheng, erhu, dizi bamboo flute, pipa, and flowing pentatonic melodies evoking ancient landscapes",
+        "Chinese Opera / 戏曲": "a stylized Chinese opera piece with clanging gongs, wooden clappers, piercing erhu, and dramatic vocal delivery in traditional theatrical style",
+        "Guqin / 古琴": "a solo guqin piece with deep resonant plucked silk strings, slow meditative pace, profound stillness, and subtle harmonic overtones",
+    }
+
+    _ASPECTS = [
+        "不指定 / Unspecified",
+        "16:9", "9:16", "4:3", "1:1", "21:9", "3:4",
+    ]
+
+    _ASPECT_HINTS = {
+        "16:9": "standard widescreen — use wide establishing shots, horizontal subject placement, cinematic scope",
+        "9:16": "vertical portrait — center subjects vertically, stack elements top-to-bottom, leave breathing room above and below",
+        "4:3": "classic Academy ratio — balanced framed composition, suited for dialogue and character-focused shots",
+        "1:1": "square format — symmetrical center-weighted composition, subjects centered in frame",
+        "21:9": "ultrawide cinematic — emphasize sweeping horizontal space, panoramic landscapes, subjects placed off-center with vast negative space",
+        "3:4": "tall portrait — vertical emphasis, subjects fill the frame from top to bottom, dramatic low/high angles",
+    }
+
+    _CUTS = [
+        "不指定 / Unspecified",
+        "不切镜 / Single Shot",
+        "1 次切镜 / 1 Cut",
+        "2 次切镜 / 2 Cuts",
+        "3 次切镜 / 3 Cuts",
+        "4 次切镜 / 4 Cuts",
+        "5 次切镜 / 5 Cuts",
+        "6 次切镜 / 6 Cuts",
+        "7 次切镜 / 7 Cuts",
+        "8 次切镜 / 8 Cuts",
+        "9 次切镜 / 9 Cuts",
+    ]
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "预设模式": ([
+                    "T2VA [EN]", "T2VA [ZH]",
+                    "I2VA [EN]", "I2VA [ZH]",
+                    "FL2VA [EN]", "FL2VA [ZH]",
+                    "L2VA [EN]", "L2VA [ZH]",
+                    "Ref2VA [EN]", "Ref2VA [ZH]",
+                ],),
+                "视频时长": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1,
+                    "tooltip": "视频时长 (秒), MiniMax H3 支持 4–15 秒"}),
+                "视觉风格": (s._STYLES, {"default": "不指定 / Unspecified"}),
+                "音乐风格": (s._MUSIC, {"default": "不指定 / Unspecified"}),
+                "画面比例": (s._ASPECTS, {"default": "不指定 / Unspecified"}),
+                "切镜次数": (s._CUTS, {"default": "不指定 / Unspecified"}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("system_prompt",)
+    FUNCTION = "build"
+    CATEGORY = "XB-llama"
+
+    def build(self, 预设模式, 视频时长, 视觉风格, 音乐风格, 画面比例, 切镜次数):
+        preset = 预设模式
+        duration = 视频时长
+        style = 视觉风格
+        music = 音乐风格
+        aspect = 画面比例
+        cuts = 切镜次数
+        match preset:
+            case "T2VA [EN]":     base = MINIMAX_T2VA_EN
+            case "T2VA [ZH]":     base = MINIMAX_T2VA_ZH
+            case "I2VA [EN]":     base = MINIMAX_I2VA_EN
+            case "I2VA [ZH]":     base = MINIMAX_I2VA_ZH
+            case "FL2VA [EN]":    base = MINIMAX_FL2VA_EN
+            case "FL2VA [ZH]":    base = MINIMAX_FL2VA_ZH
+            case "L2VA [EN]":     base = MINIMAX_L2VA_EN
+            case "L2VA [ZH]":     base = MINIMAX_L2VA_ZH
+            case "Ref2VA [EN]":   base = MINIMAX_REF2VA_EN
+            case "Ref2VA [ZH]":   base = MINIMAX_REF2VA_ZH
+            case _: raise ValueError(f'未知预设: "{preset}"')
+
+        is_zh = "[ZH]" in preset
+        params = []
+
+        if is_zh:
+            params.append("## 目标视频参数（必须严格遵守）")
+            params.append(f"- 视频时长：正好 {duration} 秒（镜头切分和时间戳必须精确落在此范围内，最后一个镜头必须在第{duration}秒前结束）")
+            if "不指定" not in style:
+                en_name = style.split(" / ")[0]
+                zh_name = style.split(" / ")[-1]
+                hint = self._STYLE_HINTS.get(style, "")
+                params.append(f"- 视觉风格：{zh_name} ({en_name}) — {hint}")
+                params.append(f"  ⚠️ [Shot 1] 必须以 \"{en_name}\" 开头，然后立即用1-2句话详细描述{zh_name}在画面中的具体视觉呈现——材质、光影、色彩、动作特征。严禁只写风格名称就跳到下一句！必须写出该风格\"长什么样\"。")
+                params.append(f"  正确示例: \"[Shot 1] 粘土动画，画面中的角色呈现手工泥塑的圆润质感，表面可见细微指痕和工具刮痕，动作带有定格动画特有的逐帧卡顿节奏...\"")
+                params.append(f"  错误示例: \"[Shot 1] 粘土动画，中全景镜头...\"（只写了名称，没有视觉描述）")
+            if "不指定" not in music:
+                zh_name = music.split(" / ")[-1]
+                hint = self._MUSIC_HINTS.get(music, "")
+                params.append(f"- 背景音乐风格：{zh_name} — {hint}")
+            if "不指定" not in cuts:
+                if "不切镜" in cuts:
+                    params.append(f"- 切镜：固定镜头，不切镜。整段视频只有 [Shot 1] 一个镜头。仅通过运镜（摇摄、俯仰、横移、变焦、跟拍、推拉）改变视角。严禁输出 [Shot N] 时间戳。")
+                else:
+                    n = int(cuts.split(" ")[0])
+                    params.append(f"- 切镜：正好 {n} 次（共 {n+1} 个镜头）。所有镜头必须在 {duration} 秒内完成。切镜时机遵循叙事节奏——紧张段落切快、抒情段落切慢，不可均分。每次切镜必须以 [Shot N] At MM:SS.mmm 开头，时间戳严格递增。")
+            if "不指定" not in aspect:
+                hint = self._ASPECT_HINTS.get(aspect, "")
+                params.append(f"- 画面比例：{aspect} — {hint}")
+                params.append(f"  所有镜头构图、主体位置、留白空间必须匹配 {aspect} 比例。")
+        else:
+            params.append("## Target Video Parameters (MUST follow exactly)")
+            params.append(f"- Duration: exactly {duration} seconds (all shot timestamps MUST fall within this range; the final shot must end before the {duration}-second mark)")
+            if "Unspecified" not in style:
+                en_name = style.split(" / ")[0]
+                hint = self._STYLE_HINTS.get(style, "")
+                params.append(f"- Visual style: {en_name} — {hint}")
+                params.append(f"  ⚠️ [Shot 1] MUST begin with \"{en_name}\" and immediately elaborate with 1-2 sentences of concrete visual description — textures, lighting, colors, motion characteristics that define this style. Do NOT just name the style and move on. Show what the style actually looks like.")
+                params.append(f"  Correct: \"[Shot 1] Claymation, the characters have the rounded tactile quality of hand-sculpted clay with visible fingerprints and tool marks, their movements carrying the distinctive frame-by-frame stutter of stop-motion...\"")
+                params.append(f"  Wrong: \"[Shot 1] Claymation, a medium-wide shot...\" (name only, no visual description)")
+            if "Unspecified" not in music:
+                en_name = music.split(" / ")[0]
+                hint = self._MUSIC_HINTS.get(music, "")
+                params.append(f"- Background music style: {en_name} — {hint}")
+            if "Unspecified" not in cuts:
+                if "Single Shot" in cuts:
+                    params.append(f"- Cuts: Single continuous shot — NO cuts. The entire video is only [Shot 1]. Use camera movement only (pan, tilt, truck, zoom, tracking, push/pull) to change viewpoint. Do NOT output any [Shot N] timestamps.")
+                else:
+                    n = int(cuts.split(" ")[0])
+                    params.append(f"- Cuts: exactly {n} cut(s) (meaning {n+1} total shots). All shots must fit within {duration} seconds. Cut timing must follow narrative rhythm — faster cuts for tense/action moments, longer holds for calm/emotional moments. Do NOT space cuts evenly. Every cut MUST begin with [Shot N] At MM:SS.mmm with strictly increasing timestamps.")
+            if "Unspecified" not in aspect:
+                hint = self._ASPECT_HINTS.get(aspect, "")
+                params.append(f"- Aspect ratio: {aspect} — {hint}")
+                params.append(f"  All shot compositions, subject placement, and negative space must be framed for {aspect}.")
+        params.append("")
+        param_block = "\n".join(params)
+
+        marker = "## "
+        idx = base.find(marker)
+        if idx > 0:
+            result = base[:idx].rstrip() + "\n\n" + param_block + base[idx:]
+        else:
+            result = param_block + "\n" + base
+
+        return (result,)
+
+
 class XB_llamaStoryboardEnhancer:
     """分镜增强预设 — 模块化动态拼装 System Prompt"""
 
@@ -2188,6 +2449,7 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
     "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
     "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
+    "XB_llamaMiniMaxPreset": XB_llamaMiniMaxPreset,
     "XB_llamaStoryboardEnhancer": XB_llamaStoryboardEnhancer,
     "XB_llamaStoryboardInstruct": XB_llamaStoryboardInstruct,
     "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
@@ -2208,6 +2470,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
     "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
     "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
+    "XB_llamaMiniMaxPreset": "XB-llama - ✨ MiniMax提示词预设",
     "XB_llamaStoryboardEnhancer": "XB-llama - ✨ 分镜增强预设",
     "XB_llamaStoryboardInstruct": "XB-llama - 💬 分镜推理",
     "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",

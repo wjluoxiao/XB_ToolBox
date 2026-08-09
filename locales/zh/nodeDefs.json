@@ -5468,79 +5468,340 @@
   "XB_FluxMultiImageEncode": {
     "display_name": "XB-BOX - 🖼️ FLUX多图编码",
     "inputs": {
-      "positive": { "name": "正面条件" },
-      "negative": { "name": "负面条件" },
-      "vae": { "name": "VAE" },
-      "image1": { "name": "图片1" },
-      "longer_edge": { "name": "长边缩放值" }
+      "positive": {
+        "name": "正面条件"
+      },
+      "negative": {
+        "name": "负面条件"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "image1": {
+        "name": "图片1"
+      },
+      "longer_edge": {
+        "name": "长边缩放值"
+      }
     },
     "outputs": {
-      "0": { "name": "正面条件" },
-      "1": { "name": "负面条件" }
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      }
     }
   },
   "XB_ReferenceAny": {
     "display_name": "XB-BOX - 🔗 引用任意",
     "inputs": {
-      "选择": { "name": "选择通道" }
+      "选择": {
+        "name": "选择通道"
+      }
     },
     "outputs": {
-      "0": { "name": "输出" }
+      "0": {
+        "name": "输出"
+      }
     }
   },
   "XB_TextEncodeQwenImageEdit": {
     "display_name": "XB-BOX - 📝 Qwen图像编辑编码",
     "inputs": {
-      "clip": { "name": "CLIP模型" },
-      "prompt": { "name": "提示词" },
-      "vae": { "name": "VAE（可选）" },
-      "image1": { "name": "图片1" }
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "prompt": {
+        "name": "提示词"
+      },
+      "vae": {
+        "name": "VAE（可选）"
+      },
+      "image1": {
+        "name": "图片1"
+      }
     },
     "outputs": {
-      "0": { "name": "条件" }
+      "0": {
+        "name": "条件"
+      }
     }
   },
   "XB_TextEncodeQwenImageEditPlus": {
     "display_name": "XB-BOX - 📝 Qwen图像编辑编码Plus",
     "inputs": {
-      "clip": { "name": "CLIP模型" },
-      "prompt": { "name": "提示词" },
-      "vae": { "name": "VAE（可选）" },
-      "image1": { "name": "图片1" }
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "prompt": {
+        "name": "提示词"
+      },
+      "vae": {
+        "name": "VAE（可选）"
+      },
+      "image1": {
+        "name": "图片1"
+      }
     },
     "outputs": {
-      "0": { "name": "条件" }
+      "0": {
+        "name": "条件"
+      }
     }
   },
   "XB_ImageScale": {
     "display_name": "XB-BOX - 📐 批量缩放图像",
     "inputs": {
-      "upscale_method": { "name": "缩放方法" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "crop": { "name": "裁剪" },
-      "image1": { "name": "图片1" }
+      "upscale_method": {
+        "name": "缩放方法"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "crop": {
+        "name": "裁剪"
+      },
+      "image1": {
+        "name": "图片1"
+      }
     },
     "outputs": {}
   },
   "XB_HailuoH3VideoParams": {
     "display_name": "XB-BOX - 🌊 海螺H3视频参数",
     "inputs": {
-      "aspect_ratio": { "name": "画幅比例" },
-      "megapixels": { "name": "百万像素(MP)" },
-      "multiple": { "name": "对齐倍数" },
-      "frames_display": { "name": "分辨率 & 帧数估算" },
-      "duration": { "name": "时间（秒）" },
-      "fps": { "name": "帧率" },
-      "fps_float": { "name": "帧率(小数)" }
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "megapixels": {
+        "name": "百万像素(MP)"
+      },
+      "multiple": {
+        "name": "对齐倍数"
+      },
+      "frames_display": {
+        "name": "分辨率 & 帧数估算"
+      },
+      "duration": {
+        "name": "时间（秒）"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "fps_float": {
+        "name": "帧率(小数)"
+      }
     },
     "outputs": {
-      "0": { "name": "宽度" },
-      "1": { "name": "高度" },
-      "2": { "name": "帧数" },
-      "3": { "name": "帧率" },
-      "4": { "name": "帧率(小数)" },
-      "5": { "name": "缩放尺寸" }
+      "0": {
+        "name": "宽度"
+      },
+      "1": {
+        "name": "高度"
+      },
+      "2": {
+        "name": "帧数"
+      },
+      "3": {
+        "name": "帧率"
+      },
+      "4": {
+        "name": "帧率(小数)"
+      },
+      "5": {
+        "name": "缩放尺寸"
+      }
     }
+  },
+  "XB_ListDispatcher": {
+    "display_name": "XB-BOX - 📋 列表分发",
+    "inputs": {
+      "列表输入": {
+        "name": "列表输入"
+      },
+      "输出数量": {
+        "name": "输出数量"
+      }
+    },
+    "outputs": {}
+  },
+  "XB_MiniMax_ScriptWriter": {
+    "display_name": "MiniMax - 🎬 剧本编剧",
+    "inputs": {
+      "llm_backend": {
+        "name": "🔌 LLM后端"
+      },
+      "mode": {
+        "name": "🎯 运行模式"
+      },
+      "story_style": {
+        "name": "🎨 故事风格"
+      },
+      "story_name": {
+        "name": "📛 故事名称"
+      },
+      "story_input": {
+        "name": "📖 故事内容"
+      },
+      "shot_preference": {
+        "name": "🎭 分镜偏好"
+      },
+      "shot_length": {
+        "name": "🎞️ 镜头数量"
+      },
+      "seed": {
+        "name": "🎲 随机种子"
+      },
+      "force_offload": {
+        "name": "🗑️ 强制卸载"
+      },
+      "save_states": {
+        "name": "💾 保存对话状态"
+      },
+      "llama_model": {
+        "name": "🦙 Llama模型"
+      },
+      "parameters": {
+        "name": "⚙️ 推理参数"
+      },
+      "api_response": {
+        "name": "🌐 API响应"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔗 参数总线"
+      },
+      "1": {
+        "name": "📜 剧本输出"
+      }
+    }
+  },
+  "XB_MiniMax_PromptGenerator": {
+    "display_name": "MiniMax - ✍️ 分镜词生成器",
+    "inputs": {
+      "bus": {
+        "name": "🔗 参数总线"
+      },
+      "shot_text": {
+        "name": "📜 剧本输入"
+      },
+      "seed": {
+        "name": "🎲 随机种子"
+      },
+      "force_offload": {
+        "name": "🗑️ 强制卸载"
+      },
+      "save_states": {
+        "name": "💾 保存对话状态"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🔗 参数总线"
+      },
+      "1": {
+        "name": "📜 剧本输入"
+      }
+    }
+  },
+  "XB_MiniMax_ShotFormatter": {
+    "display_name": "MiniMax - 📋 分镜处理中心",
+    "inputs": {
+      "bus": {
+        "name": "🔗 参数总线"
+      },
+      "shot_text": {
+        "name": "📝 分镜文本"
+      },
+      "reshoot_mode": {
+        "name": "🔄 重拍模式"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "✍️ H3提示词"
+      },
+      "1": {
+        "name": "🎯 场景调度指令"
+      },
+      "2": {
+        "name": "🎬 视频调度"
+      },
+      "3": {
+        "name": "🎧 音频调度"
+      }
+    }
+  },
+  "XB_MiniMax_SceneDispatcher": {
+    "display_name": "MiniMax - 🎯 场景元素调度",
+    "inputs": {
+      "scene_instruction": {
+        "name": "🎯 场景调度指令"
+      }
+    },
+    "outputs": {}
+  },
+  "XB_MiniMax_VideoAudioDispatcher": {
+    "display_name": "MiniMax - 🎬🎧 视频音频调度",
+    "inputs": {
+      "va_instruction": {
+        "name": "🎬🎧 视频音频指令"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎬 ref_video_0"
+      },
+      "1": {
+        "name": "🎬 ref_video_1"
+      },
+      "2": {
+        "name": "🎬 ref_video_2"
+      },
+      "3": {
+        "name": "🎧 ref_video_audio_0"
+      },
+      "4": {
+        "name": "🎧 ref_video_audio_1"
+      },
+      "5": {
+        "name": "🎧 ref_video_audio_2"
+      },
+      "6": {
+        "name": "🔊 ref_audio_0"
+      },
+      "7": {
+        "name": "🔊 ref_audio_1"
+      },
+      "8": {
+        "name": "🔊 ref_audio_2"
+      }
+    }
+  },
+  "XB_MiniMax_VideoDispatcher": {
+    "display_name": "MiniMax - 🎬 视频调度",
+    "inputs": {
+      "va_instruction": {
+        "name": "🎬🎧 视频音频指令"
+      }
+    },
+    "outputs": {}
+  },
+  "XB_MiniMax_AudioDispatcher": {
+    "display_name": "MiniMax - 🎧 音频调度",
+    "inputs": {
+      "va_instruction": {
+        "name": "🎬🎧 视频音频指令"
+      },
+      "音频A": {
+        "name": "🎧 音频A"
+      }
+    },
+    "outputs": {}
   }
 }

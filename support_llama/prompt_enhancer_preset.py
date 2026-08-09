@@ -16,6 +16,11 @@ from .presets.ideogram_v4 import *
 from .presets.krea2 import *
 from .presets.ltx2_3_t2v import *
 from .presets.lumina_next import *
+from .presets.minimax_t2va import *
+from .presets.minimax_i2va import *
+from .presets.minimax_fl2va import *
+from .presets.minimax_l2va import *
+from .presets.minimax_ref2va import *
 from .presets.pony_v6 import *
 from .presets.qwen_image_2512 import *
 from .presets.qwen_image_edit_2511 import *
