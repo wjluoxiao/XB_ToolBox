@@ -177,9 +177,9 @@ app.registerExtension({
         setInterval(() => {
             if (!app.graph || !app.graph._nodes) return;
 
-            // 检测 MiniMax 节点变化
+            // 检测 MiniMax / Ref2VA 节点变化
             for (const node of app.graph._nodes) {
-                if (node.type !== MINIMAX_TYPE || !node.widgets) continue;
+                if ((node.type !== MINIMAX_TYPE && node.type !== REF2VA_TYPE) || !node.widgets) continue;
                 const wDur = node.widgets.find(w => w.name === "视频时长");
                 const wAsp = node.widgets.find(w => w.name === "画面比例");
                 if (!wDur || !wAsp) continue;
