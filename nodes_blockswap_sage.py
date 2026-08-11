@@ -61,7 +61,9 @@ class XB_Sage_BlockSwap:
 
     # ── Sage 预设配置表 ──
     SAGE_CONFIGS = {
-        "自动": None,  # 使用 KJNodes 的 auto 逻辑
+        "自动": None,
+        "Nvidia-Sage": None,
+        "AMD-RDNA4-Sage 2.2": None,
         "内置模式 A (128x128x32)": {'M': 128, 'N': 128, 'GROUP': 32, 'WAVE': 2, 'WARP': 8, 'NSTAGES': 1},
         "内置模式 B (128x64x96)":  {'M': 128, 'N': 64,  'GROUP': 96, 'WAVE': 3, 'WARP': 8, 'NSTAGES': 2},
         "内置模式 C (128x16x16)":  {'M': 128, 'N': 16,  'GROUP': 16, 'WAVE': 2, 'WARP': 4, 'NSTAGES': 2},
@@ -79,6 +81,8 @@ class XB_Sage_BlockSwap:
                 "sage_preset": ([
                     "关闭",
                     "自动",
+                    "Nvidia-Sage",
+                    "AMD-RDNA4-Sage 2.2",
                     "内置模式 A (128x128x32)",
                     "内置模式 B (128x64x96)",
                     "内置模式 C (128x16x16)",
@@ -208,7 +212,7 @@ class XB_Sage_BlockSwap:
             return model
 
     def _do_sage_patch(self, model: ModelPatcher, preset: str) -> ModelPatcher:
-        if preset == "自动":
+        if preset in ("自动", "Nvidia-Sage", "AMD-RDNA4-Sage 2.2"):
             return self._sage_auto_mode(model)
         else:
             return self._sage_config_mode(model, preset)

@@ -68,6 +68,8 @@ class XB_SageAttentionAccelerator:
                 "preset": ([
                     "关闭",
                     "自动",
+                    "Nvidia-Sage",
+                    "AMD-RDNA4-Sage 2.2",
                     "内置模式 A (128x128x32)",
                     "内置模式 B (128x64x96)",
                     "内置模式 C (128x16x16)",
@@ -100,7 +102,7 @@ class XB_SageAttentionAccelerator:
 
     def _apply_patch(self, model, preset):
         # ── 自动：一字不差使用 KJNodes 的 auto 逻辑 ──
-        if preset == "自动":
+        if preset in ("自动", "Nvidia-Sage", "AMD-RDNA4-Sage 2.2"):
             from sageattention import sageattn
 
             def sage_func(q, k, v, is_causal=False, attn_mask=None, tensor_layout="NHD"):
