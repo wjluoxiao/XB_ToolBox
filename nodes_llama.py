@@ -835,13 +835,17 @@ class XB_llamaParameters:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "max_tokens": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1}),
-                "top_k": ("INT", {"default": 30, "min": 0, "max": 1000, "step": 1}),
+                "max_tokens": ("INT", {"default": 6144, "min": 0, "max": 8192, "step": 1,
+                    "tooltip": "生成 Token 上限\n6144 确保 6-8 镜分镜脚本不会截断"}),
+                "top_k": ("INT", {"default": 40, "min": 0, "max": 1000, "step": 1,
+                    "tooltip": "词汇库检索范围\n40 配合 0.60 温度，兼顾格式严谨与词汇多样"}),
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "min_p": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "temperature": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),
-                "repeat_penalty": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "temperature": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01,
+                    "tooltip": "温度\n0.60 确保 [SHOT_START] 格式严谨，减少幻觉"}),
+                "repeat_penalty": ("FLOAT", {"default": 1.12, "min": 0.0, "max": 10.0, "step": 0.01,
+                    "tooltip": "重复惩罚\n1.12 避免多镜分镜运镜描述句式复读"}),
                 "frequency_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "present_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 2.0, "step": 0.01}),
                 "mirostat_mode": ("INT", {"default": 0, "min": 0, "max": 2, "step": 1}),
@@ -2588,6 +2592,114 @@ class XB_RoleSceneDispatcher:
 
 
 # =============================================================================
+# XB_LlamaModelLoaderPro — 合并模型加载器 + 推理参数，带折叠高级选项
+# =============================================================================
+
+class XB_LlamaModelLoaderPro:
+    """Llama 模型加载器 Pro — 合并模型选择与推理参数，支持折叠高级选项"""
+
+    @classmethod
+    def INPUT_TYPES(s):
+        all_llms = folder_paths.get_filename_list("LLM")
+        model_list = [f for f in all_llms if "mmproj" not in f.lower()]
+        mmproj_list = ["None"] + [f for f in all_llms if "mmproj" in f.lower()]
+
+        return {
+            "required": {
+                "model": (model_list,),
+                "mmproj": (mmproj_list, {"default": "None"}),
+                "chat_handler": (chat_handlers, {"default": "None"}),
+                # ── 折叠开关 ──
+                "advanced_settings": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "高级参数 ▾",
+                    "label_off": "高级参数 ▸",
+                    "tooltip": "开启后显示上下文长度、显存上限、图像token 及全部推理参数"
+                }),
+                # ── 高级：模型加载参数 ──
+                "n_ctx": ("INT", {
+                    "default": 16384,
+                    "min": 1024, "max": 327680, "step": 128,
+                    "tooltip": "上下文长度上限\n16384 确保完整加载设定词+故事+分镜输出"
+                }),
+                "vram_limit": ("INT", {
+                    "default": -1,
+                    "min": -1, "max": 1024, "step": 1,
+                    "tooltip": "显存使用上限(GB), -1=不限制\n参考值, 实际可能略超"
+                }),
+                "image_min_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
+                "image_max_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
+                # ── 高级：推理参数 ──
+                "max_tokens": ("INT", {"default": 6144, "min": 0, "max": 8192, "step": 1,
+                    "tooltip": "生成 Token 上限\n6144 确保 6-8 镜分镜脚本不会截断"}),
+                "top_k": ("INT", {"default": 40, "min": 0, "max": 1000, "step": 1,
+                    "tooltip": "词汇库检索范围\n40 配合 0.60 温度，兼顾格式严谨与词汇多样"}),
+                "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "min_p": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "temperature": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01,
+                    "tooltip": "温度\n0.60 确保 [SHOT_START] 格式严谨，减少幻觉"}),
+                "repeat_penalty": ("FLOAT", {"default": 1.12, "min": 0.0, "max": 10.0, "step": 0.01,
+                    "tooltip": "重复惩罚\n1.12 避免多镜分镜运镜描述句式复读"}),
+                "frequency_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "present_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "mirostat_mode": ("INT", {"default": 0, "min": 0, "max": 2, "step": 1}),
+                "mirostat_eta": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "mirostat_tau": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "state_uid": ("INT", {
+                    "default": -1, "min": -1, "max": 999999, "step": 1,
+                    "tooltip": "使用特定 ID 保存对话状态 (-1 = 使用节点 unique_id)"
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("LLAMACPPMODEL", "LLAMACPPARAMS")
+    RETURN_NAMES = ("llama_model", "parameters")
+    FUNCTION = "loadmodel"
+    CATEGORY = "XB-llama"
+
+    def loadmodel(self, model, mmproj, chat_handler, advanced_settings,
+                  n_ctx, vram_limit, image_min_tokens, image_max_tokens,
+                  max_tokens, top_k, top_p, min_p, typical_p,
+                  temperature, repeat_penalty, frequency_penalty, present_penalty,
+                  mirostat_mode, mirostat_eta, mirostat_tau, state_uid):
+        # ── 构建模型配置 ──
+        custom_config = {
+            "model": model,
+            "mmproj": mmproj,
+            "chat_handler": chat_handler,
+            "n_ctx": n_ctx,
+            "vram_limit": vram_limit,
+            "image_min_tokens": image_min_tokens,
+            "image_max_tokens": image_max_tokens
+        }
+
+        # ── 构建推理参数 ──
+        parameters = {
+            "max_tokens": max_tokens,
+            "top_k": top_k,
+            "top_p": top_p,
+            "min_p": min_p,
+            "typical_p": typical_p,
+            "temperature": temperature,
+            "repeat_penalty": repeat_penalty,
+            "frequency_penalty": frequency_penalty,
+            "present_penalty": present_penalty,
+            "mirostat_mode": mirostat_mode,
+            "mirostat_eta": mirostat_eta,
+            "mirostat_tau": mirostat_tau,
+            "state_uid": state_uid,
+        }
+
+        # ── 加载模型 (如有变化) ──
+        if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
+            print("[XB-llama] 开始加载模型...")
+            LLAMA_CPP_STORAGE.load_model(custom_config)
+
+        return (custom_config, parameters)
+
+
+# =============================================================================
 # 节点注册
 # =============================================================================
 
@@ -2611,6 +2723,7 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
     "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
     "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
+    "XB_LlamaModelLoaderPro": XB_LlamaModelLoaderPro,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2633,4 +2746,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
     "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
     "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
+    "XB_LlamaModelLoaderPro": "XB-llama - 🚀 模型加载器Pro",
 }

@@ -28,51 +28,6 @@ async def choose_folder(request):
         return web.json_response({"path": "", "error": f"弹窗调用失败: {str(e)}"})
 
 
-@PromptServer.instance.routes.post("/xb_toolbox/choose_txt_file")
-async def choose_txt_file(request):
-    """选择 TXT 文件, 默认打开 MiniMax 故事输出目录"""
-    if not HAS_TKINTER:
-        return web.json_response({"path": "", "error": "当前整合包环境缺少弹窗依赖"})
-    try:
-        data = await request.json()
-        default_dir = data.get("default_dir", "")
-    except Exception:
-        default_dir = ""
-
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        if default_dir and os.path.isdir(default_dir):
-            file_path = filedialog.askopenfilename(
-                initialdir=default_dir,
-                title="选择镜头提示词文件",
-                filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
-            )
-        else:
-            file_path = filedialog.askopenfilename(
-                title="选择镜头提示词文件",
-                filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
-            )
-        root.destroy()
-        return web.json_response({"path": file_path})
-    except Exception as e:
-        return web.json_response({"path": "", "error": f"弹窗调用失败: {str(e)}"})
-
-
-@PromptServer.instance.routes.post("/xb_toolbox/minimax_default_dir")
-async def minimax_default_dir(request):
-    """返回 MiniMax 默认输出目录路径"""
-    try:
-        import folder_paths
-        default_dir = os.path.join(folder_paths.get_output_directory(), "jzl")
-        if not os.path.isdir(default_dir):
-            os.makedirs(default_dir, exist_ok=True)
-        return web.json_response({"dir": default_dir})
-    except Exception:
-        return web.json_response({"dir": ""})
-
-
 from .nodes_audio_slicer import handle_audio_waveform
 from .nodes_model_loader_v1 import _filter_by_keyword
 
@@ -144,7 +99,6 @@ try:
     from .nodes_hailuo_video import XB_HailuoH3VideoParams
     from .nodes_list_dispatcher import XB_ListDispatcher
     from .nodes_batch_images import XB_BatchImages
-    from .nodes_minimax_h3_ref import XB_MiniMaxH3RefEncoder
     from .nodes_reference_any import XB_ReferenceAny
     from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
@@ -182,15 +136,11 @@ try:
             XB_llamaMiniMaxPreset, XB_llamaMiniMaxRef2vaPreset,
             XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
             XB_llamaStoryboardProcessor, XB_llamaStoryboardProcessorPro,
-            XB_RoleSceneDispatcher,
+            XB_RoleSceneDispatcher, XB_LlamaModelLoaderPro,
         )
         # ── MiniMax-H3 漫剧创作节点 ──
         from .minimax_h3.nodes import (
             XB_MiniMax_ScriptWriter,
-            XB_MiniMax_ShotFormatter,
-            XB_MiniMax_SceneDispatcher,
-            XB_MiniMax_VideoDispatcher,
-            XB_MiniMax_AudioDispatcher,
             XB_MiniMax_PromptGenerator,
         )
         _LLAMA_AVAILABLE = True
@@ -307,7 +257,6 @@ try:
         "XB_HailuoH3VideoParams": XB_HailuoH3VideoParams,
         "XB_ListDispatcher": XB_ListDispatcher,
         "XB_BatchImages": XB_BatchImages,
-        "XB_MiniMaxH3RefEncoder": XB_MiniMaxH3RefEncoder,
         "XB_ReferenceAny": XB_ReferenceAny,
         "XB_HumanSegmentation": XB_HumanSegmentation,
         "XB_HumanSegModelLoader": XB_HumanSegModelLoader,
@@ -375,11 +324,8 @@ try:
             "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
             "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
             "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
+            "XB_LlamaModelLoaderPro": XB_LlamaModelLoaderPro,
             "XB_MiniMax_ScriptWriter": XB_MiniMax_ScriptWriter,
-            "XB_MiniMax_ShotFormatter": XB_MiniMax_ShotFormatter,
-            "XB_MiniMax_SceneDispatcher": XB_MiniMax_SceneDispatcher,
-            "XB_MiniMax_VideoDispatcher": XB_MiniMax_VideoDispatcher,
-            "XB_MiniMax_AudioDispatcher": XB_MiniMax_AudioDispatcher,
             "XB_MiniMax_PromptGenerator": XB_MiniMax_PromptGenerator,
         })
 
@@ -460,7 +406,6 @@ try:
         "XB_HailuoH3VideoParams": "XB-BOX - 🌊 海螺H3视频参数",
         "XB_ListDispatcher": "XB-BOX - 📋 列表分发",
         "XB_BatchImages": "XB-BOX - 🖼️ 批量图像",
-        "XB_MiniMaxH3RefEncoder": "XB-BOX - 🎬 MiniMax H3 参考编码",
 
         "XB_ReferenceAny": "XB-BOX - 🔗 引用任意",
         "XB_HumanSegmentation": "XB-BOX - ✂️ 人物分割 (DirectML/ROCm)",
@@ -533,11 +478,8 @@ try:
             "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
             "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
             "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
+            "XB_LlamaModelLoaderPro": "XB-llama - 🚀 模型加载器Pro",
             "XB_MiniMax_ScriptWriter": "MiniMax - 🎬 剧本编剧",
-            "XB_MiniMax_ShotFormatter": "MiniMax - 📋 分镜格式化",
-            "XB_MiniMax_SceneDispatcher": "MiniMax - 🎯 场景元素调度",
-            "XB_MiniMax_VideoDispatcher": "MiniMax - 🎬 视频调度",
-            "XB_MiniMax_AudioDispatcher": "MiniMax - 🎧 音频调度",
             "XB_MiniMax_PromptGenerator": "MiniMax - ✍️ 提示词生成器",
         })
 

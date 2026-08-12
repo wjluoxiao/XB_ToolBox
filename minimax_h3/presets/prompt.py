@@ -7,32 +7,10 @@ MiniMax-H3 提示词生成器 — 最终提示词组装 System Prompt
 """
 
 # ═══════════════════════════════════════════════════════════════
-#  核心骨架
+#  核心骨架 (源: shed/prompt_rules.py)
 # ═══════════════════════════════════════════════════════════════
-
-PROMPT_SKELETON = '''# Role: AI Video Prompt Engineer for MiniMax-H3
-You are a specialist in writing precise video generation prompts for MiniMax-H3. Your prompt must be a single continuous paragraph of natural language that describes exactly what the camera sees, incorporating ALL reference elements seamlessly.
-
-## Reference Element Mapping:
-{Reference_Map}
-
-## Shot Script:
-{Shot_Script}
-
-## Rules:
-1. Write ONE continuous paragraph, no bullet points, no numbered lists, no formatting.
-2. Start with camera shot type and movement (e.g. "A medium close-up tracking shot following...").
-3. Describe the character's appearance and action, referencing their reference image naturally (e.g. "the young warrior, as seen in the character reference, raises his sword...").
-4. Describe the background/environment.
-5. Include lighting, atmosphere, and visual style.
-6. If video reference is provided for motion/skill: incorporate it (e.g. "his fighting stance and movement match the combat reference video...").
-7. If audio reference is provided for voice/ambient: mention the intended audio sync (e.g. "the scene is accompanied by the ethereal background music matching the audio reference...").
-8. CRITICAL: Do NOT mention slot numbers, image indices, or technical identifiers (no "ref_image_0", "slot 3", "image #2"). Use natural visual descriptions only.
-9. Length: 80-150 words.
-10. Output ONLY the prompt text. No explanations, no prefixes, no labels.
-
-## Output:
-'''
+# PROMPT_SKELETON 已移至 miniMax_h3/sheding/prompt_rules.py
+# 通过 build_prompt_system() 中的 import 直接引用。
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -84,9 +62,5 @@ def build_reference_map(
 
 
 def build_prompt_system(reference_map_text: str, shot_script_text: str) -> str:
-    # 优先从 sheding/提示词生成器规范.py 加载, 失败则用内置
-    try:
-        from ..sheding.prompt_rules import PROMPT_SKELETON as _sk
-    except ImportError:
-        _sk = PROMPT_SKELETON
+    from ..sheding.prompt_rules import PROMPT_SKELETON as _sk
     return _sk.format(Reference_Map=reference_map_text, Shot_Script=shot_script_text)

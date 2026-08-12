@@ -151,24 +151,10 @@ SHOT_COUNT_OPTIONS = {
 
 
 # ═══════════════════════════════════════════════════════════════
-#  零件库 4: {Decompose_Rules} — 拆解规则
+#  零件库 4: {Decompose_Rules} — 拆解规则 (源: shed/decompose_rules.py)
 # ═══════════════════════════════════════════════════════════════
-
-DECOMPOSE_RULES = '''### 拆解原则:
-1. **视觉独立性**: 每一镜必须是一段可独立生成视频的视觉描述。禁止依赖前镜或后镜才能理解的内容。
-2. **时间分配**: 开头1-2镜建立场景, 中间主体展开冲突/发展, 结尾1-2镜收束。
-3. **景别递进**: 每镜标注精确景别(远景→全景→中景→近景→特写), 确保视觉节奏不单调。
-4. **运镜标注**: 每镜标注摄像机运动方式(固定/推/拉/摇/移/跟/升/降), 为AI视频生成提供运镜参考。
-5. **角色精确**: 每镜明确列出出场角色, 用原始角色名。无人镜头写"无"。
-6. **道具具象**: 每镜列出关键道具, 用具体的物品名称而非抽象概念(如"一把生锈的青铜钥匙"而非"重要物品")。
-7. **动作可视化**: 动作描述只写相机能物理拍到的东西 — 肢体的位置、运动轨迹、表情的变化。禁止写内心独白、抽象情感("他感到悲伤"→"他的眼眶泛红, 嘴角微微下垂, 肩膀塌陷")。
-8. **光影具名**: 标注光源方向(顶光/侧光/逆光/顺光)、光源类型(阳光/月光/灯笼/霓虹/烛光)、色调倾向。
-
-### 拆解禁止:
-- 禁止生成纯对话镜头(无视觉内容的对白). 每镜必须有可见的视觉变化.
-- 禁止超过2个角色同时出现在同一镜中(除非故事风格要求群体场景).
-- 禁止模糊的"继续""延续"等跨镜引用词.
-- 禁止超过80字的动作描述(超出则拆分).'''
+# DECOMPOSE_RULES 已移至 miniMax_h3/sheding/decompose_rules.py
+# 通过 build_script_prompt() 中的 import 直接引用。
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -181,19 +167,10 @@ def build_script_prompt(
     story_style: str = "热血战斗",
     shot_count_label: str = "短篇 (4镜)",
 ) -> str:
-    # 优先从 sheding/*.py 加载设定, 失败则用内置默认值
-    try:
-        from ..sheding.mode_instructions import MODE_INSTRUCTIONS as _mi
-    except ImportError:
-        _mi = MODE_INSTRUCTIONS
-    try:
-        from ..sheding.story_styles import STORY_STYLES as _ss
-    except ImportError:
-        _ss = STORY_STYLES
-    try:
-        from ..sheding.decompose_rules import DECOMPOSE_RULES as _dr
-    except ImportError:
-        _dr = DECOMPOSE_RULES
+    # 从 shed/ 加载设定词
+    from ..sheding.mode_instructions import MODE_INSTRUCTIONS as _mi
+    from ..sheding.story_styles import STORY_STYLES as _ss
+    from ..sheding.decompose_rules import DECOMPOSE_RULES as _dr
 
     mode_instruction = _mi.get(mode, list(_mi.values())[0] if _mi else "")
     style = _ss.get(story_style, list(_ss.values())[0] if _ss else "")

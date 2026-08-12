@@ -4524,6 +4524,82 @@
       }
     }
   },
+  "XB_LlamaModelLoaderPro": {
+    "display_name": "XB-llama - 🚀 模型加载器Pro",
+    "inputs": {
+      "model": {
+        "name": "LLM模型"
+      },
+      "mmproj": {
+        "name": "视觉投影(mmproj)"
+      },
+      "chat_handler": {
+        "name": "对话处理器"
+      },
+      "advanced_settings": {
+        "name": "高级参数设置"
+      },
+      "n_ctx": {
+        "name": "上下文长度"
+      },
+      "vram_limit": {
+        "name": "显存上限(GB)"
+      },
+      "image_min_tokens": {
+        "name": "图像最小Token"
+      },
+      "image_max_tokens": {
+        "name": "图像最大Token"
+      },
+      "max_tokens": {
+        "name": "最大Token数"
+      },
+      "top_k": {
+        "name": "Top-K采样"
+      },
+      "top_p": {
+        "name": "Top-P采样"
+      },
+      "min_p": {
+        "name": "Min-P采样"
+      },
+      "typical_p": {
+        "name": "Typical-P采样"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "repeat_penalty": {
+        "name": "重复惩罚"
+      },
+      "frequency_penalty": {
+        "name": "频率惩罚"
+      },
+      "present_penalty": {
+        "name": "存在惩罚"
+      },
+      "mirostat_mode": {
+        "name": "Mirostat模式"
+      },
+      "mirostat_eta": {
+        "name": "Mirostat学习率"
+      },
+      "mirostat_tau": {
+        "name": "Mirostat目标熵"
+      },
+      "state_uid": {
+        "name": "状态UID"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🤖 Llama模型"
+      },
+      "1": {
+        "name": "⚙️ 推理参数"
+      }
+    }
+  },
   "XB_llamaInstruct": {
     "display_name": "XB-llama - 💬 指令推理",
     "inputs": {
@@ -5708,100 +5784,5 @@
         "name": "📜 剧本输入"
       }
     }
-  },
-  "XB_MiniMax_ShotFormatter": {
-    "display_name": "MiniMax - 📋 分镜处理中心",
-    "inputs": {
-      "bus": {
-        "name": "🔗 参数总线"
-      },
-      "shot_text": {
-        "name": "📝 分镜文本"
-      },
-      "reshoot_mode": {
-        "name": "🔄 重拍模式"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "✍️ H3提示词"
-      },
-      "1": {
-        "name": "🎯 场景调度指令"
-      },
-      "2": {
-        "name": "🎬 视频调度"
-      },
-      "3": {
-        "name": "🎧 音频调度"
-      }
-    }
-  },
-  "XB_MiniMax_SceneDispatcher": {
-    "display_name": "MiniMax - 🎯 场景元素调度",
-    "inputs": {
-      "scene_instruction": {
-        "name": "🎯 场景调度指令"
-      }
-    },
-    "outputs": {}
-  },
-  "XB_MiniMax_VideoAudioDispatcher": {
-    "display_name": "MiniMax - 🎬🎧 视频音频调度",
-    "inputs": {
-      "va_instruction": {
-        "name": "🎬🎧 视频音频指令"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "🎬 ref_video_0"
-      },
-      "1": {
-        "name": "🎬 ref_video_1"
-      },
-      "2": {
-        "name": "🎬 ref_video_2"
-      },
-      "3": {
-        "name": "🎧 ref_video_audio_0"
-      },
-      "4": {
-        "name": "🎧 ref_video_audio_1"
-      },
-      "5": {
-        "name": "🎧 ref_video_audio_2"
-      },
-      "6": {
-        "name": "🔊 ref_audio_0"
-      },
-      "7": {
-        "name": "🔊 ref_audio_1"
-      },
-      "8": {
-        "name": "🔊 ref_audio_2"
-      }
-    }
-  },
-  "XB_MiniMax_VideoDispatcher": {
-    "display_name": "MiniMax - 🎬 视频调度",
-    "inputs": {
-      "va_instruction": {
-        "name": "🎬🎧 视频音频指令"
-      }
-    },
-    "outputs": {}
-  },
-  "XB_MiniMax_AudioDispatcher": {
-    "display_name": "MiniMax - 🎧 音频调度",
-    "inputs": {
-      "va_instruction": {
-        "name": "🎬🎧 视频音频指令"
-      },
-      "音频A": {
-        "name": "🎧 音频A"
-      }
-    },
-    "outputs": {}
   }
 }
