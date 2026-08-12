@@ -136,12 +136,7 @@ try:
             XB_llamaMiniMaxPreset, XB_llamaMiniMaxRef2vaPreset,
             XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
             XB_llamaStoryboardProcessor, XB_llamaStoryboardProcessorPro,
-            XB_RoleSceneDispatcher, XB_LlamaModelLoaderPro,
-        )
-        # ── MiniMax-H3 漫剧创作节点 ──
-        from .minimax_h3.nodes import (
-            XB_MiniMax_ScriptWriter,
-            XB_MiniMax_PromptGenerator,
+            XB_RoleSceneDispatcher,
         )
         _LLAMA_AVAILABLE = True
     except ImportError as e:
@@ -324,9 +319,6 @@ try:
             "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
             "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
             "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
-            "XB_LlamaModelLoaderPro": XB_LlamaModelLoaderPro,
-            "XB_MiniMax_ScriptWriter": XB_MiniMax_ScriptWriter,
-            "XB_MiniMax_PromptGenerator": XB_MiniMax_PromptGenerator,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -478,9 +470,6 @@ try:
             "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
             "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
             "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
-            "XB_LlamaModelLoaderPro": "XB-llama - 🚀 模型加载器Pro",
-            "XB_MiniMax_ScriptWriter": "MiniMax - 🎬 剧本编剧",
-            "XB_MiniMax_PromptGenerator": "MiniMax - ✍️ 提示词生成器",
         })
 
     print_success("\n" + "="*50)
