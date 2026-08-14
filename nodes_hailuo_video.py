@@ -36,13 +36,13 @@ class XB_HailuoH3VideoParams:
                 "duration": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1}),
                 "scale_factor": ("FLOAT", {
                     "default": 1.0, "min": 1.0, "max": 5.0, "step": 0.1,
-                    "tooltip": "放大系数 — 接入「MiniMax H3 参考编码」的参考值放大"
+                    "tooltip": "参考图放大系数 — 接入「MiniMax H3 参考编码」的参考值放大"
                 }),
             }
         }
 
     RETURN_TYPES = ("INT", "INT", "INT", "FLOAT")
-    RETURN_NAMES = ("Width", "Height", "Frames", "放大系数")
+    RETURN_NAMES = ("Width", "Height", "Frames", "参考图放大系数")
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Image_Params"
 
