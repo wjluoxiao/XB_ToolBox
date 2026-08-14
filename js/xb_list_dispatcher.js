@@ -92,7 +92,10 @@ app.registerExtension({
             const r = onNodeCreated?.apply(this, arguments);
             const rebuild = setupDynamicOutputs(this);
 
-            // 用 configure 替代 setTimeout：widget 值此时已恢复（同 kjnodes 模式）
+            // 新节点拖入画布时 configure 不会触发，setTimeout 兜底立即删掉 99 个初始端口
+            setTimeout(() => rebuild(), 50);
+
+            // 用 configure 恢复 widget 值后重建（同 kjnodes 模式）
             const origConfigure = this.configure;
             this.configure = function (info) {
                 if (origConfigure) origConfigure.apply(this, arguments);

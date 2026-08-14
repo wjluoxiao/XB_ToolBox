@@ -27,23 +27,9 @@ app.registerExtension({
     async nodeCreated(node) {
         if (node.comfyClass !== "XB_HailuoH3VideoParams") return;
 
-        const wF = node.widgets?.find(w => w.name === "fps");
-        const wFF = node.widgets?.find(w => w.name === "fps_float");
         const wDur = node.widgets?.find(w => w.name === "duration");
 
-        // fps ↔ fps_float 双向同步
-        if (wF && wFF) {
-            const of = wF.callback; wF.callback = function (v) {
-                if (of) of.apply(this, arguments); if (node._xb_syncing || node._xb_from_polling) return;
-                const val = Math.round(Number(v)); if (wFF.value !== val) { node._xb_syncing = true; wFF.value = val; xb_dispatch(wFF, val); node._xb_syncing = false; }
-            };
-            const off = wFF.callback; wFF.callback = function (v) {
-                if (off) off.apply(this, arguments); if (node._xb_syncing || node._xb_from_polling) return;
-                const val = Math.round(Number(v)); if (wF.value !== val) { node._xb_syncing = true; wF.value = val; xb_dispatch(wF, val); node._xb_syncing = false; }
-            };
-        }
-
-        // duration 步长 = 0.5
+        // duration 步长
         if (wDur) {
             node._xb_last_dur = parseFloat(wDur.value) || 3.5;
             const od = wDur.callback; wDur.callback = function (v) {
@@ -70,10 +56,8 @@ app.registerExtension({
                 const wMul = node.widgets.find(w => w.name === "multiple");
                 const wDisp = node.widgets.find(w => w.name === "frames_display");
                 const wDur = node.widgets.find(w => w.name === "duration");
-                const wFps = node.widgets.find(w => w.name === "fps");
-                const wFpsF = node.widgets.find(w => w.name === "fps_float");
 
-                if (!wDisp || !wDur || !wFps || !wFpsF || !wRatio || !wMP || !wMul) continue;
+                if (!wDisp || !wDur || !wRatio || !wMP || !wMul) continue;
 
                 node._xb_from_polling = true;
 
@@ -86,14 +70,10 @@ app.registerExtension({
                     dispEl.style.textAlign = "center";
                     dispEl.style.fontWeight = "bold";
                 }
-                wFpsF.options.precision = 2;
-
                 if (node._xb_last_ratio === undefined) {
                     node._xb_last_ratio = wRatio.value;
                     node._xb_last_mp = parseFloat(wMP.value) || 1.0;
-                    node._xb_last_mul = parseInt(wMul.value, 10) || 16;
-                    node._xb_last_fps = wFps.value;
-                    node._xb_last_fps_float = wFpsF.value;
+                    node._xb_last_mul = parseInt(wMul.value, 10) || 32;
                 }
 
                 let needsUpdate = false;
@@ -111,24 +91,11 @@ app.registerExtension({
                 };
                 const [wr, hr] = ratioMap[wRatio.value] || [16, 9];
                 const mp = parseFloat(wMP.value) || 1.0;
-                const mul = parseInt(wMul.value, 10) || 16;
+                const mul = parseInt(wMul.value, 10) || 32;
                 const totalPx = mp * 1024 * 1024;
                 const sc = Math.sqrt(totalPx / (wr * hr));
                 const calcW = Math.round(wr * sc / mul) * mul;
                 const calcH = Math.round(hr * sc / mul) * mul;
-
-                // fps sync
-                if (wFps.value !== node._xb_last_fps) {
-                    let val = Math.round(Number(wFps.value)); wFps.value = val; wFpsF.value = val;
-                    node._xb_last_fps = val; node._xb_last_fps_float = val;
-                    xb_dispatch(wFps, val); xb_dispatch(wFpsF, val);
-                    needsUpdate = true;
-                } else if (wFpsF.value !== node._xb_last_fps_float) {
-                    let val = Math.round(Number(wFpsF.value)); wFps.value = val; wFpsF.value = val;
-                    node._xb_last_fps = val; node._xb_last_fps_float = val;
-                    xb_dispatch(wFps, val); xb_dispatch(wFpsF, val);
-                    needsUpdate = true;
-                }
 
                 // duration snap
                 let dur = parseFloat(wDur.value) || 1.0;

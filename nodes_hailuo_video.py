@@ -31,22 +31,18 @@ class XB_HailuoH3VideoParams:
             "required": {
                 "aspect_ratio": (list(ASPECT_RATIOS.keys()), {"default": "16:9 (Widescreen)"}),
                 "megapixels": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 16.0, "step": 0.1}),
-                "multiple": ("INT", {"default": 16, "min": 8, "max": 128, "step": 4}),
+                "multiple": ("INT", {"default": 32, "min": 8, "max": 128, "step": 4}),
                 "frames_display": ("STRING", {"default": "Frames: 0", "multiline": False}),
                 "duration": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1}),
-                "fps": ("INT", {"default": 16, "min": 1, "max": 120, "step": 1}),
-                "fps_float": ("FLOAT", {"default": 16.0, "min": 1.0, "max": 120.0, "step": 0.01}),
             }
         }
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT", "FLOAT", "INT")
-    RETURN_NAMES = ("Width", "Height", "Frames", "FPS", "FPS_Float", "Scale Size")
+    RETURN_TYPES = ("INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("Width", "Height", "Frames", "Scale Size")
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Image_Params"
 
-    def process(self, aspect_ratio, megapixels, multiple, frames_display, duration, fps, fps_float):
-        final_fps = int(round(fps))
-
+    def process(self, aspect_ratio, megapixels, multiple, frames_display, duration):
         # ── 分辨率：官方 ResolutionSelector 公式 ──
         w_ratio, h_ratio = ASPECT_RATIOS.get(aspect_ratio, (16, 9))
         total_pixels = megapixels * 1024 * 1024
@@ -58,4 +54,4 @@ class XB_HailuoH3VideoParams:
         base = max(5, round(duration * 24))
         safe_len = base + (5 - (base % 17)) % 17
 
-        return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
+        return (safe_w, safe_h, safe_len, max(safe_w, safe_h))
