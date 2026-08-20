@@ -5775,5 +5775,52 @@
         "name": "📜 剧本输入"
       }
     }
+  },
+  "XB_BatchImages": {
+    "display_name": "XB-BOX - 🖼️ 批量图像"
+  },
+  "XB_CanvasLabel": {
+    "display_name": "XB-BOX - 🏷️ Canvas Label (文字标签)"
+  },
+  "XB_BerniniPromptRouter": {
+    "display_name": "XB-BOX - 🧠 Bernini 提示词路由（超级节点）",
+    "inputs": {
+      "mode": {
+        "name": "工作模式"
+      },
+      "prompt": {
+        "name": "提示词"
+      },
+      "separator": {
+        "name": "分隔符"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "超级提示词"
+      }
+    }
+  },
+  "XB_K2StyleRouter": {
+    "display_name": "XB-BOX - 🎨 K2 风格切换路由（超级节点）",
+    "inputs": {
+      "style": {
+        "name": "风格"
+      },
+      "prompt": {
+        "name": "提示词"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "切换Lora"
+      },
+      "1": {
+        "name": "激活词"
+      },
+      "2": {
+        "name": "提示词"
+      }
+    }
   }
 }

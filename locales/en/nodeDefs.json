@@ -1,0 +1,347 @@
+{
+  "XB_VideoLoader": {
+    "display_name": "XB-BOX - 🎬 Video Loader (Fix Preview Bug)"
+  },
+  "XB_VideoCombine": {
+    "display_name": "XB-BOX - 🎬 Video Combine"
+  },
+  "XB_MemoryVisualization": {
+    "display_name": "XB 📊 Hardware Monitor (Memory Visualization)"
+  },
+  "XB_ROCmMemCleaner": {
+    "display_name": "XB-BOX - 🧹 VRAM Cleaner"
+  },
+  "XB_ROCmKSampler": {
+    "display_name": "XB-BOX - Sampler (Optimized)"
+  },
+  "XB_ROCmKSamplerAdvanced": {
+    "display_name": "XB-BOX - Advanced Sampler (Optimized)"
+  },
+  "XB_ROCmSamplerCustom": {
+    "display_name": "XB-BOX - Custom Sampler (Optimized)"
+  },
+  "XB_ROCmSamplerCustomAdvanced": {
+    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized)"
+  },
+  "XB_ROCmVAEDecode": {
+    "display_name": "XB-BOX - VAE Decode (Optimized)"
+  },
+  "XB_ROCmVAEEncode": {
+    "display_name": "XB-BOX - VAE Encode (Optimized)"
+  },
+  "XB_ROCmVAEDecodeTemporal": {
+    "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
+  },
+  "XB_ROCmLTXVAEDecode": {
+    "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
+  },
+  "XB_KSampler": {
+    "display_name": "XB-BOX - Sampler (Optimized)"
+  },
+  "XB_KSamplerAdvanced": {
+    "display_name": "XB-BOX - Advanced Sampler (Optimized)"
+  },
+  "XB_SamplerCustom": {
+    "display_name": "XB-BOX - Custom Sampler (Optimized)"
+  },
+  "XB_SamplerCustomAdvanced": {
+    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized)"
+  },
+  "XB_VAEDecode": {
+    "display_name": "XB-BOX - VAE Decode (Optimized)"
+  },
+  "XB_VAEDecodeTiled": {
+    "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
+  },
+  "XB_VAEDecodeTiledImage": {
+    "display_name": "XB-BOX - VAE Decode (Optimized)"
+  },
+  "XB_VAEEncode": {
+    "display_name": "XB-BOX - VAE Encode (Optimized)"
+  },
+  "XB_VAEEncodeTiled": {
+    "display_name": "XB-BOX - VAE Tiled Encode (Optimized)"
+  },
+  "XB_VAEEncodeForInpaint": {
+    "display_name": "XB-BOX - VAE Encode For Inpaint (Optimized)"
+  },
+  "XB_WanT5Loader": {
+    "display_name": "XB-BOX - 📝 Wan T5 Loader (FP8)"
+  },
+  "XB_WanCompileSettings": {
+    "display_name": "XB-BOX - ⚡ Wan Compile Settings"
+  },
+  "XB_WanModelLoader": {
+    "display_name": "XB-BOX - 🧠 Wan Model Loader"
+  },
+  "XB_WanBlockSwap": {
+    "display_name": "XB-BOX - 🔄 Wan Block Swap"
+  },
+  "XB_WanSampler": {
+    "display_name": "XB-BOX - 🎯 Wan Sampler"
+  },
+  "XB_WanTextEncode": {
+    "display_name": "XB-BOX - ✍️ Wan Text Encode"
+  },
+  "XB_WanVAELoader": {
+    "display_name": "XB-BOX - 🎨 Wan VAE Loader"
+  },
+  "XB_WanDecode": {
+    "display_name": "XB-BOX - 🖼️ Wan VAE Decode"
+  },
+  "XB_WanAnimateToVideo": {
+    "display_name": "XB-BOX - 🎬 Wan Animate To Video"
+  },
+  "XB_WanAnimate_ParamBus": {
+    "display_name": "XB-BOX - 🎬 Animate Motion Bus"
+  },
+  "XB_WanAnimate_RelayNode": {
+    "display_name": "XB-BOX - 🏃‍♀️ Animate Relay Node"
+  },
+  "XB_WanInfiniteTalk_ParamBus": {
+    "display_name": "XB-BOX - 🎵 InfiniteTalk Lip-Sync Bus"
+  },
+  "XB_WanInfiniteTalk_RelayNode": {
+    "display_name": "XB-BOX - 🏃 InfiniteTalk Relay Node"
+  },
+  "XB_Wan_InfiniteRelayNode_New": {
+    "display_name": "XB-BOX - 🆕 Wan Infinite Relay Node (New)"
+  },
+  "XB_WanAnimate_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 Animate Relay Node (New)"
+  },
+  "XB_WanInfiniteTalk_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk Relay Node (New)"
+  },
+  "XB_WanSCAIL_ParamBus_New": {
+    "display_name": "XB-BOX - 🆕 SCAIL Bus (New)"
+  },
+  "XB_WanSCAIL_RelayNode_New": {
+    "display_name": "XB-BOX - 🆕 SCAIL Relay Node (New)"
+  },
+  "XB_WanInfiniteTalk_RelayNode_MultiRef": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk Relay Node (Multi-Ref)"
+  },
+  "XB_WanInfiniteTalk_RelayNode_AllInOne": {
+    "display_name": "XB-BOX - 🆕 InfiniteTalk Relay Node (All-In-One)"
+  },
+  "XB_LTX23_InfiniteStreamer": {
+    "display_name": "XB-BOX - 🔄 LTX2.3 Digital Human Infinite Lip-Sync"
+  },
+  "XB_NodeStatusSwitch": {
+    "display_name": "XB-BOX - ⚡ Node Status Switch"
+  },
+  "XB_FluxMultiImageEncode": {
+    "display_name": "XB-BOX - 🖼️ FLUX Multi-Image Encode"
+  },
+  "XB_TextEncodeQwenImageEdit": {
+    "display_name": "XB-BOX - 📝 Qwen Image Edit Encode"
+  },
+  "XB_TextEncodeQwenImageEditPlus": {
+    "display_name": "XB-BOX - 📝 Qwen Image Edit Encode Plus"
+  },
+  "XB_ImageScale": {
+    "display_name": "XB-BOX - 📐 Batch Scale Image"
+  },
+  "XB_HailuoH3VideoParams": {
+    "display_name": "XB-BOX - 🌊 Hailuo H3 Video Params"
+  },
+  "XB_ListDispatcher": {
+    "display_name": "XB-BOX - 📋 List Dispatcher"
+  },
+  "XB_BatchImages": {
+    "display_name": "XB-BOX - 🖼️ Batch Images"
+  },
+  "XB_ReferenceAny": {
+    "display_name": "XB-BOX - 🔗 Reference Any"
+  },
+  "XB_HumanSegmentation": {
+    "display_name": "XB-BOX - ✂️ Human Segmentation (DirectML/ROCm)"
+  },
+  "XB_HumanSegModelLoader": {
+    "display_name": "XB-BOX - 📥 Human Segmentation Model Loader"
+  },
+  "XB_CanvasLabel": {
+    "display_name": "XB-BOX - 🏷️ Canvas Label"
+  },
+  "XB_AudioSlicer": {
+    "display_name": "XB-BOX - 🎵 Audio Slicer (Basic)"
+  },
+  "XB_AudioSlicerV1": {
+    "display_name": "XB-BOX - 🎵 Audio Slicer V1 (Single)"
+  },
+  "XB_AudioSlicerV2": {
+    "display_name": "XB-BOX - 🎵 Audio Slicer V2 (Dual)"
+  },
+  "XB_AudioSlicerV3": {
+    "display_name": "XB-BOX - 🎵 Audio Slicer V3 (Advanced)"
+  },
+  "XB_DigitalHumanParams_Single": {
+    "display_name": "XB-BOX - 🤖 Digital Human Params (Single)"
+  },
+  "XB_DigitalHumanParams_Dual": {
+    "display_name": "XB-BOX - 🤖 Digital Human Params (Dual)"
+  },
+  "XB_ModelLoaderV1": {
+    "display_name": "XB-BOX - 📦 Model Loader V1"
+  },
+  "XB_ModelLoaderV2": {
+    "display_name": "XB-BOX - 📦 Model Loader V2"
+  },
+  "XB_ModelLoaderV3": {
+    "display_name": "XB-BOX - 📦 Model Loader V3"
+  },
+  "XB_ModelLoaderV1_GGUF": {
+    "display_name": "XB-BOX - 📦 Model Loader V1 (GGUF)"
+  },
+  "XB_ModelLoaderV2_GGUF": {
+    "display_name": "XB-BOX - 📦 Model Loader V2 (GGUF)"
+  },
+  "XB_ModelLoaderV3_GGUF": {
+    "display_name": "XB-BOX - 📦 Model Loader V3 (GGUF)"
+  },
+  "XB_WanInfiniteTalkToVideo": {
+    "display_name": "XB-BOX - 🎵 Voice To Video Chunk"
+  },
+  "XB_WanInfiniteTalkToVideo_Single": {
+    "display_name": "XB-BOX - 🎵 Voice To Video Chunk (Single)"
+  },
+  "XB_WanInfiniteTalkToVideo_Dual": {
+    "display_name": "XB-BOX - 🎵 Voice To Video Chunk (Dual)"
+  },
+  "XB_StringMerge": {
+    "display_name": "XB-BOX - 📝 String Merge"
+  },
+  "XB_MSR": {
+    "display_name": "XB-BOX - 🎞️ MSR Multi-Image Frame Sequence"
+  },
+  "XB_ComicPromptParser": {
+    "display_name": "XB-BOX - 📝 Comic Prompt Parser"
+  },
+  "XB_ComicTextRenderer": {
+    "display_name": "XB-BOX - 💬 Comic Text Renderer (Precise Coords)"
+  },
+  "XB_AutoBubbleTextRenderer": {
+    "display_name": "XB-BOX - 🤖 Auto Bubble Text Renderer"
+  },
+  "XB_BerniniConditioning": {
+    "display_name": "XB-BOX - 🎨 Bernini Conditioning (VAE Tiled)"
+  },
+  "XB_BerniniPromptRouter": {
+    "display_name": "XB-BOX - 🧠 Bernini Prompt Router (Super)"
+  },
+  "XB_K2StyleRouter": {
+    "display_name": "XB-BOX - 🎨 K2 Style Router (Super)"
+  },
+  "XB_UNetLoaderINTROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 UNet Loader (ROCm)"
+  },
+  "XB_INT8LoraROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 Single LoRA (ROCm)"
+  },
+  "XB_INT8GroupedLoraROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 Grouped LoRA (ROCm)"
+  },
+  "XB_INT8ModelSaveROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 Model Save (ROCm)"
+  },
+  "XB_INT8PreLoraLoaderROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 Preload LoRA (ROCm)"
+  },
+  "XB_CLIPLoaderINT8ROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 CLIP Loader (ROCm)"
+  },
+  "XB_DualCLIPLoaderINT8ROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 Dual CLIP Loader (ROCm)"
+  },
+  "XB_INT8CLIPSaveROCm": {
+    "display_name": "XB-BOX - 🧊 INT8 CLIP Save (ROCm)"
+  },
+  "XB_CosyVoice3_ModelLoader": {
+    "display_name": "XB-BOX - 🔊 CosyVoice3 Model Loader"
+  },
+  "XB_CosyVoice3_ZeroShot": {
+    "display_name": "XB-BOX - 🎤 CosyVoice3 Zero-Shot Clone"
+  },
+  "XB_CosyVoice3_CrossLingual": {
+    "display_name": "XB-BOX - 🌐 CosyVoice3 Cross-Lingual"
+  },
+  "XB_CosyVoice3_VoiceConversion": {
+    "display_name": "XB-BOX - 🔄 CosyVoice3 Voice Conversion"
+  },
+  "XB_CosyVoice3_AudioCrop": {
+    "display_name": "XB-BOX - ✂️ CosyVoice3 Audio Crop"
+  },
+  "XB_CosyVoice3_Dialog": {
+    "display_name": "XB-BOX - 💬 CosyVoice3 Dialog"
+  },
+  "XB_CosyVoice3_Instruct2": {
+    "display_name": "XB-BOX - 🎭 CosyVoice3 Instruct2"
+  },
+  "XB_CosyVoice3_SaveSpeaker": {
+    "display_name": "XB-BOX - 💾 CosyVoice3 Save Speaker"
+  },
+  "XB_CosyVoice3_SpeakerClone": {
+    "display_name": "XB-BOX - 🗣️ CosyVoice3 Speaker Clone"
+  },
+  "XB_CosyVoice3_SpeakerInstruct2": {
+    "display_name": "XB-BOX - 🎭 CosyVoice3 Speaker Instruct2"
+  },
+  "XB_llamaModelLoader": {
+    "display_name": "XB-llama - 📦 Model Loader"
+  },
+  "XB_llamaInstruct": {
+    "display_name": "XB-llama - 💬 Instruct"
+  },
+  "XB_llamaParameters": {
+    "display_name": "XB-llama - ⚙️ Parameters"
+  },
+  "XB_llamaUnloadModel": {
+    "display_name": "XB-llama - 🗑️ Unload Model"
+  },
+  "XB_llamaCleanStates": {
+    "display_name": "XB-llama - 🧹 Clean States"
+  },
+  "XB_llamaParseJSON": {
+    "display_name": "XB-llama - 📋 Parse JSON"
+  },
+  "XB_llamaJSON2BBox": {
+    "display_name": "XB-llama - 🎯 JSON to BBox"
+  },
+  "XB_llamaBBox2SEGS": {
+    "display_name": "XB-llama - ✂️ BBox to SEGS"
+  },
+  "XB_llamaBBox2Mask": {
+    "display_name": "XB-llama - 🎭 BBox to Mask"
+  },
+  "XB_llamaBBoxes2BBox": {
+    "display_name": "XB-llama - 🔍 BBoxes to BBox"
+  },
+  "XB_llamaUnpackCodeBlock": {
+    "display_name": "XB-llama - 📝 Unpack Code Block"
+  },
+  "XB_llamaPromptEnhancer": {
+    "display_name": "XB-llama - ✨ Prompt Enhancer Preset"
+  },
+  "XB_llamaMiniMaxPreset": {
+    "display_name": "XB-llama - ✨ MiniMax fl2va Prompt Preset"
+  },
+  "XB_llamaMiniMaxRef2va": {
+    "display_name": "XB-llama - ✨ MiniMax ref2va Prompt Preset"
+  },
+  "XB_llamaStoryboardEnhancer": {
+    "display_name": "XB-llama - ✨ Storyboard Enhancer Preset"
+  },
+  "XB_llamaStoryboardInstruct": {
+    "display_name": "XB-llama - 💬 Storyboard Instruct"
+  },
+  "XB_llamaStoryboardProcessor": {
+    "display_name": "XB-llama - 🎞️ Storyboard Processor"
+  },
+  "XB_llamaStoryboardProcessorPro": {
+    "display_name": "XB-llama - 🎞️ Storyboard Processor Pro"
+  },
+  "XB_RoleSceneDispatcher": {
+    "display_name": "XB-llama - 🎬 Role Scene Dispatcher"
+  }
+}
