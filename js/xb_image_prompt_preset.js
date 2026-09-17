@@ -2455,7 +2455,7 @@ function setupNode(node) {
 
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
   const promptLab = el("div", "font-size:12px;color:#bbb;flex:0 0 auto;", "📝 节点提示词（与面板预览框双向同步）");
-  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:500px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
+  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
   promptBox.placeholder = "点上方 8 个按钮开面板、点选项行加入元素，或直接在这里写提示词…";
   container.append(promptLab, promptBox);
@@ -2605,9 +2605,9 @@ function setupNode(node) {
     } catch (_) {}
   };
   // 高度常量（提前声明：widget 的布局回调可能在后面才被调用，避免 TDZ）
-  const TEXT_MIN_H = 500;   // 提示词框最小高度（节点再小也不低于它；节点变大则跟随）
+  const TEXT_MIN_H = 300;   // 提示词框最小高度（节点再小也不低于它；节点变大则跟随）
   const DOM_FIXED_H = 116;  // 按钮区 2 行(66) + 标签(17) + 内边距/间距(≈33)
-  const DOM_MIN_H = 611;    // DOM 区最小高度 = DOM_FIXED_H + TEXT_MIN_H
+  const DOM_MIN_H = 411;    // DOM 区最小高度 = 按钮区 66 + 间距 12 + 标签 17 + 输入框 300 + 内边距 16
   if (widget) {
     try { delete widget.computeSize; } catch (_) { widget.computeSize = undefined; }
     widget.options = widget.options || {};
