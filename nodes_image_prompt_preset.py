@@ -3,7 +3,7 @@
 一个节点顶替「提示词输入框 + 画幅比例节点 + 官方空 latent」三件套：
 
 · 表面参数（顺序 = 节点上从上到下的显示顺序）：
-    空latent类型 / 输出语言 / 预设模式 / 人物三视图预设句（仅三视图模式显示）
+    空latent类型 / 输出语言 / 预设模式 / 预设句（三视图·四视图·背景纯透明 三个模式显示）
     / 画幅比例 / 宽度 / 高度 / 生成数量
   —— 画幅比例 + 步长锁定 + 比例联动 100% 复刻本包「XB-BOX - 🖼️ 图片参数大全」
      （去掉强度(小数)/强度(整数)/缩放尺寸三项）
@@ -11,12 +11,12 @@
      🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
      每个按钮打开**该分类**的独立面板；面板顶部「分类签」切换子类
      （例：风格 → 真人/动画/3D/绘画插画/特殊风格），选项行 = ➕ ➖ 选项名 添加详细描述
-· 输出①「提示词」= 预设句（人物三视图模式）+ 正文（节点提示词框 ↔ 面板预览框双向同步）
+· 输出①「提示词」= 预设句（人物三视图 / 人物四视图 / 背景纯透明；常规文生图无预设句）+ 正文（节点提示词框 ↔ 面板预览框双向同步）
 · 输出②「空latent」= 主流模型直接可用的空 latent（选项名 = 模型名，规格按官方 latent_format；
   通道数 / 下采样除数 / 步长 / 上下限 / batch 上限 / downscale 元数据逐项对齐）：
      · Z-image   16 通道 · /8   · 步长 16  （官方 latent_format = Flux）
      · Flux2     128 通道 · /16 · 步长 16  （官方 EmptyFlux2LatentImage）
-     · Qwen-image 16 通道 · /8  · 步长 16  （官方 latent_format = Wan21，采样时自动补 T 维）
+     · Qwen-image 16 通道 · /8  · 步长 32  （官方 latent_format = Wan21，采样时自动补 T 维；按用户要求锁 32）
      · Krea2     16 通道 · /8   · 步长 16  （官方 latent_format = Wan21）
      · Anima     16 通道 · /8   · 步长 8   （官方模板用 4 通道 EmptyLatentImage，零 latent 会被自动补齐）
      · Boogu     16 通道 · /8   · 步长 8   （同上，官方 latent_format = Flux）
@@ -45,22 +45,27 @@ import nodes
 ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"]
 ASPECT_RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16,
                     "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9}
-SIZE_STEP = 16            # 宽高步长（XB 同款；8 的倍数即可满足官方 VAE，16 更保险）
+SIZE_STEP = 16            # 宽高步长的兜底值（实际以「空latent类型」的官方最小步长为准：8/16/32）
 SIZE_MIN = 16
 BATCH_MAX = 4096          # 官方 EmptyLatentImage / EmptySD3LatentImage 的 batch 上限
 MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
 
 # ── 面板枚举（字符串即存储值，前端面板与后端按同一份字符串对齐） ────────────
 OUTPUT_LANGS = ["中文 [ZH]", "英文 [EN]"]
-PRESET_MODES = ["常规文生图", "人物三视图"]
+PRESET_MODES = ["常规文生图", "人物三视图", "人物四视图", "背景纯透明"]
 
 LANG_ZH = OUTPUT_LANGS[0]
+MODE_TEXT2IMG = PRESET_MODES[0]
 MODE_THREE_VIEW = PRESET_MODES[1]
+MODE_FOUR_VIEW = PRESET_MODES[2]
+MODE_TRANSPARENT = PRESET_MODES[3]
 
 # ── 主流模型的空 latent 规格表（逐项抄自 ComfyUI：comfy/latent_formats.py + 官方空 latent 节点）──
 # 选项文字 = 模型名（干净，不带专业参数；细节放 tooltip 与日志）；规格仍完整保留以保证对得上模型：
-#   每行： (选项名, 通道数, 下采样除数_h, _w, 尺寸步长, 最小, 最大, batch上限, downscale_ratio_spacial)
-#   · downscale_ratio_spacial = 官方 EmptyLatentImage/EmptySD3 带回的元数据（供
+#   每行： (选项名, 通道数, 下采样除数_h, _w, 尺寸步长, 最小, 最大, batch上限, downscale_ratio_spacial)#   · 尺寸步长 = 各模型**官方最小步长**（= 下采样 × patch2）：
+#     Anima/Boogu/SDXL = 8（/8）、Flux2 = 16（/16）、Krea2/SD3/Z-image = 16（/8×patch2）、
+#     Qwen-image = 32（用户指定：Qwen 系工作流习惯锁 32）、Hunyuan = 32（/32）。
+#     不做全局统一的 32，避免把 1080 这类尺寸无谓地顶到 1088。#   · downscale_ratio_spacial = 官方 EmptyLatentImage/EmptySD3 带回的元数据（供
 #     comfy/sample.py:fix_empty_latent_channels 判断是否需要缩放尺寸）
 _OFFICIAL_LATENT_ROWS = [
     ("Anima",       16, 8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
@@ -68,7 +73,7 @@ _OFFICIAL_LATENT_ROWS = [
     ("Flux2",      128, 16, 16, 16, 16, MAX_RESOLUTION, 4096, 16),
     ("Hunyuan",     64, 32, 32, 32, 64, MAX_RESOLUTION, 4096, 32),
     ("Krea2",       16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
-    ("Qwen-image",  16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
+    ("Qwen-image",  16, 8,  8,  32, 32, MAX_RESOLUTION, 4096, 8),
     ("SD3",         16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
     ("SDXL",        4,  8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
     ("Z-image",     16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
@@ -85,18 +90,38 @@ LATENT_KIND_SPEC = {
 }
 # 默认值固定为 Z-image（不随选项排序变化，保证老工作流/默认体验不变）
 DEFAULT_LATENT_KIND = "Z-image"
-# 人物三视图预设句（面板「输出设置」里唯一可编辑的预设文本；仅三视图模式可编辑）
-THREE_VIEW_TEXT = {
-    LANG_ZH: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成："
-             "第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，"
-             "第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
-    OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in parallel panels, "
-                     "the image is composed of four separate panels from left to right: "
-                     "the first panel is a finely detailed close-up portrait of the character's face, "
-                     "the second panel is a full-body front standing pose, "
-                     "the third panel is a full-body side standing pose, "
-                     "the fourth panel is a full-body back standing pose.",
+# 各预设模式的默认预设句（可编辑字段 three_view_text 的默认值）：按「预设模式 × 输出语言」给。
+# · 常规文生图 = 无预设句（原样输出正文，用户完全可控）
+# · 人物三视图 / 人物四视图 / 背景纯透明 = 成句时自动把预设句拼在正文前（中文「。」/英文 ". "）
+PRESET_TEXT = {
+    MODE_THREE_VIEW: {
+        LANG_ZH: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成："
+                 "第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，"
+                 "第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in parallel panels, "
+                         "the image is composed of four separate panels from left to right: "
+                         "the first panel is a finely detailed close-up portrait of the character's face, "
+                         "the second panel is a full-body front standing pose, "
+                         "the third panel is a full-body side standing pose, "
+                         "the fourth panel is a full-body back standing pose.",
+    },
+    MODE_FOUR_VIEW: {
+        LANG_ZH: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，"
+                 "画面右上角面板是角色面部侧面的的精细特写肖像，"
+                 "画面左下角面板是无头部的人物正面身体站姿，画面右下角面板是人物背面全身站姿。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in a 2x2 grid, "
+                         "the top-left panel is a finely detailed close-up portrait of the character's face, "
+                         "the top-right panel is a finely detailed close-up profile portrait of the character's face, "
+                         "the bottom-left panel is a full-body front standing pose without the head, "
+                         "the bottom-right panel is a full-body back standing pose.",
+    },
+    MODE_TRANSPARENT: {
+        LANG_ZH: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
+        OUTPUT_LANGS[1]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
+    },
 }
+# 兼容旧引用（三视图预设句）
+THREE_VIEW_TEXT = PRESET_TEXT[MODE_THREE_VIEW]
 
 # 元素分类白名单（必须与 js/xb_image_prompt_preset.js 的 CATEGORIES 顺序逐字一致；
 # 自测会断言两者相等）。这里只用来过滤配置里的脏数据。
@@ -297,17 +322,18 @@ def build_empty_latent(latent_kind, width, height, batch_size=1):
 # 提示词拼装
 # ============================================================================
 def build_prompt(lang, preset_mode, three_view_text, body):
-    """预设句（仅人物三视图） + 正文，按输出语言使用合适的分句符。
+    """预设句（人物三视图 / 人物四视图 / 背景纯透明） + 正文，按输出语言使用合适的分句符。
 
     正文 = 节点表面提示词框（也等于面板预览框，两者双向同步）。
     常规文生图：预设句不参与 → 原样输出正文（保持用户完全可控）。
     """
     core = (body if isinstance(body, str) else "").strip()
     mode = _pick(PRESET_MODES, preset_mode, PRESET_MODES[0])
-    if mode != MODE_THREE_VIEW:
+    defaults = PRESET_TEXT.get(mode)
+    if not defaults:
         return core
     lg = _pick(OUTPUT_LANGS, lang, LANG_ZH)
-    preset = _as_str(three_view_text).strip() or THREE_VIEW_TEXT[lg]
+    preset = _as_str(three_view_text).strip() or defaults[lg]
     if not core:
         return preset
     if lg == OUTPUT_LANGS[1]:
@@ -321,7 +347,7 @@ def build_prompt(lang, preset_mode, three_view_text, body):
 class XB_ImagePromptPreset:
     """XB-BOX - 🖼️ 生图提示词预设：画幅参数 + 提示词拼装 + 官方空 latent 一体化。
 
-    · 表面参数顺序 = 输出语言 / 预设模式 / 空latent类型 / 三视图预设句（仅三视图模式显示）
+    · 表面参数顺序 = 输出语言 / 预设模式 / 空latent类型 / 预设句（三视图·四视图·背景纯透明 显示）
       / 画幅比例 / 宽度 / 高度 / 生成数量；
     · 「提示词」输出 = 预设句（人物三视图）+ 节点提示词框正文；
     · 「空latent」输出 = 官方空 latent（见 LATENT_KINDS，共 9 种，逐字段对齐，选项按首字母排列）。
@@ -335,24 +361,25 @@ class XB_ImagePromptPreset:
                 "latent_kind": (list(LATENT_KINDS), {
                     "default": DEFAULT_LATENT_KIND,
                     "tooltip": "空latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）。\n"
-                               "Z-image 16ch·/8·16　Flux2 128ch·/16·16　Qwen-image 16ch·/8·16\n"
+                               "Z-image 16ch·/8·16　Flux2 128ch·/16·16　Qwen-image 16ch·/8·32\n"
                                "Krea2 16ch·/8·16　Anima 16ch·/8·8　Boogu 16ch·/8·8\n"
                                "SDXL 4ch·/8·8　SD3 16ch·/8·16　Hunyuan 64ch·/32·32\n"
-                               "（通道/下采样/步长均按官方 latent_format；选错一般也能跑，但选对更稳）",
+                               "（步长 = 各模型官方最小步长，仅 Qwen-image 按需求锁 32；通道/下采样同样按官方 latent_format）",
                 }),
                 # ── 以下 3 项由原「⚙️ 输出设置」面板上提为节点表面参数 ──
                 "output_lang": (list(OUTPUT_LANGS), {
                     "default": LANG_ZH,
-                    "tooltip": "输出语言：影响「人物三视图」预设句、元素拼装分隔符（面板里新加入的词条也按此语言）",
+                    "tooltip": "输出语言：影响预设句、元素拼装分隔符（面板里新加入的词条也按此语言）",
                 }),
                 "preset_mode": (list(PRESET_MODES), {
                     "default": PRESET_MODES[0],
                     "tooltip": "预设模式：常规文生图=只输出正文（完全可控）；"
-                               "人物三视图=成句自动在正文前加三视图预设句（下方预设句框仅此模式显示）",
+                               "人物三视图 / 人物四视图 / 背景纯透明 = 成句自动在正文前加对应预设句"
+                               "（下方预设句框仅这三个模式显示，切模式时未改过的默认句会自动跟随）",
                 }),
                 "three_view_text": ("STRING", {
                     "default": THREE_VIEW_TEXT[LANG_ZH], "multiline": True,
-                    "tooltip": "人物三视图预设句（仅「人物三视图」模式生效；切到常规文生图时本框会自动隐藏）",
+                    "tooltip": "预设句（人物三视图 / 人物四视图 / 背景纯透明 三个模式生效；常规文生图时本框自动隐藏）",
                 }),
                 "aspect_ratio": (list(ASPECT_RATIO_OPTIONS), {
                     "default": "Free",
@@ -361,12 +388,12 @@ class XB_ImagePromptPreset:
                 }),
                 "width": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片宽度（像素）。固定比例下改宽度会按比例重算高度；实际步长按「空latent类型」"
-                               "（SDXL/Anima/Boogu=8，其余多为 16，Hunyuan=32）",
+                    "tooltip": "图片宽度（像素）。固定比例下改宽度会按比例重算高度；步长按「空latent类型」的官方最小步长"
+                               "（SDXL/Anima/Boogu=8，Flux2/Krea2/SD3/Z-image=16，Qwen-image/Hunyuan=32）",
                 }),
                 "height": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片高度（像素）。固定比例下改高度会按比例重算宽度；实际步长按「空latent类型」",
+                    "tooltip": "图片高度（像素）。固定比例下改高度会按比例重算宽度；步长按「空latent类型」的官方最小步长（8/16/32）",
                 }),
                 "batch_size": ("INT", {
                     "default": 1, "min": 1, "max": BATCH_MAX,
@@ -376,7 +403,7 @@ class XB_ImagePromptPreset:
                 "internal_prompt": ("STRING", {
                     "default": "", "multiline": True, "advanced": True,
                     "tooltip": "节点内编辑的提示词正文（与元素面板的预览框双向同步，随工作流保存）。"
-                               "人物三视图模式下，本字段前面会自动拼上三视图预设句",
+                               "人物三视图 / 人物四视图 / 背景纯透明模式下，本字段前面会自动拼上对应预设句",
                 }),
                 "manager_settings": ("STRING", {
                     "default": "", "multiline": True, "advanced": True,
@@ -392,7 +419,7 @@ class XB_ImagePromptPreset:
     CATEGORY = "XB_ToolBox/Image_Params"
     DESCRIPTION = ("生图提示词预设：空latent类型（主流模型一键适配 Z-image/Flux2/Qwen-image/Krea2/"
                    "Anima/Boogu/SDXL/SD3/Hunyuan）+ 输出语言/预设模式 + 画幅比例/宽度/高度/生成数量"
-                   "（步长锁定 + 比例联动）＋ 提示词拼装（6 大类：风格/装扮/主体/姿态/光影/背景）。"
+                   "（步长按各模型官方最小步长 8/16/32 + 比例联动）＋ 提示词拼装（8 大类：风格/视角/主体/姿态/穿搭/道具/光影/背景）。"
                    "输出：①提示词 ②空latent。")
 
     @classmethod
@@ -413,7 +440,7 @@ class XB_ImagePromptPreset:
         # ② 空 latent（官方同款张量）
         latent = build_empty_latent(latent_kind, w, h, batch_size)
 
-        # ③ 提示词（三视图预设句 + 正文）
+        # ③ 提示词（预设句 + 正文）
         prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
 
         # ④ 控制台日志（节点表面不再有信息行，调试信息只打日志）
@@ -434,7 +461,7 @@ class XB_ImagePromptPreset:
 __all__ = [
     "XB_ImagePromptPreset",
     "ASPECT_RATIO_OPTIONS", "ASPECT_RATIO_MAP", "SIZE_STEP", "SIZE_MIN", "MAX_RESOLUTION",
-    "BATCH_MAX", "OUTPUT_LANGS", "PRESET_MODES", "THREE_VIEW_TEXT",
+    "BATCH_MAX", "OUTPUT_LANGS", "PRESET_MODES", "PRESET_TEXT", "THREE_VIEW_TEXT",
     "LATENT_KINDS", "LATENT_KIND_SPEC", "DEFAULT_LATENT_KIND", "ELEMENT_CATEGORIES",
     "default_settings", "parse_settings", "round_step", "normalize_size",
     "latent_kind_spec", "latent_step_of", "latent_shape_of",

@@ -30,10 +30,12 @@ const LANG_EN = "英文 [EN]";
 const LANGS = [LANG_ZH, LANG_EN];
 const MODE_TP = "常规文生图";
 const MODE_3V = "人物三视图";
-const MODES = [MODE_TP, MODE_3V];
+const MODE_4V = "人物四视图";
+const MODE_RGBA = "背景纯透明";
+const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_RGBA];
 
 const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
-const SIZE_STEP = 16;      // width/height 两个 widget 自己的步长
+const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
 const SIZE_MIN = 16;
 const SIZE_MAX = 16384;
 const BATCH_MAX = 4096;
@@ -43,24 +45,40 @@ const BATCH_MAX = 4096;
 const LATENT_KINDS = [
   "Anima", "Boogu", "Flux2", "Hunyuan", "Krea2", "Qwen-image", "SD3", "SDXL", "Z-image",
 ];
-// 每项：channels(通道) / hDiv・wDiv(下采样除数) / step(尺寸步长) / min・max / batchMax / downscale / desc(悬停说明)
+// 每项：channels(通道) / hDiv・wDiv(下采样除数) / step(尺寸步长 = 各模型官方最小步长) / min・max / batchMax / downscale / desc(悬停说明)
+// 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
 const LATENT_KIND_SPEC = {
   "Anima": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Anima：16 通道 · /8 · 步长 8（官方模板用 4 通道 EmptyLatentImage，零 latent 会被自动补齐）" },
   "Boogu": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Boogu：16 通道 · /8 · 步长 8（同上，官方 latent_format = Flux）" },
   "Flux2": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux2：128 通道 · /16 · 步长 16（官方 EmptyFlux2LatentImage）" },
   "Hunyuan": { channels: 64, hDiv: 32, wDiv: 32, step: 32, min: 64, max: 16384, batchMax: 4096, downscale: 32, desc: "Hunyuan：64 通道 · /32 · 步长 32（官方 EmptyHunyuanImageLatent / HunyuanImage 2.1）" },
   "Krea2": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Krea2：16 通道 · /8 · 步长 16（官方 latent_format = Wan21）" },
-  "Qwen-image": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Qwen-image：16 通道 · /8 · 步长 16（官方 latent_format = Wan21，采样时自动补 T 维）" },
+  "Qwen-image": { channels: 16, hDiv: 8, wDiv: 8, step: 32, min: 32, max: 16384, batchMax: 4096, downscale: 8, desc: "Qwen-image：16 通道 · /8 · 步长 32（官方 latent_format = Wan21，采样时自动补 T 维；按需求锁 32）" },
   "SD3": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SD3：16 通道 · /8 · 步长 16（官方 EmptySD3LatentImage）" },
   "SDXL": { channels: 4, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SDXL：4 通道 · /8 · 步长 8（官方 EmptyLatentImage）" },
   "Z-image": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Z-image：16 通道 · /8 · 步长 16（官方 latent_format = Flux）" },
 };
 const DEFAULT_LATENT_KIND = "Z-image";
 
-const THREE_VIEW_DEFAULT = {
-  [LANG_ZH]: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成：第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
-  [LANG_EN]: "Generate a character concept design sheet arranged in parallel panels, the image is composed of four separate panels from left to right: the first panel is a finely detailed close-up portrait of the character's face, the second panel is a full-body front standing pose, the third panel is a full-body side standing pose, the fourth panel is a full-body back standing pose.",
+/** 各预设模式的默认预设句（可编辑字段 three_view_text）；常规文生图 = 无预设句（原样输出正文） */
+const PRESET_TEXT_DEFAULT = {
+  [MODE_3V]: {
+    [LANG_ZH]: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成：第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in parallel panels, the image is composed of four separate panels from left to right: the first panel is a finely detailed close-up portrait of the character's face, the second panel is a full-body front standing pose, the third panel is a full-body side standing pose, the fourth panel is a full-body back standing pose.",
+  },
+  [MODE_4V]: {
+    [LANG_ZH]: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部的人物正面身体站姿，画面右下角面板是人物背面全身站姿。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a full-body front standing pose without the head, the bottom-right panel is a full-body back standing pose.",
+  },
+  [MODE_RGBA]: {
+    [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
+    [LANG_EN]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
+  },
 };
+/** 某模式某语言下的默认预设句（无预设句的模式 → 空串） */
+const defaultPresetOf = (mode, lang) => ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
+/** 兼容旧引用：三视图预设句 */
+const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
 
 const SEP = { [LANG_ZH]: "，", [LANG_EN]: ", " };
 
@@ -1487,8 +1505,8 @@ function rebuildBody(settings, index, lang) {
 /** 最终成句（与后端 build_prompt 逐行一致：预设句 + 正文）—— 三个值均来自节点表面参数 */
 function finalPrompt(mode, presetText, lang, body) {
   const core = String(body || "").trim();
-  if (mode !== MODE_3V) return core;
-  const preset = String(presetText || "").trim() || THREE_VIEW_DEFAULT[lang];
+  if (!PRESET_TEXT_DEFAULT[mode]) return core;          // 常规文生图 → 无预设句
+  const preset = String(presetText || "").trim() || defaultPresetOf(mode, lang);
   if (!core) return preset;
   if (lang === LANG_EN) return preset.replace(/[.\s]+$/, "") + ". " + core;
   return preset.replace(/[。．.\s]+$/, "") + "。" + core;
@@ -1600,11 +1618,11 @@ function openPanel(ctx, panelId) {
     const body = ctx.body.get();
     if (fromEl !== preview) preview.value = body;
     headCount.textContent = `${body.length} 字 → 成句 ${finalPrompt(surf.mode, surf.presetText, surf.lang, body).length} 字`;
-    const is3v = surf.mode === MODE_3V;
-    presetChip.style.display = is3v ? "block" : "none";
-    if (is3v) {
-      const t = String(surf.presetText || "");
-      presetChip.textContent = "📌 自动前置（人物三视图预设句，直接在节点表面「三视图预设句」框里改）：" + (t.length > 150 ? t.slice(0, 150) + "…" : t);
+    const hasPreset = !!PRESET_TEXT_DEFAULT[surf.mode];
+    presetChip.style.display = hasPreset ? "block" : "none";
+    if (hasPreset) {
+      const t = String(surf.presetText || "") || defaultPresetOf(surf.mode, surf.lang);
+      presetChip.textContent = `📌 自动前置（${surf.mode}预设句，直接在节点表面「预设句」框里改）：` + (t.length > 150 ? t.slice(0, 150) + "…" : t);
     }
   };
   preview.addEventListener("input", () => { ctx.body.set(preview.value); refreshPreview(preview); });
@@ -2502,10 +2520,17 @@ function setupNode(node) {
     } catch (_) {}
   };
 
-  // 预设句输入框：只有「人物三视图」模式才显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
+  /** 写预设句：同时写 widget 值 + textarea（新版前端 customtext 把值存在 DOM 上，只手写 widget 可能不刷新显示） */
+  const setPresetText = (txt) => {
+    try { setWidgetValue(w3v, txt); } catch (_) {}
+    try { if (w3v && w3v.element && "value" in w3v.element) w3v.element.value = txt; } catch (_) {}
+    try { node.setDirtyCanvas?.(true, true); } catch (_) {}
+  };
+
+  // 预设句输入框：常规文生图以外的 3 个模式（三视图/四视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
   const applyPresetTextVisibility = () => {
     try {
-      if (surfaceOf().mode === MODE_3V) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);
+      if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);
     } catch (_) {}
     node.setDirtyCanvas?.(true, true);
   };
@@ -2555,11 +2580,17 @@ function setupNode(node) {
   hook(wW, snapByWidth);
   hook(wH, snapByHeight);
   hook(wKind, () => { applyKindLimits(); snapByWidth(); });                     // 换类型 → 按新步长重新归一宽高
-  hook(wMode, () => { applyPresetTextVisibility(); });                          // 换模式 → 显/隐三视图预设句框
+  hook(wMode, () => {                                                          // 换模式 → 显/隐预设句框 +
+    const txt = defaultPresetOf(surfaceOf().mode, surfaceOf().lang);           //   无条件恢复该模式的预设句
+    if (txt) setPresetText(txt);                                               //   （用户要求：不管手改成什么都恢复）
+    applyPresetTextVisibility();
+  });
   hook(wLang, () => {                                                          // 换语言 → 未改过的默认预设句跟随语言
+    const mode = surfaceOf().mode;
+    const txt = defaultPresetOf(mode, surfaceOf().lang);
     const cur = String(readWidgetValue(w3v) ?? "").trim();
-    const prev = LANGS.find((L) => L !== surfaceOf().lang);
-    if (prev && cur === THREE_VIEW_DEFAULT[prev]) setWidgetValue(w3v, THREE_VIEW_DEFAULT[surfaceOf().lang]);
+    const prevLang = LANGS.find((L) => L !== surfaceOf().lang);
+    if (txt && (!cur || cur === defaultPresetOf(mode, prevLang))) setPresetText(txt);
   });
   hook(wB, () => {                                                             // batch 超出当前类型上限 → 就近钳制
     const sp = latentSpec(surfaceOf().kind);

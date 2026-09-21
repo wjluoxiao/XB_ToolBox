@@ -5829,7 +5829,7 @@
       "output_lang": { "name": "输出语言" },
       "preset_mode": { "name": "预设模式" },
       "latent_kind": { "name": "空latent类型" },
-      "three_view_text": { "name": "人物三视图预设句" },
+      "three_view_text": { "name": "预设句（三视图/四视图/透明背景）" },
       "aspect_ratio": { "name": "画幅比例" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },

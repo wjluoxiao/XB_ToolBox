@@ -350,7 +350,7 @@
       "output_lang": { "name": "Output Language" },
       "preset_mode": { "name": "Preset Mode" },
       "latent_kind": { "name": "Empty Latent Type" },
-      "three_view_text": { "name": "3-View Preset Text" },
+      "three_view_text": { "name": "Preset Text (3-view/4-view/transparent)" },
       "aspect_ratio": { "name": "Aspect Ratio" },
       "width": { "name": "Width" },
       "height": { "name": "Height" },

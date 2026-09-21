@@ -136,11 +136,12 @@ class XB_Sage_BlockSwap:
         if not isinstance(model, ModelPatcher):
             return model
 
-        if _is_dynamic_vram_active():
+        # ── 0 = 关闭分块功能：直接跳过，不做任何检测、不输出动态显存休眠警告 ──
+        if blocks_to_swap == 0:
+            print("\033[96m[XB Sage+分块]\033[0m: 分块数量 = 0，分块功能已关闭 (仅保留注意力加速)")
             return model
 
-        if blocks_to_swap == 0:
-            print("\033[96m[XB Sage+分块]\033[0m: 分块数量为 0，跳过 Block Swap")
+        if _is_dynamic_vram_active():
             return model
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory,

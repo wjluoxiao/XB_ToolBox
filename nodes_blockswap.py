@@ -66,12 +66,12 @@ class XB_UNetBlockSwap:
         if not isinstance(unet_model, ModelPatcher):
             return (unet_model,)
 
-        if is_dynamic_vram_active():
+        # ── 0 = 关闭分块功能：直接穿透，不做任何检测、不输出动态显存休眠警告 ──
+        if blocks_to_swap == 0:
+            print("\033[96m[XB UNet Block Swap]\033[0m: 分块数量 = 0，分块功能已关闭（节点穿透）")
             return (unet_model,)
 
-        # ── blocks_to_swap=0 等同于关闭，直接穿透 ──
-        if blocks_to_swap == 0:
-            print("\033[96m[XB UNet Block Swap]\033[0m: 分块数量为 0，节点穿透（无操作）")
+        if is_dynamic_vram_active():
             return (unet_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
@@ -156,12 +156,12 @@ class XB_CheckpointBlockSwap:
         if not isinstance(checkpoint_model, ModelPatcher):
             return (checkpoint_model,)
 
-        if is_dynamic_vram_active():
+        # ── 0 = 关闭分块功能：直接穿透，不做任何检测、不输出动态显存休眠警告 ──
+        if blocks_to_swap == 0:
+            print("\033[96m[XB Checkpoint Block Swap]\033[0m: 分块数量 = 0，分块功能已关闭（节点穿透）")
             return (checkpoint_model,)
 
-        # ── blocks_to_swap=0 等同于关闭，直接穿透 ──
-        if blocks_to_swap == 0:
-            print("\033[96m[XB Checkpoint Block Swap]\033[0m: 分块数量为 0，节点穿透（无操作）")
+        if is_dynamic_vram_active():
             return (checkpoint_model,)
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory, force_patch_weights, full_load):
