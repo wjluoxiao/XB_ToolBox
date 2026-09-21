@@ -67,8 +67,8 @@ const PRESET_TEXT_DEFAULT = {
     [LANG_EN]: "Generate a character concept design sheet arranged in parallel panels, the image is composed of four separate panels from left to right: the first panel is a finely detailed close-up portrait of the character's face, the second panel is a full-body front standing pose, the third panel is a full-body side standing pose, the fourth panel is a full-body back standing pose.",
   },
   [MODE_4V]: {
-    [LANG_ZH]: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部的人物正面身体站姿，画面右下角面板是人物背面全身站姿。",
-    [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a full-body front standing pose without the head, the bottom-right panel is a full-body back standing pose.",
+    [LANG_ZH]: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
   },
   [MODE_RGBA]: {
     [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",

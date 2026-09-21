@@ -108,11 +108,11 @@ PRESET_TEXT = {
     MODE_FOUR_VIEW: {
         LANG_ZH: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，"
                  "画面右上角面板是角色面部侧面的的精细特写肖像，"
-                 "画面左下角面板是无头部的人物正面身体站姿，画面右下角面板是人物背面全身站姿。",
+                 "画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
         OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in a 2x2 grid, "
                          "the top-left panel is a finely detailed close-up portrait of the character's face, "
                          "the top-right panel is a finely detailed close-up profile portrait of the character's face, "
-                         "the bottom-left panel is a full-body front standing pose without the head, "
+                         "the bottom-left panel is a headless front-facing outfit display view, "
                          "the bottom-right panel is a full-body back standing pose.",
     },
     MODE_TRANSPARENT: {
