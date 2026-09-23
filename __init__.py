@@ -73,8 +73,7 @@ try:
     from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes_blockswap_sage import XB_Sage_BlockSwap
-    from .nodes_wiring import XB_DynamicBus, XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
-    from .nodes_dashboard import XB_Dashboard_Zen
+    from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_memory_viz import XB_MemoryVisualization
     from .nodes_tile import XB_SamplerChunkMaster
     from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
@@ -175,10 +174,8 @@ try:
         "XB_UNetBlockSwap": XB_UNetBlockSwap,
         "XB_CheckpointBlockSwap": XB_CheckpointBlockSwap,
         "XB_Sage_BlockSwap": XB_Sage_BlockSwap,
-        "XB_DynamicBus": XB_DynamicBus,
         "XB_UNetNameBroadcaster": XB_UNetNameBroadcaster,
         "XB_CLIPNameBroadcaster": XB_CLIPNameBroadcaster,
-        "XB_Dashboard_Zen": XB_Dashboard_Zen,
         "XB_MemoryVisualization": XB_MemoryVisualization,
         "XB_SamplerChunkMaster": XB_SamplerChunkMaster,
         "XB_WanImageToVideo": XB_WanImageToVideo,
@@ -343,10 +340,8 @@ try:
         "XB_UNetBlockSwap": "XB-BOX - UNet Block Swap",
         "XB_CheckpointBlockSwap": "XB-BOX - Checkpoint Block Swap",
         "XB_Sage_BlockSwap": "XB-BOX - Sage + BlockSwap (Golden Duo)",
-        "XB_DynamicBus": "XB-BOX - Dynamic Bus",
         "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
         "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
-        "XB_Dashboard_Zen": "XB-BOX - Dashboard Zen",
         "XB_MemoryVisualization": "XB 📊 硬件监控面板 (Memory Visualization)",
         "XB_SamplerChunkMaster": "XB-BOX - Sampler Chunk Master",
         "XB_WanImageToVideo": "XB-BOX - Wan Image2Video",

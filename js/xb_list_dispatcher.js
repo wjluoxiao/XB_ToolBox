@@ -56,6 +56,8 @@ function setupDynamicOutputs(node) {
                 dw.inputEl.style.fontSize = "12px";
                 dw.inputEl.style.border = "1px solid #444";
             }
+            // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+            try { if (dw.options) dw.options.read_only = true; } catch (_) {}
             displays.push(dw);
         }
 

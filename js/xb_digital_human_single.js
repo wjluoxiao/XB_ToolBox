@@ -1,5 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+// Nodes 2.0：数字/下拉是 Vue 组件（无 inputEl/element），只调 callback 不会更新显示值
+import { setWidgetValue as xb_dispatch, sizeDomWidget } from "./xb_compat.js";
 
 // ============================================================
 // XB_DigitalHumanParams_Single — 数字人参数调节（单人）
@@ -8,18 +10,6 @@ import { api } from "../../scripts/api.js";
 
 const PAD = 10, HANDLE_HIT = 12;
 const isZH = navigator.language.startsWith("zh");
-
-const xb_dispatch = (w, val) => {
-    if (w.inputEl) {
-        w.inputEl.value = val;
-        w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.element) {
-        w.element.value = val;
-        w.element.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.callback) {
-        w.callback(val);
-    }
-};
 
 app.registerExtension({
     name: "XB_ToolBox.DigitalHumanParams_Single",
@@ -77,6 +67,8 @@ app.registerExtension({
 
         // ── duration_display 样式 ──
         if (wDur) {
+            // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+            if (wDur.options) wDur.options.read_only = true;
             setTimeout(() => {
                 const el = wDur.inputEl || wDur.element;
                 if (el) {
@@ -121,7 +113,8 @@ app.registerExtension({
         ctr.appendChild(canvas);
 
         const domWidget = node.addDOMWidget("xb_dh_single_ui", "custom", ctr);
-        domWidget.computeSize = () => [node.size[0] - 16, 100];
+        // Nodes 2.0：DOM widget 高度走 computeLayoutSize/getMinHeight（经典模式仍用 computeSize）
+        sizeDomWidget(node, domWidget, 100);
         if (node.size[1] < 320) node.size[1] = 320;
 
         let totalDur = 0, _lastFile = null, _pausing = false;

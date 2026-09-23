@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { sizeDomWidget } from "./xb_compat.js";
 import { api } from "../../scripts/api.js";
 
 // ============================================================
@@ -25,6 +26,8 @@ app.registerExtension({
             // 1. 时长显示设为只读+绿色样式
             // ============================================================
             if (wDur) {
+                // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+                if (wDur.options) wDur.options.read_only = true;
                 setTimeout(() => {
                     const el = wDur.inputEl || wDur.element;
                     if (el) {
@@ -94,7 +97,7 @@ app.registerExtension({
             playerContainer.appendChild(audioEl);
 
             const domWidget = node.addDOMWidget("xb_player", "custom", playerContainer);
-            domWidget.computeSize = function () { return [node.size[0] - 16, 52]; };
+            sizeDomWidget(node, domWidget, 52);
 
             // --- 扩展节点初始高度 ---
             if (node.size[1] < 280) node.size[1] = 280;

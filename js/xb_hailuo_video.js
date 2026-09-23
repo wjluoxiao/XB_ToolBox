@@ -6,20 +6,10 @@
  */
 
 import { app } from "../../scripts/app.js";
+// Nodes 2.0：数字/下拉是 Vue 组件（无 inputEl/element），只调 callback 不会更新显示值
+import { setWidgetValue as xb_dispatch, styleWidgetInput } from "./xb_compat.js";
 
 const isZH = navigator.language.startsWith("zh");
-
-const xb_dispatch = (w, val) => {
-    if (w.inputEl) {
-        w.inputEl.value = val;
-        w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.element) {
-        w.element.value = val;
-        w.element.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.callback) {
-        w.callback(val);
-    }
-};
 
 app.registerExtension({
     name: "xiaobai.hailuo.h3params",
@@ -63,6 +53,8 @@ app.registerExtension({
 
                 // Style frames_display
                 let dispEl = wDisp.inputEl || wDisp.element;
+                // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+                try { if (wDisp.options) wDisp.options.read_only = true; } catch (_) {}
                 if (dispEl && dispEl.style && dispEl.style.backgroundColor !== "rgb(34, 34, 34)") {
                     dispEl.readOnly = true;
                     dispEl.style.backgroundColor = "#222222";

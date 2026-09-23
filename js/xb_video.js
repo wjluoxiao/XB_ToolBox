@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { setWidgetValue } from "./xb_compat.js";
 
 // ============================================================
 // XB_VideoParamsMaster / XB_ImageParamsMaster / XB_MasterParameter — 参数主控 UI
@@ -6,7 +7,8 @@ import { app } from "../../scripts/app.js";
 
 const isZH = navigator.language.startsWith("zh");
 
-const xb_dispatch = (w, val) => {
+// 旧版写值函数（仅输入框/回调，Nodes 2.0 下会漏写 widget.value）
+const __xbLegacyDispatch = (w, val) => {
     if (w.inputEl) { 
         w.inputEl.value = val; 
         w.inputEl.dispatchEvent(new Event("input", { bubbles: true })); 
@@ -17,6 +19,9 @@ const xb_dispatch = (w, val) => {
         w.callback(val);
     }
 };
+
+// Nodes 2.0：数字/下拉是 Vue 组件（无 inputEl/element），统一走 setWidgetValue（element + value + callback）
+const xb_dispatch = (w, val) => setWidgetValue(w, val);
 
 app.registerExtension({
     name: "xiaobai.mediaparams.split",
@@ -105,6 +110,8 @@ app.registerExtension({
                     
                     if (wDisp && wLen && wFps && wFpsF && wWidth && wHeight && wRatio) {
                         node._xb_from_polling = true;
+                        // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+                        try { if (wDisp.options) wDisp.options.read_only = true; } catch (_) {}
                         let dispEl = wDisp.inputEl || wDisp.element;
                         if (dispEl && dispEl.style && dispEl.style.backgroundColor !== "rgb(34, 34, 34)") {
                             dispEl.readOnly = true;

@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { sizeDomWidget } from "./xb_compat.js";
 import { api } from "../../scripts/api.js";
 
 // ============================================================
@@ -24,6 +25,8 @@ app.registerExtension({
             const wDur   = node.widgets.find(w => w.name === "duration_display");
 
             if (wDur) {
+                // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+                if (wDur.options) wDur.options.read_only = true;
                 setTimeout(() => {
                     const el = wDur.inputEl || wDur.element;
                     if (el) {
@@ -66,7 +69,8 @@ app.registerExtension({
             ctr.appendChild(canvas);
 
             const domWidget = node.addDOMWidget("xb_wdc_ui", "custom", ctr);
-            domWidget.computeSize = () => [node.size[0] - 16, 100];
+            // Nodes 2.0：DOM widget 高度走 computeLayoutSize/getMinHeight（经典模式仍用 computeSize）
+            sizeDomWidget(node, domWidget, 100);
             if (node.size[1] < 350) node.size[1] = 350;
 
             let totalDur = 0, _lastFile = null, _pausing = false;

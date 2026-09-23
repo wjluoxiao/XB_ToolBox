@@ -5,26 +5,6 @@ class AnyType(str):
         return False
 anyType = AnyType("*")
 
-MAX_PORTS = 20
-
-# ============================================================
-# XB_DynamicBus — 动态总线 (万能连线中继)
-# ============================================================
-class XB_DynamicBus:
-    @classmethod
-    def INPUT_TYPES(s):
-        inputs = {f"in_{i}": (anyType, ) for i in range(1, MAX_PORTS + 1)}
-        return {"required": {}, "optional": inputs}
-
-    RETURN_TYPES = tuple([anyType] * MAX_PORTS)
-    RETURN_NAMES = tuple([f"out_{i}" for i in range(1, MAX_PORTS + 1)])
-    FUNCTION = "route"
-    CATEGORY = "XB_ToolBox/Wiring"
-
-    def route(self, **kwargs):
-        res = [kwargs.get(f"in_{i}") for i in range(1, MAX_PORTS + 1)]
-        return tuple(res)
-
 # ============================================================
 # XB_UNetNameBroadcaster — UNet 名称广播器
 # ============================================================

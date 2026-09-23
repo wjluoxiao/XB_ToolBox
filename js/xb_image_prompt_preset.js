@@ -17,10 +17,11 @@
  * 提示词正文存在 `internal_prompt` widget（advanced 字段，节点表面不显示），
  * 由「节点提示词框 ↔ 面板预览框」双向同步。
  *
- * 本文件不 import 其它 js（那些是模块私有函数），只自带十来个无状态 UI 助手。
+ * 本文件只 import xb_compat.js 的 2.0 兼容助手（其余是模块私有函数），自带十来个无状态 UI 助手。
  */
 
 import { app } from "../../scripts/app.js";
+import { installNodes2BoxResize } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
 
@@ -1394,6 +1395,19 @@ function setWidgetValue(w, val) {
 }
 function findWidget(node, name) { return (node?.widgets || []).find((w) => w.name === name); }
 
+/**
+ * Nodes 2.0 可见性刷新
+ * ⚠️ 实测（前端 1.52.7）：在 onNodeCreated 阶段把 widget 改成 type="hidden" / hidden=true / options.hidden=true，
+ *    数据都对，但 Vue 侧不会重渲染（DOM 里依然看得见、依旧占高度）；
+ *    触发 node:slot-label:changed（内部事件）会让前端重新抽取节点数据 → 立即生效。
+ *    经典模式（Nodes 1.0）下这些操作等价于无效动作，无副作用。
+ */
+function refreshNodes2View(node) {
+  try { if (node && Array.isArray(node.widgets)) node.widgets = node.widgets.slice(); } catch (_) {}
+  try { node?.graph?.trigger?.("node:slot-label:changed", { nodeId: node.id, slotType: 2 }); } catch (_) {}
+  try { node?.setDirtyCanvas?.(true, true); } catch (_) {}
+}
+
 /** 容错解析：任何异常都退回默认（绝不让面板打不开） */
 function parseSettings(raw) {
   const cfg = defaultSettings();
@@ -2418,15 +2432,36 @@ function setupNode(node) {
       const st = widgetState.get(w);
       if (w.element) w.element.style.display = "";
       if (w.inputEl) w.inputEl.style.display = "";
-      w.type = (st && st.type) || "text";
-      w.hidden = (st && st.hidden) || false;
-      if (w.options && st) w.options.hidden = st.optHidden;
-      if (st && st.computeSize) w.computeSize = st.computeSize; else { try { delete w.computeSize; } catch (_) {} }
+      if (st) {
+        // 只在确有存档时还原 type/computeSize
+        if (st.type) w.type = st.type;
+        w.hidden = !!st.hidden;
+        if (w.options) w.options.hidden = st.optHidden;
+        if (st.computeSize) w.computeSize = st.computeSize; else { try { delete w.computeSize; } catch (_) {} }
+      } else {
+        // ⚠️ 没有存档（从未 hideWidget 过，如加载「预设模式=三视图」的工作流直接就 show）时
+        // 绝不能写 w.type —— 旧写法 `(st && st.type) || "text"` 会把原生的多行
+        // customtext/textarea 预设句框改成单行 type="text"，界面上变成一个一行输入栏。
+        w.hidden = false;
+        if (w.options) w.options.hidden = false;
+      }
     } catch (_) {}
   };
+  // 提前为「会被 show/hide 的原生框」存一份原样（预设句框在部分工作流里从未被 hide 过）
+  const snapshotWidget = (w) => {
+    if (!w || widgetState.has(w)) return;
+    try {
+      widgetState.set(w, {
+        type: w.type, computeSize: w.computeSize, hidden: w.hidden,
+        optHidden: w.options ? w.options.hidden : undefined,
+      });
+    } catch (_) {}
+  };
+  snapshotWidget(w3v);
   const hideInternal = () => {
     hideWidget(findWidget(node, "internal_prompt"));
     hideWidget(findWidget(node, "manager_settings"));
+    refreshNodes2View(node);
     node.setDirtyCanvas?.(true, true);
   };
   hideInternal();
@@ -2500,10 +2535,44 @@ function setupNode(node) {
 
   // 三视图预设句框是 ComfyUI 原生 textarea（自带 h-full w-full 与默认圆角），
   // 必须手动对齐节点表面提示词框：同宽（容器左右各 8px 内边距）+ 同样的圆角 / 配色
+  const nodeEl = () => document.querySelector(`[data-node-id="${node.id}"]`);
+  const markNodeEl = () => { try { nodeEl()?.setAttribute("data-xb-ipp", "1"); } catch (_) {} };
+  // Nodes 2.0：原生 widget 的 DOM 是 Vue 重建的，`w3v.element / inputEl` 是**已脱离文档**的老元素
+  // （实测 connected=false），真正显示的那个 textarea 用的是前端 Textarea 组件，
+  // class 带 scrollbar-gutter-stable，默认 min-height 只有 4rem 且 overflow-y:hidden
+  // → 预设句较长时直接截断、也拉不高。这里单独给它放宽（面板自己的预览框没有这个 class，不受影响）。
+  const IPP_STYLE_ID = "xb-ipp-preset-textarea-style";
+  const ensurePresetBoxStyle = () => {
+    try {
+      if (document.getElementById(IPP_STYLE_ID)) return;
+      const st = document.createElement("style");
+      st.id = IPP_STYLE_ID;
+      st.textContent = `
+        [data-xb-ipp] textarea[class*="scrollbar-gutter-stable"] {
+          min-height: 132px;
+          max-height: 360px;
+          overflow-y: auto !important;
+          resize: vertical;
+        }`;
+      document.head.appendChild(st);
+    } catch (_) {}
+  };
+  const livePresetBox = () => {
+    try {
+      const el = nodeEl();
+      if (!el) return null;
+      const cands = Array.from(el.querySelectorAll('textarea[class*="scrollbar-gutter-stable"]'));
+      if (!cands.length) return null;
+      const val = String(readWidgetValue(w3v) ?? "");
+      return cands.find((t) => String(t.value || "") === val) || cands[0];
+    } catch (_) { return null; }
+  };
   const stylePresetTextBox = () => {
     try {
-      if (!w3v) return;
-      for (const box of [w3v.element, w3v.inputEl]) {
+      ensurePresetBoxStyle();
+      markNodeEl();
+      // 1.0（canvas 里的 DOM widget）：按老做法修边
+      if (w3v) for (const box of [w3v.element, w3v.inputEl]) {
         if (!box || !box.style) continue;
         box.style.width = "calc(100% - 16px)";
         box.style.margin = "0 8px";
@@ -2516,6 +2585,16 @@ function setupNode(node) {
         box.style.fontSize = "12px";
         box.style.lineHeight = "1.6";
         box.style.fontFamily = "inherit";
+      }
+      // 2.0：把“活的”多行框调成够看、可滚、可拉高
+      const live = livePresetBox();
+      if (live && live.style) {
+        live.style.minHeight = "132px";
+        live.style.maxHeight = "360px";
+        live.style.overflowY = "auto";
+        live.style.resize = "vertical";
+        live.style.whiteSpace = "pre-wrap";
+        live.style.lineHeight = "1.6";
       }
     } catch (_) {}
   };
@@ -2532,6 +2611,13 @@ function setupNode(node) {
     try {
       if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);
     } catch (_) {}
+    refreshNodes2View(node);
+    // 2.0 下 Vue 可能稍后才把原生 widget 的 DOM 挂上/重建 → 几个时机各补一次样式与节点标记
+    [0, 60, 200, 600].forEach((d) => setTimeout(() => {
+      ensurePresetBoxStyle();
+      markNodeEl();
+      try { if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) stylePresetTextBox(); } catch (_) {}
+    }, d));
     node.setDirtyCanvas?.(true, true);
   };
 
@@ -2580,6 +2666,11 @@ function setupNode(node) {
   hook(wW, snapByWidth);
   hook(wH, snapByHeight);
   hook(wKind, () => { applyKindLimits(); snapByWidth(); });                     // 换类型 → 按新步长重新归一宽高
+  // 2.0：注入「原生多行框放宽」样式 + 给节点元素打标记（数据属性是 CSS 作用域的锚点；
+  //     Vue 重建节点 DOM 后会丢，所以拖后几次重打）
+  ensurePresetBoxStyle();
+  markNodeEl();
+  [0, 300, 1200].forEach((d) => setTimeout(() => { ensurePresetBoxStyle(); markNodeEl(); }, d));
   hook(wMode, () => {                                                          // 换模式 → 显/隐预设句框 +
     const txt = defaultPresetOf(surfaceOf().mode, surfaceOf().lang);           //   无条件恢复该模式的预设句
     if (txt) setPresetText(txt);                                               //   （用户要求：不管手改成什么都恢复）
@@ -2694,6 +2785,15 @@ function setupNode(node) {
   setTimeout(refreshSize, 1200);   // 兜底：加载工作流后 widget 才铺完时再校正一次（只增不减）
   node._xbRefreshSize = refreshSize;
   node._xbEl = container;   // 调试/自动化定位用
+
+  // Nodes 2.0：面板里的提示词框不会自己长高（节点高度由 DOM 内容主导，flex:1 停在 min-height）
+  //   → 默认 300px；用户拖节点尺寸手柄时按指针位移实时跟随（两个方向都跟手）；
+  //   切回经典模式自动还原原样，交回原有 flex 布局。
+  try {
+    node._xbUninstallBoxResize = installNodes2BoxResize(node, promptBox, {
+      min: TEXT_MIN_H, max: 4000, deflt: TEXT_MIN_H,
+    });
+  } catch (e) { console.warn("[XB-生图提示词预设] 2.0 高度跟随安装失败", e); }
 
   // 节点 resize：立即同步 overlay 宽度 + 重绘；防抖后只校正「最小宽度 / 最小高度」。
   // ⚠️ 高度下限是硬约束（输入框永远 ≥500px）：拖小节点时一次性拉回，

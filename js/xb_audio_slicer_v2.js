@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { sizeDomWidget } from "./xb_compat.js";
 import { api } from "../../scripts/api.js";
 
 // ============================================================
@@ -27,6 +28,8 @@ app.registerExtension({
             const wFps = node.widgets.find(w => w.name === "fps");
             const wTot = node.widgets.find(w => w.name === "total_display");
 
+            // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
+            if (wTot && wTot.options) wTot.options.read_only = true;
             if (wTot) setTimeout(() => { const el = wTot.inputEl || wTot.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;min-width:120px;white-space:nowrap;overflow:hidden;"; } }, 100);
 
             const audioEl1 = document.createElement("audio"); audioEl1.controls = true; audioEl1.style.cssText = "width:100%;height:30px;outline:none;";
@@ -65,7 +68,8 @@ app.registerExtension({
             canvas2.width = 1200 * dpr; canvas2.height = 72 * dpr; ctr.appendChild(canvas2);
 
             const domWidget = node.addDOMWidget("xb3_ui", "custom", ctr);
-            domWidget.computeSize = () => [node.size[0] - 16, 240];
+            // Nodes 2.0：DOM widget 高度走 computeLayoutSize/getMinHeight（经典模式仍用 computeSize）
+            sizeDomWidget(node, domWidget, 240);
             if (node.size[1] < 520) node.size[1] = 520;
 
             const getD = (t) => t === 1 ? (dur1 || 10) : (dur2 || 10);

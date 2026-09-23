@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { isNodes2 } from "./xb_compat.js";
 
 // ============================================================
 // 以下函数�?VHS.core.js 一字不差复�?
@@ -27,6 +28,9 @@ function fitHeight(node) {
 }
 
 function allowDragFromWidget(widget) {
+    // Nodes 2.0：节点是 DOM 元素，拖拽/选择由前端自己处理；
+    // 再把 DOM 指针事件丢给画布回调会导致选择/拖拽错乱
+    if (isNodes2()) return;
     widget.onPointerDown = function(pointer, node) {
         pointer.onDragStart = () => {
             app.canvas.emitBeforeChange()
@@ -74,11 +78,23 @@ function addVideoPreview(nodeType, isInput=true) {
             }
             return [width, -4];
         }
-        element.addEventListener('contextmenu', (e) => { e.preventDefault(); return app.canvas._mousedown_callback(e) }, true);
-        element.addEventListener('pointerdown', (e) => { e.preventDefault(); return app.canvas._mousedown_callback(e) }, true);
-        element.addEventListener('mousewheel', (e) => { e.preventDefault(); return app.canvas._mousewheel_callback(e) }, true);
-        element.addEventListener('pointermove', (e) => { e.preventDefault(); return app.canvas._mousemove_callback(e) }, true);
-        element.addEventListener('pointerup', (e) => { e.preventDefault(); return app.canvas._mouseup_callback(e) }, true);
+        // Nodes 2.0：DOM widget 高度走 computeLayoutSize（按当前节点宽度 × 视频宽高比估算）
+        previewWidget.computeLayoutSize = (n) => {
+            try {
+                const ar = previewWidget.aspectRatio;
+                const w = Math.max(120, Number(n?.size?.[0] ?? previewNode.size?.[0]) - 20);
+                if (ar > 0) return { minHeight: Math.round(w / ar) + 20, minWidth: 0 };
+            } catch (_) { /* ignore */ }
+            return { minHeight: 80, minWidth: 0 };
+        };
+        // Nodes 2.0：DOM 节点自带事件处理，不再把事件转发给画布（否则会连带选中/拖动节点）
+        if (!isNodes2()) {
+            element.addEventListener('contextmenu', (e) => { e.preventDefault(); return app.canvas._mousedown_callback(e) }, true);
+            element.addEventListener('pointerdown', (e) => { e.preventDefault(); return app.canvas._mousedown_callback(e) }, true);
+            element.addEventListener('mousewheel', (e) => { e.preventDefault(); return app.canvas._mousewheel_callback(e) }, true);
+            element.addEventListener('pointermove', (e) => { e.preventDefault(); return app.canvas._mousemove_callback(e) }, true);
+            element.addEventListener('pointerup', (e) => { e.preventDefault(); return app.canvas._mouseup_callback(e) }, true);
+        }
         element.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; app.dragOverNode = this })
 
         previewWidget.value = {hidden: false, paused: false, params: {}, muted: false}

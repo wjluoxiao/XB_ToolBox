@@ -351,9 +351,6 @@
       }
     }
   },
-  "XB_DynamicBus": {
-    "display_name": "XB-BOX - 🎛️ 动态总线插排"
-  },
   "XB_UNetNameBroadcaster": {
     "display_name": "XB-BOX - 🗂️ UNet 名称分发",
     "inputs": {
@@ -379,9 +376,6 @@
         "name": "CLIP名称"
       }
     }
-  },
-  "XB_Dashboard_Zen": {
-    "display_name": "XB-BOX - 🪄 远程控制中心"
   },
   "XB_SamplerChunkMaster": {
     "display_name": "XB-BOX - 🧊 采样分块大师",

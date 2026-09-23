@@ -15,7 +15,6 @@ const SIZES = {
     "XB_CheckpointBlockSwap": [360, 200],
     "XB_UNetNameBroadcaster": [360, 200],
     "XB_CLIPNameBroadcaster": [360, 200],
-    "XB_Dashboard_Zen": [360, 200],
     "XB_SamplerChunkMaster": [360, 200],
     "XB_WanImageToVideo": [360, 200],
     "XB_WanFirstLastFrameToVideo": [360, 200],

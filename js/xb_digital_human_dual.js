@@ -1,5 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+// Nodes 2.0：数字/下拉是 Vue 组件（无 inputEl/element），只调 callback 不会更新显示值
+import { setWidgetValue as xb_dispatch, hideWidget, sizeDomWidget } from "./xb_compat.js";
 
 // ============================================================
 // XB_DigitalHumanParams_Dual — 数字人参数调节（双人）
@@ -7,18 +9,6 @@ import { api } from "../../scripts/api.js";
 // ============================================================
 
 const PAD = 10, HANDLE_HIT = 12;
-
-const xb_dispatch = (w, val) => {
-    if (w.inputEl) {
-        w.inputEl.value = val;
-        w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.element) {
-        w.element.value = val;
-        w.element.dispatchEvent(new Event("input", { bubbles: true }));
-    } else if (w.callback) {
-        w.callback(val);
-    }
-};
 
 app.registerExtension({
     name: "XB_ToolBox.DigitalHumanParams_Dual",
@@ -79,9 +69,12 @@ app.registerExtension({
                 const off = wFF.callback; wFF.callback = function (v) { if (off) off.apply(this, arguments); if (node._xb_syncing || node._xb_from_polling) return; const val = Math.round(Number(v)); if (wFps.value !== val) { node._xb_syncing = true; wFps.value = val; xb_dispatch(wFps, val); node._xb_syncing = false; } };
             }
 
-            // ── 隐藏隐形总线 ──
-            [w.mutes1_data, w.mutes2_data].forEach(wd => { if (wd) { wd.type = "hidden"; wd.computeSize = () => [0, -4]; } });
-            if (w.total_display) setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
+            // ── 隐藏隐形总线（经典靠 type="hidden"，Nodes 2.0 需 hidden/options.hidden）──
+            [w.mutes1_data, w.mutes2_data].forEach(wd => { hideWidget(node, wd); });
+            if (w.total_display) {
+                if (w.total_display.options) w.total_display.options.read_only = true;  // Nodes 2.0
+                setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
+            }
 
             // ── 轨道状态机（来自 xb_audio_slicer_v3.js）──
             const tracks = {
@@ -162,7 +155,8 @@ app.registerExtension({
             });
 
             const domWidget = node.addDOMWidget("xb_dh_dual_ui", "custom", ctr);
-            domWidget.computeSize = () => [node.size[0] - 16, 280];
+            // Nodes 2.0：DOM widget 高度走 computeLayoutSize/getMinHeight（经典模式仍用 computeSize）
+            sizeDomWidget(node, domWidget, 280);
             if (node.size[1] < 500) node.size[1] = 500;
 
             const getMapper = (tr, cvs) => {

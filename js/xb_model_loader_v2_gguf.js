@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { hideWidget, showWidgetAs, slotSize } from "./xb_compat.js";
 
 app.registerExtension({
     name: "XB_ToolBox.ModelLoaderV2_GGUF",
@@ -19,11 +20,12 @@ app.registerExtension({
                 const wLh = node.widgets.find(w => w.name === `lora_high_${i}`);
                 const wOnh = node.widgets.find(w => w.name === `lora_high_${i}_on`);
                 const wStrh = node.widgets.find(w => w.name === `lora_high_${i}_strength`);
-                if (wLh && wOnh && wStrh) { if (i > 1) { wLh.type = "hidden"; wLh.computeSize = () => [0, -4]; wOnh.type = "hidden"; wOnh.computeSize = () => [0, -4]; wStrh.type = "hidden"; wStrh.computeSize = () => [0, -4]; } node._lora_high_slots.push({ idx: i, lora: wLh, on: wOnh, str: wStrh, visible: i === 1 }); }
+                // 隐藏槽位：经典模式靠 type="hidden"，Nodes 2.0 还需 hidden / options.hidden
+                if (wLh && wOnh && wStrh) { if (i > 1) { hideWidget(node, wLh); hideWidget(node, wOnh); hideWidget(node, wStrh); } node._lora_high_slots.push({ idx: i, lora: wLh, on: wOnh, str: wStrh, visible: i === 1 }); }
                 const wLl = node.widgets.find(w => w.name === `lora_low_${i}`);
                 const wOnl = node.widgets.find(w => w.name === `lora_low_${i}_on`);
                 const wStrl = node.widgets.find(w => w.name === `lora_low_${i}_strength`);
-                if (wLl && wOnl && wStrl) { if (i > 1) { wLl.type = "hidden"; wLl.computeSize = () => [0, -4]; wOnl.type = "hidden"; wOnl.computeSize = () => [0, -4]; wStrl.type = "hidden"; wStrl.computeSize = () => [0, -4]; } node._lora_low_slots.push({ idx: i, lora: wLl, on: wOnl, str: wStrl, visible: i === 1 }); }
+                if (wLl && wOnl && wStrl) { if (i > 1) { hideWidget(node, wLl); hideWidget(node, wOnl); hideWidget(node, wStrl); } node._lora_low_slots.push({ idx: i, lora: wLl, on: wOnl, str: wStrl, visible: i === 1 }); }
             }
             const refreshLists = async (keyword) => {
                 if (!keyword || !keyword.trim()) return;
@@ -41,8 +43,8 @@ app.registerExtension({
             };
             if (wType) { const orig = wType.callback; wType.callback = function (v) { if (orig) orig.apply(this, arguments); refreshLists(v); }; }
             const mkBtn = (label, slots) => {
-                const btn = node.addWidget("button", label, "btn", () => { const h = slots.filter(s => !s.visible); if (h.length > 0) { h[0].visible = true; h[0].lora.type = "combo"; h[0].lora.computeSize = () => [node.size[0] - 16, 26]; h[0].on.type = "toggle"; h[0].on.computeSize = () => [node.size[0] - 16, 26]; h[0].str.type = "number"; h[0].str.computeSize = () => [node.size[0] - 16, 26]; node.setDirtyCanvas(true, true); } }); btn.options.serialize = false;
-                const btnD = node.addWidget("button", label.replace("➕","➖"), "btn2", () => { const v = slots.filter(s => s.visible); if (v.length > 1) { const s = v[v.length - 1]; s.visible = false; s.lora.type = "hidden"; s.lora.computeSize = () => [0, -4]; s.on.type = "hidden"; s.on.computeSize = () => [0, -4]; s.str.type = "hidden"; s.str.computeSize = () => [0, -4]; s.lora.value = "无"; s.on.value = false; s.str.value = 1.0; node.setDirtyCanvas(true, true); } }); btnD.options.serialize = false;
+                const btn = node.addWidget("button", label, "btn", () => { const h = slots.filter(s => !s.visible); if (h.length > 0) { const s = h[0]; s.visible = true; showWidgetAs(node, s.lora, { type: "combo", computeSize: slotSize(node, 26) }); showWidgetAs(node, s.on, { type: "toggle", computeSize: slotSize(node, 26) }); showWidgetAs(node, s.str, { type: "number", computeSize: slotSize(node, 26) }); node.setDirtyCanvas(true, true); } }); btn.options.serialize = false;
+                const btnD = node.addWidget("button", label.replace("➕","➖"), "btn2", () => { const v = slots.filter(s => s.visible); if (v.length > 1) { const s = v[v.length - 1]; s.visible = false; hideWidget(node, s.lora); hideWidget(node, s.on); hideWidget(node, s.str); s.lora.value = "无"; s.on.value = false; s.str.value = 1.0; node.setDirtyCanvas(true, true); } }); btnD.options.serialize = false;
             };
             mkBtn("➕ 高噪LoRA", node._lora_high_slots);
             mkBtn("➕ 低噪LoRA", node._lora_low_slots);

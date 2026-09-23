@@ -6,6 +6,7 @@
  */
 
 import { app } from "../../scripts/app.js";
+import { setWidgetValue } from "./xb_compat.js";
 
 const MINIMAX_TYPE = "XB_llamaMiniMaxPreset";
 const REF2VA_TYPE  = "XB_llamaMiniMaxRef2va";
@@ -33,10 +34,9 @@ function minimaxToHaiyo(aspect)    { return RATIO_MAP[aspect] || "16:9 (Widescre
 
 // ── widget 派发 ─────────────────────────────────────────────────────
 
+// Nodes 2.0：数字/下拉是 Vue 组件（无 element），故统一走 setWidgetValue
 function dispatch(w, val) {
-    if (!w) return;
-    if (w.element) { w.element.value = val; w.element.dispatchEvent(new Event("input", { bubbles: true })); }
-    if (w.callback) w.callback(val);
+    setWidgetValue(w, val);
 }
 
 // ── 同步逻辑 ────────────────────────────────────────────────────────

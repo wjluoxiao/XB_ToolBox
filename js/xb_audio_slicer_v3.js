@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { hideWidget, sizeDomWidget } from "./xb_compat.js";
 import { api } from "../../scripts/api.js";
 
 // ============================================================
@@ -26,9 +27,12 @@ app.registerExtension({
             const wFps = node.widgets.find(x => x.name === "fps");
             if (!w.audio1 || !w.audio2) return;
 
-            // 隐藏隐形总线
-            [w.mutes1_data, w.mutes2_data].forEach(wd => { if (wd) { wd.type = "hidden"; wd.computeSize = () => [0, -4]; } });
-            if (w.total_display) setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
+            // 隐藏隐形总线（经典靠 type="hidden"，Nodes 2.0 需 hidden/options.hidden）
+            [w.mutes1_data, w.mutes2_data].forEach(wd => { hideWidget(node, wd); });
+            if (w.total_display) {
+                if (w.total_display.options) w.total_display.options.read_only = true;  // Nodes 2.0
+                setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
+            }
 
             // 轨道状态机
             const tracks = {
@@ -112,7 +116,8 @@ app.registerExtension({
 
             // 🚀 同步缩小 Widget 和 Node 的整体尺寸
             const domWidget = node.addDOMWidget("xb_v3_ui", "custom", ctr);
-            domWidget.computeSize = () => [node.size[0] - 16, 280]; 
+            // Nodes 2.0：DOM widget 高度走 computeLayoutSize/getMinHeight（经典模式仍用 computeSize）
+            sizeDomWidget(node, domWidget, 280); 
             if (node.size[1] < 450) node.size[1] = 450;
 
             const getMapper = (tr, cvs) => {

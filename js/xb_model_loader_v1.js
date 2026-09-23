@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { hideWidget, showWidgetAs, slotSize } from "./xb_compat.js";
 
 // ============================================================
 // XB_ModelLoaderV1 — 模型加载大全V1
@@ -32,9 +33,10 @@ app.registerExtension({
                 if (wL && wOn && wStr) {
                     // 默认只有第一个lora可见
                     if (i > 1) {
-                        wL.type = "hidden"; wL.computeSize = () => [0, -4];
-                        wOn.type = "hidden"; wOn.computeSize = () => [0, -4];
-                        wStr.type = "hidden"; wStr.computeSize = () => [0, -4];
+                        // 隐藏槽位：经典模式靠 type="hidden"，Nodes 2.0 还需 hidden / options.hidden
+                        hideWidget(node, wL);
+                        hideWidget(node, wOn);
+                        hideWidget(node, wStr);
                     }
                     node._lora_slots.push({ idx: i, lora: wL, on: wOn, str: wStr, visible: i === 1 });
                 }
@@ -80,12 +82,10 @@ app.registerExtension({
                 if (hidden.length > 0) {
                     const s = hidden[0];
                     s.visible = true;
-                    s.lora.type = "combo";
-                    s.lora.computeSize = () => [node.size[0] - 16, 26];
-                    s.on.type = "toggle";
-                    s.on.computeSize = () => [node.size[0] - 16, 26];
-                    s.str.type = "number";
-                    s.str.computeSize = () => [node.size[0] - 16, 26];
+                    // 恢复显示：经典模式还原 type/computeSize，Nodes 2.0 同时还原 hidden/options.hidden
+                    showWidgetAs(node, s.lora, { type: "combo", computeSize: slotSize(node, 26) });
+                    showWidgetAs(node, s.on, { type: "toggle", computeSize: slotSize(node, 26) });
+                    showWidgetAs(node, s.str, { type: "number", computeSize: slotSize(node, 26) });
                     node.setDirtyCanvas(true, true);
                 }
             });
@@ -97,9 +97,9 @@ app.registerExtension({
                 if (visible.length > 1) {
                     const s = visible[visible.length - 1];
                     s.visible = false;
-                    s.lora.type = "hidden"; s.lora.computeSize = () => [0, -4];
-                    s.on.type = "hidden"; s.on.computeSize = () => [0, -4];
-                    s.str.type = "hidden"; s.str.computeSize = () => [0, -4];
+                    hideWidget(node, s.lora);
+                    hideWidget(node, s.on);
+                    hideWidget(node, s.str);
                     s.lora.value = "无";
                     s.on.value = false;
                     s.str.value = 1.0;

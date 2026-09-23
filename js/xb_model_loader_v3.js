@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { hideWidget, showWidgetAs, slotSize } from "./xb_compat.js";
 
 // ============================================================
 // XB_ModelLoaderV3 — 模型加载大全V3 (双CLIP + 双VAE)
@@ -31,9 +32,10 @@ app.registerExtension({
                 const wStr = node.widgets.find(w => w.name === `lora_${i}_strength`);
                 if (wL && wOn && wStr) {
                     if (i > 1) {
-                        wL.type = "hidden"; wL.computeSize = () => [0, -4];
-                        wOn.type = "hidden"; wOn.computeSize = () => [0, -4];
-                        wStr.type = "hidden"; wStr.computeSize = () => [0, -4];
+                        // 隐藏槽位：经典模式靠 type="hidden"，Nodes 2.0 还需 hidden / options.hidden
+                        hideWidget(node, wL);
+                        hideWidget(node, wOn);
+                        hideWidget(node, wStr);
                     }
                     node._lora_slots.push({ idx: i, lora: wL, on: wOn, str: wStr, visible: i === 1 });
                 }
@@ -75,13 +77,13 @@ app.registerExtension({
             // 添加/移除 LoRA
             const btnAdd = node.addWidget("button", "➕ 添加LoRA", "add_lora", () => {
                 const h = node._lora_slots.filter(s => !s.visible);
-                if (h.length > 0) { h[0].visible = true; h[0].lora.type = "combo"; h[0].lora.computeSize = () => [node.size[0] - 16, 26]; h[0].on.type = "toggle"; h[0].on.computeSize = () => [node.size[0] - 16, 26]; h[0].str.type = "number"; h[0].str.computeSize = () => [node.size[0] - 16, 26]; node.setDirtyCanvas(true, true); }
+                if (h.length > 0) { const s = h[0]; s.visible = true; showWidgetAs(node, s.lora, { type: "combo", computeSize: slotSize(node, 26) }); showWidgetAs(node, s.on, { type: "toggle", computeSize: slotSize(node, 26) }); showWidgetAs(node, s.str, { type: "number", computeSize: slotSize(node, 26) }); node.setDirtyCanvas(true, true); }
             });
             btnAdd.options.serialize = false;
 
             const btnDel = node.addWidget("button", "➖ 移除LoRA", "del_lora", () => {
                 const v = node._lora_slots.filter(s => s.visible);
-                if (v.length > 1) { const s = v[v.length - 1]; s.visible = false; s.lora.type = "hidden"; s.lora.computeSize = () => [0, -4]; s.on.type = "hidden"; s.on.computeSize = () => [0, -4]; s.str.type = "hidden"; s.str.computeSize = () => [0, -4]; s.lora.value = "无"; s.on.value = false; s.str.value = 1.0; node.setDirtyCanvas(true, true); }
+                if (v.length > 1) { const s = v[v.length - 1]; s.visible = false; hideWidget(node, s.lora); hideWidget(node, s.on); hideWidget(node, s.str); s.lora.value = "无"; s.on.value = false; s.str.value = 1.0; node.setDirtyCanvas(true, true); }
             });
             btnDel.options.serialize = false;
 

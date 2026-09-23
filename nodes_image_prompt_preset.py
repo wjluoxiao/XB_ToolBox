@@ -28,9 +28,9 @@
      + 按 downscale_ratio_spacial 缩放尺寸 + 自动补 T 维；但选对类型少一步转换、更稳。
 
 配置存法（与本包风格一致，不依赖任何后端接口）：
-· `manager_settings`（advanced 内部字段，表面不显示）只存**元素面板配置 JSON**
+· `manager_settings`（内部字段，由前端面板隐藏，表面不显示）只存**元素面板配置 JSON**
   （已选词条 / 自建槽位 / 补充描述 / 自动保存），随工作流保存、节点间互不影响；
-· `internal_prompt`（advanced 内部字段）存提示词正文；
+· `internal_prompt`（内部字段，同上前端隐藏）存提示词正文；
 · 空latent类型 / 输出语言 / 预设模式 / 预设句 都是**节点表面参数**（随工作流保存）。
 """
 
@@ -399,14 +399,16 @@ class XB_ImagePromptPreset:
                     "default": 1, "min": 1, "max": BATCH_MAX,
                     "tooltip": "一次生成的图片数量（空 latent 的 batch 维度）",
                 }),
-                # ↓ 两个内部字段：advanced=True 让它只出现在「属性/高级」面板，节点表面不显示
+                # ↓ 两个内部字段：节点表面由前端面板（js/xb_image_prompt_preset.js 的 hideInternal）隐藏。
+                #   不再用 advanced=True —— 它会让前端在节点底部挂一个「显示高级输入」开关，
+                #   而那里面只有这两个已被隐藏的字段，点了没有任何可见变化（用户反馈纯碍眼）。
                 "internal_prompt": ("STRING", {
-                    "default": "", "multiline": True, "advanced": True,
+                    "default": "", "multiline": True,
                     "tooltip": "节点内编辑的提示词正文（与元素面板的预览框双向同步，随工作流保存）。"
                                "人物三视图 / 人物四视图 / 背景纯透明模式下，本字段前面会自动拼上对应预设句",
                 }),
                 "manager_settings": ("STRING", {
-                    "default": "", "multiline": True, "advanced": True,
+                    "default": "", "multiline": True,
                     "tooltip": "本节点独立保存的元素面板配置 JSON（已选词条 / 自建槽位 / 补充描述），"
                                "随工作流保存，节点间互不影响",
                 }),
