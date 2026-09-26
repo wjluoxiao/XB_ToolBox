@@ -5,7 +5,7 @@ XB-BOX - 🖼️ 生图提示词预设Pro
 
 ① 生图预设（原节点全部能力）
    · 空latent类型（9 种主流模型，逐字段对齐官方 latent_format）
-   · 输出语言 / 预设模式 / 设定词（三视图·四视图·背景纯透明）
+   · 输出语言 / 预设模式 / 设定词（三视图·四视图·五视图·背景纯透明）
        - 设定词既作为 LLM 的**增强参考**，也（启用 LLM 时）被**原封不动**加在最终提示词最顶端；
        - 用户改过的设定词按「模式 + 语言」存在本节点里，换模式 / 换语言都不会丢。
    · 画幅比例 / 宽度 / 高度 / 生成数量（步长按模型官方最小步长 8/16/32 + 比例联动）
@@ -22,7 +22,7 @@ XB-BOX - 🖼️ 生图提示词预设Pro
    · 关（默认）= 原「生图提示词预设」行为：只输出拼装好的提示词 + 空latent（不加载模型、不调 API）
    · 开 = 把（外接「提示词」端口 或 节点上拼装好的提示词）+ 外接「图像」交给 LLM 反推
 
-输出：提示词（最终）/ 提示词列表 / 提示词设定 / 空latent
+输出：提示词（最终）/ 空latent / 提示词列表 / 提示词设定
 （两个旧节点全部保留，本节点只是融合超集）
 
 CATEGORY: XB_ToolBox/Image_Params
@@ -38,11 +38,13 @@ from .nodes_llama import (
     preset_tags,
 )
 from .nodes_llama_prompt_reverse import (
+    OUTPUT_FORMAT_HINT,
     _LANG_HINT,
     _OUTPUT_LANGS,
     _SEED_MAX,
     build_api_config,
     parse_settings as parse_llm_settings,
+    strip_reasoning,
 )
 from .nodes_image_prompt_preset import (
     ASPECT_RATIO_OPTIONS,
@@ -102,10 +104,11 @@ def _next_seed(seed, mode):
 
 
 def _build_system_prompt(preset, extra, output_lang, preset_text=""):
-    """提示词设定 = 增强预设 + 输出语言 + 设定词参考 + 追加设定
+    """提示词设定 = 增强预设 + 输出语言 + 设定词参考 + 追加设定 + 只输出最终提示词的硬规则
 
     `preset_text`（预设模式的设定词）只作为**增强参考**告诉 LLM：它会被节点原样置顶到最终提示词，
     禁止在正文里重复 / 改写它。
+    最后追加 `OUTPUT_FORMAT_HINT`（最高优先级）——专治模型把思考过程 / 步骤 / 说明一起输出。
     """
     parts = [XB_llamaPromptEnhancer().main(preset)[0] or ""]
     parts.append(_LANG_HINT.get(output_lang, _LANG_HINT[_OUTPUT_LANGS[0]]))
@@ -115,6 +118,7 @@ def _build_system_prompt(preset, extra, output_lang, preset_text=""):
     extra = (extra or "").strip()
     if extra:
         parts.append(extra)
+    parts.append(OUTPUT_FORMAT_HINT)                 # 放最后 = 最显眼（用户要求：不要思考过程）
     return "\n\n".join([p for p in parts if p])
 
 
@@ -154,11 +158,11 @@ class XB_ImagePromptPresetPro:
                 }),
                 "preset_mode": (list(PRESET_MODES), {
                     "default": PRESET_MODES[0],
-                    "tooltip": "预设模式：常规文生图=只输出正文；人物三视图 / 人物四视图 / 背景纯透明 = 自动在正文前加预设句",
+                    "tooltip": "预设模式：常规文生图=只输出正文；人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 = 自动在正文前加预设句",
                 }),
                 "three_view_text": ("STRING", {
                     "default": THREE_VIEW_TEXT[DEFAULT_LANG], "multiline": True,
-                    "tooltip": "预设模式的设定词（人物三视图 / 人物四视图 / 背景纯透明 三个模式生效；常规文生图时自动隐藏）\n"
+                    "tooltip": "预设模式的设定词（人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 四个模式生效；常规文生图时自动隐藏）\n"
                                "· 最终提示词输出时它会被【原封不动】加在最顶端；\n"
                                "· 用户改过的设定词按「模式 + 语言」存进本节点（换模式 / 换语言都不会丢）；\n"
                                "· 启用 LLM 时它作为增强参考交给 LLM（LLM 只增强正文，不改写它）",
@@ -227,14 +231,14 @@ class XB_ImagePromptPresetPro:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "LATENT")
-    RETURN_NAMES = ("提示词", "提示词列表", "提示词设定", "空latent")
-    OUTPUT_IS_LIST = (False, True, False, False)
+    RETURN_TYPES = ("STRING", "LATENT", "STRING", "STRING")
+    RETURN_NAMES = ("提示词", "空latent", "提示词列表", "提示词设定")
+    OUTPUT_IS_LIST = (False, False, True, False)
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
     DESCRIPTION = ("生图提示词预设Pro：生图预设（空latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板提示词拼装）"
                    "＋ LLM 提示词增强反推（本地模型或在线 API、增强预设、反推预设、追加设定、采样参数、生成后控制）。"
-                   "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 提示词列表 / 提示词设定 / 空latent。")
+                   "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。")
 
     @classmethod
     def IS_CHANGED(cls, manager_settings="", **kwargs):
@@ -313,8 +317,13 @@ class XB_ImagePromptPresetPro:
                 images=images,
                 queue_handler=None,
             )
-            # ④c 设定词**原封不动**加在增强结果最顶端（与未启用 LLM 时的成句规则完全一致）
-            final_prompt = build_prompt(output_lang, preset_mode, three_view_text, out1 or "")
+            # ④c 思考过程过滤（模型无视规则、把推理段一起输出时只留最终提示词）
+            raw_out = out1 or ""
+            body_out = strip_reasoning(raw_out) if run.get("strip_thinking", True) else raw_out
+            if body_out != raw_out.strip():
+                print(f"[XB-生图预设Pro] 🧠 已过滤思考过程：{len(raw_out)} 字 → {len(body_out)} 字")
+            # ④d 设定词**原封不动**加在增强结果最顶端（与未启用 LLM 时的成句规则完全一致）
+            final_prompt = build_prompt(output_lang, preset_mode, three_view_text, body_out)
         else:
             # 原「🖼️ 生图提示词预设」行为：直接输出拼装好的提示词
             final_prompt = base_prompt
@@ -338,7 +347,7 @@ class XB_ImagePromptPresetPro:
         }
         if use_llm and next_seed is not None:
             ui["seed"] = [next_seed]   # 前端回写到 manager_settings.llm.run.seed（仅 LLM 采样时才推进种子）
-        return {"ui": ui, "result": (final_prompt, prompt_list, full_system or "", latent)}
+        return {"ui": ui, "result": (final_prompt, latent, prompt_list, full_system or "")}
 
 
 NODE_CLASS_MAPPINGS = {

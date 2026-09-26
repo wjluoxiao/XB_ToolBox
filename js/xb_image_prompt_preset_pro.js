@@ -2,7 +2,7 @@
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
- * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
+ * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图/四视图/五视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
  *       ＋ 节点提示词框 ＋ 8 个分类按钮（4 列 × 2 行）：🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
  *       每个按钮一个面板，面板顶部「分类签」切子类；选项行整行可点（加入 → 变蓝 ✔ / 再点移除）
  *       道具类点行会先弹「与主体的关系」多宫格标签窗（30 个关系词）
@@ -33,8 +33,9 @@ const LANGS = [LANG_ZH, LANG_EN];
 const MODE_TP = "常规文生图";
 const MODE_3V = "人物三视图";
 const MODE_4V = "人物四视图";
+const MODE_5V = "人物五视图";
 const MODE_RGBA = "背景纯透明";
-const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_RGBA];
+const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V, MODE_RGBA];
 
 const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
 const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
@@ -72,6 +73,10 @@ const PRESET_TEXT_DEFAULT = {
     [LANG_ZH]: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
     [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
   },
+  [MODE_5V]: {
+    [LANG_ZH]: "生成五宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面下方左侧面板是无头部人物正面衣着展示图，画面下方中间面板是无头部人物侧面衣着展示图，画面下方右侧面板是人物背面全身站姿。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in five panels, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-middle panel is a headless side-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
+  },
   [MODE_RGBA]: {
     [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
     [LANG_EN]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
@@ -84,7 +89,7 @@ const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
 
 /**
  * ── 预设句（设定词）档案 ─────────────────────────────────────────────
- * 需求：预设模式（三视图 / 四视图 / 背景纯透明）的设定词可编辑，且**改过就存进节点、
+ * 需求：预设模式（三视图 / 四视图 / 五视图 / 背景纯透明）的设定词可编辑，且**改过就存进节点、
  *       换模式 / 换语言都不丢**（切换时取「存档 → 默认」，绝不把用户改过的冲掉）。
  * 存档位置 = manager_settings.preset_texts（JSON 字符串随工作流一起保存）：
  *   { "人物三视图|中文 [ZH]": "用户改过的设定词", … }   ← 只存与默认不同的那条
@@ -2693,7 +2698,7 @@ function setupNode(node) {
     try { node.setDirtyCanvas?.(true, true); } catch (_) {}
   };
 
-  // 预设句输入框：常规文生图以外的 3 个模式（三视图/四视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
+  // 预设句输入框：常规文生图以外的 4 个模式（三视图/四视图/五视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
   const applyPresetTextVisibility = () => {
     try {
       // Pro：设定词只在「✨ 增强预设」弹窗里编辑 → 节点表面始终隐藏（不把选项参数暴露在外面）
@@ -3057,7 +3062,7 @@ const XBR_INFERENCE_MODES_ = XBR_INFERENCE_MODES;
 function xbrLlmDefaults() {
   return {
     model: { model: "", mmproj: "None", chat_handler: "None", n_ctx: 8192, vram_limit: -1, image_min_tokens: 0, image_max_tokens: 0 },
-    run: { inference_mode: "one by one", max_frames: 24, max_size: 256, seed: 0, seed_control: "randomize", force_offload: false, save_states: false },
+    run: { inference_mode: "one by one", max_frames: 24, max_size: 256, seed: 0, seed_control: "randomize", force_offload: false, save_states: false, strip_thinking: true },
     params: {
       max_tokens: 6144, top_k: 40, top_p: 0.9, min_p: 0.05, typical_p: 1.0, temperature: 0.6,
       repeat_penalty: 1.12, frequency_penalty: 0.0, present_penalty: 0.0,
@@ -3087,6 +3092,7 @@ function xbrParseLlm(raw) {
   cfg.run.seed_control = xbrPick(r.seed_control, XBR_SEED_MODES, cfg.run.seed_control);
   cfg.run.force_offload = xbrFlag(r.force_offload, cfg.run.force_offload);
   cfg.run.save_states = xbrFlag(r.save_states, cfg.run.save_states);
+  cfg.run.strip_thinking = xbrFlag(r.strip_thinking, cfg.run.strip_thinking);   // 模型输出思考过程时自动过滤
 
   const p = (d.params && typeof d.params === "object") ? d.params : {};
   cfg.params.max_tokens = xbrInt(p.max_tokens, cfg.params.max_tokens, 0, 262144);
@@ -3135,7 +3141,7 @@ function xbrSaveJson(node, patch) {
   return cur;
 }
 
-/* ── 预设设定词（三视图 / 四视图 / 背景纯透明的设定文本）─────────────
+/* ── 预设设定词（三视图 / 四视图 / 五视图 / 背景纯透明的设定文本）─────────────
  * · 用户改过的按「模式|语言」存进节点（基础面板的 preset_texts 存档）；
  * · 弹窗读「存档 → 默认」，提交时同步写 widget + 存档。 */
 function xbrPresetStore(node) {
@@ -3144,6 +3150,28 @@ function xbrPresetStore(node) {
 function xbrPresetTextFor(node, mode, lang) {
   const t = xbrPresetStore(node)[presetKeyOf(mode, lang)];
   return (t && String(t).trim()) ? t : (defaultPresetOf(mode, lang) || "");
+}
+
+/* ── 预设选项按「输出语言」过滤 ───────────────────────────────
+ * 预设名的语言标签形如 "Z-Image Turbo [ZH]" / "Normal - 描述 [EN]"；
+ * 输出语言选中文 → 增强预设 / 反推预设 只列 [ZH] 项，选英文 → 只列 [EN] 项。 */
+function xbrLangTagOf(v) {
+  const m = String(v == null ? "" : v).match(/[\[［](ZH|EN)[\]］]\s*$/i);
+  return m ? m[1].toUpperCase() : "";
+}
+function xbrFilterByLang(opts, lang) {
+  const want = xbrLangTagOf(lang);
+  if (!want) return opts.slice();
+  const hit = opts.filter((o) => xbrLangTagOf(o) === want);
+  return hit.length ? hit : opts.slice();      // 全无语言标签（老预设）→ 全量兜底
+}
+/** 语言变了：优先换到「同名的另一语言项」，否则取该语言第一项 */
+function xbrSnapPreset(opts, cur, lang) {
+  const list = xbrFilterByLang(opts, lang);
+  if (list.includes(cur)) return cur;
+  const base = String(cur == null ? "" : cur).replace(/\s*[\[［](ZH|EN)[\]］]\s*$/i, "").trim();
+  const same = list.find((o) => String(o).replace(/\s*[\[［](ZH|EN)[\]］]\s*$/i, "").trim() === base);
+  return same || list[0] || cur;
 }
 
 /* ── 在线 API（存 ComfyUI user 目录，Key 不进工作流）──────── */
@@ -3342,8 +3370,11 @@ function xbrRenderLlm(body, node, draft, ctx) {
     draft.lang = v;
     // 换语言 → 未在弹窗里改过设定词时，跟着取该语言的「存档 → 默认」
     if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v);
+    // 语言决定预设可选范围：增强预设 / 反推预设 自动换到同语言的同名项（没有则取该语言第一项）
+    draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, v);
+    draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, v);
   })));
-  body.append(xbrHint("本项是唯一的语言设置：① 元素词表 / 预设句按哪种语言加载　② LLM 反推最终输出的提示词是中文还是英文。其他地方不再有语言选项。"));
+  body.append(xbrHint("本项是唯一的语言设置：① 词表 / 设定词 / 预设句按哪种语言加载　② 增强预设与反推预设只列该语言的选项　③ 最终输出的提示词语言。"));
 
   body.append(makeSectionTitle("提示词增强反推（总开关在节点表面的「启用 LLM 反推」）"));
 
@@ -3356,7 +3387,7 @@ function xbrRenderLlm(body, node, draft, ctx) {
     const llm = s.model;
     const models = lists.model.length ? lists.model : (llm.model ? [llm.model] : []);
     if (!llm.model && models.length) llm.model = models[0];
-    body.append(field("强制卸载", checkboxControl(s.run.force_offload, "LLM 用完即卸载（释放显存）", (v) => { s.run.force_offload = v; })));
+    body.append(field("强制卸载", checkboxControl(s.run.force_offload, "LLM 用完即卸载，释放显存", (v) => { s.run.force_offload = v; })));
     if (models.length) body.append(field("模型", selectControl(models, llm.model, (v) => { llm.model = v; })));
     else body.append(field("模型", xbrTextControl(llm.model, "未找到本地 LLM 模型（.gguf 放到 models/LLM）", (v) => { llm.model = v; })));
     body.append(field("视觉模块 mmproj", selectControl(lists.mmproj.length ? lists.mmproj : ["None"], llm.mmproj, (v) => { llm.mmproj = v; })));
@@ -3386,7 +3417,7 @@ function xbrRenderLlm(body, node, draft, ctx) {
     const a = draft.api || (draft.api = { ...XBR_API_DEFAULTS });
     body.append(field("服务商", selectControl(ctx.providers, a.provider, (v) => { a.provider = v; })));
     body.append(field("模型", xbrTextControl(a.model, XBR_API_DEFAULTS.model, (v) => { a.model = v; })));
-    body.append(field("API Key", xbrPasswordControl(a.api_key, "sk-…（保存在本地，不写入工作流）", (v) => { a.api_key = v; })));
+    body.append(field("API Key", xbrPasswordControl(a.api_key, "sk-… 保存在本地，不写入工作流", (v) => { a.api_key = v; })));
     body.append(field("Base URL", xbrTextControl(a.base_url, XBR_API_DEFAULTS.base_url, (v) => { a.base_url = v; })));
     body.append(field("temperature", xbrNumberControl(a.temperature, { min: 0, max: 2, step: 0.01 }, (v) => { a.temperature = v; })));
     body.append(field("max_tokens", xbrNumberControl(a.max_tokens, { min: 1, max: 262144, step: 1 }, (v) => { a.max_tokens = Math.round(v); })));
@@ -3402,8 +3433,13 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(field("推理模式", selectControl(XBR_INFERENCE_MODES, s.run.inference_mode, (v) => { s.run.inference_mode = v; })));
   body.append(field("最大帧数", xbrNumberControl(s.run.max_frames, { min: 2, max: 1024, step: 1 }, (v) => { s.run.max_frames = Math.round(v); })));
   body.append(field("最大尺寸", xbrNumberControl(s.run.max_size, { min: 128, max: 16384, step: 64 }, (v) => { s.run.max_size = Math.round(v); })));
-  body.append(field("保存对话状态", checkboxControl(s.run.save_states, "在内存中保留本次对话上下文（多轮连续反推）", (v) => { s.run.save_states = v; })));
+  body.append(field("保存对话状态", checkboxControl(s.run.save_states, "在内存中保留本次对话上下文，多轮连续反推", (v) => { s.run.save_states = v; })));
   body.append(field("状态 UID", xbrNumberControl(s.params.state_uid, { min: -1, max: 999999, step: 1 }, (v) => { s.params.state_uid = Math.round(v); })));
+  body.append(field("🧠 过滤思考过程", checkboxControl(s.run.strip_thinking,
+    "模型把「思考过程 / 推理段 / 工作流程」一起输出时，自动只保留最终提示词", (v) => { s.run.strip_thinking = v; })));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.65;margin:2px 0 8px;",
+    "开启后＝① 系统提示词末尾追加「只输出最终提示词」硬规则　② 仍漏出思考时自动剔除思考标签、"
+    + "Final Output / 最终输出 标记之前的推理段与代码围栏（拿不到内容则原文保留）。"));
   body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"));
 }
 
@@ -3421,7 +3457,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
     draft.presetText = xbrPresetTextFor(node, v, draft.lang);
     ctx.rerender();     // 有/无设定词的模式之间切换 → 重画「设定词」区
   })));
-  body.append(xbrHint("常规文生图 = 只输出正文；人物三视图 / 人物四视图 / 背景纯透明 = 最终提示词最顶端自动加上该模式的设定词。"));
+  body.append(xbrHint("常规文生图 = 只输出正文；人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 = 最终提示词最顶端自动加上该模式的设定词。"));
 
   // ── 设定词（预设模式对应的设定文本；只在弹窗里编辑，节点表面不显示）──
   const modeDef = defaultPresetOf(draft.mode, draft.lang);
@@ -3430,7 +3466,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
     if (!String(draft.presetText || "").trim()) draft.presetText = modeDef;
     const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
       "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
-    taP.placeholder = "该模式的设定词（改过的按「模式 + 语言」记进节点，换模式 / 换语言都不丢）";
+    taP.placeholder = "该模式的设定词；改过的按「模式 + 语言」记进节点，换模式 / 换语言都不丢";
     taP.spellcheck = false;
     body.append(taP);
     const taRow = el("div", "display:flex;align-items:center;gap:10px;margin:6px 0 4px;");
@@ -3449,19 +3485,20 @@ function xbrRenderPreset(body, node, draft, ctx) {
   }
 
   body.append(makeSectionTitle("增强预设（= 提示词设定 / system prompt）"));
-  const presetOpts = xbrWidgetOptions(node, "preset");
+  const presetOpts = xbrFilterByLang(xbrWidgetOptions(node, "preset"), draft.lang);
   if (presetOpts.length) body.append(field("增强预设", selectControl(presetOpts, draft.preset, (v) => { draft.preset = v; })));
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "该预设内容即「🧩 提示词设定」输出的正文，同时作为 LLM 反推的系统提示词。"));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
+    `该预设内容即「🧩 提示词设定」输出的正文，同时作为 LLM 反推的系统提示词；只列与输出语言 ${draft.lang} 相符的预设。`));
 
   body.append(makeSectionTitle("反推预设"));
-  const taskOpts = xbrWidgetOptions(node, "task_preset");
+  const taskOpts = xbrFilterByLang(xbrWidgetOptions(node, "task_preset"), draft.lang);
   if (taskOpts.length) body.append(field("反推预设", selectControl(taskOpts, draft.task_preset, (v) => { draft.task_preset = v; })));
   body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「📝 提示词」填入。"));
 
   body.append(makeSectionTitle("追加设定（可留空）"));
   const ta = textareaControl(s.extra_system, (v) => { s.extra_system = v; },
     "width:100%;box-sizing:border-box;min-height:200px;resize:vertical;");
-  ta.placeholder = "追加在增强预设之后的额外要求（例：只输出一行、不要解释过程…）";
+  ta.placeholder = "追加在增强预设之后的额外要求，例：只输出一行、不要解释过程…";
   ta.spellcheck = false;
   body.append(ta);
 }
@@ -3476,22 +3513,26 @@ function xbrRenderHelp(body) {
     "  · 🖼️ 图像：外接图像 / 视频帧（LLM 反推：图 → 提示词）",
     "",
     "【输出端口】",
-    "  · 📝 提示词：最终提示词（未启用 LLM = 拼装好的提示词；启用 LLM = 设定词原样置顶 + LLM 增强后的正文）",
+    "  · 📝 提示词：最终提示词。未启用 LLM = 拼装好的提示词；启用 LLM = 设定词原封不动置顶 + LLM 增强后的正文",
+    "  · 🖼️ 空latent：第二位。按「空latent类型」生成，官方 latent_format 逐字段对齐",
     "  · 📋 提示词列表：按行拆分",
-    "  · 🧩 提示词设定：本次的提示词设定（增强预设 + 输出语言 + 追加设定）",
-    "  · 🖼️ 空latent：按「空latent类型」生成（官方 latent_format 逐字段对齐）",
+    "  · 🧩 提示词设定：本次的提示词设定，即增强预设 + 输出语言 + 追加设定",
     "",
     "【节点表面】",
     "  · 第 1 行按钮：🤖 LLM设置（唯一语言设置 / 后端 / 采样参数）｜ ✨ 增强预设（空latent类型 / 预设模式 / 增强预设 / 反推预设 / 追加设定）｜ 📖 使用说明",
     "  · 第 2 行按钮：8 个元素分类（点选项行加入/移除提示词，【添加详细描述】写补充说明）",
     "  · ✅ 启用 LLM 反推：关（默认）= 原「生图提示词预设」行为；开 = 图/文 → 提示词",
-    "  · 设定词：预设模式（三视图 / 四视图 / 背景纯透明）的设定文本，在「✨ 增强预设」弹窗里编辑；"
+    "  · 设定词：预设模式（三视图 / 四视图 / 五视图 / 背景纯透明）的设定文本，在「✨ 增强预设」弹窗里编辑；"
     + "改过的随节点保存，换模式 / 换语言不丢；输出时原封不动加在增强结果的顶端，也作为 LLM 的增强参考",
     "  · 提示词框右上角「📋 复制」；下方「参数设定显示」实时显示当前配置",
     "",
     "【保存】",
     "  · 弹窗底部：☑ 自动保存（默认开）+ 字号 + 界面缩放；「取消」丢弃未保存改动",
     "  · 配置随工作流保存；在线 API 的 Key 存在 ComfyUI user 目录，不进工作流",
+    "",
+    "【语言 / 思考过程】",
+    "  · 输出语言（🤖 LLM设置）是唯一语言设置：决定词表与设定词按哪种语言加载、增强预设与反推预设只列哪种语言的选项、最终提示词的语言",
+    "  · 🧠 过滤思考过程（🤖 LLM设置 → 指令推理，默认开）：系统提示词末尾追加「只输出最终提示词」硬规则；模型仍漏出思考过程时，自动剔掉思考标签、Final Output / 最终输出 之前的推理段与代码围栏",
   ];
   body.append(el("div", "font-size:12px;color:#bbb;line-height:1.9;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;", lines.join("\n")));
 }
@@ -3511,10 +3552,13 @@ async function xbrOpenModal(node, panelId) {
     lang: xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]),
     kind: xbrPick(String(xbrWidgetVal(node, "latent_kind") ?? ""), LATENT_KINDS, LATENT_KINDS[0]),
     mode: xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]),
-    // 设定词（三视图/四视图/背景纯透明）：弹窗内草稿 + 「用户是否改过」标记
+    // 设定词（三视图/四视图/五视图/背景纯透明）：弹窗内草稿 + 「用户是否改过」标记
     presetText: String(xbrWidgetVal(node, "three_view_text") ?? ""),
     presetTouched: false,
   };
+  // 预设选项与输出语言对齐（旧工作流可能存着异语言的预设名）
+  draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, draft.lang);
+  draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, draft.lang);
 
   let apiSaved = null, providers = [XBR_DEFAULT_PROVIDER];
   if (panelId === "llm") {

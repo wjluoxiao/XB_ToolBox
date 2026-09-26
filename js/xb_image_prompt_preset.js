@@ -2,7 +2,7 @@
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
- * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
+ * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图/四视图/五视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
  *       ＋ 节点提示词框 ＋ 8 个分类按钮（4 列 × 2 行）：🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
  *       每个按钮一个面板，面板顶部「分类签」切子类；选项行整行可点（加入 → 变蓝 ✔ / 再点移除）
  *       道具类点行会先弹「与主体的关系」多宫格标签窗（30 个关系词）
@@ -32,8 +32,9 @@ const LANGS = [LANG_ZH, LANG_EN];
 const MODE_TP = "常规文生图";
 const MODE_3V = "人物三视图";
 const MODE_4V = "人物四视图";
+const MODE_5V = "人物五视图";
 const MODE_RGBA = "背景纯透明";
-const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_RGBA];
+const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V, MODE_RGBA];
 
 const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
 const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
@@ -71,6 +72,10 @@ const PRESET_TEXT_DEFAULT = {
     [LANG_ZH]: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
     [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
   },
+  [MODE_5V]: {
+    [LANG_ZH]: "生成五宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面下方左侧面板是无头部人物正面衣着展示图，画面下方中间面板是无头部人物侧面衣着展示图，画面下方右侧面板是人物背面全身站姿。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in five panels, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-middle panel is a headless side-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
+  },
   [MODE_RGBA]: {
     [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
     [LANG_EN]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
@@ -83,7 +88,7 @@ const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
 
 /**
  * ── 预设句（设定词）档案 ─────────────────────────────────────────────
- * 需求：预设模式（三视图 / 四视图 / 背景纯透明）的设定词可编辑，且**改过就存进节点、
+ * 需求：预设模式（三视图 / 四视图 / 五视图 / 背景纯透明）的设定词可编辑，且**改过就存进节点、
  *       换模式 / 换语言都不丢**（切换时取「存档 → 默认」，绝不把用户改过的冲掉）。
  * 存档位置 = manager_settings.preset_texts（JSON 字符串随工作流一起保存）：
  *   { "人物三视图|中文 [ZH]": "用户改过的设定词", … }   ← 只存与默认不同的那条
@@ -2677,7 +2682,7 @@ function setupNode(node) {
     try { node.setDirtyCanvas?.(true, true); } catch (_) {}
   };
 
-  // 预设句输入框：常规文生图以外的 3 个模式（三视图/四视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
+  // 预设句输入框：常规文生图以外的 4 个模式（三视图/四视图/五视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
   const applyPresetTextVisibility = () => {
     try {
       if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);

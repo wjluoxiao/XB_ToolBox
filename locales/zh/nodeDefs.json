@@ -5888,12 +5888,12 @@
   },
   "XB_ImagePromptPresetPro": {
     "display_name": "XB-BOX - 🖼️ 生图提示词预设Pro",
-    "description": "生图提示词预设 + 提示词增强反推 融合：空latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 提示词列表 / 提示词设定 / 空latent。",
+    "description": "生图提示词预设 + 提示词增强反推 融合：空latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 空latent / 提示词列表 / 提示词设定。",
     "inputs": {
       "latent_kind": { "name": "空latent类型" },
       "output_lang": { "name": "输出语言" },
       "preset_mode": { "name": "预设模式" },
-      "three_view_text": { "name": "预设句（三视图/四视图/透明背景）" },
+      "three_view_text": { "name": "预设句（三/四/五视图·透明背景）" },
       "aspect_ratio": { "name": "画幅比例" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },
@@ -5907,9 +5907,9 @@
     },
     "outputs": {
       "0": { "name": "📝 提示词" },
-      "1": { "name": "📋 提示词列表" },
-      "2": { "name": "🧩 提示词设定" },
-      "3": { "name": "🖼️ 空latent" }
+      "1": { "name": "�️ 空latent" },
+      "2": { "name": "📋 提示词列表" },
+      "3": { "name": "🧩 提示词设定" }
     }
   },
   "XB_ImagePromptPreset": {
@@ -5918,7 +5918,7 @@
       "output_lang": { "name": "输出语言" },
       "preset_mode": { "name": "预设模式" },
       "latent_kind": { "name": "空latent类型" },
-      "three_view_text": { "name": "预设句（三视图/四视图/透明背景）" },
+      "three_view_text": { "name": "预设句（三/四/五视图·透明背景）" },
       "aspect_ratio": { "name": "画幅比例" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },

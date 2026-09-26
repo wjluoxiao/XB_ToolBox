@@ -23,6 +23,7 @@ CATEGORY: XB-llama
 import json
 import os
 import random
+import re
 
 import folder_paths
 from aiohttp import web
@@ -141,6 +142,7 @@ DEFAULT_SETTINGS = {
     "run": {
         "inference_mode": "one by one", "max_frames": 24, "max_size": 256,
         "seed": 0, "seed_control": "randomize", "force_offload": False, "save_states": False,
+        "strip_thinking": True,   # 模型把「思考过程 / 推理段」一起输出时，只保留最终提示词
     },
     # 推理参数（原「⚙️ 推理参数」）
     "params": {
@@ -165,6 +167,88 @@ _LANG_HINT = {
     "中文 [ZH]": "【输出语言】请始终使用中文输出。",
     "英文 [EN]": "【Output language】Always respond in English.",
 }
+
+# 「只输出最终提示词」硬规则：拼在系统提示词最后，专治模型把思考过程/步骤/说明一起输出
+OUTPUT_FORMAT_HINT = (
+    "【输出格式（最高优先级，凌驾于以上所有说明）】\n"
+    "直接输出最终提示词本身，不要输出思考过程、推理步骤、分析、工作流程、小标题、编号列表、"
+    "对以上说明的复述、代码块围栏（```），也不要任何开场白、总结或解释。"
+)
+
+# ── 思考过程过滤（模型无视上面的规则、把推理段一起吐出来时的兜底）──────────────
+_THINK_BLOCK_RE = re.compile(r"<(thinking|think|analysis|reasoning)\b[^>]*>.*?</\1>", re.S | re.I)
+_THINK_CLOSE_RE = re.compile(r"</(thinking|think|analysis|reasoning)>", re.I)
+_THINK_HEADERS = ("thinking process", "think process", "reasoning process", "chain of thought",
+                  "思考过程", "推理过程", "分析过程", "思维过程", "思路如下", "先分析")
+_ANSWER_MARKERS = ("final output", "final answer", "final prompt",
+                   "最终输出", "最终答案", "最终提示词", "最终结果", "成品提示词", "输出结果")
+
+
+def _looks_like_reasoning(block):
+    """判断一个段落块像「推理 / 草稿 / 清单」而不是成品提示词"""
+    b = block.strip()
+    if not b:
+        return False
+    if b.startswith(("*", "_", "-", ">", "#", "```", "|")):
+        return True
+    if re.match(r"^\**(?:\d+[\.\、\)）]|[-*•])\s*\**", b):
+        return True
+    if "**" in b and len(b) < 400:
+        return True
+    if re.match(r"^\**[^。！？\n]{0,30}[：:]\**\s*$", b):
+        return True
+    return False
+
+
+def strip_reasoning(text):
+    """丢掉模型输出里的「思考过程」，只留最终提示词。
+
+    ① 显式思考块 <thinking>…</thinking> / <analysis>…</analysis> → 删；只有闭合标签 → 取其后的内容
+    ② 显式「最终输出 / Final Output」标记 → 取最后一个标记之后的正文
+    ③ 开头是思考标题（Thinking Process / 思考过程…）→ 从尾部往回收集「成品段落」，丢掉前面的推理段
+    ④ 去掉整段代码围栏，并去掉首尾空白
+    任何一步拿不到内容都回退原文（绝不把结果清空）。
+    """
+    raw = text if isinstance(text, str) else ""
+    s = raw.strip()
+    if not s:
+        return raw
+    original = s
+
+    s2 = _THINK_BLOCK_RE.sub("", s)                     # ①
+    closes = list(_THINK_CLOSE_RE.finditer(s2))
+    if closes:
+        s2 = s2[closes[-1].end():]
+    s = s2.strip() or s
+
+    low = s.lower()                                      # ②
+    best, hit_len = -1, 0
+    for marker in _ANSWER_MARKERS:
+        i = low.rfind(marker)
+        if i > best:
+            best, hit_len = i, len(marker)
+    if best >= 0:
+        tail = s[best + hit_len:]
+        nl = tail.find("\n")
+        if nl >= 0:
+            tail = tail[nl + 1:]
+        tail = tail.lstrip("：:　 \t-—").strip()      # 支持「最终输出：xxx」同行写法
+        if tail:
+            s = tail
+
+    head = s[:400].lower()                               # ③
+    if any(h in head for h in _THINK_HEADERS):
+        blocks = [b for b in re.split(r"\n\s*\n", s) if b.strip()]
+        keep = []
+        for b in reversed(blocks):
+            if _looks_like_reasoning(b):
+                break
+            keep.append(b)
+        if keep:
+            s = "\n\n".join(reversed(keep)).strip()
+
+    s = re.sub(r"^```[a-zA-Z]*\s*|\s*```$", "", s.strip()).strip()   # ④
+    return s or original
 
 
 def _num(value, default, lo=None, hi=None):
@@ -237,6 +321,7 @@ def parse_settings(raw):
     rd["seed_control"] = _pick(r.get("seed_control"), _SEED_MODES, rd["seed_control"])
     rd["force_offload"] = _bool(r.get("force_offload"), rd["force_offload"])
     rd["save_states"] = _bool(r.get("save_states"), rd["save_states"])
+    rd["strip_thinking"] = _bool(r.get("strip_thinking"), rd["strip_thinking"])
 
     p = data.get("params") if isinstance(data.get("params"), dict) else {}
     pd = out["params"]

@@ -357,7 +357,30 @@
     }
   },
   "XB_ImagePromptPresetPro": {
-    "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro"
+    "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro",
+    "description": "Image Prompt Preset + Prompt Enhance/Reverse fused: empty latent type + aspect params + 8-category element panel; optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Outputs: prompt / prompt list / prompt settings / empty latent.",
+    "inputs": {
+      "latent_kind": { "name": "Empty Latent Type" },
+      "output_lang": { "name": "Output Language" },
+      "preset_mode": { "name": "Preset Mode" },
+      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
+      "aspect_ratio": { "name": "Aspect Ratio" },
+      "width": { "name": "Width" },
+      "height": { "name": "Height" },
+      "batch_size": { "name": "Batch Size" },
+      "use_llm": { "name": "✅ Enable LLM Enhance" },
+      "backend": { "name": "LLM Backend" },
+      "preset": { "name": "Enhance Preset" },
+      "task_preset": { "name": "Reverse Preset" },
+      "text": { "name": "📝 Prompt" },
+      "images": { "name": "🖼️ Image" }
+    },
+    "outputs": {
+      "0": { "name": "📝 Prompt" },
+      "1": { "name": "�️ Empty Latent" },
+      "2": { "name": "📋 Prompt List" },
+      "3": { "name": "🧩 Prompt Settings" }
+    }
   },
   "XB_ImagePromptPreset": {
     "display_name": "XB-BOX - 🖼️ Image Prompt Preset",
@@ -365,7 +388,7 @@
       "output_lang": { "name": "Output Language" },
       "preset_mode": { "name": "Preset Mode" },
       "latent_kind": { "name": "Empty Latent Type" },
-      "three_view_text": { "name": "Preset Text (3-view/4-view/transparent)" },
+      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
       "aspect_ratio": { "name": "Aspect Ratio" },
       "width": { "name": "Width" },
       "height": { "name": "Height" },
