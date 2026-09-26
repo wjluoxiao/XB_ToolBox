@@ -291,6 +291,37 @@
       }
     }
   },
+  "XB_ImageParamsMasterMini": {
+    "display_name": "XB-BOX - 🖼️ 图片参数大全mini",
+    "inputs": {
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图片宽度"
+      },
+      "1": {
+        "name": "图片高度"
+      },
+      "2": {
+        "name": "生成数量"
+      },
+      "3": {
+        "name": "缩放尺寸"
+      }
+    }
+  },
   "XB_MasterParameter": {
     "display_name": "XB-BOX - 🎛️ 全能参数控制",
     "inputs": {
@@ -735,7 +766,7 @@
     }
   },
   "XB_SageAttentionAccelerator": {
-    "display_name": "XB-BOX - 🚀 Sage注意力加速",
+    "display_name": "XB-BOX - 🚀 加速模式选择",
     "inputs": {
       "model": {
         "name": "模型"
@@ -751,7 +782,7 @@
     }
   },
   "XB_Sage_BlockSwap": {
-    "display_name": "XB-BOX - 🚀 Sage + 分块 黄金搭档",
+    "display_name": "XB-BOX - 🚀 加速分块黄金搭档",
     "inputs": {
       "model": {
         "name": "模型"
@@ -4598,7 +4629,7 @@
     "display_name": "XB-llama - 💬 指令推理",
     "inputs": {
       "llama_model": {
-        "name": "Llama模型"
+        "name": "🔌 模型 / API配置"
       },
       "preset_prompt": {
         "name": "预设提示词"

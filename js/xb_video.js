@@ -7,6 +7,9 @@ import { setWidgetValue } from "./xb_compat.js";
 
 const isZH = navigator.language.startsWith("zh");
 
+// 共用「画幅比例 + 步长」联动的图像参数节点
+const IMAGE_PARAMS_NODES = new Set(["XB_ImageParamsMaster", "XB_ImageParamsMasterMini"]);
+
 // 旧版写值函数（仅输入框/回调，Nodes 2.0 下会漏写 widget.value）
 const __xbLegacyDispatch = (w, val) => {
     if (w.inputEl) { 
@@ -28,7 +31,7 @@ app.registerExtension({
 
     // —— nodeCreated：子工作流画幅联动（步长由 Python step=16 负责）——
     async nodeCreated(node) {
-        if (node.comfyClass === "XB_ImageParamsMaster") {
+        if (IMAGE_PARAMS_NODES.has(node.comfyClass)) {
             const wR = node.widgets?.find(w => w.name === "aspect_ratio");
             const wW = node.widgets?.find(w => w.name === "width");
             const wH = node.widgets?.find(w => w.name === "height");
@@ -263,7 +266,7 @@ app.registerExtension({
                     }
                 }
 
-                if (node.comfyClass === "XB_ImageParamsMaster" && node.widgets) {
+                if (IMAGE_PARAMS_NODES.has(node.comfyClass) && node.widgets) {
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
                     const wWidth = node.widgets.find(w => w.name === "width");
                     const wHeight = node.widgets.find(w => w.name === "height");

@@ -54,6 +54,46 @@ class XB_ImageParamsMaster:
         return (safe_w, safe_h, batch_size, float(strength_float), int(strength_int), max(safe_w, safe_h))
 
 # ============================================================
+# XB_ImageParamsMasterMini — 图像参数主控（精简版）
+#   去掉「强度(小数)」「强度(整数)」两个控件与对应输出
+#   保留画幅比例联动 + 16 步长联动（JS 端负责）
+# ============================================================
+class XB_ImageParamsMasterMini:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
+                "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("Image Width", "Image Height", "Batch Size", "Scale Size")
+    FUNCTION = "process"
+    CATEGORY = "XB_ToolBox/Image_Params"
+
+    def process(self, aspect_ratio, width, height, batch_size):
+        if "Free" in aspect_ratio:
+            return (width, height, batch_size, max(width, height))
+
+        # 解析宽高比约束，使用 round() 而非 // 避免累积误差
+        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+        target_ratio = ratio_map.get(aspect_ratio, 1.0)
+        step = 16
+
+        if width >= height:
+            safe_w = max(step, round(width / step) * step)
+            safe_h = max(step, round((safe_w / target_ratio) / step) * step)
+        else:
+            safe_h = max(step, round(height / step) * step)
+            safe_w = max(step, round((safe_h * target_ratio) / step) * step)
+
+        return (safe_w, safe_h, batch_size, max(safe_w, safe_h))
+
+# ============================================================
 # XB_VideoParamsMaster — 视频参数主控
 # ============================================================
 class XB_VideoParamsMaster:

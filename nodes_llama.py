@@ -30,6 +30,7 @@ import gc
 import json
 import base64
 import random
+import urllib.request
 import torch
 
 import numpy as np
@@ -631,14 +632,203 @@ class XB_llamaModelLoader:
         return (custom_config,)
 
 
+# ═══════════════════════════════════════════════════════════════
+#  在线 API 后端 (对接「JZL - 🌐 LLM-API 设置」节点)
+#  设计: 「指令推理」的「llama模型」输入同时接受
+#        LLAMACPPMODEL (本地模型配置 dict) 与 STRING (API 配置 JSON)
+# ═══════════════════════════════════════════════════════════════
+
+_API_TIMEOUT = 1800
+_API_MAX_IMAGE_SIDE = 1568  # 单图上传时的最长边上限，避免 base64 体积过大
+
+
+def parse_api_config(value):
+    """把输入解析成 API 配置字典; 不是 API 配置则返回 None"""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text.startswith("{"):
+        return None
+    try:
+        cfg = json.loads(text)
+    except Exception:
+        return None
+    if not isinstance(cfg, dict):
+        return None
+    has_model = str(cfg.get("model") or "").strip()
+    has_url = str(cfg.get("base_url") or "").strip()
+    return cfg if (has_model or has_url) else None
+
+
+def _split_data_url(url):
+    """把 data:image/jpeg;base64,XXXX 拆成 (mime, base64)"""
+    if not isinstance(url, str) or not url.startswith("data:"):
+        return "image/jpeg", ""
+    try:
+        head, b64 = url.split(",", 1)
+    except ValueError:
+        return "image/jpeg", ""
+    mime = head[5:].split(";")[0] or "image/jpeg"
+    return mime, b64
+
+
+def _iter_content_parts(content):
+    """把 OpenAI 风格 content 归一化: 产出 ("text", str) 或 ("image", mime, b64)"""
+    if isinstance(content, str):
+        if content:
+            yield ("text", content)
+        return
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, str):
+                yield ("text", item)
+            elif isinstance(item, dict):
+                t = item.get("type")
+                if t == "text":
+                    yield ("text", str(item.get("text", "")))
+                elif t == "image_url":
+                    url = item.get("image_url") or ""
+                    if isinstance(url, dict):
+                        url = url.get("url", "")
+                    mime, b64 = _split_data_url(url)
+                    if b64:
+                        yield ("image", mime, b64)
+                    else:
+                        yield ("text", "[图片加载失败]")
+        return
+    if content:
+        yield ("text", str(content))
+
+
+def _content_to_text(content):
+    """把 OpenAI 风格的 content 压平成纯文本 (图片记作占位符)"""
+    out = []
+    for part in _iter_content_parts(content):
+        out.append(part[1] if part[0] == "text" else "[图片]")
+    return "\n".join(out)
+
+
+def _http_post_json(url, payload, headers):
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/json", **headers},
+    )
+    with urllib.request.urlopen(req, timeout=_API_TIMEOUT) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _api_call_openai(base_url, api_key, model, messages, temperature, max_tokens, thinking=None):
+    """OpenAI 兼容 (OpenAI/DeepSeek/Qwen/GLM/Kimi/Ollama/vLLM/LM Studio)"""
+    url = (base_url or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if thinking in ("enabled", "disabled"):
+        payload["thinking"] = {"type": thinking}
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    data = _http_post_json(url, payload, headers)
+    if not data.get("choices"):
+        raise RuntimeError(f"[API 错误] 响应无 choices: {json.dumps(data, ensure_ascii=False)[:500]}")
+    msg = data["choices"][0].get("message", {}) or {}
+    return msg.get("content") or msg.get("reasoning_content") or ""
+
+
+def _api_call_anthropic(api_key, model, messages, temperature, max_tokens):
+    system, chat = "", []
+    for m in messages:
+        parts = []
+        for part in _iter_content_parts(m.get("content", "")):
+            if part[0] == "text":
+                parts.append({"type": "text", "text": part[1]})
+            else:
+                parts.append({"type": "image", "source": {
+                    "type": "base64", "media_type": part[1], "data": part[2]}})
+        if m["role"] == "system":
+            system = "\n".join(p["text"] for p in parts if p["type"] == "text")
+        else:
+            chat.append({"role": m["role"], "content": parts})
+    data = _http_post_json(
+        "https://api.anthropic.com/v1/messages",
+        {"model": model, "max_tokens": max_tokens, "temperature": temperature,
+         "system": system, "messages": chat},
+        {"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+    )
+    parts = [b.get("text", "") for b in data.get("content", [])
+             if isinstance(b, dict) and b.get("type") == "text"]
+    if not parts:
+        raise RuntimeError(f"[API 错误] 响应无文本: {json.dumps(data, ensure_ascii=False)[:500]}")
+    return "".join(parts)
+
+
+def _api_call_gemini(api_key, model, messages, temperature, max_tokens):
+    system_parts, contents = [], []
+    for m in messages:
+        parts = []
+        for part in _iter_content_parts(m.get("content", "")):
+            if part[0] == "text":
+                parts.append({"text": part[1]})
+            else:
+                parts.append({"inline_data": {"mime_type": part[1], "data": part[2]}})
+        if m["role"] == "system":
+            system_parts.extend(p for p in parts if "text" in p)
+        else:
+            contents.append({"role": "user" if m["role"] == "user" else "model", "parts": parts})
+    if not contents:
+        contents = [{"role": "user", "parts": [{"text": ""}]}]
+    payload = {
+        "contents": contents,
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+    }
+    if system_parts:
+        payload["systemInstruction"] = {"parts": system_parts}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    data = _http_post_json(url, payload, {})
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError(f"[API 错误] 响应格式异常: {json.dumps(data, ensure_ascii=False)[:500]}")
+
+
+def api_chat_completion(cfg, messages):
+    """统一入口: 按 provider 分发, 返回纯文本"""
+    provider = str(cfg.get("provider") or "")
+    model = str(cfg.get("model") or "").strip()
+    api_key = str(cfg.get("api_key") or "").strip()
+    base_url = str(cfg.get("base_url") or "").strip()
+    temperature = cfg.get("temperature")
+    max_tokens = cfg.get("max_tokens")
+    temperature = 0.6 if temperature is None else temperature
+    max_tokens = 8192 if max_tokens is None else max_tokens
+    if not model:
+        raise ValueError(
+            "[XB-llama] API 配置缺少模型名\n"
+            "请在「JZL - 🌐 LLM-API 设置」弹窗中填写模型并保存"
+        )
+    if "Anthropic" in provider:
+        return _api_call_anthropic(api_key, model, messages, temperature, max_tokens)
+    if "Gemini" in provider:
+        return _api_call_gemini(api_key, model, messages, temperature, max_tokens)
+    return _api_call_openai(base_url, api_key, model, messages, temperature, max_tokens, cfg.get("thinking"))
+
+
 class XB_llamaInstruct:
-    """Llama 指令推理节点"""
+    """Llama 指令推理节点 (本地模型 / 在线 API 双后端)"""
 
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "llama_model": ("LLAMACPPMODEL",),
+                "llama_model": ("LLAMACPPMODEL,STRING", {
+                    "forceInput": True,
+                    "tooltip": "接「XB-llama - 📦 模型加载器」→ 本地模型\n"
+                               "接「JZL - 🌐 LLM-API 设置」→ 在线 API\n"
+                               "两种后端随时切换，插哪边用哪边"
+                }),
                 "preset_prompt": (preset_tags, {"default": preset_tags[1]}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": '用户提示词\n\n带 "*" 的预设提示中用作占位符 (如BBox检测中的目标名称)\n否则将覆盖预设提示词'}),
                 "system_prompt": ("STRING", {"multiline": True, "default": ""}),
@@ -706,14 +896,38 @@ class XB_llamaInstruct:
         print(f"[XB-llama] {label} → {tokens} tokens / {elapsed:.2f}s = {tps:.1f} T/s")
         return output
 
+    @staticmethod
+    def _timed_api_completion(api_cfg, label, messages):
+        """在线 API 推理, 返回与 llama-cpp-python 一致的响应结构"""
+        import time
+        t0 = time.perf_counter()
+        text = api_chat_completion(api_cfg, messages)
+        elapsed = time.perf_counter() - t0
+        model = api_cfg.get("model", "")
+        print(f"[XB-llama] {label} (在线API: {model}) → {elapsed:.2f}s")
+        return {"choices": [{"message": {"content": text}}]}
+
     def process(self, llama_model, preset_prompt, custom_prompt, system_prompt, inference_mode, max_frames, max_size, seed, force_offload, save_states, unique_id, parameters=None, images=None, queue_handler=None):
-        if not LLAMA_CPP_STORAGE.llm:
-            LLAMA_CPP_STORAGE.load_model(llama_model)
+        # ── 后端判定: dict = 本地模型; JSON 字符串 = 在线 API ──
+        api_cfg = parse_api_config(llama_model)
+        is_api = api_cfg is not None
+
+        if is_api:
+            print(f"[XB-llama] 在线 API 后端: {api_cfg.get('provider', '')} / {api_cfg.get('model', '')}")
+        else:
+            if not isinstance(llama_model, (dict, list)):
+                raise ValueError(
+                    "[XB-llama] 「llama模型」输入无法识别!\n"
+                    "  接「XB-llama - 📦 模型加载器」= 本地模型\n"
+                    "  接「JZL - 🌐 LLM-API 设置」= 在线 API"
+                )
+            if not LLAMA_CPP_STORAGE.llm:
+                LLAMA_CPP_STORAGE.load_model(llama_model)
 
         if parameters is None:
             parameters = {}
 
-        if _MTMD:
+        if _MTMD and not is_api:
             parameters.pop("present_penalty", None)
 
         _uid = parameters.get("state_uid", None)
@@ -750,78 +964,120 @@ class XB_llamaInstruct:
             user_content.append({"type": "text", "text": p})
 
         if images is not None:
-            # 检查是否具备图像处理能力:
-            # chat_handler=None → 纯文本模型, 绝对不支持图像
-            # chat_handler 存在 → 检查是否有 "clip_model_path"(LLaVA系) 或其它图像能力标记
-            _ch = LLAMA_CPP_STORAGE.chat_handler
-            if _ch is None:
-                raise ValueError(
-                    "检测到图像输入, 但 chat_handler=None (纯文本模型)!\n"
-                    "请选择支持视觉的 chat_handler, 例如 Qwen3-VL / Qwen3.5 / MiniCPM-v4.6 等"
-                )
-            # LLaVA系 handler 有 clip_model_path 属性, 检查是否为空
-            if hasattr(_ch, "clip_model_path") and _ch.clip_model_path is None:
-                raise ValueError(
-                    "检测到图像输入, 但 mmproj 未正确加载!\n"
-                    "请确认在模型加载器中选择了正确的 mmproj 文件"
-                )
-            # Qwen3.5 等新 handler 不暴露 clip_model_path, 直接放行
-            # (如果模型实际不支持图像, llama-cpp-python 会自己报错)
-
             frames = images
             if video_input:
                 indices = np.linspace(0, len(images) - 1, max_frames, dtype=int)
                 frames = [images[i] for i in indices]
 
-            if inference_mode == "one by one":
-                tmp_list = []
-                image_content = {"type": "image_url", "image_url": {"url": ""}}
-                user_content.append(image_content)
-                messages.append({"role": "user", "content": user_content})
-                print(f"[XB-llama] 开始处理 {len(frames)} 张图像")
-
-                import time
-                _total_tokens = 0
-                _t0 = time.perf_counter()
-                for i, image in enumerate(cqdm(frames)):
-                    if mm.processing_interrupted():
-                        raise mm.InterruptProcessingException()
-                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                    for item in user_content:
-                        if item.get("type") == "image_url":
-                            item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
-                            break
-                    output = LLAMA_CPP_STORAGE.llm.create_chat_completion(messages=messages, seed=seed, **_parameters)
-                    text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-                    out2.append(text)
-                    if len(frames) > 1:
-                        tmp_list.append(f"====== Image {i + 1} ======")
-                    tmp_list.append(text)
-                    try:
-                        _total_tokens += output.get("usage", {}).get("completion_tokens", 0)
-                    except Exception:
-                        pass
-                _elapsed = time.perf_counter() - _t0
-                _tps = _total_tokens / _elapsed if _elapsed > 0 else 0
-                print(f"[XB-llama] one by one 完成 → {_total_tokens} tokens / {_elapsed:.2f}s = {_tps:.1f} T/s")
-
-                out1 = "\n\n".join(tmp_list)
-            else:
-                for image in frames:
-                    if len(frames) > 1:
-                        data = image2base64(scale_image(image, max_size))
-                    else:
-                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                    image_content = {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+            if is_api:
+                # ── 在线 API 视觉推理 ──
+                if inference_mode == "one by one":
+                    tmp_list = []
+                    image_content = {"type": "image_url", "image_url": {"url": ""}}
                     user_content.append(image_content)
+                    messages.append({"role": "user", "content": user_content})
+                    print(f"[XB-llama] 开始处理 {len(frames)} 张图像 (在线API)")
 
-                messages.append({"role": "user", "content": user_content})
-                output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_parameters)
-                out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-                out2 = [line for line in out1.split('\n') if line.strip()]
+                    for i, image in enumerate(cqdm(frames)):
+                        if mm.processing_interrupted():
+                            raise mm.InterruptProcessingException()
+                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        for item in user_content:
+                            if item.get("type") == "image_url":
+                                item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
+                                break
+                        output = self._timed_api_completion(api_cfg, f"one by one {i + 1}/{len(frames)}", messages=messages)
+                        text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                        out2.append(text)
+                        if len(frames) > 1:
+                            tmp_list.append(f"====== Image {i + 1} ======")
+                        tmp_list.append(text)
+
+                    out1 = "\n\n".join(tmp_list)
+                else:
+                    for image in frames:
+                        if len(frames) > 1:
+                            data = image2base64(scale_image(image, max_size))
+                        else:
+                            data = image2base64(scale_image(image, _API_MAX_IMAGE_SIDE))
+                        user_content.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{data}"},
+                        })
+
+                    messages.append({"role": "user", "content": user_content})
+                    output = self._timed_api_completion(api_cfg, f"{inference_mode} mode", messages=messages)
+                    out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                    out2 = [line for line in out1.split('\n') if line.strip()]
+            else:
+                # ── 本地模型视觉推理 ──
+                _ch = LLAMA_CPP_STORAGE.chat_handler
+                if _ch is None:
+                    raise ValueError(
+                        "检测到图像输入, 但 chat_handler=None (纯文本模型)!\n"
+                        "请选择支持视觉的 chat_handler, 例如 Qwen3-VL / Qwen3.5 / MiniCPM-v4.6 等"
+                    )
+                # LLaVA系 handler 有 clip_model_path 属性, 检查是否为空
+                if hasattr(_ch, "clip_model_path") and _ch.clip_model_path is None:
+                    raise ValueError(
+                        "检测到图像输入, 但 mmproj 未正确加载!\n"
+                        "请确认在模型加载器中选择了正确的 mmproj 文件"
+                    )
+                # Qwen3.5 等新 handler 不暴露 clip_model_path, 直接放行
+                # (如果模型实际不支持图像, llama-cpp-python 会自己报错)
+
+                if inference_mode == "one by one":
+                    tmp_list = []
+                    image_content = {"type": "image_url", "image_url": {"url": ""}}
+                    user_content.append(image_content)
+                    messages.append({"role": "user", "content": user_content})
+                    print(f"[XB-llama] 开始处理 {len(frames)} 张图像")
+
+                    import time
+                    _total_tokens = 0
+                    _t0 = time.perf_counter()
+                    for i, image in enumerate(cqdm(frames)):
+                        if mm.processing_interrupted():
+                            raise mm.InterruptProcessingException()
+                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        for item in user_content:
+                            if item.get("type") == "image_url":
+                                item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
+                                break
+                        output = LLAMA_CPP_STORAGE.llm.create_chat_completion(messages=messages, seed=seed, **_parameters)
+                        text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                        out2.append(text)
+                        if len(frames) > 1:
+                            tmp_list.append(f"====== Image {i + 1} ======")
+                        tmp_list.append(text)
+                        try:
+                            _total_tokens += output.get("usage", {}).get("completion_tokens", 0)
+                        except Exception:
+                            pass
+                    _elapsed = time.perf_counter() - _t0
+                    _tps = _total_tokens / _elapsed if _elapsed > 0 else 0
+                    print(f"[XB-llama] one by one 完成 → {_total_tokens} tokens / {_elapsed:.2f}s = {_tps:.1f} T/s")
+
+                    out1 = "\n\n".join(tmp_list)
+                else:
+                    for image in frames:
+                        if len(frames) > 1:
+                            data = image2base64(scale_image(image, max_size))
+                        else:
+                            data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        image_content = {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+                        user_content.append(image_content)
+
+                    messages.append({"role": "user", "content": user_content})
+                    output = self._timed_completion(LLAMA_CPP_STORAGE.llm, f"{inference_mode} mode", messages=messages, seed=seed, **_parameters)
+                    out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                    out2 = [line for line in out1.split('\n') if line.strip()]
         else:
             messages.append({"role": "user", "content": user_content})
-            output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_parameters)
+            if is_api:
+                output = self._timed_api_completion(api_cfg, "text-only", messages=messages)
+            else:
+                output = self._timed_completion(LLAMA_CPP_STORAGE.llm, "text-only", messages=messages, seed=seed, **_parameters)
             out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
             out2 = [line for line in out1.split('\n') if line.strip()]
 
@@ -835,9 +1091,10 @@ class XB_llamaInstruct:
                 LLAMA_CPP_STORAGE.sys_prompts.pop(f"{uid}", None)
 
         if force_offload:
-            LLAMA_CPP_STORAGE.clean()
+            if not is_api:
+                LLAMA_CPP_STORAGE.clean()
         else:
-            if LLAMA_CPP_STORAGE.current_config["chat_handler"] in ["Qwen3.5", "Qwen3.5-Thinking"]:
+            if not is_api and LLAMA_CPP_STORAGE.current_config["chat_handler"] in ["Qwen3.5", "Qwen3.5-Thinking"]:
                 LLAMA_CPP_STORAGE.llm.n_tokens = 0
                 LLAMA_CPP_STORAGE.llm._ctx.memory_clear(True)
                 if LLAMA_CPP_STORAGE.llm.is_hybrid and LLAMA_CPP_STORAGE.llm._hybrid_cache_mgr is not None:

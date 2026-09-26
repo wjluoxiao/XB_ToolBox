@@ -9,6 +9,7 @@ const SIZES = {
     "XB_ChunkVisualization": [360, 200],
     "XB_VideoParamsMaster": [360, 200],
     "XB_ImageParamsMaster": [360, 200],
+    "XB_ImageParamsMasterMini": [360, 200],
     "XB_ImagePromptPreset": [420, 560],
     "XB_MasterParameter": [360, 200],
     "XB_UNetBlockSwap": [360, 200],
