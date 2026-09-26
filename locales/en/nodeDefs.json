@@ -344,6 +344,21 @@
   "XB_RoleSceneDispatcher": {
     "display_name": "XB-llama - 🎬 Role Scene Dispatcher"
   },
+  "XB_llamaPromptReverse": {
+    "display_name": "XB-llama - ✨ Prompt Enhancer Reverse",
+    "inputs": {
+      "text": { "name": "Prompt" },
+      "images": { "name": "Image" }
+    },
+    "outputs": {
+      "0": { "name": "Full Prompt" },
+      "1": { "name": "Prompt List" },
+      "2": { "name": "Prompt Setting" }
+    }
+  },
+  "XB_ImagePromptPresetPro": {
+    "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro"
+  },
   "XB_ImagePromptPreset": {
     "display_name": "XB-BOX - 🖼️ Image Prompt Preset",
     "inputs": {

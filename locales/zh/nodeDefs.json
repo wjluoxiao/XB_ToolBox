@@ -4906,6 +4906,44 @@
       }
     }
   },
+  "XB_llamaPromptReverse": {
+    "display_name": "XB-llama - ✨ 提示词增强反推",
+    "description": "五合一融合节点：模型加载器 + 指令推理 + 提示词增强预设 + 推理参数 + LLM-API 设置。节点表面只有按钮、手写提示词框与参数设定显示：点「🤖 大语言模型配置」配后端/参数，点「✨ 提示词增强预设」选预设与追加设定。输入端口只有「📝 提示词」「🖼️ 图像」（接上「提示词」后手写框锁定）。",
+    "inputs": {
+      "backend": {
+        "name": "🧠 推理后端"
+      },
+      "preset": {
+        "name": "✨ 增强预设"
+      },
+      "task_preset": {
+        "name": "🎯 反推任务"
+      },
+      "open_api_settings": {
+        "name": "🌐 API 设置"
+      },
+      "custom_prompt": {
+        "name": "✍️ 自定义提示词"
+      },
+      "text": {
+        "name": "📝 提示词"
+      },
+      "images": {
+        "name": "🖼️ 图像"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "📝 提示词全量"
+      },
+      "1": {
+        "name": "📋 提示词列表"
+      },
+      "2": {
+        "name": "🧩 提示词设定"
+      }
+    }
+  },
   "XB_llamaStoryboardEnhancer": {
     "display_name": "XB-llama - ✨ 分镜增强预设",
     "description": "模块化分镜工具——选择目标模型、故事风格、镜头调度，输入角色锚点和故事文本，一键生成适配特定模型语法的分镜提示词序列。",
@@ -5846,6 +5884,32 @@
       "2": {
         "name": "提示词"
       }
+    }
+  },
+  "XB_ImagePromptPresetPro": {
+    "display_name": "XB-BOX - 🖼️ 生图提示词预设Pro",
+    "description": "生图提示词预设 + 提示词增强反推 融合：空latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 提示词列表 / 提示词设定 / 空latent。",
+    "inputs": {
+      "latent_kind": { "name": "空latent类型" },
+      "output_lang": { "name": "输出语言" },
+      "preset_mode": { "name": "预设模式" },
+      "three_view_text": { "name": "预设句（三视图/四视图/透明背景）" },
+      "aspect_ratio": { "name": "画幅比例" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "batch_size": { "name": "生成数量" },
+      "use_llm": { "name": "✅ 启用 LLM 反推" },
+      "backend": { "name": "LLM 后端" },
+      "preset": { "name": "增强预设" },
+      "task_preset": { "name": "反推预设" },
+      "text": { "name": "📝 提示词" },
+      "images": { "name": "🖼️ 图像" }
+    },
+    "outputs": {
+      "0": { "name": "📝 提示词" },
+      "1": { "name": "📋 提示词列表" },
+      "2": { "name": "🧩 提示词设定" },
+      "3": { "name": "🖼️ 空latent" }
     }
   },
   "XB_ImagePromptPreset": {

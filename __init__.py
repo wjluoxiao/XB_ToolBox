@@ -137,10 +137,20 @@ try:
             XB_llamaStoryboardProcessor, XB_llamaStoryboardProcessorPro,
             XB_RoleSceneDispatcher,
         )
+        # ── 提示词增强反推（模型加载器 + 指令推理 + 提示词增强预设 + 推理参数 + LLM-API 设置 五合一）──
+        from .nodes_llama_prompt_reverse import XB_llamaPromptReverse
         _LLAMA_AVAILABLE = True
     except ImportError as e:
         print_warning(f"[XB-llama] llama-cpp-python 未安装, Llama/MiniMax 节点不可用: {e}")
         _LLAMA_AVAILABLE = False
+
+    # ── 🖼️ 生图提示词预设Pro（生图提示词预设 + 提示词增强反推 融合）──
+    try:
+        from .nodes_image_prompt_preset_pro import XB_ImagePromptPresetPro
+        _PRO_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 生图提示词预设Pro 未加载：{e}")
+        _PRO_AVAILABLE = False
 
     # ── CosyVoice3 音频节点 ──
     from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
@@ -325,6 +335,13 @@ try:
             "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
             "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
             "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
+            "XB_llamaPromptReverse": XB_llamaPromptReverse,
+        })
+
+    # ── 生图提示词预设Pro ──
+    if _PRO_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_ImagePromptPresetPro": XB_ImagePromptPresetPro,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -477,6 +494,13 @@ try:
             "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
             "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
             "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
+            "XB_llamaPromptReverse": "XB-llama - ✨ 提示词增强反推",
+        })
+
+    # ── 生图提示词预设Pro 显示名 ──
+    if _PRO_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 生图提示词预设Pro",
         })
 
     print_success("\n" + "="*50)

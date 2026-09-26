@@ -379,7 +379,9 @@ class XB_ImagePromptPreset:
                 }),
                 "three_view_text": ("STRING", {
                     "default": THREE_VIEW_TEXT[LANG_ZH], "multiline": True,
-                    "tooltip": "预设句（人物三视图 / 人物四视图 / 背景纯透明 三个模式生效；常规文生图时本框自动隐藏）",
+                    "tooltip": "预设句 / 设定词（人物三视图 / 人物四视图 / 背景纯透明 三个模式生效；常规文生图时本框自动隐藏）\n"
+                               "· 用户改过的设定词按「模式 + 语言」存进本节点（换模式 / 换语言都不会丢）；\n"
+                               "· 最终提示词输出时它会被原封不动加在正文最顶端",
                 }),
                 "aspect_ratio": (list(ASPECT_RATIO_OPTIONS), {
                     "default": "Free",
