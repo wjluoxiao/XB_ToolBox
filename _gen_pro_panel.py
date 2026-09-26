@@ -81,7 +81,7 @@ patches = [
   container.append(promptLab, promptBox);""",
      """  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
-  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\\n（「📝 提示词」端口接线后本框锁定）";
+  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\\n接了「🖼️ 图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\\n「📝 提示词」端口接线后本框锁定";
   // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（Pro 新增；同时挂上端口锁定与执行回写）
   const xbrHeadAndInfo = xbrBuildPromptHeader(node, promptBox);
   container.append(xbrHeadAndInfo[0], promptBox, xbrHeadAndInfo[1]);"""),

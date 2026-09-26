@@ -30,6 +30,7 @@ CATEGORY: XB_ToolBox/Image_Params
 
 import json
 import random
+import re
 
 from .nodes_llama import (
     LLAMA_CPP_STORAGE,
@@ -103,12 +104,63 @@ def _next_seed(seed, mode):
     return None
 
 
-def _build_system_prompt(preset, extra, output_lang, preset_text=""):
-    """提示词设定 = 增强预设 + 输出语言 + 设定词参考 + 追加设定 + 只输出最终提示词的硬规则
+# 「图 + 文字」时的任务说明：先识图 → 把文字当修改指令执行 → 只输出最终画面提示词
+# （用户报障：接了图片 + 写了「把背景换成草地」时，模型输出「原本室内的背景被替换为…」这种描述+修改说明，
+#   不能直接拿去文生图。这里把任务顺序与输出荘忌写死，让结果就是一条可直接生图的最终提示词。）
+_TASK_IMAGE_EDIT_HINT = (
+    "【任务：先识图，再按用户的修改指令改，只输出【修改后的最终画面提示词】】\n"
+    "步骤（在内部完成，不要输出过程）：\n"
+    "  ① 识别图像中的人物、外貌、服装、姿态、镜头、光线与背景；\n"
+    "  ② 把用户给出的文字当作【修改指令】应用到识别结果上；\n"
+    "  ③ 输出修改后最终画面的提示词。\n"
+    "输出要求（必须遵守）：\n"
+    "  · 只输出一段——直接描述【修改后的最终画面】，像一条全新的文生图提示词，可以直接拿去生图；\n"
+    "  · 严禁对比式 / 过程式表述：不得出现「原本」「原来」「改在」「改成」「换成」「替换为」「被替换」"
+    "「修改后」「而不是」「instead of」「replaced with」「originally」「now」等字样；\n"
+    "  · 不得写成「先描述原图 + 再说明改了什么」两段，也不得保留任何关于修改动作的说明；\n"
+    "  · 未被指令涉及的部分（人物长相、服装、姿态、镜头、光线）保持识别到的原样，"
+    "自然地融进最终描述里，就像画面本来就是这样。"
+)
+# 只接了图片、没写文字：纯「看图写提示词」
+_TASK_IMAGE_ONLY_HINT = (
+    "【任务：看图写提示词】\n"
+    "先识别画面内容，然后只输出一条可直接生图的最终提示词；"
+    "不要输出识别过程、分析步骤、字段清单或任何说明。"
+)
+_USER_EDIT_PREFIX = "【修改指令（请将下列要求应用到图像上）】\n"
+_USER_IMAGE_ONLY = "识别这张图片，直接输出最终画面的提示词。"
+
+# 看图改图任务的验收条件：输出里不得出现「先描述再修改」的对比式说法
+_RETRY_REMINDER = (
+    "\n\n【上次输出不合格，必须重写】上次出现了「原本 / 换成 / 被替换 / 修改后」这类对比式说明。"
+    "请只输出修改后最终画面的直接描述，就像画面本来就是这样，不要提到任何修改动作。"
+)
+_FORBIDDEN_TALK_RE = re.compile(
+    r"原本|原来的|被替换|替换为|替换成|改为|改成|换成|修改后|修改为|"
+    r"instead of|replaced (?:with|by)|originally", re.I)
+
+
+def _leaks_modification_talk(text):
+    """输出里是否出现了对比式 / 过程式修改说明（看图改图任务不合格）"""
+    return bool(_FORBIDDEN_TALK_RE.search(text or ""))
+
+
+def _has_images(images):
+    """是否真的接了图片 / 视频帧（None / 空张量 / 空列表 均视为没有）"""
+    if images is None:
+        return False
+    try:
+        return len(images) > 0
+    except Exception:
+        return True
+
+
+def _build_system_prompt(preset, extra, output_lang, preset_text="", task_hint=""):
+    """提示词设定 = 增强预设 + 输出语言 + 设定词参考 + 追加设定 + 只输出最终提示词的硬规则 + 任务块
 
     `preset_text`（预设模式的设定词）只作为**增强参考**告诉 LLM：它会被节点原样置顶到最终提示词，
     禁止在正文里重复 / 改写它。
-    最后追加 `OUTPUT_FORMAT_HINT`（最高优先级）——专治模型把思考过程 / 步骤 / 说明一起输出。
+    `task_hint`（看图 / 改图任务）放**最末**，优先级最高——决定“先识图再改”还是“纯看图”。
     """
     parts = [XB_llamaPromptEnhancer().main(preset)[0] or ""]
     parts.append(_LANG_HINT.get(output_lang, _LANG_HINT[_OUTPUT_LANGS[0]]))
@@ -119,6 +171,9 @@ def _build_system_prompt(preset, extra, output_lang, preset_text=""):
     if extra:
         parts.append(extra)
     parts.append(OUTPUT_FORMAT_HINT)                 # 放最后 = 最显眼（用户要求：不要思考过程）
+    hint = (task_hint or "").strip()
+    if hint:
+        parts.append(hint)                            # 任务块更具体 → 又压在最上面
     return "\n\n".join([p for p in parts if p])
 
 
@@ -265,11 +320,19 @@ class XB_ImagePromptPresetPro:
         # ② 拼装提示词（设定词 + 正文）+ 该模式的设定词（用户改过则用改过的）
         base_prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
         preset_text = _preset_text_of(preset_mode, output_lang, three_view_text)
+        # 用户输入的正文（外接「📝 提示词」优先）：接了图片时它是【修改指令】，不是待增强的提示词
+        body_in = (text or "").strip() or (internal_prompt or "").strip()
+        has_img = _has_images(images)
 
         # ③ LLM 反推配置（来自 manager_settings.llm；输出语言复用节点表面参数）
         llm = parse_llm_settings(_llm_section(manager_settings))
         llm["output_lang"] = output_lang if output_lang in _OUTPUT_LANGS else _OUTPUT_LANGS[0]
-        full_system = _build_system_prompt(preset, llm["extra_system"], llm["output_lang"], preset_text)
+        # 任务块：有图 + 有文字 = 看图改图；有图无文字 = 看图反推；无图 = 原本文生文增强
+        task_hint = ""
+        if has_img:
+            task_hint = _TASK_IMAGE_EDIT_HINT if body_in else _TASK_IMAGE_ONLY_HINT
+        full_system = _build_system_prompt(preset, llm["extra_system"], llm["output_lang"],
+                                           preset_text, task_hint)
         run = llm["run"]
         seed = int(run["seed"])
         next_seed = _next_seed(seed, run["seed_control"])
@@ -298,30 +361,51 @@ class XB_ImagePromptPresetPro:
                     LLAMA_CPP_STORAGE.load_model(local_cfg)
                 model_or_api = local_cfg
 
-            # ④b 交给 LLM 的正文 = 外接「📝 提示词」优先，其次节点提示词框
-            #     （设定词已作为「增强参考」放进系统提示词，不让它参与正文，避免被改写/复述）
-            user_text = (text or "").strip() or (internal_prompt or "").strip() or base_prompt
-            out1, _out2, _uid = XB_llamaInstruct().process(
-                llama_model=model_or_api,
-                preset_prompt=task_preset,
-                custom_prompt=user_text,
-                system_prompt=full_system,
-                inference_mode=run["inference_mode"],
-                max_frames=run["max_frames"],
-                max_size=run["max_size"],
-                seed=seed,
-                force_offload=run["force_offload"],
-                save_states=run["save_states"],
-                unique_id=str(unique_id or "0"),
-                parameters=dict(llm["params"]),
-                images=images,
-                queue_handler=None,
-            )
+            # ④b 交给 LLM 的内容：接了图片时把用户输入包成【修改指令】
+            #     （先识图 → 把指令应用到识别结果上 → 只输出修改后的最终画面，避免“先描述再修改”）
+            if has_img:
+                user_text = (_USER_EDIT_PREFIX + body_in) if body_in else _USER_IMAGE_ONLY
+            else:
+                user_text = body_in or base_prompt
+            def _ask(custom_prompt, seed_shift=0):
+                """调一次 LLM（重试时用 seed_shift 换种子，避免拿到同一份输出）"""
+                o1, _o2, _u = XB_llamaInstruct().process(
+                    llama_model=model_or_api,
+                    preset_prompt=task_preset,
+                    custom_prompt=custom_prompt,
+                    system_prompt=full_system,
+                    inference_mode=run["inference_mode"],
+                    max_frames=run["max_frames"],
+                    max_size=run["max_size"],
+                    seed=(seed + seed_shift) & _SEED_MAX,
+                    force_offload=run["force_offload"],
+                    save_states=run["save_states"],
+                    unique_id=str(unique_id or "0"),
+                    parameters=dict(llm["params"]),
+                    images=images,
+                    queue_handler=None,
+                )
+                return o1 or ""
+
+            def _clean(txt):
+                return strip_reasoning(txt) if run.get("strip_thinking", True) else txt
+
             # ④c 思考过程过滤（模型无视规则、把推理段一起输出时只留最终提示词）
-            raw_out = out1 or ""
-            body_out = strip_reasoning(raw_out) if run.get("strip_thinking", True) else raw_out
+            raw_out = _ask(user_text)
+            body_out = _clean(raw_out)
             if body_out != raw_out.strip():
                 print(f"[XB-生图预设Pro] 🧠 已过滤思考过程：{len(raw_out)} 字 → {len(body_out)} 字")
+
+            # ④c2 看图改图：若仍写成「原本…被替换为…」的对比式说明 → 自动重试一次
+            if has_img and body_in and _leaks_modification_talk(body_out):
+                print("[XB-生图预设Pro] ⚠️ 输出含对比式修改说明，自动重试一次…")
+                cand = _clean(_ask(user_text + _RETRY_REMINDER, seed_shift=1))
+                if cand.strip() and not _leaks_modification_talk(cand):
+                    body_out = cand
+                    print("[XB-生图预设Pro] ✅ 重试后已得到直接的最终画面描述")
+                else:
+                    print("[XB-生图预设Pro] ⚠️ 重试仍不合格，保留本次输出")
+
             # ④d 设定词**原封不动**加在增强结果最顶端（与未启用 LLM 时的成句规则完全一致）
             final_prompt = build_prompt(output_lang, preset_mode, three_view_text, body_out)
         else:
@@ -337,7 +421,7 @@ class XB_ImagePromptPresetPro:
         print(f"[XB-生图预设Pro] {spec['label']} 丨 {w}x{h}（{aspect_ratio}·步长 {spec['step']}）"
               f"丨数量 {shape[0] if shape else batch_size}丨空latent {shape}"
               f"丨模式 {preset_mode}丨设定词 {'自定义' if (preset_text and three_view_text and str(three_view_text).strip()) else ('默认' if preset_text else '无')}"
-              f"丨语言 {output_lang}"
+              f"丨语言 {output_lang}丨任务 {'看图改图' if (has_img and body_in) else ('看图反推' if has_img else '文生文')}"
               f"丨LLM {'启用' if use_llm else '关闭'}（{backend}）丨提示词 {len(final_prompt)} 字")
 
         ui = {

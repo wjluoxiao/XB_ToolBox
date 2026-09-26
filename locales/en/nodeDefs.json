@@ -377,7 +377,7 @@
     },
     "outputs": {
       "0": { "name": "📝 Prompt" },
-      "1": { "name": "�️ Empty Latent" },
+      "1": { "name": "📊 Empty Latent" },
       "2": { "name": "📋 Prompt List" },
       "3": { "name": "🧩 Prompt Settings" }
     }

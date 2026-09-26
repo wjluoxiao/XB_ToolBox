@@ -2582,7 +2582,7 @@ function setupNode(node) {
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
   const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
-  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n（「📝 提示词」端口接线后本框锁定）";
+  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n接了「🖼️ 图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\n「📝 提示词」端口接线后本框锁定";
   // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（Pro 新增；同时挂上端口锁定与执行回写）
   const xbrHeadAndInfo = xbrBuildPromptHeader(node, promptBox);
   container.append(xbrHeadAndInfo[0], promptBox, xbrHeadAndInfo[1]);
@@ -3509,12 +3509,14 @@ function xbrRenderHelp(body) {
     "【本节点 = 生图提示词预设 + 提示词增强反推】",
     "",
     "【输入端口】",
-    "  · 📝 提示词：外接提示词。接上线后节点上的提示词框会锁定（二选一）",
-    "  · 🖼️ 图像：外接图像 / 视频帧（LLM 反推：图 → 提示词）",
+    "  · 📝 提示词：外接提示词；接线后节点上的提示词框会锁定，二选一",
+    "  · 🖼️ 图像：外接图像 / 视频帧",
+    "  · 有图 + 有文字 = 看图改图：先识图，再把文字当修改指令执行，只输出修改后的最终画面提示词",
+    "  · 只有图 = 看图写提示词；只有文字 = 文案增强",
     "",
     "【输出端口】",
     "  · 📝 提示词：最终提示词。未启用 LLM = 拼装好的提示词；启用 LLM = 设定词原封不动置顶 + LLM 增强后的正文",
-    "  · 🖼️ 空latent：第二位。按「空latent类型」生成，官方 latent_format 逐字段对齐",
+    "  · 📊 空latent：第二位。按「空latent类型」生成，官方 latent_format 逐字段对齐",
     "  · 📋 提示词列表：按行拆分",
     "  · 🧩 提示词设定：本次的提示词设定，即增强预设 + 输出语言 + 追加设定",
     "",
@@ -3654,7 +3656,7 @@ function xbrInfoLines(node, promptText) {
   const pMode = String(xbrWidgetVal(node, "preset_mode") ?? "");
   const pDef = defaultPresetOf(pMode, String(xbrWidgetVal(node, "output_lang") ?? "")) || "";
   const pCur = String(xbrWidgetVal(node, "three_view_text") ?? "");
-  const line1 = `🖼️ 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
+  const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
   const line2 = `🎨 预设模式：${xbrClean(pMode)}`
     + (pDef ? ` ｜ 设定词：${(pCur.trim() && pCur !== pDef) ? "✏️ 自定义" : "默认"}` : " ｜ 设定词：无");
   const line3 = `🌐 输出语言：${xbrClean(xbrWidgetVal(node, "output_lang"))}`;
