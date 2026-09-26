@@ -380,39 +380,47 @@ def _lazy_get_audio(file, start_time=0, duration=0):
     """替代 VHS 的 lazy_get_audio，使用 PyAV"""
     try:
         import av
-    except ImportError:
-        class _Dummy:
-            def __getitem__(s,k): return torch.zeros((1,1))
-            def __iter__(s): return iter({})
-            def __len__(s): return 2
-        return _Dummy()
+    except ImportError as exc:
+        raise RuntimeError("Video audio loading requires PyAV (av)") from exc
+    # Probe streams without decoding. Optional AUDIO consumers can then receive
+    # None for a video without sound instead of an invalid one-sample tensor.
+    try:
+        with av.open(file) as container:
+            if not any(stream.type == 'audio' for stream in container.streams):
+                return None
+    except Exception as exc:
+        raise RuntimeError("Unable to inspect video audio streams") from exc
     class _LazyAudioMap:
         def __init__(s, file, st, dur):
             s._d = None; s.file = file; s.st = st; s.dur = dur
         def _load(s):
             if s._d is not None: return
             try:
-                c = av.open(s.file)
-                a = next((x for x in c.streams if x.type == 'audio'), None)
-                if not a: c.close(); s._d = {'waveform': torch.zeros((1,1)), 'sample_rate': 44100}; return
-                sr = a.codec_context.sample_rate or 44100
-                frames = []
-                sp = int(s.st*sr) if s.st>0 else 0
-                ep = int((s.st+s.dur)*sr) if s.dur>0 else None
-                for f in c.decode(a):
-                    if f.pts is not None:
-                        if sp>0 and f.pts<sp: continue
-                        if ep is not None and f.pts>=ep: break
-                    frames.append(f.to_ndarray())
-                c.close()
-                if not frames: s._d = {'waveform': torch.zeros((1,1)), 'sample_rate': sr}; return
+                with av.open(s.file) as c:
+                    a = next((x for x in c.streams if x.type == 'audio'), None)
+                    if a is None:
+                        raise ValueError("Audio stream disappeared after probing")
+                    sr = a.codec_context.sample_rate or 44100
+                    frames = []
+                    sp = int(s.st*sr) if s.st>0 else 0
+                    ep = int((s.st+s.dur)*sr) if s.dur>0 else None
+                    for f in c.decode(a):
+                        if f.pts is not None:
+                            if sp>0 and f.pts<sp: continue
+                            if ep is not None and f.pts>=ep: break
+                        frames.append(f.to_ndarray())
+                if not frames:
+                    raise ValueError("Audio stream has no decoded frames in the requested interval")
                 wav = np.concatenate(frames, axis=-1)
+                if wav.size == 0:
+                    raise ValueError("Audio stream contains no decoded samples")
                 if wav.ndim==1: wav=wav[np.newaxis,:]
                 elif wav.shape[0]>1: wav=wav.mean(axis=0, keepdims=True)
                 wf = torch.from_numpy(wav.astype(np.float32))
                 if wf.dim()==2: wf=wf.unsqueeze(0)
                 s._d = {'waveform': wf, 'sample_rate': sr}
-            except: s._d = {'waveform': torch.zeros((1,1)), 'sample_rate': 44100}
+            except Exception as exc:
+                raise RuntimeError("Unable to decode video audio") from exc
         def __getitem__(s,k): s._load(); return s._d[k]
         def __iter__(s): s._load(); return iter(s._d)
         def __len__(s): s._load(); return len(s._d)
