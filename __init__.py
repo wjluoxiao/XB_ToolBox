@@ -152,6 +152,14 @@ try:
         print_warning(f"[XB-BOX] 生图提示词预设Pro 未加载：{e}")
         _PRO_AVAILABLE = False
 
+    # ── 🖼️ Qwen2.1提示词预设（生图提示词预设 + 官方 Load CLIP + 官方 Generate Text）──
+    try:
+        from .nodes_qwen_prompt_preset import XB_QwenPromptPreset
+        _QWEN_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] Qwen2.1提示词预设 未加载：{e}")
+        _QWEN_AVAILABLE = False
+
     # ── CosyVoice3 音频节点 ──
     from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
     from .cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
@@ -344,6 +352,12 @@ try:
             "XB_ImagePromptPresetPro": XB_ImagePromptPresetPro,
         })
 
+    # ── Qwen2.1提示词预设 ──
+    if _QWEN_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_QwenPromptPreset": XB_QwenPromptPreset,
+        })
+
     NODE_DISPLAY_NAME_MAPPINGS = { 
         "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
         "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
@@ -501,6 +515,12 @@ try:
     if _PRO_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
             "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 生图提示词预设Pro",
+        })
+
+    # ── Qwen2.1提示词预设 显示名 ──
+    if _QWEN_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_QwenPromptPreset": "XB-BOX - 🖼️ Qwen2.1提示词预设",
         })
 
     print_success("\n" + "="*50)

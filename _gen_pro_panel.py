@@ -52,11 +52,15 @@ patches = [
     hideWidget(findWidget(node, "output_lang"));     // 语言只留：LLM设置 里的「输出语言」
     hideWidget(findWidget(node, "latent_kind"));     // → 「✨ 增强预设」弹窗
     hideWidget(findWidget(node, "preset_mode"));     // → 「✨ 增强预设」弹窗
-    hideWidget(findWidget(node, "three_view_text")); // 设定词 → 只在「✨ 增强预设」弹窗里编辑（用户要求：不在节点表面显示）"""),
+    hideWidget(findWidget(node, "three_view_text")); // 设定词 → 只在「✨ 增强预设」弹窗里编辑（用户要求：不在节点表面显示）
+    hideWidget(findWidget(node, "skill_name"));      // SKILL 选择 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "skill_mode"));      // SKILL 三态 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "io_mode"));         // 模版（文生图/图生图）→ 只在「✨ 预设参数」弹窗里选"""),
     # 4b. 幽灵端口清理（同上名单）
     ("""      for (const nm of ["internal_prompt", "manager_settings"]) {""",
      """      for (const nm of ["internal_prompt", "manager_settings", "backend", "preset", "task_preset",
-                         "open_api_settings", "output_lang", "latent_kind", "preset_mode", "three_view_text"]) {"""),
+                         "open_api_settings", "output_lang", "latent_kind", "preset_mode", "three_view_text",
+                         "skill_name", "skill_mode", "io_mode"]) {"""),
     # 4c. 设定词在 Pro 节点表面始终隐藏（基础面板的预设句框显/隐逻辑在 Pro 里改成“只隐不显”）
     ("""  const applyPresetTextVisibility = () => {
     try {

@@ -5894,6 +5894,9 @@
       "output_lang": { "name": "输出语言" },
       "preset_mode": { "name": "预设模式" },
       "three_view_text": { "name": "预设句（三/四/五视图·透明背景）" },
+      "skill_name": { "name": "SKILL 选择" },
+      "skill_mode": { "name": "SKILL 模式" },
+      "io_mode": { "name": "模版" },
       "aspect_ratio": { "name": "画幅比例" },
       "width": { "name": "宽度" },
       "height": { "name": "高度" },
@@ -5910,6 +5913,44 @@
       "1": { "name": "📊 空latent" },
       "2": { "name": "📋 提示词列表" },
       "3": { "name": "🧩 提示词设定" }
+    }
+  },
+  "XB_QwenPromptPreset": {
+    "display_name": "XB-BOX - 🖼️ Qwen2.1提示词预设",
+    "description": "生图提示词预设 + 官方 Load CLIP + 官方 Generate Text：空latent类型 / 画幅参数 + 8 大类元素面板拼装提示词，再用文本编码器把正文生成成完整提示词。输出：提示词 / 空latent。",
+    "inputs": {
+      "latent_kind": { "name": "空latent类型" },
+      "output_lang": { "name": "输出语言" },
+      "preset_mode": { "name": "预设模式" },
+      "three_view_text": { "name": "设定词（三/四/五视图·透明背景）" },
+      "skill_name": { "name": "SKILL 选择" },
+      "skill_mode": { "name": "SKILL 模式" },
+      "io_mode": { "name": "模版" },
+      "aspect_ratio": { "name": "画幅比例" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "batch_size": { "name": "生成数量" },
+      "clip_name": { "name": "模型·Load CLIP" },
+      "clip_type": { "name": "类型" },
+      "device": { "name": "设备" },
+      "max_length": { "name": "最大长度" },
+      "sampling_mode": { "name": "采样模式" },
+      "temperature": { "name": "温度" },
+      "top_k": { "name": "top_k" },
+      "top_p": { "name": "top_p" },
+      "min_p": { "name": "min_p" },
+      "repetition_penalty": { "name": "重复惩罚" },
+      "presence_penalty": { "name": "存在惩罚" },
+      "seed": { "name": "种子" },
+      "thinking": { "name": "思考模式" },
+      "use_default_template": { "name": "使用内置模板" },
+      "mtp": { "name": "mtp" },
+      "text": { "name": "📝 提示词" },
+      "images": { "name": "🖼️ 图像" }
+    },
+    "outputs": {
+      "0": { "name": "📝 提示词" },
+      "1": { "name": "📊 空latent" }
     }
   },
   "XB_ImagePromptPreset": {

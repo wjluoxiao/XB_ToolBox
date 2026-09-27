@@ -51,6 +51,8 @@ from .nodes_image_prompt_preset import (
     ASPECT_RATIO_OPTIONS,
     BATCH_MAX,
     DEFAULT_LATENT_KIND,
+    IO_MODE_AUTO,
+    IO_MODES,
     LATENT_KINDS,
     MAX_RESOLUTION,
     OUTPUT_LANGS,
@@ -61,9 +63,21 @@ from .nodes_image_prompt_preset import (
     THREE_VIEW_TEXT,
     build_empty_latent,
     build_prompt,
+    io_mode_of,
     latent_kind_spec,
     normalize_size,
+    preset_text_of,
+    resolve_io_mode,
+    safe_print,
+    SKILL_MODE_AUTO,
+    SKILL_MODES,
+    effective_skill_name,
+    effective_skill_text,
+    skill_mode_of,
 )
+
+# SKILL（技能文件 = LLM 的 system prompt，放 support_llama/skills）
+from .xb_skills import SKILL_NONE, skill_list, skill_sig
 
 DEFAULT_LANG = OUTPUT_LANGS[0]
 
@@ -155,15 +169,22 @@ def _has_images(images):
         return True
 
 
-def _build_system_prompt(preset, extra, output_lang, preset_text="", task_hint=""):
-    """提示词设定 = 增强预设 + 输出语言 + 设定词参考 + 追加设定 + 只输出最终提示词的硬规则 + 任务块
+def _build_system_prompt(preset, extra, output_lang, preset_text="", task_hint="", skill_text=""):
+    """提示词设定 = SKILL（可选） + 增强预设 + 输出语言 + 设定词参考 + 追加设定 + 只输出最终提示词的硬规则 + 任务块
 
+    `skill_text`（support_llama/skills 里的技能文件）放在**最前面**当角色与总规则；
+    技能文件自带语言决策与输出契约 → 选中技能时**不再叠加**节点的语言提示，避免互相打架。
     `preset_text`（预设模式的设定词）只作为**增强参考**告诉 LLM：它会被节点原样置顶到最终提示词，
     禁止在正文里重复 / 改写它。
     `task_hint`（看图 / 改图任务）放**最末**，优先级最高——决定“先识图再改”还是“纯看图”。
     """
-    parts = [XB_llamaPromptEnhancer().main(preset)[0] or ""]
-    parts.append(_LANG_HINT.get(output_lang, _LANG_HINT[_OUTPUT_LANGS[0]]))
+    skill = (skill_text or "").strip()
+    parts = []
+    if skill:
+        parts.append(skill)                           # SKILL：角色与总规则（自带语言 / 输出契约）
+    parts.append(XB_llamaPromptEnhancer().main(preset)[0] or "")
+    if not skill:
+        parts.append(_LANG_HINT.get(output_lang, _LANG_HINT[_OUTPUT_LANGS[0]]))
     ref = (preset_text or "").strip()
     if ref:
         parts.append(_PRESET_REF_HINT.format(text=ref))
@@ -177,17 +198,16 @@ def _build_system_prompt(preset, extra, output_lang, preset_text="", task_hint="
     return "\n\n".join([p for p in parts if p])
 
 
-def _preset_text_of(preset_mode, output_lang, three_view_text):
-    """当前预设模式的设定词（= 节点表面「预设句」框里的值）。
+def _preset_text_of(preset_mode, output_lang, three_view_text, io_mode=None, has_image=False):
+    """当前预设模式的设定词（= 节点表面「设定词」框里的值，按文生图 / 图生图分两套）。
 
-    · 用户改过 → 用改过的原文（含换行，前端按「模式|语言」存在节点里，换模式不丢）；
-    · 空 / 未改 → 用「模式 × 输出语言」的默认设定词；
-    · 常规文生图等无设定词的模式 → 空串（不前置任何内容）。
+    · 用户改过 → 用改过的原文（含换行，前端按「模式|模版|语言」存在节点里，换模式/换模版不丢）；
+    · 没改过（等于任一默认）→ 按当前模版取对应那套默认，避免把图生图版文本（如 360°全景
+      的「把输入的单视角照片扩展成…」）带进文生图；
+    · 无预设档：接不接图、哪个模版 → 都是空串（不前置设定词）。
     """
-    defaults = PRESET_TEXT.get(preset_mode) if isinstance(PRESET_TEXT, dict) else None
-    if not defaults:
-        return ""
-    lang = output_lang if output_lang in OUTPUT_LANGS else DEFAULT_LANG
+    return preset_text_of(preset_mode, output_lang, three_view_text,
+                          io_mode=io_mode, has_image=has_image)
     return str(three_view_text or "").strip() or defaults.get(lang, "") or ""
 
 
@@ -211,16 +231,31 @@ class XB_ImagePromptPresetPro:
                     "default": DEFAULT_LANG,
                     "tooltip": "输出语言：影响预设句、元素拼装分隔符，同时作为 LLM 的输出语言要求",
                 }),
+                "io_mode": (list(IO_MODES), {
+                    "default": IO_MODE_AUTO,
+                    "tooltip": "模版：自动 = 按有没有接参考图判断；文生图 / 图生图 = 手动指定。"
+                               "每个预设模式都有两套设定词，按它自动选用（切换会直接把设定词换成对应那套）",
+                }),
                 "preset_mode": (list(PRESET_MODES), {
                     "default": PRESET_MODES[0],
-                    "tooltip": "预设模式：常规文生图=只输出正文；人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 = 自动在正文前加预设句",
+                    "tooltip": "预设模式：无预设=不前置任何设定词，只输出正文；其余档位把该档设定词置顶到最终提示词最顶端（设定词分文生图 / 图生图两套）",
                 }),
                 "three_view_text": ("STRING", {
                     "default": THREE_VIEW_TEXT[DEFAULT_LANG], "multiline": True,
-                    "tooltip": "预设模式的设定词（人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 四个模式生效；常规文生图时自动隐藏）\n"
+                    "tooltip": "预设模式的设定词（人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 四个模式生效；无预设时自动隐藏）\n"
                                "· 最终提示词输出时它会被【原封不动】加在最顶端；\n"
                                "· 用户改过的设定词按「模式 + 语言」存进本节点（换模式 / 换语言都不会丢）；\n"
                                "· 启用 LLM 时它作为增强参考交给 LLM（LLM 只增强正文，不改写它）",
+                }),
+                "skill_mode": (list(SKILL_MODES), {
+                    "default": SKILL_MODE_AUTO,
+                    "tooltip": "SKILL 模式：自动 = 按预设模式适配（图生图档 → prompt_edit，其余 → prompt_t2i）；"
+                               "手动 = 用下面选中的那一个；不用 = SKILL 完全不生效（哪怕选了也不生效）",
+                }),
+                "skill_name": (skill_list(), {
+                    "default": SKILL_NONE,
+                    "tooltip": "SKILL选择：support_llama/skills 里的 txt，整段作为 LLM 反推的 system prompt（放在最前面当角色与总规则）；"
+                               "仅在「SKILL 模式 = 手动」时生效；技能文件自带语言与输出契约，选中后不再叠加节点的语言提示",
                 }),
                 "aspect_ratio": (list(ASPECT_RATIO_OPTIONS), {
                     "default": "Free",
@@ -296,10 +331,11 @@ class XB_ImagePromptPresetPro:
                    "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。")
 
     @classmethod
-    def IS_CHANGED(cls, manager_settings="", **kwargs):
-        keys = ("latent_kind", "output_lang", "preset_mode", "three_view_text", "aspect_ratio",
+    def IS_CHANGED(cls, manager_settings="", skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO,
+                   preset_mode="", **kwargs):
+        keys = ("latent_kind", "output_lang", "preset_mode", "io_mode", "three_view_text", "aspect_ratio",
                 "width", "height", "batch_size", "use_llm", "backend", "preset", "task_preset",
-                "internal_prompt")
+                "skill_name", "skill_mode", "internal_prompt")
         sig = {k: kwargs.get(k) for k in keys}
         extra = ""
         try:
@@ -307,22 +343,27 @@ class XB_ImagePromptPresetPro:
             extra = json.dumps(read_api_settings(), sort_keys=True, ensure_ascii=False)
         except Exception:
             extra = ""
-        return f"{manager_settings}|{extra}|{sig}"
+        used = effective_skill_name(skill_mode, skill_name, preset_mode)
+        return f"{manager_settings}|{extra}|{sig}|{skill_sig(used)}"
 
     def generate(self, latent_kind, output_lang, preset_mode, three_view_text, aspect_ratio,
                  width, height, batch_size, use_llm, backend, preset, task_preset, open_api_settings,
-                 internal_prompt="", manager_settings="", text="", images=None, unique_id=None):
+                 internal_prompt="", manager_settings="", text="", images=None, unique_id=None,
+                 skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO, io_mode=IO_MODE_AUTO):
         # ① 画幅归一 + 空 latent（与「🖼️ 生图提示词预设」逐行一致）
         spec = latent_kind_spec(latent_kind)
         w, h = normalize_size(aspect_ratio, width, height, spec["step"], spec["min"], spec["max"])
         latent = build_empty_latent(latent_kind, w, h, batch_size)
 
-        # ② 拼装提示词（设定词 + 正文）+ 该模式的设定词（用户改过则用改过的）
-        base_prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
-        preset_text = _preset_text_of(preset_mode, output_lang, three_view_text)
+        # ② 拼装提示词（设定词 + 正文）+ 该模式的设定词（用户改过则用改过的；按模版取对应那套）
+        has_img = _has_images(images)
+        io_eff = resolve_io_mode(io_mode, has_img)                 # 文生图 / 图生图
+        preset_eff = _preset_text_of(preset_mode, output_lang, three_view_text,
+                                     io_mode=io_mode, has_image=has_img)   # 送模型 / 置顶都用这一份
         # 用户输入的正文（外接「📝 提示词」优先）：接了图片时它是【修改指令】，不是待增强的提示词
         body_in = (text or "").strip() or (internal_prompt or "").strip()
-        has_img = _has_images(images)
+        base_prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt,
+                                   has_image=has_img, io_mode=io_mode)
 
         # ③ LLM 反推配置（来自 manager_settings.llm；输出语言复用节点表面参数）
         llm = parse_llm_settings(_llm_section(manager_settings))
@@ -331,8 +372,10 @@ class XB_ImagePromptPresetPro:
         task_hint = ""
         if has_img:
             task_hint = _TASK_IMAGE_EDIT_HINT if body_in else _TASK_IMAGE_ONLY_HINT
+        skill_body = effective_skill_text(skill_mode, skill_name, preset_mode)   # 不用/手动/自动
+        skill_used = effective_skill_name(skill_mode, skill_name, preset_mode)
         full_system = _build_system_prompt(preset, llm["extra_system"], llm["output_lang"],
-                                           preset_text, task_hint)
+                                           preset_eff, task_hint, skill_body)
         run = llm["run"]
         seed = int(run["seed"])
         next_seed = _next_seed(seed, run["seed_control"])
@@ -394,20 +437,21 @@ class XB_ImagePromptPresetPro:
             raw_out = _ask(user_text)
             body_out = _clean(raw_out)
             if body_out != raw_out.strip():
-                print(f"[XB-生图预设Pro] 🧠 已过滤思考过程：{len(raw_out)} 字 → {len(body_out)} 字")
+                safe_print(f"[XB-生图预设Pro] 🧠 已过滤思考过程：{len(raw_out)} 字 → {len(body_out)} 字")
 
             # ④c2 看图改图：若仍写成「原本…被替换为…」的对比式说明 → 自动重试一次
             if has_img and body_in and _leaks_modification_talk(body_out):
-                print("[XB-生图预设Pro] ⚠️ 输出含对比式修改说明，自动重试一次…")
+                safe_print("[XB-生图预设Pro] ⚠️ 输出含对比式修改说明，自动重试一次…")
                 cand = _clean(_ask(user_text + _RETRY_REMINDER, seed_shift=1))
                 if cand.strip() and not _leaks_modification_talk(cand):
                     body_out = cand
-                    print("[XB-生图预设Pro] ✅ 重试后已得到直接的最终画面描述")
+                    safe_print("[XB-生图预设Pro] ✅ 重试后已得到直接的最终画面描述")
                 else:
-                    print("[XB-生图预设Pro] ⚠️ 重试仍不合格，保留本次输出")
+                    safe_print("[XB-生图预设Pro] ⚠️ 重试仍不合格，保留本次输出")
 
             # ④d 设定词**原封不动**加在增强结果最顶端（与未启用 LLM 时的成句规则完全一致）
-            final_prompt = build_prompt(output_lang, preset_mode, three_view_text, body_out)
+            final_prompt = build_prompt(output_lang, preset_mode, three_view_text, body_out,
+                                        has_image=has_img, io_mode=io_mode)
         else:
             # 原「🖼️ 生图提示词预设」行为：直接输出拼装好的提示词
             final_prompt = base_prompt
@@ -422,7 +466,10 @@ class XB_ImagePromptPresetPro:
               f"丨数量 {shape[0] if shape else batch_size}丨空latent {shape}"
               f"丨模式 {preset_mode}丨设定词 {'自定义' if (preset_text and three_view_text and str(three_view_text).strip()) else ('默认' if preset_text else '无')}"
               f"丨语言 {output_lang}丨任务 {'看图改图' if (has_img and body_in) else ('看图反推' if has_img else '文生文')}"
-              f"丨LLM {'启用' if use_llm else '关闭'}（{backend}）丨提示词 {len(final_prompt)} 字")
+              f"丨LLM {'启用' if use_llm else '关闭'}（{backend}）丨SKILL {skill_used}（{len(skill_body)} 字·{skill_mode_of(skill_mode)}）"
+              f"丨模版 {io_eff}"
+              f"{'（自动' + ('：检测到参考图' if has_img else '：未接参考图') + '）' if io_mode_of(io_mode) == IO_MODE_AUTO else ''}"
+              f"丨提示词 {len(final_prompt)} 字")
 
         ui = {
             "text": [final_prompt],

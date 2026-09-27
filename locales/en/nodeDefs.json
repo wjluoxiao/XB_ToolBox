@@ -364,6 +364,9 @@
       "output_lang": { "name": "Output Language" },
       "preset_mode": { "name": "Preset Mode" },
       "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
+      "skill_name": { "name": "SKILL Select" },
+      "skill_mode": { "name": "SKILL Mode" },
+      "io_mode": { "name": "Mode" },
       "aspect_ratio": { "name": "Aspect Ratio" },
       "width": { "name": "Width" },
       "height": { "name": "Height" },
@@ -380,6 +383,44 @@
       "1": { "name": "📊 Empty Latent" },
       "2": { "name": "📋 Prompt List" },
       "3": { "name": "🧩 Prompt Settings" }
+    }
+  },
+  "XB_QwenPromptPreset": {
+    "display_name": "XB-BOX - 🖼️ Qwen2.1 Prompt Preset",
+    "description": "Image prompt preset + official Load CLIP + official Generate Text: empty latent type / aspect params + 8-category element panel, then the text encoder turns the body into a full prompt. Outputs: prompt / empty latent.",
+    "inputs": {
+      "latent_kind": { "name": "Empty Latent Type" },
+      "output_lang": { "name": "Output Language" },
+      "preset_mode": { "name": "Preset Mode" },
+      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
+      "skill_name": { "name": "SKILL Select" },
+      "skill_mode": { "name": "SKILL Mode" },
+      "io_mode": { "name": "Mode" },
+      "aspect_ratio": { "name": "Aspect Ratio" },
+      "width": { "name": "Width" },
+      "height": { "name": "Height" },
+      "batch_size": { "name": "Batch Size" },
+      "clip_name": { "name": "Model (Load CLIP)" },
+      "clip_type": { "name": "Type" },
+      "device": { "name": "Device" },
+      "max_length": { "name": "Max Length" },
+      "sampling_mode": { "name": "Sampling Mode" },
+      "temperature": { "name": "Temperature" },
+      "top_k": { "name": "top_k" },
+      "top_p": { "name": "top_p" },
+      "min_p": { "name": "min_p" },
+      "repetition_penalty": { "name": "Repetition Penalty" },
+      "presence_penalty": { "name": "Presence Penalty" },
+      "seed": { "name": "Seed" },
+      "thinking": { "name": "Thinking" },
+      "use_default_template": { "name": "Use Default Template" },
+      "mtp": { "name": "mtp" },
+      "text": { "name": "📝 Prompt" },
+      "images": { "name": "🖼️ Image" }
+    },
+    "outputs": {
+      "0": { "name": "📝 Prompt" },
+      "1": { "name": "📊 Empty Latent" }
     }
   },
   "XB_ImagePromptPreset": {
