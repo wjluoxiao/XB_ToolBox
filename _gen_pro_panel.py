@@ -6,6 +6,7 @@
 """
 import io
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -110,11 +111,103 @@ for old, new in patches:
         sys.exit(1)
     src = src.replace(old, new)
 
+# ══════════════════════════════════════════════════════════════════════════
+#  ⚠️ Pro 专属裁剪（用户要求：删「模版选择」+ 删 Qwen2.1 相关预设模式）
+#     只留 4 档模式（无预设 + 三·四·五视图），固定文生图，无图生图文本 / 无条款
+# ══════════════════════════════════════════════════════════════════════════
+_pt_i = src.index("const PRESET_TEXT_DEFAULT = {")
+_pt_j = src.index("  [MODE_RGBA]: {", _pt_i)
+PT_TEXT = src[_pt_i:_pt_j].rstrip() + "\n};\n"
+
+PRO_ALIASES = '''const MODE_ALIASES = {
+  // Pro 已删除的档位（含旧版带表情的名字）→ 一律归一到「无预设」，不再前置任何设定词
+  "常规文生图": "无预设",
+  "背景纯透明": "无预设",
+  "图文版面": "无预设", "📱 图文版面": "无预设",
+  "信息图": "无预设", "📊 信息图": "无预设",
+  "多格分镜": "无预设", "🎞 多格分镜": "无预设",
+  "广告分镜板": "无预设", "🎬 广告分镜板": "无预设",
+  "保持主体换场景": "无预设", "🛍 保持主体换场景": "无预设",
+  "局部编辑": "无预设", "✏️ 局部编辑": "无预设",
+  "老照片修复": "无预设", "🧹 老照片修复": "无预设",
+  "整图风格化": "无预设", "🎨 整图风格化": "无预设",
+  "360°全景": "无预设", "🌐 360°全景": "无预设",
+  "多图指认合成": "无预设", "🗂 多图指认合成": "无预设",
+};
+'''
+
+rx_patches = [
+    # 1) 模式常量 + MODES：只留 4 档
+    (r'const MODE_RGBA = "背景纯透明";[\s\S]*?const MODES = \[[^\]]*\];\n',
+     '// ⚠️ Pro 只有 4 档模式（无预设 + 三·四·五视图）：图生图 / 版面类档位已按要求删除\n'
+     'const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V];\n'),
+    # 2) 旧档位名 → 一律归一到「无预设」
+    (r'const MODE_ALIASES = \{[\s\S]*?\n\};\n', PRO_ALIASES),
+    # 3) 需要输入图的档位：Pro 没有
+    (r'const MODE_NEEDS_IMAGE = \[[^\]]*\];\nconst modeNeedsImage = [^\n]*\nconst modeSkillHint = [^\n]*\n',
+     'const MODE_NEEDS_IMAGE = [];   // Pro 无「必须接图」的档位\n'
+     'const modeNeedsImage = (mode) => false;\n'
+     'const modeSkillHint = (mode) => "system_prompt_t2i.txt";   // Pro 固定文生图 → 只推荐 t2i\n'),
+    # 4) 模版条款：Pro 不追加任何条款
+    (r'const IO_I2I_COMMON = \{[\s\S]*?\n/\*\* 节点是否接了参考图[\s\S]*?\n\}\n',
+     '/** ⚠️ Pro 固定文生图：不追加任何模版条款（原「以输入图为准」条款随模版选择一并删除） */\n'
+     'function modeIoClause(mode, hasImage, lang) { return ""; }\n'
+     '/** 节点是否接了参考图（🖼️ 图像 端口有连线） */\n'
+     'function modeHasImage(node) {\n'
+     '  try {\n'
+     '    const inp = (node.inputs || []).find((i) => i.name === "images");\n'
+     '    return !!(inp && inp.link != null);\n'
+     '  } catch (_) { return false; }\n'
+     '}\n'),
+    # 5) 模版助手全部硬编码为「文生图」
+    (r'const ioModeOf = [^\n]*\n/\*\* 把「自动」按有没有接参考图解析成 文生图 / 图生图 \*/\n'
+     r'const resolveIoMode = \(io, hasImage\) => \{\n[\s\S]*?\n\};\n',
+     '/** ⚠️ Pro 固定文生图：模版选择已删除，这几个助手只为兼容旧的调用点而保留 */\n'
+     'const ioModeOf = (v) => IO_T2I;\n'
+     'const resolveIoMode = (io, hasImage) => IO_T2I;\n'),
+    (r'const modeDefaultIo = \(mode\) => \(MODE_NEEDS_IMAGE\.includes\(mode\) \? IO_I2I : IO_T2I\);\n',
+     'const modeDefaultIo = (mode) => IO_T2I;   // Pro 固定文生图\n'),
+    # 6) 默认设定词表：只留 三·四·五视图（无预设无文本）
+    (r'const PRESET_TEXT_DEFAULT = \{[\s\S]*?\n\};\n', PT_TEXT),
+    # 7) 图生图档的「文生图版」表：Pro 已无图生图档 → 空表
+    #    ⚠️ 这个字典的收尾是「  };」（两空格缩进），不能用 \n\}\;\n 当边界
+    (r'const PRESET_TEXT_T2I = \{[\s\S]*?\n  \};\n',
+     'const PRESET_TEXT_T2I = {};   // Pro 已无图生图档位（保留空表：基础代码按它取默认文本）\n'),
+]
+
+for pat, rep in rx_patches:
+    src, n = re.subn(pat, rep, src, count=0)
+    if n != 1:
+        print("[FAIL] 正则补丁命中 %d 次（应为 1）：%r" % (n, pat[:60]))
+        sys.exit(1)
+
+# ── 裁剪结果自检（少一项就报错，避免生成出「半截」的 Pro 面板）──
+need = [
+    "const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V];",
+    "const PRESET_TEXT_T2I = {};",
+    'function modeIoClause(mode, hasImage, lang) { return ""; }',
+    "const ioModeOf = (v) => IO_T2I;",
+    "const resolveIoMode = (io, hasImage) => IO_T2I;",
+    "const modeDefaultIo = (mode) => IO_T2I;",
+    "const MODE_NEEDS_IMAGE = [];",
+    "const modeNeedsImage = (mode) => false;",
+    "const skillOpts = [SKILL_NONE_LABEL]",
+]
+gone = ["const MODE_PANO360", "Treat the subject in the input image as the single source of truth",
+        'xbrSetWidget(node, "io_mode"']
+
 anchor = "app.registerExtension({"
 if src.count(anchor) != 1:
     print("[FAIL] registerExtension 锚点异常")
     sys.exit(1)
 src = src.replace(anchor, block + "\n" + anchor)
+
+miss = [k for k in need if k not in src]
+left = [k for k in gone if k in src]
+if miss or left:
+    print("[FAIL] 裁剪自检：缺 %r；残留 %r" % (miss, left))
+    sys.exit(1)
+print("[OK] 裁剪自检通过（%d 项应存在 / %d 项应消失）" % (len(need), len(gone)))
 
 io.open(DST, "w", encoding="utf-8", newline="\n").write(src)
 print("[OK] 生成 %s（%d 字符）" % (DST, len(src)))

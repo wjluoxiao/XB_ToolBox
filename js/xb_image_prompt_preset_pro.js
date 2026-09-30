@@ -1,4 +1,17 @@
 /**
+ * XB-BOX - 🖼️ 生图提示词预设Pro — 前端面板（**独立文件**）
+ * ============================================================
+ * ⚠️ 本文件是「XB_ImagePromptPresetPro」节点专用且**自带全部实现**：
+ *    · 不依赖 js/xb_image_prompt_preset.js / xb_qwen_prompt_preset.js，也不由任何脚本生成；
+ *    · 与「生图提示词预设」「Qwen2.1提示词预设」完全独立：改这里不会影响那两个节点。
+ *    对应的后端也自带一份精简引擎（nodes_image_prompt_preset_pro.py，不 import 共用引擎）。
+ *
+ * 本节点专属行为（与基础节点不同）：
+ *    · 只有 4 档预设模式：无预设 / 人物三视图 / 人物四视图 / 人物五视图
+ *    · 固定文生图：没有模版选择、没有图生图设定词、不追加以输入图为准条款
+ *    · SKILL = 单选下拉（不使用 skill ／ 选文档名）
+ *
+ * 原始说明（由基础面板演化而来）：
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
@@ -34,58 +47,31 @@ const MODE_TP = "无预设";        // 不前置任何设定词，只输出正�
 const MODE_3V = "人物三视图";
 const MODE_4V = "人物四视图";
 const MODE_5V = "人物五视图";
-const MODE_RGBA = "背景纯透明";
-const MODE_UI = "图文版面";
-const MODE_INFO = "信息图";
-const MODE_STORYBOARD = "多格分镜";
-const MODE_ADBOARD = "广告分镜板";
-const MODE_KEEP_SUBJECT = "保持主体换场景";
-const MODE_LOCAL_EDIT = "局部编辑";
-const MODE_RESTORE = "老照片修复";
-const MODE_STYLIZE = "整图风格化";
-const MODE_PANO360 = "360°全景";
-const MODE_MULTI_REF = "多图指认合成";
-const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V, MODE_RGBA, MODE_UI, MODE_INFO, MODE_STORYBOARD, MODE_ADBOARD, MODE_KEEP_SUBJECT, MODE_LOCAL_EDIT, MODE_RESTORE, MODE_STYLIZE, MODE_PANO360, MODE_MULTI_REF];
+// ⚠️ Pro 只有 4 档模式（无预设 + 三·四·五视图）：图生图 / 版面类档位已按要求删除
+const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V];
 // 需要输入图的档位（图生图组）与推荐搭配的 SKILL
 const MODE_ALIASES = {
-  "常规文生图": "无预设",            // 0.10.x 旧名 → 新名（语义完全一致）
-  "📱 图文版面": "图文版面",
-
-  "📊 信息图": "信息图",
-
-  "🎞 多格分镜": "多格分镜",
-
-  "🎬 广告分镜板": "广告分镜板",
-
-  "🛍 保持主体换场景": "保持主体换场景",
-
-  "✏️ 局部编辑": "局部编辑",
-
-  "🧹 老照片修复": "老照片修复",
-
-  "🎨 整图风格化": "整图风格化",
-
-  "🌐 360°全景": "360°全景",
-
-  "🗂 多图指认合成": "多图指认合成",
-
+  // Pro 已删除的档位（含旧版带表情的名字）→ 一律归一到「无预设」，不再前置任何设定词
+  "常规文生图": "无预设",
+  "背景纯透明": "无预设",
+  "图文版面": "无预设", "📱 图文版面": "无预设",
+  "信息图": "无预设", "📊 信息图": "无预设",
+  "多格分镜": "无预设", "🎞 多格分镜": "无预设",
+  "广告分镜板": "无预设", "🎬 广告分镜板": "无预设",
+  "保持主体换场景": "无预设", "🛍 保持主体换场景": "无预设",
+  "局部编辑": "无预设", "✏️ 局部编辑": "无预设",
+  "老照片修复": "无预设", "🧹 老照片修复": "无预设",
+  "整图风格化": "无预设", "🎨 整图风格化": "无预设",
+  "360°全景": "无预设", "🌐 360°全景": "无预设",
+  "多图指认合成": "无预设", "🗂 多图指认合成": "无预设",
 };
-const MODE_NEEDS_IMAGE = [MODE_KEEP_SUBJECT, MODE_LOCAL_EDIT, MODE_RESTORE, MODE_STYLIZE, MODE_PANO360, MODE_MULTI_REF];
-const modeNeedsImage = (mode) => MODE_NEEDS_IMAGE.includes(mode);
-const modeSkillHint = (mode) => (modeNeedsImage(mode) ? "system_prompt_edit.txt" : "system_prompt_t2i.txt");
+const MODE_NEEDS_IMAGE = [];   // Pro 无「必须接图」的档位
+const modeNeedsImage = (mode) => false;
+const modeSkillHint = (mode) => "system_prompt_t2i.txt";   // Pro 固定文生图 → 只推荐 t2i
 
-// ── t2i / i2i 两套模版条款（与 nodes_image_prompt_preset.py 逐字一致，自测会断言）──
-// · IO_I2I_COMMON：文生图档**接了图**时追加的「以输入图为准」条款
-// · 图生图档没接图时不再追加「忽略输入图」的尾条款 —— 改成直接用该档的「文生图版设定词」（PRESET_TEXT_T2I）
-const IO_I2I_COMMON = {"zh": "【本次接了输入图】以输入图为唯一依据：保持输入图中被保留部分的原样不变（人物保持面容、发型、体型与气质；物件保持外形、比例、材质、颜色与文字标识），不得改动、美化、替换或增减我未指定的部分；本档规格只作用于画面的组织与重建区域。", "en": "Attached input image(s) are the single source of truth: keep everything kept from them unchanged — for people: face, hairstyle, build and character; for objects: shape, proportions, material, colour and printed text — and never alter, beautify, replace, add or remove anything I did not ask for. This mode's spec only governs how the frame is organised and rebuilt."};
-/** 按「本档类型 + 有没有输入图」返回要追加的模版条款（仅「文生图档 + 有图」→ 以输入图为准；其余 → ""）
- *  ⚠️ 无预设档（MODE_TP）永远返回 ""：接不接图，无预设的设定词都是空白 */
-function modeIoClause(mode, hasImage, lang) {
-  const m = (typeof MODE_ALIASES !== "undefined" && MODE_ALIASES[mode]) || mode;
-  const lg = (lang === LANG_EN) ? "en" : "zh";
-  if (!m || m === MODE_TP || MODE_NEEDS_IMAGE.includes(m)) return "";
-  return hasImage ? (IO_I2I_COMMON[lg] || "") : "";
-}
+// ── 设定词按「模式 × 语言」取（Pro 只有 4 档模式，固定文生图）────────────────
+/** ⚠️ Pro 固定文生图：不追加任何模版条款（原「以输入图为准」条款随模版选择一并删除） */
+function modeIoClause(mode, hasImage, lang) { return ""; }
 /** 节点是否接了参考图（🖼️ 图像 端口有连线） */
 function modeHasImage(node) {
   try {
@@ -136,100 +122,26 @@ const PRESET_TEXT_DEFAULT = {
     [LANG_ZH]: "生成五宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面下方左侧面板是无头部人物正面衣着展示图，画面下方中间面板是无头部人物侧面衣着展示图，画面下方右侧面板是人物背面全身站姿。",
     [LANG_EN]: "Generate a character concept design sheet arranged in five panels, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-middle panel is a headless side-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
   },
-  [MODE_RGBA]: {
-    [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
-    [LANG_EN]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
-  },
-  [MODE_UI]: {
-    [LANG_ZH]: "这是一张完整的平面版面设计图，画面边缘即版面边缘，全出血排版，无多余边框与水印。【版面结构】按层级自上而下组织：① 顶部信息区（标题栏/状态栏，界面类需含时间、信号、电量等图标）；② 主体内容区（卡片、栏位、区块，边距统一、圆角一致、层级分明、网格对齐）；③ 底部信息区（按钮、标签、脚注）。【文字】画面中所有文字必须逐字使用我给出的原文，不得增删改字，不得生成任何我未指定的文字；字体清晰端正、字号字重按层级区分，无错字无乱码无伪文字。【风格】排版精致、留白充足、有呼吸感，配色统一克制；任何元素都不得遮挡文字。",
-    [LANG_EN]: "Produce one complete flat print layout: the image edge is the layout edge, full bleed, no extra frame or watermark. Structure top to bottom: (1) top information zone (title bar / status bar, with clock, signal and battery icons for UI); (2) main content zone (cards, columns and blocks with uniform margins, consistent corner radii, clear hierarchy, grid-aligned); (3) bottom information zone (buttons, tags, footnotes). All text must use my wording word for word, with no additions, deletions or substitutions, and no text I did not specify; crisp legible type, size and weight distinguished by hierarchy, no typos, no gibberish. Refined layout, generous breathing space, restrained unified palette; nothing may cover the text.",
-  },
-  [MODE_INFO]: {
-    [LANG_ZH]: "这是一张信息图/科普拆解图，版式整洁、以信息可读性优先，具有教学与数据可视化气质。【版面】① 顶部标题栏（主标题 + 副标题/卷号/徽标）；② 主体由多个信息模块组成，按需包含：结构拆解图、局部放大详图、编号引线说明、图例、参数表、色卡、雷达图、时间轴、关键词云；③ 模块之间用细分割线或留白分隔，网格对齐、边距统一。【编号与引线】主体图形用圆形编号点标注，旁侧以细引线连接简短说明，编号连续、不重复、不跳号。【文字】所有文字逐字使用我给出的原文，不得生成任何我未指定的文字，无错字无乱码。",
-    [LANG_EN]: "Produce an infographic / annotated explanation card: tidy layout, information legibility first, a teaching and data-visualisation feel. Layout: (1) a top title bar (main title plus subtitle, volume number or badge); (2) a body made of several information modules, optionally including a structural cutaway, zoomed detail views, numbered leader-line callouts, a legend, a parameter table, a colour swatch strip, a radar chart, a timeline and a keyword cloud; (3) modules separated by hairline rules or whitespace, grid-aligned with uniform margins. Numbering: mark the main graphic with circular numbered dots and connect short captions with thin leader lines; numbers are continuous and never repeated. All text must use my wording word for word, with no unspecified text, no typos, no gibberish.",
-  },
-  [MODE_STORYBOARD]: {
-    [LANG_ZH]: "生成一张由多个连续分镜格组成的叙事插画，输出为一张完整拼合的扁平整图，不要输出多张分离图片。【版面硬性要求】① 格数与我要求一致，所有格等宽等高；② 严格按我要求的排布方式（单横排或网格），不得擅自拆格、并格或改行数；③ 每格是独立取景，格与格之间用细边框或清晰留白分隔；④ 每格左上角标注圆形数字编号，编号连续、不重复、不跳号不缺号。【内容硬性要求】每一格都必须画出主体本人在做该格的动作，主体清晰完整、占该格画面主体；严禁出现只有背景没有人物的空格；所有格的画风、光影、色彩与主体外观保持一致，仅姿势、表情、动作与场景变化。【文字】除编号外不要生成任何文字、字幕或水印。",
-    [LANG_EN]: "Produce a narrative illustration made of several sequential storyboard panels, delivered as one fully composited flat sheet, not multiple separate files. Layout (mandatory): (1) exactly the panel count I ask for, all panels equal in width and height; (2) strictly the arrangement I ask for (single horizontal row or grid), never splitting, merging or re-flowing panels; (3) each panel is its own framing, separated by thin borders or clear gutters; (4) a circular number badge in the top-left of every panel, continuous, never repeated or skipped. Content (mandatory): every panel must show the subject itself performing that panel's action, clearly and completely, occupying the panel's main subject; never leave a panel with only background and no character; painting style, lighting, colour and the subject's look stay consistent across panels, only pose, expression, action and setting change. No text, captions or watermarks other than the numbers.",
-  },
-  [MODE_ADBOARD]: {
-    [LANG_ZH]: "生成一张商业广告分镜板/脚本视觉板，像专业品牌团队制作的提案板：既有分镜画面，也带脚本信息。【版面】① 顶部标题区（项目名/产品名 + 副标题 + 品牌标识感排版）；② 主体横向排列若干连续分镜画面，每格独立取景、格间清晰分隔；③ 每格下方或侧方配栏目文字：镜头序号、时长或时间轴、镜头说明、字幕/台词、转场提示；④ 底部可放时间轴条与总时长。【风格】排版统一精致、配色克制高级，画面具有电影感与广告质感。【文字】画面中所有文字必须逐字使用我给出的原文，不得生成任何我未指定的文字，不得出现乱码、错字或伪文字。",
-    [LANG_EN]: "Produce a commercial advertising storyboard / script visual board, like a real brand team's pitch board: storyboard frames plus script information. Layout: (1) a top title zone (project or product name, subtitle, brand-like typography); (2) a body of several sequential storyboard frames in a row, each its own framing with clear separation; (3) caption blocks under or beside each frame with shot number, duration or timeline, shot description, subtitle or dialogue and transition note; (4) an optional timeline bar and total duration at the bottom. Style: unified refined layout, restrained premium palette, cinematic advertising quality. All text must use my wording word for word, with no unspecified text, no gibberish and no fake typography.",
-  },
-  [MODE_KEEP_SUBJECT]: {
-    [LANG_ZH]: "以输入图像中的主体为唯一依据：先完整识别它的全部外观细节，再把它放入新的场景中。【必须保持】主体的外形、比例、结构、材质、颜色、文字与标识、磨损与光泽等全部细节与新画面完全一致；不得改造、不得美化、不得替换、不得增减部件；主体是人物时保持面容、五官、发型、体型与肤色不变。【必须移除】输入图中的摄影棚背景、手持、支架、阴影底板等非主体元素，以及任何不属于最终画面的杂物。【新画面】按我的要求重建场景、构图、光线与景深；主体与新场景的光影、透视、色温自然统一，接触面有合理投影，看起来就是在该空间里真实拍摄的一张画面。",
-    [LANG_EN]: "Treat the subject in the input image as the single source of truth: read every appearance detail first, then place it into a new scene. Must keep: shape, proportions, structure, material, colour, printed text and logos, wear and gloss identical to the input; do not redesign, beautify, replace, add or remove parts; for a person, keep face, features, hairstyle, build and skin tone. Must remove: studio backdrop, hands, stands, shadow board and any other non-subject elements or clutter. New frame: rebuild setting, composition, lighting and depth of field as I ask; the subject must match the new scene in light, perspective and colour temperature, sit on believable contact shadows, and look like a real photograph taken in that space.",
-  },
-  [MODE_LOCAL_EDIT]: {
-    [LANG_ZH]: "只修改我指定或标记的区域，其余部分与输入图保持完全一致（包含构图、透视、光线、色调与清晰度）。【编辑范围】仅限我指定/标记的区域或部位；未标记的内容一律不得改动、不得重绘、不得重新打光、不得改变材质。【标记优先】若输入包含标记图、掩码图或涂抹标注，则以标注范围为准，只在该范围内操作。【过渡】修改区域与周边必须在材质、纹理与光影方向上自然衔接，边界不得出现生硬接缝、色块、描边或亮度跳变。【输出】只输出修改后的一整张完整画面，不要输出对比图、标注框、箭头或任何说明文字。",
-    [LANG_EN]: "Change only the region or part I specify or mark; everything else stays exactly as in the input (composition, perspective, lighting, colour and sharpness). Scope: only my specified or marked region; anything unmarked must not be altered, repainted, relit or re-materialised. Marking wins: if the input includes an annotated, masked or painted region, operate strictly inside it. Blending: the edit must match its surroundings in material, texture and light direction, with no hard seams, colour patches, outlines or brightness jumps. Output one single finished image only, with no comparison view, boxes, arrows or explanatory text.",
-  },
-  [MODE_RESTORE]: {
-    [LANG_ZH]: "把输入的老照片修复成清晰、自然、真实的彩色照片，并保持原照片的内容与人物五官解剖完全不变。【修复】去除噪点、划痕、斑点、折痕、褪色与颗粒，恢复细节与层次、平衡高光与阴影；不得过度锐化，不得出现塑料感、蜡感或油画涂抹感。【上色】按真实肤色与材质自然上色，色调统一可信，不做夸张调色。【保持】人物面部结构、皱纹、神态、视线、头部角度、手部与持物关系、服装材质与褶皱、背景陈设与景深关系均不得改变。【输出】只输出修复后的一整张完整画面，不加边框、不加文字或水印。",
-    [LANG_EN]: "Restore the input vintage photograph into a sharp, natural, realistically colourised photo, keeping the original content and facial anatomy unchanged. Repair: remove noise, scratches, spots, creases, fading and grain; recover detail and tonal range and balance highlights and shadows; never oversharpen, never produce waxy, plastic or painterly skin. Colour: natural believable skin and material tones, unified grading, no exaggerated stylisation. Keep: facial structure, wrinkles, expression, gaze, head angle, hands and how they hold objects, garment material and folds, background props and depth of field. Output one single finished image with no border, text or watermark.",
-  },
-  [MODE_STYLIZE]: {
-    [LANG_ZH]: "把输入图整张转换为指定的视觉媒介与画风，转换必须覆盖整幅画面，不得只做局部滤镜或只改一部分物体。【保持】原图的构图、画幅比例、视角、主体位置与姿态、景物之间的空间关系、已有文字与招牌的位置及可读内容不得改变；不得新增标语、字幕或水印。【转换】按我要求的画风重绘每一个物体：笔触、色层、材质表现与光色关系统一；光的方向与原图一致。【输出】只输出转换后的一整张完整画面。",
-    [LANG_EN]: "Convert the whole input image into the requested visual medium and style; the conversion must cover the entire frame, not a local filter or only some objects. Keep: composition, aspect ratio, viewpoint, subject placement and pose, spatial relations between objects, and the position and legible content of existing signage and text; add no slogans, captions or watermarks. Convert: repaint every object in the requested style with consistent brushwork, colour layering, material rendering and light-colour relationships; light direction matches the original. Output one single converted image.",
-  },
-  [MODE_PANO360]: {
-    [LANG_ZH]: "把输入的单视角照片扩展成一张完整的 360 度全景图。【投影】使用真正的等距圆柱投影（equirectangular），水平覆盖 360 度、垂直覆盖 180 度，包含头顶天空与脚下地面；左右两端无缝衔接，形成一张连续完整的场景。【补全】以输入图为基础，把相机背后的环境合理延伸（地面、墙体、植被、天空，光照方向一致），不得出现重复、断裂或接缝。【保持】输入图中的主体只出现一次，其外观、姿态以及与周围景物的相对关系保持原样，不得镜像或复制。【输出】严格 2:1 画幅比例，例如 2880x1440。",
-    [LANG_EN]: "Extend the input single-view photograph into a complete 360-degree panorama. Projection: true equirectangular, covering 360 degrees horizontally and 180 degrees vertically, including the sky overhead and the ground below; left and right edges must join seamlessly into one continuous scene. Completion: extend the environment behind the camera plausibly (ground, walls, vegetation, sky, consistent light direction) with no repeated or broken areas. Keep: the subject appears exactly once, with its appearance, pose and relationship to surrounding objects unchanged, never mirrored or duplicated. Output at exactly a 2:1 aspect ratio, for example 2880x1440.",
-  },
-  [MODE_MULTI_REF]: {
-    [LANG_ZH]: "按图号使用我提供的多张参考图，合成一张全新画面。【指认规则】场景与环境取自我指定的那一张图；其余各图分别提供角色外观或物件本体；我未指认的图不参与画面。【保持】被引用的角色保持面容、发型与体型一致；被引用的物件保持形状、材质、颜色与标识文字一致；不得替换、美化或增减部件。【重建】按我的要求安排构图、站位、光线与景深，所有元素统一在同一空间的光影与透视中，接触关系与投影合理。【文字】除我明确要求的外，不生成任何文字或水印。",
-    [LANG_EN]: "Use the reference images I provide by their index numbers and composite one brand-new image. Mapping: the scene and environment come from the image I designate; the other images supply either character likeness or an object itself; images I do not reference do not appear. Keep: referenced characters keep the same face, hairstyle and build; referenced objects keep the same shape, material, colour and printed text; no replacement, beautifying, additions or removals. Rebuild: arrange composition, staging, lighting and depth of field as I ask; all elements share one consistent space with matching light, perspective, contact and shadows. No text or watermark unless I explicitly ask for it.",
-  },
 };
 /** 某模式某语言下的默认预设句（无预设句的模式 → 空串） */
 const defaultPresetOf = (mode, lang) => ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
 
-/* ── 模版（文生图 / 图生图）：每个预设模式都有两套设定词 ────────────────────────
- * · 自动 = 按有没有接参考图判断（没接 → 文生图，接了 → 图生图）
- * · 图生图档（6 档）：PRESET_TEXT_DEFAULT = 图生图版，PRESET_TEXT_T2I = 文生图版
- * · 文生图档（8 档）：PRESET_TEXT_DEFAULT = 文生图版，「图生图」版 = 原文 + 以输入图为准条款
- * ⚠️ 必须与 nodes_image_prompt_preset.py 的 IO_MODES / PRESET_TEXT_T2I / preset_text_for 逐字一致（自测断言）
+/* ── Pro 固定文生图：下面这些常量只为兼容基础代码的调用点而保留 ──────────────────
+ * ⚠️ 本节点**只有一套设定词**（不存在图生图档 / 图生图文本 / 图生图条款）：
+ *    · MODES 只有 4 档（无预设 + 三·四·五视图）
+ *    · PRESET_TEXT_T2I 为空表、modeIoClause 恒返回 ""、io 助手恒为「文生图」
  */
 const IO_AUTO = "自动";
 const IO_T2I = "文生图";
 const IO_I2I = "图生图";
 const IO_MODES = [IO_AUTO, IO_T2I, IO_I2I];
-/** 图生图档专用文本（文生图模版） */
-const PRESET_TEXT_T2I = {
-    "保持主体换场景": {
-      "zh": "生成一张主体清晰的画面：先完整确定主体的全部外观细节，再把它放进我要求的新场景中。【必须保持】主体的外形、比例、结构、材质、颜色、文字与标识、磨损与光泽等全部细节前后一致、符合真实物理；不得改造、不得美化、不得替换、不得增减部件；主体是人物时保持面容、五官、发型、体型与肤色自然可信。【必须干净】画面中不得出现摄影棚背景、手持、支架、阴影底板等杂物，也不得有任何不属于最终画面的元素。【新画面】按我的要求营造场景、构图、光线与景深；主体与新场景的光影、透视、色温自然统一，接触面有合理投影，看起来就是在该空间里真实拍摄的一张画面。",
-      "en": "Generate a frame with a clearly defined subject: first settle every appearance detail of the subject, then place it into the new scene I ask for. Must keep: shape, proportions, structure, material, colour, printed text and logos, wear and gloss stay self-consistent and physically believable; do not redesign, beautify, replace, add or remove parts; for a person, keep face, features, hairstyle, build and skin tone natural and convincing. Must be clean: no studio backdrop, hands, stands, shadow board or any element that does not belong in the final frame. New frame: build the setting, composition, lighting and depth of field as I ask; the subject must match the scene in light, perspective and colour temperature, sit on believable contact shadows, and look like a real photograph taken in that space."
-    },
-    "局部编辑": {
-      "zh": "生成一张完整画面，并把我的改动直接做进画面里。【改动范围】只按我的要求改我指定的部位，其余内容保持稳定一致：不得顺手重绘、不得重新打光、不得改变材质与配色。【过渡】改动区域与周边必须在材质、纹理与光影方向上自然衔接，边界不得出现生硬接缝、色块、描边或亮度跳变。【输出】只输出最终的一整张完整画面，不要输出对比图、标注框、箭头或任何说明文字。",
-      "en": "Generate one complete frame with my change built directly into the image. Scope: change only the part I ask for; keep everything else stable and consistent — do not incidentally repaint, relight, or alter materials and palette. Blending: the changed area must match its surroundings in material, texture and light direction, with no hard seams, colour patches, outlines or brightness jumps. Output one single finished frame only, with no comparison view, boxes, arrows or explanatory text."
-    },
-    "老照片修复": {
-      "zh": "直接生成一张清晰、自然、细节完整的照片，并带有老照片翻新后的质感。【画面】主体与场景按我的描述生成，人物面部结构、五官解剖与比例自然准确，手部与持物关系合理。【修复感】不要噪点、划痕、斑点、折痕、褪色与颗粒，细节与层次完整、高光与阴影平衡；不得过度锐化，不得出现塑料感、蜡感或油画涂抹感。【色彩】按真实肤色与材质自然上色，色调统一可信，不做夸张调色。【输出】只输出一整张完整画面，不加边框、不加文字或水印。",
-      "en": "Generate directly a sharp, natural, fully detailed photograph with the look of a restored vintage print. Frame: build the subject and setting from my description, with natural accurate facial structure, anatomy and proportions, and believable hands and grip. Restoration feel: no noise, scratches, spots, creases, fading or grain; complete detail and tonal range, balanced highlights and shadows; never oversharpen, never produce waxy, plastic or painterly skin. Colour: natural believable skin and material tones, unified grading, no exaggerated stylisation. Output one single finished image with no border, text or watermark."
-    },
-    "整图风格化": {
-      "zh": "生成一张完整的全新画面，并整体转换成我要求的视觉媒介与画风，转换必须覆盖整幅画面，不得只做局部滤镜或只改一部分物体。【画面】构图、画幅比例、视角与主体由我的描述决定，主体位置与姿态清晰合理。【转换】画面里的每一个物体都按该画风重绘：笔触、色层、材质表现与光色关系统一；光的方向明确一致。【文字】除我明确要求的外不生成任何文字、标语、字幕或水印。【输出】只输出一整张完整画面。",
-      "en": "Generate one complete new frame and convert the whole of it into the requested visual medium and style; the conversion must cover the entire frame, not a local filter or only some objects. Frame: composition, aspect ratio, viewpoint and subject come from my description, with the subject clearly and plausibly placed and posed. Convert: repaint every object in that style with consistent brushwork, colour layering, material rendering and light-colour relationships; keep one clear light direction. Text: no text, slogans, captions or watermarks unless I explicitly ask for them. Output one single complete frame."
-    },
-    "360°全景": {
-      "zh": "生成一张完整的 360 度全景图。【投影】使用真正的等距圆柱投影（equirectangular），水平覆盖 360 度、垂直覆盖 180 度，包含头顶天空与脚下地面；左右两端无缝衔接，形成一张连续完整的场景。【补全】以输入图为基础，把相机背后的环境合理延伸（地面、墙体、植被、天空，光照方向一致），不得出现重复、断裂或接缝。【保持】输入图中的主体只出现一次，其外观、姿态以及与周围景物的相对关系保持原样，不得镜像或复制。【输出】严格 2:1 画幅比例，例如 2880x1440。",
-      "en": "Generate a complete 360-degree panorama. Projection: true equirectangular, covering 360 degrees horizontally and 180 degrees vertically, including the sky overhead and the ground below; left and right edges must join seamlessly into one continuous scene. Completion: extend the environment behind the camera plausibly (ground, walls, vegetation, sky, consistent light direction) with no repeated or broken areas. Keep: the subject appears exactly once, with its appearance, pose and relationship to surrounding objects unchanged, never mirrored or duplicated. Output at exactly a 2:1 aspect ratio, for example 2880x1440."
-    },
-    "多图指认合成": {
-      "zh": "直接按我的描述生成一张全新画面。【画面】按我的要求安排主体、场景、构图、站位、光线与景深，所有元素统一在同一空间的光影与透视中，接触关系与投影合理。【一致性】同一主体在各处的外观保持一致，不得替换、美化或增减部件。【文字】除我明确要求的外，不生成任何文字或水印。",
-      "en": "Generate one brand-new image directly from my description. Frame: arrange subjects, setting, composition, staging, lighting and depth of field as I ask; all elements share one consistent space with matching light, perspective, contact and shadows. Consistency: keep each subject's look identical everywhere, with no replacement, beautifying, additions or removals. Text: no text or watermark unless I explicitly ask for it."
-    }
-  };
-const ioModeOf = (v) => { const s = String(v == null ? "" : v).trim(); return IO_MODES.includes(s) ? s : IO_AUTO; };
-/** 把「自动」按有没有接参考图解析成 文生图 / 图生图 */
-const resolveIoMode = (io, hasImage) => {
-  const m = ioModeOf(io);
-  if (m !== IO_AUTO) return m;
-  return hasImage ? IO_I2I : IO_T2I;
-};
+/** 图生图档专用文本：Pro 已无图生图档 → 空表（保留常量供基础代码查询） */
+const PRESET_TEXT_T2I = {};
+/** ⚠️ Pro 固定文生图：模版选择已删除，这几个助手只为兼容旧的调用点而保留 */
+const ioModeOf = (v) => IO_T2I;
+const resolveIoMode = (io, hasImage) => IO_T2I;
 /** 该模式的默认模版（图生图档默认图生图，其余默认文生图） */
-const modeDefaultIo = (mode) => (MODE_NEEDS_IMAGE.includes(mode) ? IO_I2I : IO_T2I);
+const modeDefaultIo = (mode) => IO_T2I;   // Pro 固定文生图
 /** 该模式在某模版下的**默认**设定词（io 已归一为 文生图 / 图生图）
  *  ⚠️ PRESET_TEXT_DEFAULT 的键是「中文 [ZH]/英文 [EN]」，PRESET_TEXT_T2I 的键是 "zh"/"en" */
 const presetTextOf = (mode, lang, io) => {
@@ -245,21 +157,17 @@ const presetTextOf = (mode, lang, io) => {
   const clause = modeIoClause(mode, true, lang);                    // 文生图档 → 原文 + 条款
   return clause ? ((base ? base + " " : "") + clause).trim() : base;
 };
-/** 该模式所有模版 × 所有语言的默认文本（判断「用户没改过」用）
- *  · 无预设档额外把它算「默认」：IO_I2I_COMMON 条款（早期版本在「图生图模版」下把它当设定词
- *    存进了 widget / 存档）+ **所有内置预设句**（节点上 three_view_text 的老默认值就是三视图
- *    预设句 → 无预设档必须当空白，不能当成用户自定义继续前置） */
+/** 该模式所有语言下的默认文本（判断「用户没改过」用）
+ *  · 无预设档额外算「默认」的还有：**所有内置预设句**（节点上 three_view_text 的老默认值就是
+ *    三视图预设句 → 无预设档必须当空白，不能当成用户自定义继续前置）
+ *  ⚠️ Pro 已无模版条款（IO_I2I_COMMON 随模版选择一起删除），这里不再把它算作默认 */
 const allDefaultTextsOf = (mode) => {
   const out = [];
-  for (const lg of LANGS) for (const io of [IO_T2I, IO_I2I]) {
-    const t = presetTextOf(mode, lg, io).trim();
+  for (const lg of LANGS) {
+    const t = presetTextOf(mode, lg, IO_T2I).trim();
     if (t && !out.includes(t)) out.push(t);
   }
   if (mode === MODE_TP) {
-    for (const k of ["zh", "en"]) {
-      const c = String(IO_I2I_COMMON[k] || "").trim();
-      if (c && !out.includes(c)) out.push(c);
-    }
     for (const table of [PRESET_TEXT_DEFAULT, PRESET_TEXT_T2I]) {
       for (const texts of Object.values(table)) {
         for (const t of Object.values(texts || {})) {
@@ -3259,10 +3167,15 @@ const XBR_BACKENDS = [
 ];
 const XBR_INFERENCE_MODES = ["one by one", "images", "video"];
 const XBR_SEED_MODES = ["randomize", "fixed", "increment", "decrement"];
-/** SKILL 三态：自动 = 按预设模式适配；手动 = 用选择的那一个；不用 = 完全不生效 */
+/** SKILL 三态（后端仍支持）：自动 = 按模式推荐；手动 = 用选中的那份；不用 = 不生效
+ *  ⚠️ Pro 面板不再直接暴露三态，只给「不使用 skill ／ 选文档名」二选一（见下面的 SKILL 分区） */
 const XBR_SKILL_MODES = ["自动", "手动", "不用"];
-/** 模版三态：自动 = 按有没有接参考图判断；文生图 / 图生图 = 手动指定 */
-const XBR_IO_MODES = ["自动", "文生图", "图生图"];
+/** 后端 xb_skills.SKILL_NONE 的字面值（= skill_name 下拉第一项）与面板上更好读的显示文案 */
+const SKILL_NONE_VALUE = "不使用";
+const SKILL_NONE_LABEL = "不使用 skill";
+/** ⚠️ 模版（自动 / 文生图 / 图生图）已从本节点删除：Pro 固定文生图。
+ *  下面只保留一个常量，供基础面板的存档 key / 默认文本查询使用（值永远是「文生图」） */
+const IO_T2I_ONLY = "文生图";
 const XBR_SEED_LABEL = { randomize: "随机", fixed: "固定", increment: "增加", decrement: "减少" };
 const XBR_PANEL_BUTTONS = [
   { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "LLM 反推的后端与推理配置；本弹窗里的「输出语言」是全节点唯一的语言设置（决定词表加载语言 + 最终提示词语言）。" },
@@ -3381,10 +3294,9 @@ function xbrPresetTextFor(node, mode, lang, io) {
   if (t && String(t).trim() && !isDefaultPresetText(mode, t)) return t;
   return (presetTextOf(mode, lang, io) || "");
 }
-/** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+/** 当前模版：Pro 固定文生图（模版选择已删；这个助手只为兼容调用点而保留） */
 function xbrResolveIo(node, ioRaw) {
-  const has = (typeof modeHasImage === "function") && modeHasImage(node);
-  return (typeof resolveIoMode === "function") ? resolveIoMode(ioRaw, has) : "文生图";
+  return IO_T2I_ONLY;
 }
 
 /* ── 预设选项按「输出语言」过滤 ───────────────────────────────
@@ -3603,8 +3515,8 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(makeSectionTitle("输出语言（全节点唯一的语言设置）"));
   body.append(field("输出语言", selectControl(LANGS, draft.lang, (v) => {
     draft.lang = v;
-    // 换语言 → 未在弹窗里改过设定词时，跟着取该语言同模版的「存档 → 默认」
-    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v, xbrResolveIo(node, draft.ioMode));
+    // 换语言 → 未在弹窗里改过设定词时，跟着取该语言的「存档 → 默认」
+    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v, IO_T2I);
     // 语言决定预设可选范围：增强预设 / 反推预设 自动换到同语言的同名项（没有则取该语言第一项）
     draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, v);
     draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, v);
@@ -3686,58 +3598,38 @@ function xbrRenderPreset(body, node, draft, ctx) {
   body.append(field("空latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
   body.append(xbrHint("空latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
   // ── 模版（文生图 / 图生图）：决定用哪一套设定词（每个预设模式都有两套）──
-  body.append(field("模版", radioRow(XBR_IO_MODES, draft.ioMode, (v) => {
-    draft.ioMode = v;
-    // 换模版 → 未改过时立即换成对应那套设定词（改过的按「模式|模版|语言」存着不会被冲掉）
-    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, draft.lang, xbrResolveIo(node, v));
-    ctx.rerender();
-  })));
-  body.append(xbrHint("模版：自动 = 按「🖼️ 图像」有没有接线判断；文生图 / 图生图 = 手动指定。每个预设模式都有两套设定词，切模版会直接换掉下面「设定词」那一栏的内容。"));
+  // ⚠️ 模版选择（自动 / 文生图 / 图生图）已按用户要求删除：本节点固定文生图
   body.append(field("预设模式", selectControl(MODES, draft.mode, (v) => {
     draft.mode = v;
-    // 换模式 → 立刻取该「模式 × 模版」的设定词（用户改过的存档 → 默认），改过的不会被冲掉
+    // 换模式 → 立刻取该模式的设定词（用户改过的存档 → 默认）
     draft.presetTouched = false;
-    draft.presetText = xbrPresetTextFor(node, v, draft.lang, xbrResolveIo(node, draft.ioMode));
+    draft.presetText = xbrPresetTextFor(node, v, draft.lang, IO_T2I);
     ctx.rerender();     // 有/无设定词的模式之间切换 → 重画「设定词」区
   })));
-  // 当前模版 + 本档提示
-  const needsImgP = (typeof modeNeedsImage === "function") && modeNeedsImage(draft.mode);
-  const hasImgP = (typeof modeHasImage === "function") && modeHasImage(node);
-  const ioNowP = xbrResolveIo(node, draft.ioMode);
-  body.append(el("div", "font-size:11px;color:#8fb;line-height:1.7;margin:2px 0 4px;",
-    "当前模版：" + ioNowP
-    + (draft.ioMode === "自动" ? ("（自动：" + (hasImgP ? "检测到 🖼️ 图像已接线" : "未接 🖼️ 图像") + "）")
-                              : "（手动指定）")
-    + (needsImgP ? "　❗本档属于图生图档" : "")));
-  body.append(el("div", "font-size:11px;color:" + (needsImgP ? "#d9a441" : "#888") + ";line-height:1.7;margin:2px 0 8px;",
+  // 当前模式提示（Pro 没有图生图档：模版固定文生图）
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.7;margin:2px 0 8px;",
     (draft.mode === MODE_TP)
-      ? "无预设：接不接参考图、哪个模版，都不会前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
-      : (needsImgP
-          ? (ioNowP === "文生图"
-              ? "⚠️ 本档属于「图生图」，但当前是文生图模版：下面用的是从零生成的写法（不依赖任何输入图）。把参考图接到 🖼️ 图像即可切回图生图模版。"
-              : "本档属于「图生图」：需开启 ✅ 启用 LLM 反推，并把参考图接到 🖼️ 图像。")
-          : (ioNowP === "图生图"
-              ? "本档属于「文生图」，当前用图生图模版：设定词末尾会追加「以输入图为准」的条款，需接参考图。"
-              : "本档属于「文生图」：不接图也行；接图后把模版改成「图生图」（或保持自动）会追加「以输入图为准」的条款。"))));
+      ? "无预设：不前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
+      : "设定词会作为【参考设定】送给 LLM，并原封不动置顶到最终提示词最顶端（本节点固定文生图，设定词只有一套）。"));
 
-  // ── 设定词（按「模式 × 模版 × 语言」取；只在弹窗里编辑，节点表面不显示）──
+  // ── 设定词（按「模式 × 语言」取；只在弹窗里编辑，节点表面不显示；本节点固定文生图）──
   //    无预设档：这一栏**照样显示**，只是内容空白（用户可以自己写）
-  const modeDef = presetTextOf(draft.mode, draft.lang, ioNowP);
+  const modeDef = presetTextOf(draft.mode, draft.lang, IO_T2I);
   {
-    body.append(makeSectionTitle("设定词（" + ioNowP + "模版）"));
+    body.append(makeSectionTitle("设定词"));
     draft.presetText = String(draft.presetText || "");
     if (modeDef && !draft.presetText.trim()) draft.presetText = modeDef;
     const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
       "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
     taP.placeholder = modeDef
-      ? "该模式在「" + ioNowP + "」模版下的设定词；改过的按「模式 + 模版 + 语言」记进节点，换模式 / 换模版 / 换语言都不丢"
+      ? "该模式在当前语言下的设定词；改过的按「模式 + 语言」记进节点，换模式 / 换语言都不丢"
       : "无预设：本档不前置设定词（保持空白即可；在这里写内容就会作为设定词置顶）";
     taP.spellcheck = false;
     body.append(taP);
     const taRow = el("div", "display:flex;align-items:center;gap:10px;margin:6px 0 4px;");
     if (modeDef) {
       taRow.append(smallBtn("♻️ 恢复默认", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
-        "把设定词恢复为该模式 × 该模版 × 该语言的默认文本",
+        "把设定词恢复为该模式 × 该语言的默认文本",
         () => { draft.presetText = modeDef; draft.presetTouched = false; ctx.rerender(); }));
     }
     taRow.append(el("span", "font-size:11px;color:#888;",
@@ -3748,7 +3640,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
       body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
         "· 最终输出时，设定词会原封不动加在增强后提示词的最顶端；\n"
         + "· LLM 只增强正文，把设定词当作增强参考，不会改写它；\n"
-        + "· 改过的设定词随节点保存，换模式 / 换模版 / 换语言都会取回你改过的那一版。"));
+        + "· 改过的设定词随节点保存，换模式 / 换语言都会取回你改过的那一版。"));
     } else {
       body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
         "· 无预设档：不管接不接参考图，节点都不会自动前置设定词；\n"
@@ -3774,23 +3666,27 @@ function xbrRenderPreset(body, node, draft, ctx) {
   ta.spellcheck = false;
   body.append(ta);
 
-  // ── SKILL（系统提示词）：常驻三态 自动 / 手动 / 不用 ──
+  // ── SKILL（系统提示词）：单选下拉 = 不使用 skill ／ 选文档名（三态勾选已按用户要求删除）──
   body.append(makeSectionTitle("SKILL（系统提示词）"));
-  const skillOpts = xbrWidgetOptions(node, "skill_name");
-  if (!skillOpts.length) skillOpts.push("不使用");
-  if (!skillOpts.includes(draft.skill)) draft.skill = skillOpts[0];
-  if (!XBR_SKILL_MODES.includes(draft.skillMode)) draft.skillMode = "自动";
-  body.append(field("SKILL 模式", radioRow(XBR_SKILL_MODES, draft.skillMode, (v) => { draft.skillMode = v; ctx.rerender(); })));
-  if (draft.skillMode === "手动") {
-    body.append(field("SKILL选择", selectControl(skillOpts, draft.skill, (v) => { draft.skill = v; })));
-  } else if (draft.skillMode === "自动") {
-    const autoFileP = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "-";
-    body.append(el("div", "font-size:11px;color:#8fb;margin:2px 0 8px;",
-      "自动：本档（" + draft.mode + "）→ " + autoFileP));
-  } else {
-    body.append(el("div", "font-size:11px;color:#d9a441;margin:2px 0 8px;",
-      "不用：SKILL 完全不生效（即使下面选过文件也不会送进 LLM）。"));
+  const skillOptsRaw = xbrWidgetOptions(node, "skill_name");
+  // 显示列：第一项固定为「不使用 skill」（值 = 后端 SKILL_NONE），其余为文档名
+  const skillOpts = [SKILL_NONE_LABEL].concat(skillOptsRaw.filter((v) => v && v !== SKILL_NONE_VALUE));
+  // 旧工作流里可能是「自动 / 手动 / 不用」三态：自动 → 显示它当时实际用的那份文档
+  const autoFile = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "";
+  if (!draft.skillPicked) {
+    const sm = String(draft.skillMode || "");
+    const cur = String(draft.skill || "");
+    if (sm === "自动") draft.skill = skillOpts.includes(autoFile) ? autoFile : SKILL_NONE_LABEL;
+    else if (sm === "不用" || !cur || cur === SKILL_NONE_VALUE) draft.skill = SKILL_NONE_LABEL;
+    else draft.skill = skillOpts.includes(cur) ? cur : SKILL_NONE_LABEL;
+    draft.skillPicked = true;
   }
+  if (!skillOpts.includes(draft.skill)) draft.skill = SKILL_NONE_LABEL;
+  body.append(field("SKILL", selectControl(skillOpts, draft.skill, (v) => {
+    draft.skill = v;
+    draft.skillPicked = true;
+    ctx.rerender();
+  })));
   const foxRowP = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;");
   foxRowP.append(smallBtn("📂 打开 SKILL 文件夹", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
     "在资源管理器里打开 support_llama/skills，方便新增 / 编辑技能文件",
@@ -3802,16 +3698,14 @@ function xbrRenderPreset(body, node, draft, ctx) {
         else notify("已打开：" + (j.path || "skills"), "success");
       } catch (e) { notify("打开失败：" + ((e && e.message) || e), "error"); }
     }));
+  foxRowP.append(el("span", "font-size:11px;color:#8fb;",
+    draft.skill === SKILL_NONE_LABEL ? "当前 = 不使用 skill（LLM 用内置默认系统提示词）" : ("当前 = " + draft.skill)));
   body.append(foxRowP);
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
-    "技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md）：选中后整段作为 LLM 反推的 system prompt。"));
   body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
-    "· 自动（默认）= 按预设模式适配：图生图档 → system_prompt_edit，其余 → system_prompt_t2i；\n"
-    + "· 手动 = 用「SKILL选择」里选中的那个文件；\n"
-    + "· 不用 = 完全不生效（哪怕选了文件）；\n"
-    + "· 选中技能后：技能放在系统提示词最前面当角色与总规则，且**不再叠加**节点的语言提示\n"
-    + "  （这两个技能文件自带语言决策与输出契约，叠加会打架）；\n"
-    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与；新增技能文件后刷新页面即可出现在下拉里。"));
+    "· 不使用 skill = 不把任何技能文档当系统提示词（LLM 用内置默认模板）；\n"
+    + "· 选文档 = 该文档整段作为 LLM 的 system prompt（放在最前面当角色与总规则，**不再叠加**节点的语言提示）；\n"
+    + "· 技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md），新增后刷新页面即可出现在下拉里；\n"
+    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与。"));
 }
 
 /* ── 弹窗内容：📖 使用说明 ───────────────────────────────── */
@@ -3858,29 +3752,20 @@ function xbrRenderHelp(body) {
     "  Anima / Boogu / Flux2 / Hunyuan / Krea2 / Qwen-image / SD3 / SDXL / Z-image",
     "  选你正在用的模型即可：通道数、下采样、尺寸步长、batch 上限会自动切换",
     "",
-    "【预设模式】",
-    "【预设模式】（每档自带一段设定词，可自由修改）",
-    "  · 文生图组：无预设 / 人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 /",
-    "    图文版面 / 信息图 / 多格分镜 / 广告分镜板",
-    "  · 图生图组（需接参考图）：保持主体换场景 / 局部编辑 /",
-    "    老照片修复 / 整图风格化 / 360°全景 / 多图指认合成",
+    "【预设模式】（4 档，每档自带一段设定词，可自由修改）",
+    "  · 无预设 / 人物三视图 / 人物四视图 / 人物五视图",
     "  · 设定词可以自由修改，改过的那一版按「模式 + 语言」记在节点里，换模式 / 换语言都不会丢",
     "  · 点 ♻️ 恢复默认 一键回到官方文本；启用 LLM 时设定词另作增强参考交给模型",
     "  · 启用 LLM 时，设定词只作为增强参考交给模型，输出时由节点原封不动加在最顶端",
-    "",
-    "【文生图 / 图生图两套模版（全自动切换）】",
-    "  · 没接 🖼️ 图像 → 走文生图模版：从零生成的写法，不会出现「参考输入图」类条款",
-    "  · 接了 🖼️ 图像 → 走图生图模版：自动追加「以输入图为准」的条款，按序号引用第 1…N 张图",
-    "  · 两种模版不用手动切：面板会显示当前用的是哪套 + 自动追加的条款原文",
-    "  · 图生图档没接图也不会报错：会自动改成从零生成的写法（并在日志里提醒）",
+    "  · 本节点固定文生图（模版选择已删）：不会出现「以输入图为准」类条款",
+    "  · 🖼️ 图像端口只用于 LLM 反推（看图改图 / 看图反推），不会改变设定词",
     "",
     "【SKILL 技能（系统提示词）】",
     "  · ✨ 预设参数 → SKILL：support_llama/skills 里的 txt 整段当 LLM 的 system prompt",
     "    面板里点「📂 打开 SKILL 文件夹」可直接打开，新增后刷新页面即出现在下拉",
-    "  · SKILL 模式（常驻三选一，默认自动）：",
-    "      ◆ 自动 = 按预设模式适配：图生图档 → system_prompt_edit.txt，其余 → system_prompt_t2i.txt",
-    "      ◆ 手动 = 用「SKILL选择」里选中的那个文件",
-    "      ◆ 不用 = SKILL 完全不生效（哪怕选过文件）",
+    "  · SKILL（二选一）：",
+    "      ◆ 不使用 skill = 不送任何技能文档（LLM 用内置默认系统提示词）",
+    "      ◆ 选具体文档名 = 该文档整段当 system prompt（不再叠加节点的语言提示）",
     "  · 选中后系统提示词 = 技能 + 增强预设 + 设定词参考 + 追加设定 + 任务块",
     "  · 技能自带语言与输出契约 → 选中时不再叠加节点的语言提示（避免互相对打）",
     "  · 勾选开关关掉 ✅ 启用 LLM 反推时 SKILL 不参与",
@@ -3924,22 +3809,20 @@ async function xbrOpenModal(node, panelId) {
     lang: xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]),
     kind: xbrPick(String(xbrWidgetVal(node, "latent_kind") ?? ""), LATENT_KINDS, LATENT_KINDS[0]),
     mode: xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]),
-    // 模版（自动 / 文生图 / 图生图）
-    ioMode: (() => { const v = String(xbrWidgetVal(node, "io_mode") ?? ""); return XBR_IO_MODES.includes(v) ? v : "自动"; })(),
-    // 设定词（每个预设模式两套）：弹窗内草稿 + 「用户是否改过」标记
-    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 当前模版默认」（无预设 = 空）
+    // 设定词（Pro 固定文生图，每个模式只有一套）：弹窗内草稿 + 「用户是否改过」标记
+    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 默认」（无预设 = 空）
     presetText: (() => {
       const w = String(xbrWidgetVal(node, "three_view_text") ?? "");
       const md = xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]);
       const lg = xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]);
-      const ioW = String(xbrWidgetVal(node, "io_mode") ?? "");
       if (w.trim() && !isDefaultPresetText(md, w)) return w;
-      return xbrPresetTextFor(node, md, lg, xbrResolveIo(node, XBR_IO_MODES.includes(ioW) ? ioW : "自动"));
+      return xbrPresetTextFor(node, md, lg, IO_T2I);
     })(),
     presetTouched: false,
     // SKILL 选择（support_llama/skills 里的技能文件 = system prompt）
     skill: String(xbrWidgetVal(node, "skill_name") ?? ""),
     skillMode: (() => { const v = String(xbrWidgetVal(node, "skill_mode") ?? ""); return XBR_SKILL_MODES.includes(v) ? v : "自动"; })(),
+    skillPicked: false,        // 面板上是否已经按「不使用 skill ／ 选文档」映射过一次
   };
   // 预设选项与输出语言对齐（旧工作流可能存着异语言的预设名）
   draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, draft.lang);
@@ -3968,15 +3851,14 @@ async function xbrOpenModal(node, panelId) {
     xbrSetWidget(node, "output_lang", draft.lang, true);      // 唯一语言设置
     xbrSetWidget(node, "latent_kind", draft.kind, true);      // 触发基础面板的步长/上限联动
     xbrSetWidget(node, "preset_mode", draft.mode, true);      // 触发预设句框显隐
-    xbrSetWidget(node, "io_mode", draft.ioMode);               // 模版：自动 / 文生图 / 图生图
-    xbrSetWidget(node, "skill_name", draft.skill);             // SKILL = LLM 的 system prompt
-    xbrSetWidget(node, "skill_mode", draft.skillMode);          // 自动 / 手动 / 不用
-    // 设定词：写进节点 widget（原样）+ 按「模式|模版|语言」存档 → 换模式 / 换模版 / 换语言都不丢
+    // SKILL：单选下拉 = 不使用 skill ／ 选文档名 → 落盘成「skill_mode + skill_name」两件套
+    xbrSetWidget(node, "skill_name", draft.skill === SKILL_NONE_LABEL ? SKILL_NONE_VALUE : draft.skill);
+    xbrSetWidget(node, "skill_mode", draft.skill === SKILL_NONE_LABEL ? "不用" : "手动");
+    // 设定词：写进节点 widget（原样）+ 按「模式|语言」存档 → 换模式 / 换语言都不丢
     //   ⚠️ 一律写（包含「无预设」时写空串）→ 顺手把 widget 里的遗留默认句清掉
     try {
-      const ioCommit = xbrResolveIo(node, draft.ioMode);
       node.__ippSetPreset?.(draft.presetText);
-      node.__ippWritePreset?.(draft.mode, ioCommit, draft.lang, draft.presetText);
+      node.__ippWritePreset?.(draft.mode, IO_T2I, draft.lang, draft.presetText);
     } catch (_) {}
     xbrSetWidget(node, "backend", draft.backend, true);
     xbrSetWidget(node, "preset", draft.preset, true);
@@ -4040,10 +3922,9 @@ function xbrInfoLines(node, promptText) {
   const useLlm = !!xbrWidgetVal(node, "use_llm");
   const backend = String(xbrWidgetVal(node, "backend") ?? "");
   const pMode = String(xbrWidgetVal(node, "preset_mode") ?? "");
-  const pIo = xbrResolveIo(node, String(xbrWidgetVal(node, "io_mode") ?? ""));
   const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
-  // 只显示选项名称（预设模式 + 模版），不再显示设定词的状态
-  const line2 = `🎨 预设模式：${xbrClean(pMode)} ｜ 模版：${pIo}`;
+  // 只显示选项名称（预设模式），不再显示设定词 / 模版的状态
+  const line2 = `🎨 预设模式：${xbrClean(pMode)}`;
   const line3 = `🌐 输出语言：${xbrClean(xbrWidgetVal(node, "output_lang"))}`;
   const line4 = useLlm
     ? (backend === "在线 API"

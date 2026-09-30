@@ -26,10 +26,15 @@ const XBR_BACKENDS = [
 ];
 const XBR_INFERENCE_MODES = ["one by one", "images", "video"];
 const XBR_SEED_MODES = ["randomize", "fixed", "increment", "decrement"];
-/** SKILL 三态：自动 = 按预设模式适配；手动 = 用选择的那一个；不用 = 完全不生效 */
+/** SKILL 三态（后端仍支持）：自动 = 按模式推荐；手动 = 用选中的那份；不用 = 不生效
+ *  ⚠️ Pro 面板不再直接暴露三态，只给「不使用 skill ／ 选文档名」二选一（见下面的 SKILL 分区） */
 const XBR_SKILL_MODES = ["自动", "手动", "不用"];
-/** 模版三态：自动 = 按有没有接参考图判断；文生图 / 图生图 = 手动指定 */
-const XBR_IO_MODES = ["自动", "文生图", "图生图"];
+/** 后端 xb_skills.SKILL_NONE 的字面值（= skill_name 下拉第一项）与面板上更好读的显示文案 */
+const SKILL_NONE_VALUE = "不使用";
+const SKILL_NONE_LABEL = "不使用 skill";
+/** ⚠️ 模版（自动 / 文生图 / 图生图）已从本节点删除：Pro 固定文生图。
+ *  下面只保留一个常量，供基础面板的存档 key / 默认文本查询使用（值永远是「文生图」） */
+const IO_T2I_ONLY = "文生图";
 const XBR_SEED_LABEL = { randomize: "随机", fixed: "固定", increment: "增加", decrement: "减少" };
 const XBR_PANEL_BUTTONS = [
   { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "LLM 反推的后端与推理配置；本弹窗里的「输出语言」是全节点唯一的语言设置（决定词表加载语言 + 最终提示词语言）。" },
@@ -148,10 +153,9 @@ function xbrPresetTextFor(node, mode, lang, io) {
   if (t && String(t).trim() && !isDefaultPresetText(mode, t)) return t;
   return (presetTextOf(mode, lang, io) || "");
 }
-/** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+/** 当前模版：Pro 固定文生图（模版选择已删；这个助手只为兼容调用点而保留） */
 function xbrResolveIo(node, ioRaw) {
-  const has = (typeof modeHasImage === "function") && modeHasImage(node);
-  return (typeof resolveIoMode === "function") ? resolveIoMode(ioRaw, has) : "文生图";
+  return IO_T2I_ONLY;
 }
 
 /* ── 预设选项按「输出语言」过滤 ───────────────────────────────
@@ -370,8 +374,8 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(makeSectionTitle("输出语言（全节点唯一的语言设置）"));
   body.append(field("输出语言", selectControl(LANGS, draft.lang, (v) => {
     draft.lang = v;
-    // 换语言 → 未在弹窗里改过设定词时，跟着取该语言同模版的「存档 → 默认」
-    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v, xbrResolveIo(node, draft.ioMode));
+    // 换语言 → 未在弹窗里改过设定词时，跟着取该语言的「存档 → 默认」
+    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v, IO_T2I);
     // 语言决定预设可选范围：增强预设 / 反推预设 自动换到同语言的同名项（没有则取该语言第一项）
     draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, v);
     draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, v);
@@ -453,58 +457,38 @@ function xbrRenderPreset(body, node, draft, ctx) {
   body.append(field("空latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
   body.append(xbrHint("空latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
   // ── 模版（文生图 / 图生图）：决定用哪一套设定词（每个预设模式都有两套）──
-  body.append(field("模版", radioRow(XBR_IO_MODES, draft.ioMode, (v) => {
-    draft.ioMode = v;
-    // 换模版 → 未改过时立即换成对应那套设定词（改过的按「模式|模版|语言」存着不会被冲掉）
-    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, draft.lang, xbrResolveIo(node, v));
-    ctx.rerender();
-  })));
-  body.append(xbrHint("模版：自动 = 按「🖼️ 图像」有没有接线判断；文生图 / 图生图 = 手动指定。每个预设模式都有两套设定词，切模版会直接换掉下面「设定词」那一栏的内容。"));
+  // ⚠️ 模版选择（自动 / 文生图 / 图生图）已按用户要求删除：本节点固定文生图
   body.append(field("预设模式", selectControl(MODES, draft.mode, (v) => {
     draft.mode = v;
-    // 换模式 → 立刻取该「模式 × 模版」的设定词（用户改过的存档 → 默认），改过的不会被冲掉
+    // 换模式 → 立刻取该模式的设定词（用户改过的存档 → 默认）
     draft.presetTouched = false;
-    draft.presetText = xbrPresetTextFor(node, v, draft.lang, xbrResolveIo(node, draft.ioMode));
+    draft.presetText = xbrPresetTextFor(node, v, draft.lang, IO_T2I);
     ctx.rerender();     // 有/无设定词的模式之间切换 → 重画「设定词」区
   })));
-  // 当前模版 + 本档提示
-  const needsImgP = (typeof modeNeedsImage === "function") && modeNeedsImage(draft.mode);
-  const hasImgP = (typeof modeHasImage === "function") && modeHasImage(node);
-  const ioNowP = xbrResolveIo(node, draft.ioMode);
-  body.append(el("div", "font-size:11px;color:#8fb;line-height:1.7;margin:2px 0 4px;",
-    "当前模版：" + ioNowP
-    + (draft.ioMode === "自动" ? ("（自动：" + (hasImgP ? "检测到 🖼️ 图像已接线" : "未接 🖼️ 图像") + "）")
-                              : "（手动指定）")
-    + (needsImgP ? "　❗本档属于图生图档" : "")));
-  body.append(el("div", "font-size:11px;color:" + (needsImgP ? "#d9a441" : "#888") + ";line-height:1.7;margin:2px 0 8px;",
+  // 当前模式提示（Pro 没有图生图档：模版固定文生图）
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.7;margin:2px 0 8px;",
     (draft.mode === MODE_TP)
-      ? "无预设：接不接参考图、哪个模版，都不会前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
-      : (needsImgP
-          ? (ioNowP === "文生图"
-              ? "⚠️ 本档属于「图生图」，但当前是文生图模版：下面用的是从零生成的写法（不依赖任何输入图）。把参考图接到 🖼️ 图像即可切回图生图模版。"
-              : "本档属于「图生图」：需开启 ✅ 启用 LLM 反推，并把参考图接到 🖼️ 图像。")
-          : (ioNowP === "图生图"
-              ? "本档属于「文生图」，当前用图生图模版：设定词末尾会追加「以输入图为准」的条款，需接参考图。"
-              : "本档属于「文生图」：不接图也行；接图后把模版改成「图生图」（或保持自动）会追加「以输入图为准」的条款。"))));
+      ? "无预设：不前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
+      : "设定词会作为【参考设定】送给 LLM，并原封不动置顶到最终提示词最顶端（本节点固定文生图，设定词只有一套）。"));
 
-  // ── 设定词（按「模式 × 模版 × 语言」取；只在弹窗里编辑，节点表面不显示）──
+  // ── 设定词（按「模式 × 语言」取；只在弹窗里编辑，节点表面不显示；本节点固定文生图）──
   //    无预设档：这一栏**照样显示**，只是内容空白（用户可以自己写）
-  const modeDef = presetTextOf(draft.mode, draft.lang, ioNowP);
+  const modeDef = presetTextOf(draft.mode, draft.lang, IO_T2I);
   {
-    body.append(makeSectionTitle("设定词（" + ioNowP + "模版）"));
+    body.append(makeSectionTitle("设定词"));
     draft.presetText = String(draft.presetText || "");
     if (modeDef && !draft.presetText.trim()) draft.presetText = modeDef;
     const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
       "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
     taP.placeholder = modeDef
-      ? "该模式在「" + ioNowP + "」模版下的设定词；改过的按「模式 + 模版 + 语言」记进节点，换模式 / 换模版 / 换语言都不丢"
+      ? "该模式在当前语言下的设定词；改过的按「模式 + 语言」记进节点，换模式 / 换语言都不丢"
       : "无预设：本档不前置设定词（保持空白即可；在这里写内容就会作为设定词置顶）";
     taP.spellcheck = false;
     body.append(taP);
     const taRow = el("div", "display:flex;align-items:center;gap:10px;margin:6px 0 4px;");
     if (modeDef) {
       taRow.append(smallBtn("♻️ 恢复默认", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
-        "把设定词恢复为该模式 × 该模版 × 该语言的默认文本",
+        "把设定词恢复为该模式 × 该语言的默认文本",
         () => { draft.presetText = modeDef; draft.presetTouched = false; ctx.rerender(); }));
     }
     taRow.append(el("span", "font-size:11px;color:#888;",
@@ -515,7 +499,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
       body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
         "· 最终输出时，设定词会原封不动加在增强后提示词的最顶端；\n"
         + "· LLM 只增强正文，把设定词当作增强参考，不会改写它；\n"
-        + "· 改过的设定词随节点保存，换模式 / 换模版 / 换语言都会取回你改过的那一版。"));
+        + "· 改过的设定词随节点保存，换模式 / 换语言都会取回你改过的那一版。"));
     } else {
       body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
         "· 无预设档：不管接不接参考图，节点都不会自动前置设定词；\n"
@@ -541,23 +525,27 @@ function xbrRenderPreset(body, node, draft, ctx) {
   ta.spellcheck = false;
   body.append(ta);
 
-  // ── SKILL（系统提示词）：常驻三态 自动 / 手动 / 不用 ──
+  // ── SKILL（系统提示词）：单选下拉 = 不使用 skill ／ 选文档名（三态勾选已按用户要求删除）──
   body.append(makeSectionTitle("SKILL（系统提示词）"));
-  const skillOpts = xbrWidgetOptions(node, "skill_name");
-  if (!skillOpts.length) skillOpts.push("不使用");
-  if (!skillOpts.includes(draft.skill)) draft.skill = skillOpts[0];
-  if (!XBR_SKILL_MODES.includes(draft.skillMode)) draft.skillMode = "自动";
-  body.append(field("SKILL 模式", radioRow(XBR_SKILL_MODES, draft.skillMode, (v) => { draft.skillMode = v; ctx.rerender(); })));
-  if (draft.skillMode === "手动") {
-    body.append(field("SKILL选择", selectControl(skillOpts, draft.skill, (v) => { draft.skill = v; })));
-  } else if (draft.skillMode === "自动") {
-    const autoFileP = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "-";
-    body.append(el("div", "font-size:11px;color:#8fb;margin:2px 0 8px;",
-      "自动：本档（" + draft.mode + "）→ " + autoFileP));
-  } else {
-    body.append(el("div", "font-size:11px;color:#d9a441;margin:2px 0 8px;",
-      "不用：SKILL 完全不生效（即使下面选过文件也不会送进 LLM）。"));
+  const skillOptsRaw = xbrWidgetOptions(node, "skill_name");
+  // 显示列：第一项固定为「不使用 skill」（值 = 后端 SKILL_NONE），其余为文档名
+  const skillOpts = [SKILL_NONE_LABEL].concat(skillOptsRaw.filter((v) => v && v !== SKILL_NONE_VALUE));
+  // 旧工作流里可能是「自动 / 手动 / 不用」三态：自动 → 显示它当时实际用的那份文档
+  const autoFile = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "";
+  if (!draft.skillPicked) {
+    const sm = String(draft.skillMode || "");
+    const cur = String(draft.skill || "");
+    if (sm === "自动") draft.skill = skillOpts.includes(autoFile) ? autoFile : SKILL_NONE_LABEL;
+    else if (sm === "不用" || !cur || cur === SKILL_NONE_VALUE) draft.skill = SKILL_NONE_LABEL;
+    else draft.skill = skillOpts.includes(cur) ? cur : SKILL_NONE_LABEL;
+    draft.skillPicked = true;
   }
+  if (!skillOpts.includes(draft.skill)) draft.skill = SKILL_NONE_LABEL;
+  body.append(field("SKILL", selectControl(skillOpts, draft.skill, (v) => {
+    draft.skill = v;
+    draft.skillPicked = true;
+    ctx.rerender();
+  })));
   const foxRowP = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;");
   foxRowP.append(smallBtn("📂 打开 SKILL 文件夹", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
     "在资源管理器里打开 support_llama/skills，方便新增 / 编辑技能文件",
@@ -569,16 +557,14 @@ function xbrRenderPreset(body, node, draft, ctx) {
         else notify("已打开：" + (j.path || "skills"), "success");
       } catch (e) { notify("打开失败：" + ((e && e.message) || e), "error"); }
     }));
+  foxRowP.append(el("span", "font-size:11px;color:#8fb;",
+    draft.skill === SKILL_NONE_LABEL ? "当前 = 不使用 skill（LLM 用内置默认系统提示词）" : ("当前 = " + draft.skill)));
   body.append(foxRowP);
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
-    "技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md）：选中后整段作为 LLM 反推的 system prompt。"));
   body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
-    "· 自动（默认）= 按预设模式适配：图生图档 → system_prompt_edit，其余 → system_prompt_t2i；\n"
-    + "· 手动 = 用「SKILL选择」里选中的那个文件；\n"
-    + "· 不用 = 完全不生效（哪怕选了文件）；\n"
-    + "· 选中技能后：技能放在系统提示词最前面当角色与总规则，且**不再叠加**节点的语言提示\n"
-    + "  （这两个技能文件自带语言决策与输出契约，叠加会打架）；\n"
-    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与；新增技能文件后刷新页面即可出现在下拉里。"));
+    "· 不使用 skill = 不把任何技能文档当系统提示词（LLM 用内置默认模板）；\n"
+    + "· 选文档 = 该文档整段作为 LLM 的 system prompt（放在最前面当角色与总规则，**不再叠加**节点的语言提示）；\n"
+    + "· 技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md），新增后刷新页面即可出现在下拉里；\n"
+    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与。"));
 }
 
 /* ── 弹窗内容：📖 使用说明 ───────────────────────────────── */
@@ -625,29 +611,20 @@ function xbrRenderHelp(body) {
     "  Anima / Boogu / Flux2 / Hunyuan / Krea2 / Qwen-image / SD3 / SDXL / Z-image",
     "  选你正在用的模型即可：通道数、下采样、尺寸步长、batch 上限会自动切换",
     "",
-    "【预设模式】",
-    "【预设模式】（每档自带一段设定词，可自由修改）",
-    "  · 文生图组：无预设 / 人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 /",
-    "    图文版面 / 信息图 / 多格分镜 / 广告分镜板",
-    "  · 图生图组（需接参考图）：保持主体换场景 / 局部编辑 /",
-    "    老照片修复 / 整图风格化 / 360°全景 / 多图指认合成",
+    "【预设模式】（4 档，每档自带一段设定词，可自由修改）",
+    "  · 无预设 / 人物三视图 / 人物四视图 / 人物五视图",
     "  · 设定词可以自由修改，改过的那一版按「模式 + 语言」记在节点里，换模式 / 换语言都不会丢",
     "  · 点 ♻️ 恢复默认 一键回到官方文本；启用 LLM 时设定词另作增强参考交给模型",
     "  · 启用 LLM 时，设定词只作为增强参考交给模型，输出时由节点原封不动加在最顶端",
-    "",
-    "【文生图 / 图生图两套模版（全自动切换）】",
-    "  · 没接 🖼️ 图像 → 走文生图模版：从零生成的写法，不会出现「参考输入图」类条款",
-    "  · 接了 🖼️ 图像 → 走图生图模版：自动追加「以输入图为准」的条款，按序号引用第 1…N 张图",
-    "  · 两种模版不用手动切：面板会显示当前用的是哪套 + 自动追加的条款原文",
-    "  · 图生图档没接图也不会报错：会自动改成从零生成的写法（并在日志里提醒）",
+    "  · 本节点固定文生图（模版选择已删）：不会出现「以输入图为准」类条款",
+    "  · 🖼️ 图像端口只用于 LLM 反推（看图改图 / 看图反推），不会改变设定词",
     "",
     "【SKILL 技能（系统提示词）】",
     "  · ✨ 预设参数 → SKILL：support_llama/skills 里的 txt 整段当 LLM 的 system prompt",
     "    面板里点「📂 打开 SKILL 文件夹」可直接打开，新增后刷新页面即出现在下拉",
-    "  · SKILL 模式（常驻三选一，默认自动）：",
-    "      ◆ 自动 = 按预设模式适配：图生图档 → system_prompt_edit.txt，其余 → system_prompt_t2i.txt",
-    "      ◆ 手动 = 用「SKILL选择」里选中的那个文件",
-    "      ◆ 不用 = SKILL 完全不生效（哪怕选过文件）",
+    "  · SKILL（二选一）：",
+    "      ◆ 不使用 skill = 不送任何技能文档（LLM 用内置默认系统提示词）",
+    "      ◆ 选具体文档名 = 该文档整段当 system prompt（不再叠加节点的语言提示）",
     "  · 选中后系统提示词 = 技能 + 增强预设 + 设定词参考 + 追加设定 + 任务块",
     "  · 技能自带语言与输出契约 → 选中时不再叠加节点的语言提示（避免互相对打）",
     "  · 勾选开关关掉 ✅ 启用 LLM 反推时 SKILL 不参与",
@@ -691,22 +668,20 @@ async function xbrOpenModal(node, panelId) {
     lang: xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]),
     kind: xbrPick(String(xbrWidgetVal(node, "latent_kind") ?? ""), LATENT_KINDS, LATENT_KINDS[0]),
     mode: xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]),
-    // 模版（自动 / 文生图 / 图生图）
-    ioMode: (() => { const v = String(xbrWidgetVal(node, "io_mode") ?? ""); return XBR_IO_MODES.includes(v) ? v : "自动"; })(),
-    // 设定词（每个预设模式两套）：弹窗内草稿 + 「用户是否改过」标记
-    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 当前模版默认」（无预设 = 空）
+    // 设定词（Pro 固定文生图，每个模式只有一套）：弹窗内草稿 + 「用户是否改过」标记
+    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 默认」（无预设 = 空）
     presetText: (() => {
       const w = String(xbrWidgetVal(node, "three_view_text") ?? "");
       const md = xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]);
       const lg = xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]);
-      const ioW = String(xbrWidgetVal(node, "io_mode") ?? "");
       if (w.trim() && !isDefaultPresetText(md, w)) return w;
-      return xbrPresetTextFor(node, md, lg, xbrResolveIo(node, XBR_IO_MODES.includes(ioW) ? ioW : "自动"));
+      return xbrPresetTextFor(node, md, lg, IO_T2I);
     })(),
     presetTouched: false,
     // SKILL 选择（support_llama/skills 里的技能文件 = system prompt）
     skill: String(xbrWidgetVal(node, "skill_name") ?? ""),
     skillMode: (() => { const v = String(xbrWidgetVal(node, "skill_mode") ?? ""); return XBR_SKILL_MODES.includes(v) ? v : "自动"; })(),
+    skillPicked: false,        // 面板上是否已经按「不使用 skill ／ 选文档」映射过一次
   };
   // 预设选项与输出语言对齐（旧工作流可能存着异语言的预设名）
   draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, draft.lang);
@@ -735,15 +710,14 @@ async function xbrOpenModal(node, panelId) {
     xbrSetWidget(node, "output_lang", draft.lang, true);      // 唯一语言设置
     xbrSetWidget(node, "latent_kind", draft.kind, true);      // 触发基础面板的步长/上限联动
     xbrSetWidget(node, "preset_mode", draft.mode, true);      // 触发预设句框显隐
-    xbrSetWidget(node, "io_mode", draft.ioMode);               // 模版：自动 / 文生图 / 图生图
-    xbrSetWidget(node, "skill_name", draft.skill);             // SKILL = LLM 的 system prompt
-    xbrSetWidget(node, "skill_mode", draft.skillMode);          // 自动 / 手动 / 不用
-    // 设定词：写进节点 widget（原样）+ 按「模式|模版|语言」存档 → 换模式 / 换模版 / 换语言都不丢
+    // SKILL：单选下拉 = 不使用 skill ／ 选文档名 → 落盘成「skill_mode + skill_name」两件套
+    xbrSetWidget(node, "skill_name", draft.skill === SKILL_NONE_LABEL ? SKILL_NONE_VALUE : draft.skill);
+    xbrSetWidget(node, "skill_mode", draft.skill === SKILL_NONE_LABEL ? "不用" : "手动");
+    // 设定词：写进节点 widget（原样）+ 按「模式|语言」存档 → 换模式 / 换语言都不丢
     //   ⚠️ 一律写（包含「无预设」时写空串）→ 顺手把 widget 里的遗留默认句清掉
     try {
-      const ioCommit = xbrResolveIo(node, draft.ioMode);
       node.__ippSetPreset?.(draft.presetText);
-      node.__ippWritePreset?.(draft.mode, ioCommit, draft.lang, draft.presetText);
+      node.__ippWritePreset?.(draft.mode, IO_T2I, draft.lang, draft.presetText);
     } catch (_) {}
     xbrSetWidget(node, "backend", draft.backend, true);
     xbrSetWidget(node, "preset", draft.preset, true);
@@ -807,10 +781,9 @@ function xbrInfoLines(node, promptText) {
   const useLlm = !!xbrWidgetVal(node, "use_llm");
   const backend = String(xbrWidgetVal(node, "backend") ?? "");
   const pMode = String(xbrWidgetVal(node, "preset_mode") ?? "");
-  const pIo = xbrResolveIo(node, String(xbrWidgetVal(node, "io_mode") ?? ""));
   const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
-  // 只显示选项名称（预设模式 + 模版），不再显示设定词的状态
-  const line2 = `🎨 预设模式：${xbrClean(pMode)} ｜ 模版：${pIo}`;
+  // 只显示选项名称（预设模式），不再显示设定词 / 模版的状态
+  const line2 = `🎨 预设模式：${xbrClean(pMode)}`;
   const line3 = `🌐 输出语言：${xbrClean(xbrWidgetVal(node, "output_lang"))}`;
   const line4 = useLlm
     ? (backend === "在线 API"

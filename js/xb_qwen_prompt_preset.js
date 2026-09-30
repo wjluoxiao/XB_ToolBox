@@ -1,4 +1,12 @@
 /**
+ * XB-BOX - 🖼️ Qwen2.1提示词预设 — 前端面板（**独立文件**）
+ * ============================================================
+ * ⚠️ 本文件是「XB_QwenPromptPreset」节点专用且**自带全部实现**：
+ *    · 不依赖 js/xb_image_prompt_preset.js / xb_image_prompt_preset_pro.js，也不由任何脚本生成；
+ *    · 与「生图提示词预设」「生图提示词预设Pro」完全独立：改这里不会影响那两个节点。
+ *    对应的后端也自带一份（nodes_qwen_prompt_preset.py，不 import 共用引擎）。
+ *
+ * 原始说明（由基础面板演化而来）：
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
