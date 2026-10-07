@@ -10,6 +10,7 @@ const SIZES = {
     "XB_VideoParamsMaster": [360, 200],
     "XB_ImageParamsMaster": [360, 200],
     "XB_ImageParamsMasterMini": [360, 200],
+    "XB_ShenBi": [460, 320],
     "XB_ImagePromptPreset": [420, 560],
     "XB_MasterParameter": [360, 200],
     "XB_UNetBlockSwap": [360, 200],

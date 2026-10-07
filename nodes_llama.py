@@ -823,8 +823,9 @@ class XB_llamaInstruct:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "llama_model": ("LLAMACPPMODEL,STRING", {
-                    "forceInput": True,
+                # 用 "*" (any) 而不是 "LLAMACPPMODEL,STRING" + forceInput:
+                # forceInput 会让前端往 widgets_values 里多塞一个占位值, 导致节点参数整体错位一格
+                "llama_model": (any_type, {
                     "tooltip": "接「XB-llama - 📦 模型加载器」→ 本地模型\n"
                                "接「JZL - 🌐 LLM-API 设置」→ 在线 API\n"
                                "两种后端随时切换，插哪边用哪边"

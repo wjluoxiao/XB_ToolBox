@@ -291,6 +291,34 @@
       }
     }
   },
+  "XB_ShenBi": {
+    "display_name": "XB-BOX - 🖌️ 神笔",
+    "inputs": {
+      "mode": {
+        "name": "模式"
+      },
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "canvas_color": {
+        "name": "画布底色"
+      },
+      "image": {
+        "name": "图片"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
+      }
+    }
+  },
   "XB_ImageParamsMasterMini": {
     "display_name": "XB-BOX - 🖼️ 图片参数大全mini",
     "inputs": {

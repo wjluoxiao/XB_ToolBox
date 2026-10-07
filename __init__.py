@@ -95,6 +95,7 @@ try:
     from .nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
     from .nodes_image_scale import XB_ImageScale
+    from .nodes_shenbi import XB_ShenBi
     from .nodes_hailuo_video import XB_HailuoH3VideoParams
     from .nodes_list_dispatcher import XB_ListDispatcher
     from .nodes_batch_images import XB_BatchImages
@@ -185,6 +186,7 @@ try:
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
         "XB_ImageParamsMaster": XB_ImageParamsMaster,
         "XB_ImageParamsMasterMini": XB_ImageParamsMasterMini, 
+        "XB_ShenBi": XB_ShenBi,
         "XB_ImagePromptPreset": XB_ImagePromptPreset,
         "XB_PlaySound": XB_PlaySound,
         "XB_MasterParameter": XB_MasterParameter,
@@ -365,6 +367,7 @@ try:
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
         "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
+        "XB_ShenBi": "XB-BOX - 🖌️ ShenBi Brush",
         "XB_ImagePromptPreset": "XB-BOX - Image Prompt Preset",
         "XB_PlaySound": "XB-BOX - 🔊 播放声音",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
