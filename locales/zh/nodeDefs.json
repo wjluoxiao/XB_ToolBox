@@ -436,43 +436,6 @@
       }
     }
   },
-  "XB_SamplerChunkMaster": {
-    "display_name": "XB-BOX - 🧊 采样分块大师",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "stat_mode": {
-        "name": "状态模式"
-      },
-      "tile_size": {
-        "name": "分块尺寸"
-      },
-      "tile_overlap": {
-        "name": "分块重叠"
-      },
-      "frame_chunk_size": {
-        "name": "时间切片大小"
-      },
-      "frame_chunk_overlap": {
-        "name": "时间切片重叠"
-      },
-      "rocm_optimized": {
-        "name": "ROCm显存优化"
-      },
-      "latent_info": {
-        "name": "潜变量信息"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "模型"
-      },
-      "1": {
-        "name": "预览图"
-      }
-    }
-  },
   "XB_WanImageToVideo": {
     "display_name": "XB-BOX - 🖼️ 单图转视频分块 (Wan)",
     "inputs": {
@@ -1165,7 +1128,7 @@
     }
   },
   "XB_ROCmKSampler": {
-    "display_name": "XB-BOX - 采样器（原版优化）",
+    "display_name": "XB-BOX - 采样器（原版优化）（旧）",
     "inputs": {
       "model": {
         "name": "模型"
@@ -1208,7 +1171,7 @@
     }
   },
   "XB_ROCmKSamplerAdvanced": {
-    "display_name": "XB-BOX - 高级采样器（原版优化）",
+    "display_name": "XB-BOX - 高级采样器（原版优化）（旧）",
     "inputs": {
       "model": {
         "name": "模型"
@@ -1260,7 +1223,7 @@
     }
   },
   "XB_ROCmSamplerCustom": {
-    "display_name": "XB-BOX - 自定义采样器（原版优化）",
+    "display_name": "XB-BOX - 自定义采样器（原版优化）（旧）",
     "inputs": {
       "model": {
         "name": "模型"
@@ -1303,7 +1266,7 @@
     }
   },
   "XB_ROCmSamplerCustomAdvanced": {
-    "display_name": "XB-BOX - 自定义高级采样器（原版优化）",
+    "display_name": "XB-BOX - 自定义高级采样器（原版优化）（旧）",
     "inputs": {
       "noise": {
         "name": "噪声"
@@ -1334,7 +1297,7 @@
     }
   },
   "XB_ROCmVAEDecode": {
-    "display_name": "XB-BOX - VAE解码（原版优化）",
+    "display_name": "XB-BOX - VAE解码（原版优化）（旧）",
     "inputs": {
       "samples": {
         "name": "潜空间"
@@ -1359,7 +1322,7 @@
     }
   },
   "XB_ROCmVAEEncode": {
-    "display_name": "XB-BOX - VAE编码（原版优化）",
+    "display_name": "XB-BOX - VAE编码（原版优化）（旧）",
     "inputs": {
       "pixels": {
         "name": "图像"
@@ -1390,7 +1353,7 @@
     }
   },
   "XB_ROCmVAEDecodeTemporal": {
-    "display_name": "XB-BOX - VAE分块解码（原版优化）",
+    "display_name": "XB-BOX - VAE分块解码（原版优化）（旧）",
     "inputs": {
       "samples": {
         "name": "潜空间"
@@ -1421,7 +1384,7 @@
     }
   },
   "XB_ROCmLTXVAEDecode": {
-    "display_name": "XB-BOX - VAE分块解码（原版优化）",
+    "display_name": "XB-BOX - VAE分块解码 LTX（原版优化）（旧）",
     "inputs": {
       "samples": {
         "name": "潜空间"
@@ -1451,44 +1414,6 @@
       }
     }
   },
-  "XB_ROCmMemCleaner": {
-    "display_name": "XB-BOX - 显存清理",
-    "inputs": {
-      "mode": {
-        "name": "清理模式"
-      },
-      "anything": {
-        "name": "任意接入(防误删)"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "直通输出"
-      }
-    }
-  },
-  "XB_WanT5Loader": {
-    "display_name": "XB-BOX - � Wan T5 加载器(FP8)",
-    "inputs": {
-      "model_name": {
-        "name": "模型名称"
-      },
-      "precision": {
-        "name": "精度"
-      },
-      "load_device": {
-        "name": "加载设备"
-      },
-      "quantization": {
-        "name": "量化"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "T5模型"
-      }
-    }
-  },
   "XB_WanCompileSettings": {
     "display_name": "XB-BOX - ⚡ Wan 编译设置",
     "inputs": {
@@ -1514,204 +1439,6 @@
     "outputs": {
       "0": {
         "name": "编译参数"
-      }
-    }
-  },
-  "XB_WanModelLoader": {
-    "display_name": "XB-BOX - 🔗 Wan 模型加载",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "base_precision": {
-        "name": "基础精度"
-      },
-      "quantization": {
-        "name": "量化"
-      },
-      "load_device": {
-        "name": "加载设备"
-      },
-      "attention_mode": {
-        "name": "注意力模式"
-      },
-      "rms_norm_function": {
-        "name": "RMS Norm函数"
-      },
-      "block_swap_args": {
-        "name": "分块交换参数"
-      },
-      "compile_args": {
-        "name": "编译参数"
-      },
-      "lora": {
-        "name": "LoRA"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "Wan模型"
-      }
-    }
-  },
-  "XB_WanBlockSwap": {
-    "display_name": "XB-BOX - 🔄 Wan 分块交换",
-    "inputs": {
-      "blocks_to_swap": {
-        "name": "交换块数"
-      },
-      "offload_img_emb": {
-        "name": "卸载图像嵌入"
-      },
-      "offload_txt_emb": {
-        "name": "卸载文本嵌入"
-      },
-      "use_non_blocking": {
-        "name": "非阻塞传输"
-      },
-      "prefetch_blocks": {
-        "name": "预取块数"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "分块交换参数"
-      }
-    }
-  },
-  "XB_WanSampler": {
-    "display_name": "XB-BOX - 🔗 Wan 采样器",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "steps": {
-        "name": "步数"
-      },
-      "cfg": {
-        "name": "引导尺度"
-      },
-      "shift": {
-        "name": "调度偏移"
-      },
-      "seed": {
-        "name": "种子"
-      },
-      "force_offload": {
-        "name": "强制卸载"
-      },
-      "scheduler": {
-        "name": "调度器"
-      },
-      "riflex_freq_index": {
-        "name": "RIFLEX频率"
-      },
-      "cleanup": {
-        "name": "采样后清理"
-      },
-      "text_embeds": {
-        "name": "文本嵌入"
-      },
-      "image_embeds": {
-        "name": "图像嵌入"
-      },
-      "samples": {
-        "name": "初始潜变量"
-      },
-      "denoise": {
-        "name": "降噪强度"
-      },
-      "batched_cfg": {
-        "name": "批量CFG"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "采样输出"
-      },
-      "1": {
-        "name": "降噪输出"
-      }
-    }
-  },
-  "XB_WanTextEncode": {
-    "display_name": "XB-BOX - 🔗 Wan 文本编码",
-    "inputs": {
-      "t5_model": {
-        "name": "T5模型"
-      },
-      "positive_prompt": {
-        "name": "正面提示词"
-      },
-      "negative_prompt": {
-        "name": "负面提示词"
-      },
-      "use_disk_cache": {
-        "name": "磁盘缓存"
-      },
-      "device": {
-        "name": "设备"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "文本嵌入"
-      }
-    }
-  },
-  "XB_WanVAELoader": {
-    "display_name": "XB-BOX - 🔗 Wan VAE 加载",
-    "inputs": {
-      "model_name": {
-        "name": "模型名称"
-      },
-      "precision": {
-        "name": "精度"
-      },
-      "compile_args": {
-        "name": "编译参数"
-      },
-      "use_cpu_cache": {
-        "name": "CPU缓存"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "WanVAE"
-      }
-    }
-  },
-  "XB_WanDecode": {
-    "display_name": "XB-BOX - � Wan VAE 解码",
-    "inputs": {
-      "vae": {
-        "name": "VAE模型"
-      },
-      "samples": {
-        "name": "潜变量"
-      },
-      "enable_vae_tiling": {
-        "name": "VAE分块"
-      },
-      "tile_x": {
-        "name": "分块宽度"
-      },
-      "tile_y": {
-        "name": "分块高度"
-      },
-      "tile_stride_x": {
-        "name": "水平步长"
-      },
-      "tile_stride_y": {
-        "name": "垂直步长"
-      },
-      "cleanup": {
-        "name": "解码后清理"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "图像"
       }
     }
   },
@@ -3830,7 +3557,7 @@
     }
   },
   "XB_VAEDecodeTiledImage": {
-    "display_name": "XB-BOX - VAE解码（原版优化）",
+    "display_name": "XB-BOX - VAE分块解码·图片（原版优化）",
     "inputs": {
       "samples": {
         "name": "潜空间"
@@ -4100,160 +3827,6 @@
       },
       "2": {
         "name": "🔊 累加音频流"
-      }
-    }
-  },
-  "XB_UNetLoaderINTROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 UNet 加载器 (ROCm)",
-    "inputs": {
-      "unet_name": {
-        "name": "UNet模型"
-      },
-      "weight_dtype": {
-        "name": "计算精度"
-      },
-      "model_type": {
-        "name": "模型类型"
-      },
-      "on_the_fly_quantization": {
-        "name": "即时量化"
-      },
-      "enable_convrot": {
-        "name": "ConvRot量化增强"
-      },
-      "lora_mode": {
-        "name": "LoRA模式"
-      },
-      "pre_lora": {
-        "name": "预加载LoRA"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "模型"
-      }
-    }
-  },
-  "XB_INT8GroupedLoraROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 组合 LoRA (ROCm)",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "模型"
-      }
-    }
-  },
-  "XB_INT8LoraROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 单LoRA (ROCm)",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "lora": {
-        "name": "LoRA文件"
-      },
-      "strength": {
-        "name": "强度"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "模型"
-      }
-    }
-  },
-  "XB_INT8ModelSaveROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 模型保存 (ROCm)",
-    "inputs": {
-      "model": {
-        "name": "模型"
-      },
-      "filename_prefix": {
-        "name": "文件名前缀"
-      }
-    }
-  },
-  "XB_INT8PreLoraLoaderROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 预加载 LoRA (ROCm)",
-    "inputs": {
-      "lora_name_1": {
-        "name": "LoRA文件"
-      },
-      "lora_strength_1": {
-        "name": "LoRA强度"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "预加载LoRA"
-      }
-    }
-  },
-  "XB_CLIPLoaderINT8ROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 CLIP 加载器 (ROCm)",
-    "inputs": {
-      "clip_name": {
-        "name": "CLIP模型"
-      },
-      "type": {
-        "name": "模型类型"
-      },
-      "weight_dtype": {
-        "name": "计算精度"
-      },
-      "on_the_fly_quantization": {
-        "name": "即时量化"
-      },
-      "enable_convrot": {
-        "name": "ConvRot量化增强"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "CLIP模型"
-      }
-    }
-  },
-  "XB_DualCLIPLoaderINT8ROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 双CLIP加载器 (ROCm)",
-    "inputs": {
-      "clip_name1": {
-        "name": "CLIP模型1"
-      },
-      "clip_name2": {
-        "name": "CLIP模型2"
-      },
-      "type": {
-        "name": "模型类型"
-      },
-      "weight_dtype": {
-        "name": "计算精度"
-      },
-      "on_the_fly_quantization": {
-        "name": "即时量化"
-      },
-      "enable_convrot": {
-        "name": "ConvRot量化增强"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "CLIP模型"
-      }
-    }
-  },
-  "XB_INT8CLIPSaveROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 CLIP 保存 (ROCm)",
-    "inputs": {
-      "clip": {
-        "name": "CLIP模型"
-      },
-      "filename_prefix": {
-        "name": "文件名前缀"
       }
     }
   },
@@ -4577,8 +4150,8 @@
       }
     }
   },
-  "XB_LlamaModelLoaderPro": {
-    "display_name": "XB-llama - 🚀 模型加载器Pro",
+  "XB_llamaModelLoaderPro": {
+    "display_name": "XB-llama - 🚀 模型加载Pro",
     "inputs": {
       "model": {
         "name": "LLM模型"
@@ -4642,6 +4215,12 @@
       },
       "state_uid": {
         "name": "状态UID"
+      },
+      "backend": {
+        "name": "推理后端"
+      },
+      "gpu_device": {
+        "name": "GPU设备"
       }
     },
     "outputs": {
@@ -4783,106 +4362,6 @@
     "outputs": {
       "0": {
         "name": "🔗 任意输出"
-      }
-    }
-  },
-  "XB_llamaParseJSON": {
-    "display_name": "XB-llama - 📋 解析JSON",
-    "inputs": {
-      "input": {
-        "name": "JSON字符串"
-      },
-      "key": {
-        "name": "键名(点号分隔)"
-      },
-      "default": {
-        "name": "默认值"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "🔹 任意类型"
-      },
-      "1": {
-        "name": "📝 字符串"
-      },
-      "2": {
-        "name": "🔢 整数"
-      },
-      "3": {
-        "name": "📊 浮点数"
-      },
-      "4": {
-        "name": "✅ 布尔值"
-      }
-    }
-  },
-  "XB_llamaJSON2BBox": {
-    "display_name": "XB-llama - 🎯 JSON转BBox",
-    "inputs": {
-      "json": {
-        "name": "JSON字符串"
-      },
-      "mode": {
-        "name": "坐标模式"
-      },
-      "label": {
-        "name": "标签过滤"
-      },
-      "image": {
-        "name": "图像(可选)"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "📦 BBox列表"
-      },
-      "1": {
-        "name": "🖼️ 图像列表"
-      }
-    }
-  },
-  "XB_llamaBBox2SEGS": {
-    "display_name": "XB-llama - ✂️ BBox转SEGS",
-    "inputs": {
-      "bboxes": {
-        "name": "BBox列表"
-      },
-      "image": {
-        "name": "图像"
-      },
-      "dilation": {
-        "name": "扩展像素"
-      },
-      "feather": {
-        "name": "羽化"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "✂️ SEGS"
-      }
-    }
-  },
-  "XB_llamaBBox2Mask": {
-    "display_name": "XB-llama - 🎭 BBox转Mask",
-    "inputs": {
-      "bboxes": {
-        "name": "BBox列表"
-      },
-      "image": {
-        "name": "图像"
-      },
-      "dilation": {
-        "name": "扩展像素"
-      },
-      "feather": {
-        "name": "羽化"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "🎭 遮罩"
       }
     }
   },
@@ -5256,192 +4735,6 @@
       },
       "3": {
         "name": "📁 输出文件路径"
-      }
-    }
-  },
-  "XB_ModelLoaderV1": {
-    "display_name": "XB-BOX - 📦 模型加载大全V1",
-    "inputs": {
-      "model_type": {
-        "name": "模型类型"
-      },
-      "model": {
-        "name": "模型"
-      },
-      "clip": {
-        "name": "CLIP"
-      },
-      "clip_type": {
-        "name": "CLIP类型"
-      },
-      "clip_device": {
-        "name": "CLIP设备"
-      },
-      "lora_1": {
-        "name": "LoRA 1"
-      },
-      "lora_1_on": {
-        "name": "LoRA 1 开关"
-      },
-      "lora_1_strength": {
-        "name": "LoRA 1 强度"
-      },
-      "vae": {
-        "name": "VAE"
-      },
-      "sage_preset": {
-        "name": "生成加速模式"
-      },
-      "blocks_to_swap": {
-        "name": "模型分块数量"
-      },
-      "model_weight_dtype": {
-        "name": "模型数据类型"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "MODEL"
-      },
-      "1": {
-        "name": "CLIP"
-      },
-      "2": {
-        "name": "VAE"
-      }
-    }
-  },
-  "XB_ModelLoaderV2": {
-    "display_name": "XB-BOX - 📦 模型加载大全V2 (高噪+低噪)",
-    "inputs": {
-      "model_type": {
-        "name": "模型类型"
-      },
-      "model_high": {
-        "name": "高噪模型"
-      },
-      "lora_high_1": {
-        "name": "高噪LoRA 1"
-      },
-      "lora_high_1_on": {
-        "name": "高噪LoRA 1 开关"
-      },
-      "lora_high_1_strength": {
-        "name": "高噪LoRA 1 强度"
-      },
-      "sage_high": {
-        "name": "高噪加速模式"
-      },
-      "blockswap_high": {
-        "name": "高噪分块数量"
-      },
-      "model_low": {
-        "name": "低噪模型"
-      },
-      "lora_low_1": {
-        "name": "低噪LoRA 1"
-      },
-      "lora_low_1_on": {
-        "name": "低噪LoRA 1 开关"
-      },
-      "lora_low_1_strength": {
-        "name": "低噪LoRA 1 强度"
-      },
-      "sage_low": {
-        "name": "低噪加速模式"
-      },
-      "blockswap_low": {
-        "name": "低噪分块数量"
-      },
-      "clip": {
-        "name": "CLIP"
-      },
-      "clip_type": {
-        "name": "CLIP类型"
-      },
-      "clip_device": {
-        "name": "CLIP设备"
-      },
-      "vae": {
-        "name": "VAE"
-      },
-      "model_high_weight_dtype": {
-        "name": "高噪模型数据类型"
-      },
-      "model_low_weight_dtype": {
-        "name": "低噪模型数据类型"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "高噪模型"
-      },
-      "1": {
-        "name": "低噪模型"
-      },
-      "2": {
-        "name": "CLIP"
-      },
-      "3": {
-        "name": "VAE"
-      }
-    }
-  },
-  "XB_ModelLoaderV3": {
-    "display_name": "XB-BOX - 📦 模型加载大全V3 (双CLIP+双VAE)",
-    "inputs": {
-      "model_type": {
-        "name": "模型类型"
-      },
-      "model": {
-        "name": "模型"
-      },
-      "clip1": {
-        "name": "CLIP1"
-      },
-      "clip2": {
-        "name": "CLIP2"
-      },
-      "lora_1": {
-        "name": "LoRA 1"
-      },
-      "lora_1_on": {
-        "name": "LoRA 1 开关"
-      },
-      "lora_1_strength": {
-        "name": "LoRA 1 强度"
-      },
-      "vae1": {
-        "name": "VAE1"
-      },
-      "vae2": {
-        "name": "VAE2"
-      },
-      "sage_preset": {
-        "name": "生成加速模式"
-      },
-      "blocks_to_swap": {
-        "name": "模型分块数量"
-      },
-      "model_weight_dtype": {
-        "name": "模型数据类型"
-      },
-      "clip_type": {
-        "name": "双CLIP类型"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "MODEL"
-      },
-      "1": {
-        "name": "CLIP"
-      },
-      "2": {
-        "name": "VAE1"
-      },
-      "3": {
-        "name": "VAE2"
       }
     }
   },
@@ -5918,98 +5211,234 @@
     "display_name": "XB-BOX - 🖼️ 生图提示词预设Pro",
     "description": "生图提示词预设 + 提示词增强反推 融合：空latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 空latent / 提示词列表 / 提示词设定。",
     "inputs": {
-      "latent_kind": { "name": "空latent类型" },
-      "output_lang": { "name": "输出语言" },
-      "preset_mode": { "name": "预设模式" },
-      "three_view_text": { "name": "预设句（三/四/五视图·透明背景）" },
-      "skill_name": { "name": "SKILL 选择" },
-      "skill_mode": { "name": "SKILL 模式" },
-      "io_mode": { "name": "模版" },
-      "aspect_ratio": { "name": "画幅比例" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "batch_size": { "name": "生成数量" },
-      "use_llm": { "name": "✅ 启用 LLM 反推" },
-      "backend": { "name": "LLM 后端" },
-      "preset": { "name": "增强预设" },
-      "task_preset": { "name": "反推预设" },
-      "text": { "name": "📝 提示词" },
-      "images": { "name": "🖼️ 图像" }
+      "latent_kind": {
+        "name": "空latent类型"
+      },
+      "output_lang": {
+        "name": "输出语言"
+      },
+      "preset_mode": {
+        "name": "预设模式"
+      },
+      "three_view_text": {
+        "name": "预设句（三/四/五视图·透明背景）"
+      },
+      "skill_name": {
+        "name": "SKILL 选择"
+      },
+      "skill_mode": {
+        "name": "SKILL 模式"
+      },
+      "io_mode": {
+        "name": "模版"
+      },
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "use_llm": {
+        "name": "✅ 启用 LLM 反推"
+      },
+      "backend": {
+        "name": "LLM 后端"
+      },
+      "preset": {
+        "name": "增强预设"
+      },
+      "task_preset": {
+        "name": "反推预设"
+      },
+      "text": {
+        "name": "📝 提示词"
+      },
+      "images": {
+        "name": "🖼️ 图像"
+      }
     },
     "outputs": {
-      "0": { "name": "📝 提示词" },
-      "1": { "name": "📊 空latent" },
-      "2": { "name": "📋 提示词列表" },
-      "3": { "name": "🧩 提示词设定" }
+      "0": {
+        "name": "📝 提示词"
+      },
+      "1": {
+        "name": "📊 空latent"
+      },
+      "2": {
+        "name": "📋 提示词列表"
+      },
+      "3": {
+        "name": "🧩 提示词设定"
+      }
     }
   },
   "XB_QwenPromptPreset": {
     "display_name": "XB-BOX - 🖼️ Qwen2.1提示词预设",
     "description": "生图提示词预设 + 官方 Load CLIP + 官方 Generate Text：空latent类型 / 画幅参数 + 8 大类元素面板拼装提示词，再用文本编码器把正文生成成完整提示词。输出：提示词 / 空latent。",
     "inputs": {
-      "latent_kind": { "name": "空latent类型" },
-      "output_lang": { "name": "输出语言" },
-      "preset_mode": { "name": "预设模式" },
-      "three_view_text": { "name": "设定词（三/四/五视图·透明背景）" },
-      "skill_name": { "name": "SKILL 选择" },
-      "skill_mode": { "name": "SKILL 模式" },
-      "io_mode": { "name": "模版" },
-      "aspect_ratio": { "name": "画幅比例" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "batch_size": { "name": "生成数量" },
-      "clip_name": { "name": "模型·Load CLIP" },
-      "clip_type": { "name": "类型" },
-      "device": { "name": "设备" },
-      "max_length": { "name": "最大长度" },
-      "sampling_mode": { "name": "采样模式" },
-      "temperature": { "name": "温度" },
-      "top_k": { "name": "top_k" },
-      "top_p": { "name": "top_p" },
-      "min_p": { "name": "min_p" },
-      "repetition_penalty": { "name": "重复惩罚" },
-      "presence_penalty": { "name": "存在惩罚" },
-      "seed": { "name": "种子" },
-      "thinking": { "name": "思考模式" },
-      "use_default_template": { "name": "使用内置模板" },
-      "mtp": { "name": "mtp" },
-      "text": { "name": "📝 提示词" },
-      "images": { "name": "🖼️ 图像" }
+      "latent_kind": {
+        "name": "空latent类型"
+      },
+      "output_lang": {
+        "name": "输出语言"
+      },
+      "preset_mode": {
+        "name": "预设模式"
+      },
+      "three_view_text": {
+        "name": "设定词（三/四/五视图·透明背景）"
+      },
+      "skill_name": {
+        "name": "SKILL 选择"
+      },
+      "skill_mode": {
+        "name": "SKILL 模式"
+      },
+      "io_mode": {
+        "name": "模版"
+      },
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "clip_name": {
+        "name": "模型·Load CLIP"
+      },
+      "clip_type": {
+        "name": "类型"
+      },
+      "device": {
+        "name": "设备"
+      },
+      "max_length": {
+        "name": "最大长度"
+      },
+      "sampling_mode": {
+        "name": "采样模式"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "top_k"
+      },
+      "top_p": {
+        "name": "top_p"
+      },
+      "min_p": {
+        "name": "min_p"
+      },
+      "repetition_penalty": {
+        "name": "重复惩罚"
+      },
+      "presence_penalty": {
+        "name": "存在惩罚"
+      },
+      "seed": {
+        "name": "种子"
+      },
+      "thinking": {
+        "name": "思考模式"
+      },
+      "use_default_template": {
+        "name": "使用内置模板"
+      },
+      "mtp": {
+        "name": "mtp"
+      },
+      "text": {
+        "name": "📝 提示词"
+      },
+      "images": {
+        "name": "🖼️ 图像"
+      }
     },
     "outputs": {
-      "0": { "name": "📝 提示词" },
-      "1": { "name": "📊 空latent" }
+      "0": {
+        "name": "📝 提示词"
+      },
+      "1": {
+        "name": "📊 空latent"
+      }
     }
   },
   "XB_ImagePromptPreset": {
     "display_name": "XB-BOX - 🖼️ 生图提示词预设",
     "inputs": {
-      "output_lang": { "name": "输出语言" },
-      "preset_mode": { "name": "预设模式" },
-      "latent_kind": { "name": "空latent类型" },
-      "three_view_text": { "name": "预设句（三/四/五视图·透明背景）" },
-      "aspect_ratio": { "name": "画幅比例" },
-      "width": { "name": "宽度" },
-      "height": { "name": "高度" },
-      "batch_size": { "name": "生成数量" },
-      "internal_prompt": { "name": "节点内提示词" },
-      "manager_settings": { "name": "节点配置" }
+      "output_lang": {
+        "name": "输出语言"
+      },
+      "preset_mode": {
+        "name": "预设模式"
+      },
+      "latent_kind": {
+        "name": "空latent类型"
+      },
+      "three_view_text": {
+        "name": "预设句（三/四/五视图·透明背景）"
+      },
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "internal_prompt": {
+        "name": "节点内提示词"
+      },
+      "manager_settings": {
+        "name": "节点配置"
+      }
     },
     "outputs": {
-      "0": { "name": "提示词" },
-      "1": { "name": "空latent" }
+      "0": {
+        "name": "提示词"
+      },
+      "1": {
+        "name": "空latent"
+      }
     }
   },
   "XB_PlaySound": {
     "display_name": "XB-BOX - 🔊 播放声音",
     "inputs": {
-      "any": { "name": "任意输入" },
-      "mode": { "name": "播放模式" },
-      "volume": { "name": "音量" },
-      "file": { "name": "声音文件" }
+      "any": {
+        "name": "任意输入"
+      },
+      "mode": {
+        "name": "播放模式"
+      },
+      "volume": {
+        "name": "音量"
+      },
+      "file": {
+        "name": "声音文件"
+      }
     },
     "outputs": {
-      "0": { "name": "任意输出" }
+      "0": {
+        "name": "任意输出"
+      }
     }
   }
 }

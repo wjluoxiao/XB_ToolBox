@@ -4,7 +4,8 @@
  * · 无输入端，只有一个 Image 输出；两个模式：创作 / 编辑
  * · 画幅比例 + 宽高：32 步长对齐 + 比例联动（与「XB-BOX - 🖼️ 图片参数大全mini」同一套算法）
  * · 节点布局（自上而下）：模式 / 画幅比例 / 宽度 / 高度 / 画布底色 或 图片+上传
- *   → 操作按钮 → 显示窗。显示窗**两个模式都有**，且高度吸附节点：
+ *   → 「🎨 创作画布」/「🗑️ 删除画布」（删除仅在创作模式出现）→ 显示窗。
+ *   显示窗**两个模式都有**，且高度吸附节点：
  *       创作模式 —— 没有画板存档时显示「设定分辨率 + 画布底色」的纯色画布（默认纯白）；
  *       编辑模式 —— 显示画板存档，没画过则显示源图；
  *       画过之后两个模式都显示画板存档。
@@ -13,6 +14,9 @@
  *   保证「显示窗」全节点只有一个。
  * · 画板（参考官方 Load Image 节点「右击 → 在遮罩编辑器中打开」的交互）：画笔粗细 /
  *   颜色 / 橡皮 / 水平·垂直翻转 / 左·右旋转 / 上一步 / 下一步 / 清空。
+ * · 「🗑️ 删除画布」（仅创作模式）：铲掉创作画板的存档 → 显示窗立刻回到「按当前分辨率现铺的
+ *   空白画布」。画过之后画板尺寸会锁在画板自身、改分辨率不生效，删掉即可按新分辨率重新开。
+ *   两步确认（首点"上膛"、3 秒内再点才真删）；画板文件名固定，下次作画直接覆盖，不堆垃圾文件。
  * · 画板**以图片文件形式存**（和官方遮罩编辑器同一套做法，POST /upload/image 到 input/xb_shenbi/），
  *   节点里只存文件名。⚠️ 绝不能把 PNG base64 塞进部件值：一幅 1024² 的图就有 1.7MB，
  *   工作流 JSON 会从 1.6KB 涨到 3.4MB，超过浏览器草稿存储配额后**整个工作流都存不下来**
@@ -48,7 +52,7 @@ const BLACK = "#000000";
 const PANEL_MIN = 120;     // 显示窗最小高度（节点被拖到最小时的下限）
 const PANEL_EXTRA = 180;   // 新建节点时额外给显示窗的高度
 const TICK_MS = 500;
-const BLANK_MAX_PX = 512;  // 纯色画布预览图的边长上限（只用来示意比例，不需要全分辨率）
+const MAX_BOARD_PX = 4096; // 创作模式「空白画布」的工作画布长边上限（见 openBrushEditor 里的说明）
 
 const BRUSH_MIN = 1;
 const BRUSH_MAX = 300;
@@ -106,21 +110,26 @@ function viewUrl(name) {
     return api.apiURL("/view?" + params.toString());
 }
 
-/** 纯色画布预览图（按设定分辨率等比缩到 ≤512，只用于示意比例与底色） */
-const blankCache = new Map();
-function blankCanvasUrl(width, height, color) {
-    const key = `${width}x${height}|${color}`;
-    if (blankCache.has(key)) return blankCache.get(key);
-    const scale = Math.min(1, BLANK_MAX_PX / Math.max(width, height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = color === BG_BLACK ? BLACK : WHITE;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const url = canvas.toDataURL("image/png");
-    blankCache.set(key, url);
-    return url;
+/**
+ * 画布 2D 是否真的可用。
+ * ⚠️ 实测（Chrome）：画布分配 / 渲染失效时**不会报错** —— getContext 照样返回对象，
+ *    但 fillRect 之后 getImageData 读回来全是透明（例：20000×20000 已超浏览器画布面积上限）。
+ *    部分机器（显卡驱动异常 / 显存被占满 / 浏览器关掉了硬件加速）在更小的尺寸上也会这样，
+ *    表现就是用户说的「空白画布加载不出来」。这里主动画一笔再读回来验一次。
+ */
+function canvasWorks(canvas) {
+    try {
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return false;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "#123456";
+        ctx.fillRect(0, 0, 2, 2);
+        const d = ctx.getImageData(0, 0, 1, 1).data;
+        return d[0] === 0x12 && d[1] === 0x34 && d[2] === 0x56 && d[3] === 255;
+    } catch (_) {
+        return false;
+    }
 }
 
 function loadBitmap(url) {
@@ -278,6 +287,21 @@ async function openBrushEditor(cfg) {
     }
     if (!width || !height) { width = cfg.width || 1024; height = cfg.height || 1024; }
 
+    // 工作画布尺寸上限：创作模式的**空白**画布不需要按设定分辨率全尺寸作画 ——
+    // 后端会把笔迹强制对齐（cover）到设定分辨率，所以在这里缩小、保存后由后端放大回去，
+    // 构图与输出尺寸都不变，却能避免为超大目标（8192/16384）分配几块几百 MB 的画布。
+    // ⚠️ 编辑模式（真实图片）与"续画已有创作画板"不缩放，避免损失原图细节。
+    let boardScaled = false;
+    if (cfg.mode === MODE_CREATE && !bitmap) {
+        const long = Math.max(width, height);
+        if (long > MAX_BOARD_PX) {
+            const k = MAX_BOARD_PX / long;
+            width = Math.max(1, Math.round(width * k));
+            height = Math.max(1, Math.round(height * k));
+            boardScaled = true;
+        }
+    }
+
     return new Promise((resolve) => {
         /* ── DOM ─────────────────────────────────────────────────── */
         const mask = document.createElement("div");
@@ -289,7 +313,9 @@ async function openBrushEditor(cfg) {
         title.className = "xb-sb-title";
         title.textContent = cfg.mode === MODE_CREATE ? "🎨 创作画布" : "🖌️ 编辑图片";
         const meta = document.createElement("em");
-        meta.textContent = `${width} × ${height}`;
+        meta.textContent = boardScaled
+            ? `${width} × ${height}（输出 ${cfg.targetW} × ${cfg.targetH}）`
+            : `${width} × ${height}`;
         title.appendChild(meta);
         top.appendChild(title);
         top.appendChild(Object.assign(document.createElement("div"), { className: "xb-sb-sp" }));
@@ -374,16 +400,49 @@ async function openBrushEditor(cfg) {
         document.body.appendChild(mask);
 
         /* ── 画布状态 ────────────────────────────────────────────── */
+        // ⚠️ 先自检：画布渲染失效时（显存吃紧 / 驱动异常 / 关掉硬件加速）不会抛错，
+        //    只会静默画出透明像素 —— 用户看到的就是"画板打开了但一片空白"。
+        //    这里给出明确提示，而不是让人对着一块空板子发呆。
+        if (!canvasWorks(canvas)) {
+            canvas.remove();
+            const tip = document.createElement("div");
+            tip.style.cssText = "max-width:600px;line-height:1.9;font-size:15px;color:#ffd9d9;" +
+                "background:#3a1f1f;border:1px solid #7d3b3b;border-radius:10px;padding:20px 24px;";
+            tip.innerHTML = "<b>当前浏览器的画布（canvas）无法正常渲染</b><br>" +
+                "画板需要 canvas 才能作画，所以现在打不开也不会显示空白画布。<br><br>常见原因与处理：<br>" +
+                "· 显卡显存被占满（ComfyUI 正在跑图 / 模型驻留）→ 释放显存后重试<br>" +
+                "· 浏览器硬件加速异常 → 设置里开关一次「使用硬件加速」，或更新显卡驱动<br>" +
+                "· 换了新版本浏览器后系统未重启 → 重启电脑<br>" +
+                "· 目标分辨率过大 → 把「宽度 / 高度」调小后重试";
+            stage.appendChild(tip);
+            try { save.disabled = true; } catch (_) { /* ignore */ }
+            notify("当前浏览器的画布（canvas）不可用，画板无法作画", "error");
+            // ⚠️ 必须在这里就把出口接上：下面的大段初始化会被跳过，
+            //    否则取消 / Esc 都没有响应，用户会被卡在一个关不掉的弹窗上。
+            const closeBroken = () => {
+                window.removeEventListener("keydown", onKeyBroken, true);
+                mask.remove();
+                resolve(null);
+            };
+            const onKeyBroken = (event) => {
+                if (event.key === "Escape") { event.preventDefault(); closeBroken(); }
+            };
+            cancel.addEventListener("click", closeBroken);
+            window.addEventListener("keydown", onKeyBroken, true);
+            return;
+        }
         let ctx = canvas.getContext("2d", { willReadFrequently: true });
+        // 底图是纯色（创作模式的空白画布）时不需要底色层 / 暂存层：
+        // 橡皮沿笔画描上底色即可，效果完全等价，却少分配 2 块全尺寸画布
+        // （画布内存降到 1/3，明显更不容易分配失败）。
+        const solidBase = !bitmap;
         /** 底色层：橡皮擦除时用来还原原始像素 */
-        const baseCanvas = document.createElement("canvas");
-        baseCanvas.width = width;
-        baseCanvas.height = height;
-        let bctx = baseCanvas.getContext("2d", { willReadFrequently: true });
-        const scratch = document.createElement("canvas");
-        scratch.width = width;
-        scratch.height = height;
-        let sctx = scratch.getContext("2d", { willReadFrequently: true });
+        const baseCanvas = solidBase ? null : document.createElement("canvas");
+        const scratch = solidBase ? null : document.createElement("canvas");
+        if (baseCanvas) { baseCanvas.width = width; baseCanvas.height = height; }
+        if (scratch) { scratch.width = width; scratch.height = height; }
+        let bctx = baseCanvas ? baseCanvas.getContext("2d", { willReadFrequently: true }) : null;
+        let sctx = scratch ? scratch.getContext("2d", { willReadFrequently: true }) : null;
 
         let brushSize = BRUSH_DEFAULT;
         let brushColor = BLACK;
@@ -400,10 +459,12 @@ async function openBrushEditor(cfg) {
         const initContent = () => {
             if (bitmap) drawCover(ctx, bitmap, canvas.width, canvas.height);
             else fill();
-            bctx.setTransform(1, 0, 0, 1, 0, 0);
-            bctx.globalCompositeOperation = "source-over";
-            bctx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
-            bctx.drawImage(canvas, 0, 0);
+            if (bctx) {
+                bctx.setTransform(1, 0, 0, 1, 0, 0);
+                bctx.globalCompositeOperation = "source-over";
+                bctx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+                bctx.drawImage(canvas, 0, 0);
+            }
         };
         initContent();
 
@@ -413,7 +474,7 @@ async function openBrushEditor(cfg) {
         let hBytes = 0;
         let restoring = false;
 
-        const entryBytes = (item) => item.w * item.h * 4 * 2;
+        const entryBytes = (item) => item.w * item.h * 4 * (item.base ? 2 : 1);
 
         function pushHistory() {
             if (restoring) return;
@@ -422,7 +483,7 @@ async function openBrushEditor(cfg) {
                 w: canvas.width,
                 h: canvas.height,
                 main: cloneCanvas(canvas),
-                base: cloneCanvas(baseCanvas),
+                base: baseCanvas ? cloneCanvas(baseCanvas) : null,
             };
             history.push(item);
             hBytes += entryBytes(item);
@@ -443,10 +504,12 @@ async function openBrushEditor(cfg) {
             ctx.globalCompositeOperation = "source-over";
             ctx.clearRect(0, 0, item.w, item.h);
             ctx.drawImage(item.main, 0, 0);
-            bctx.setTransform(1, 0, 0, 1, 0, 0);
-            bctx.globalCompositeOperation = "source-over";
-            bctx.clearRect(0, 0, item.w, item.h);
-            bctx.drawImage(item.base, 0, 0);
+            if (bctx && item.base) {
+                bctx.setTransform(1, 0, 0, 1, 0, 0);
+                bctx.globalCompositeOperation = "source-over";
+                bctx.clearRect(0, 0, item.w, item.h);
+                bctx.drawImage(item.base, 0, 0);
+            }
             hIndex = index;
             restoring = false;
             updateButtons();
@@ -455,14 +518,14 @@ async function openBrushEditor(cfg) {
         function resizeSurface(w, h) {
             canvas.width = w;
             canvas.height = h;
-            baseCanvas.width = w;
-            baseCanvas.height = h;
-            scratch.width = w;
-            scratch.height = h;
+            if (baseCanvas) { baseCanvas.width = w; baseCanvas.height = h; }
+            if (scratch) { scratch.width = w; scratch.height = h; }
             ctx = canvas.getContext("2d", { willReadFrequently: true });
-            bctx = baseCanvas.getContext("2d", { willReadFrequently: true });
-            sctx = scratch.getContext("2d", { willReadFrequently: true });
-            meta.textContent = `${w} × ${h}`;
+            if (baseCanvas) bctx = baseCanvas.getContext("2d", { willReadFrequently: true });
+            if (scratch) sctx = scratch.getContext("2d", { willReadFrequently: true });
+            meta.textContent = boardScaled
+                ? `${w} × ${h}（输出 ${cfg.targetW} × ${cfg.targetH}）`
+                : `${w} × ${h}`;
         }
 
         function updateButtons() {
@@ -496,6 +559,17 @@ async function openBrushEditor(cfg) {
 
         /** 橡皮：把底色层里对应位置的原始像素贴回画布（保留 alpha 边缘的柔和过渡） */
         function eraseSegment(x0, y0, x1, y1) {
+            if (!sctx || !bctx) {
+                // 纯色底图（创作模式空白画布）：沿笔画描上底色 = 擦除，无需底色层
+                ctx.globalCompositeOperation = "source-over";
+                strokeStyleOf(ctx);
+                ctx.strokeStyle = cfg.fillColor || WHITE;
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+                return;
+            }
             sctx.setTransform(1, 0, 0, 1, 0, 0);
             sctx.globalCompositeOperation = "source-over";
             sctx.clearRect(0, 0, scratch.width, scratch.height);
@@ -565,7 +639,7 @@ async function openBrushEditor(cfg) {
             const w = canvas.width;
             const h = canvas.height;
             const mainCopy = cloneCanvas(canvas);
-            const baseCopy = cloneCanvas(baseCanvas);
+            const baseCopy = baseCanvas ? cloneCanvas(baseCanvas) : null;
             const nextW = (mode === "rotl" || mode === "rotr") ? h : w;
             const nextH = (mode === "rotl" || mode === "rotr") ? w : h;
             resizeSurface(nextW, nextH);
@@ -583,7 +657,7 @@ async function openBrushEditor(cfg) {
                 target.restore();
             };
             apply(ctx, mainCopy);
-            apply(bctx, baseCopy);
+            if (bctx && baseCopy) apply(bctx, baseCopy);
         }
 
         /* ── 顶部 / 工具条按钮 ───────────────────────────────────── */
@@ -682,6 +756,7 @@ function setupNode(node) {
     let panelImg = null;
     let panelHint = null;
     let panelCaption = null;
+    let panelBox = null;
 
     /* ── 按钮：打开画板（放在显示窗上面） ─────────────────────── */
     const openBoard = async () => {
@@ -695,6 +770,8 @@ function setupNode(node) {
             mode: create ? MODE_CREATE : MODE_EDIT,
             width: targetW,
             height: targetH,
+            targetW,   // 设定分辨率：编辑器只用来显示"输出尺寸"（空白画布可能被缩放作画）
+            targetH,
             fillColor: color === BG_BLACK ? BLACK : WHITE,
         };
 
@@ -703,13 +780,19 @@ function setupNode(node) {
             cfg.paintedUrl = paintingSrc(painted);
         } else if (!create && source) {
             cfg.imageUrl = viewUrl(source);
-            cfg.targetW = targetW;
-            cfg.targetH = targetH;
         } else if (!create) {
             notify("请先在图片下拉里选择/上传一张本地图片，当前以 " + targetW + "×" + targetH + " 空白画布打开", "warn");
         }
 
-        const result = await openBrushEditor(cfg);
+        // 编辑器内部出错时不要让异常静默吞掉（否则用户只看到"点了没反应 / 空白画板"）
+        let result = null;
+        try {
+            result = await openBrushEditor(cfg);
+        } catch (err) {
+            console.error("[XB-BOX 神笔] 打开画板失败：", err);
+            notify("打开画板失败：" + ((err && err.message) || err), "error");
+            return;
+        }
         if (!result) return;
 
         // 画板以**图片文件**形式存（和官方遮罩编辑器同套路），节点里只留文件名：
@@ -742,6 +825,47 @@ function setupNode(node) {
     const actionWidget = node.addWidget("button", "🎨 创作画布", null, () => openBoard());
     if (actionWidget) { try { actionWidget.serialize = false; } catch (_) { /* ignore */ } }
 
+    /* ── 删除画布（仅创作模式）：铲掉创作画板的存档，换回"按当前分辨率现铺的空白画布" ──
+       用途：画过之后画板尺寸会锁在画板自身，改分辨率不生效；删掉存档就能按新分辨率重新开
+       （画板文件名固定为 xb_shenbi_<节点id>_create.png，下次作画直接覆盖，不会堆垃圾文件）。 */
+    const DELETE_LABEL = "🗑️ 删除画布";
+    const CONFIRM_LABEL = "⚠️ 再点一次确认删除";
+    let deleteArmed = false;
+    let deleteTimer = null;
+
+    const disarmDelete = () => {
+        deleteArmed = false;
+        if (deleteTimer) { clearTimeout(deleteTimer); deleteTimer = null; }
+        if (deleteWidget) { deleteWidget.name = DELETE_LABEL; deleteWidget.label = DELETE_LABEL; }
+        try { refreshWidgets(node); } catch (_) { /* ignore */ }
+    };
+
+    const clearBoard = () => {
+        // 两步确认：第一次点只是"上膛"，3 秒内再点才真删（避免误触丢掉画好的图）
+        if (!deleteArmed) {
+            if (!paintValue(true) && !transientPaint()) {
+                notify("当前没有创作画布可删除", "info");
+                return;
+            }
+            deleteArmed = true;
+            if (deleteWidget) { deleteWidget.name = CONFIRM_LABEL; deleteWidget.label = CONFIRM_LABEL; }
+            try { refreshWidgets(node); } catch (_) { /* ignore */ }
+            deleteTimer = setTimeout(disarmDelete, 3000);
+            return;
+        }
+
+        disarmDelete();
+        if (wCreate) setWidgetValue(wCreate, "");
+        node.__xbSbTransient = "";      // 后端未重启时的临时存档也一并清掉
+        paintStamp = Date.now();
+        refreshPanel();
+        const [w, h] = resolveTarget(node);
+        notify(`创作画布已删除，已按 ${w} × ${h} 重置为空白画布`, "success");
+    };
+
+    const deleteWidget = node.addWidget("button", DELETE_LABEL, null, () => clearBoard());
+    if (deleteWidget) { try { deleteWidget.serialize = false; } catch (_) { /* ignore */ } }
+
     /* ── 显示窗（两个模式都有，只做显示） ─────────────────────── */
     try {
         const box = document.createElement("div");
@@ -758,6 +882,7 @@ function setupNode(node) {
         panelCaption.style.cssText = "position:absolute;left:10px;top:10px;padding:4px 11px;border-radius:999px;" +
             "background:rgba(20,20,25,.78);color:#cfd5df;font-size:12px;line-height:1;pointer-events:none;display:none;";
         box.append(panelImg, panelHint, panelCaption);
+        panelBox = box;
         panel = node.addDOMWidget("xb_sb_preview", "preview", box, { serialize: false, hideOnZoom: false });
     } catch (err) {
         panel = null;
@@ -779,16 +904,31 @@ function setupNode(node) {
         const [targetW, targetH] = resolveTarget(node);
         const color = String(getVal(node, "canvas_color") || BG_WHITE);
 
+        // 创作模式没画过 → 纯色空白画布：直接用 CSS 背景铺色，**完全不经过 canvas**。
+        // ⚠️ 原来这里是 blankCanvasUrl()：建画布 → 填色 → toDataURL → <img>。
+        //    但画布渲染失效时不会报错（画出来是透明的），于是"创作模式加载不出空白画布"；
+        //    而编辑模式走的是 <img src="/api/view?...">，不碰 canvas，所以一直正常。
         let url = "";
+        let solid = null;
         if (painted) url = paintingSrc(painted);
         else if (create) {
             const temp = transientPaint();
-            url = temp ? paintingSrc(temp) : blankCanvasUrl(targetW, targetH, color);
+            if (temp) url = paintingSrc(temp);
+            else solid = color === BG_BLACK ? BLACK : WHITE;
         } else if (source) url = viewUrl(source);
+
+        if (panelBox) {
+            panelBox.style.background = solid || "#141419";
+            panelBox.style.borderColor = solid ? "#55555f" : "#33333d";
+        }
 
         if (url) {
             if (panelImg.getAttribute("src") !== url) panelImg.src = url;
             panelImg.style.display = "block";
+            panelHint.style.display = "none";
+        } else if (solid) {
+            panelImg.removeAttribute("src");
+            panelImg.style.display = "none";
             panelHint.style.display = "none";
         } else {
             panelImg.removeAttribute("src");
@@ -814,6 +954,9 @@ function setupNode(node) {
         const create = isCreateMode();
         setWidgetHidden(node, wColor, !create);
         setWidgetHidden(node, wImage, create);
+        // 「删除画布」只在创作模式出现；离开创作模式时把"上膛"状态一起清掉
+        if (deleteWidget) setWidgetHidden(node, deleteWidget, !create);
+        if (!create) disarmDelete();
         if (actionWidget) {
             actionWidget.name = create ? "🎨 创作画布" : "🖌️ 编辑图片";
             actionWidget.label = actionWidget.name;

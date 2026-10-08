@@ -6,6 +6,8 @@ XB-BOX - 🖌️ 神笔（ShenBi）
 · 两种模式（部件 mode）
     创作 —— 载入白色 / 黑色纯色画布，设好分辨率后点「🎨 创作画布」作画；
              输出**严格对齐**设定的分辨率（宽 × 高）。
+             「🗑️ 删除画布」清掉创作画板存档 → 显示窗回到按当前分辨率现铺的空白画布，
+             以便换分辨率重新开画（画过之后画板尺寸锁在画板自身）。
     编辑 —— 载入本地图片（官方 Load Image 同款下拉 + 上传按钮），点「🖌️ 编辑图片」作画；
              源图大于设定分辨率 → 等比缩小后居中裁切；小于设定分辨率 → 保持原尺寸、不放大。
 · 画幅比例 / 宽度 / 高度：与「XB-BOX - 🖼️ 图片参数大全mini」同一套比例联动，步长对齐 32。
@@ -101,6 +103,18 @@ def _to_comfy(image):
     array = np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
     tensor = torch.from_numpy(array)[None,]
     return tensor.to(device=device, dtype=dtype)
+
+
+def _solid_tensor(width, height, canvas_color):
+    """纯色空画布 → IMAGE 张量：直接生成，不经 PIL / float32 副本。
+
+    ⚠️ 走 PIL 时峰值内存是「PIL 图 ×2 + float32 数组」≈ 5 倍像素量
+       （16384² 时 804MB×2 + 3.2GB ≈ 4.8GB，低内存 / 显存吃紧的机器上会直接被拖垮），
+       而纯色图其实只需要一个定值张量。
+    """
+    dtype, device = _intermediate()
+    value = 1.0 if _CANVAS_RGB.get(canvas_color, (255, 255, 255))[0] > 127 else 0.0
+    return torch.full((1, height, width, 3), value, dtype=dtype, device=device)
 
 
 def _decode_data_url(data):
@@ -210,7 +224,8 @@ class XB_ShenBi:
     RETURN_NAMES = ("Image",)
     FUNCTION = "render"
     CATEGORY = "XB_ToolBox/Image"
-    DESCRIPTION = ("无输入端的画板节点：创作模式输出纯色/手绘画布并严格对齐设定分辨率；"
+    DESCRIPTION = ("无输入端的画板节点：创作模式输出纯色/手绘画布并严格对齐设定分辨率"
+                   "（「删除画布」可清掉创作画板，按新分辨率重新开）；"
                    "编辑模式在本地图片上手绘，图片大于设定分辨率则缩小裁切、小于则原样保留不放大。")
 
     @classmethod
@@ -258,13 +273,12 @@ class XB_ShenBi:
         if painting is not None:
             # 有画板存档：创作模式严格对齐设定分辨率；编辑模式沿用「大了才缩小裁切」规则
             out = _fit_to_target(painting, target_w, target_h, force=create_mode)
-        elif create_mode:
-            out = _blank(target_w, target_h, canvas_color)
-        else:
-            source = self._load_source(image)
-            if source is None:
-                out = _blank(target_w, target_h, canvas_color)
-            else:
-                out = _fit_to_target(source, target_w, target_h)
+            return (_to_comfy(out),)
 
+        if create_mode:
+            # 纯色空画布：直接生成张量（省掉 PIL + float32 副本，超大画布时峰值内存差一个数量级）
+            return (_solid_tensor(target_w, target_h, canvas_color),)
+
+        source = self._load_source(image)
+        out = _blank(target_w, target_h, canvas_color) if source is None else _fit_to_target(source, target_w, target_h)
         return (_to_comfy(out),)

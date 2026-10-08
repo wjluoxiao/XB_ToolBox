@@ -51,12 +51,12 @@
 
 | 节点 | 文件 | 问题 | 建议 |
 | --- | --- | --- | --- |
-| `XB_ModelLoaderV1/V2/V3`、`XB_ModelLoaderV1/V2/V3_GGUF`、`XB_INT8GroupedLoraROCm`、`XB_DigitalHumanParams_Dual`、`XB_AudioSlicerV3`、`XB_ImagePromptPreset`、`XB_llamaStoryboardProcessorPro` | `js/xb_model_loader_v*.js`、`js/xb_int8_lora.js`、`js/xb_digital_human_dual.js`、`js/xb_audio_slicer_v3.js`、`js/xb_image_prompt_preset.js`、`js/xb_storyboard_processor.js` | 用 `w.type="hidden"; w.computeSize=()=>[0,-4]` 隐藏 LoRA 槽位/mutes/内部字段 → 2.0 只认 `hidden`，这些“隐藏”项会以 0 高度 legacy 画布部件残留（行高/错位） | 统一加一层工具函数：`hideWidget(w){w.type="hidden";w.hidden=true;w.options&&(w.options.hidden=true)}` / `showWidget` 还原；`xb_llama_pro.js` 里的 `widget._state.type` 写法可参考 |
+| `XB_ModelLoaderV1/V2/V3_GGUF`、`XB_DigitalHumanParams_Dual`、`XB_AudioSlicerV3`、`XB_ImagePromptPreset`、`XB_llamaStoryboardProcessorPro` | `js/xb_model_loader_v*_gguf.js`、`js/xb_int8_lora.js`、`js/xb_digital_human_dual.js`、`js/xb_audio_slicer_v3.js`、`js/xb_image_prompt_preset.js`、`js/xb_storyboard_processor.js` | 用 `w.type="hidden"; w.computeSize=()=>[0,-4]` 隐藏 LoRA 槽位/mutes/内部字段 → 2.0 只认 `hidden`，这些“隐藏”项会以 0 高度 legacy 画布部件残留（行高/错位） | 统一加一层工具函数：`hideWidget(w){w.type="hidden";w.hidden=true;w.options&&(w.options.hidden=true)}` / `showWidget` 还原；`xb_llama_pro.js` 里的 `widget._state.type` 写法可参考 |
 | `XB_VideoParamsMaster`、`XB_ImageParamsMaster`、`XB_HailuoH3VideoParams`、`XB_llamaMiniMaxPreset`、`XB_llamaMiniMaxRef2va` | `js/xb_video.js`、`js/xb_hailuo_video.js`、`js/xb_minimax_hailuo_link.js` | 轮询 + `w.inputEl || w.element` 直改 DOM：2.0 里数字/下拉是 Vue 组件，`element` 不存在 → 赋值仍靠 `w.value=/callback()` 兜底（可用），但**只读、配色、`step` 等“表面美化”全丢** | 值同步保留；外观改走 `options`（如 `read_only`、`step`、`precision`），不要依赖 `element.style` |
 | `XB_VideoLoader` | `js/xb_video_loader.js` | DOM 预览 widget 把指针事件转发给 `app.canvas._mousedown_callback / processSelect / snapToGrid`；2.0 下节点是 DOM，转发会造成选择/拖拽异常 | 用 `settings.getSettingValue("Comfy.VueNodes.Enabled")` 分支：2.0 下关闭转发 |
-| `XB_NodeStatusSwitch`、`XB_ListDispatcher`、`XB_RoleSceneDispatcher`、`XB_llamaStoryboardProcessor`、`XB_INT8GroupedLoraROCm`、`XB_MSR`、`XB_Comic*`、`XB_NodeSizer` 覆盖的 ~80 个节点 | `js/xb_status_switch.js`、`js/xb_list_dispatcher.js`、`js/xb_role_scene_dispatcher.js`、`js/xb_storyboard_processor.js`、`js/xb_node_sizer.js`、`js/xb_comic.js` | `node.setSize(node.computeSize())` / `node.size[0]=…` / 覆盖 `computeSize`、`onResize` 做“最小宽度/最小高度锁定” → 2.0 下尺寸由 DOM 回写，锁定基本无效（可接受降级） | 最小宽度改用 `node.min_width`（已有做法）+ 容器 CSS `min-width` |
+| `XB_NodeStatusSwitch`、`XB_ListDispatcher`、`XB_RoleSceneDispatcher`、`XB_llamaStoryboardProcessor`、`XB_MSR`、`XB_Comic*`、`XB_NodeSizer` 覆盖的 ~80 个节点 | `js/xb_status_switch.js`、`js/xb_list_dispatcher.js`、`js/xb_role_scene_dispatcher.js`、`js/xb_storyboard_processor.js`、`js/xb_node_sizer.js`、`js/xb_comic.js` | `node.setSize(node.computeSize())` / `node.size[0]=…` / 覆盖 `computeSize`、`onResize` 做“最小宽度/最小高度锁定” → 2.0 下尺寸由 DOM 回写，锁定基本无效（可接受降级） | 最小宽度改用 `node.min_width`（已有做法）+ 容器 CSS `min-width` |
 | `XB_ImagePromptPreset`（尺寸部分） | `js/xb_image_prompt_preset.js` | 已用 `getMinHeight` / `computeLayoutSize`（2.0 友好 👍），但 `cv.onDrawForeground` 逐帧 `widget.width` 补丁、`lockMinWidth` 在 2.0 是死代码 | 保留（无害）；宽度交给 DOM flex 即可 |
-| （死代码）`XB_LlamaModelLoaderPro` | `js/xb_llama_pro.js` | 该节点名在 `/object_info` 中**不存在**（现名 `XB_llamaModelLoader`），扩展从不生效；其 `options.canvasOnly=true` 隐藏法在 2.0 里会让部件**整行消失**（`shouldRenderAsVue` 返回 false） | 要么把 `NODE_TYPE` 改为 `XB_llamaModelLoader` 并验证，要么删除该扩展 |
+| `XB_llamaModelLoaderPro` | `js/xb_llama_model_loader_pro.js` | **已恢复（2026-10-08）**：Pro 节点重新落地到 XB（复刻 JZL 的 `JZL_LlamaModelLoaderPro`），类名 `XB_llamaModelLoaderPro`、显示名 `XB-llama - 🚀 模型加载Pro`。中文条目已由旧键 `XB_LlamaModelLoaderPro` 更名为 `XB_llamaModelLoaderPro`，并在末尾补上 `backend` / `gpu_device`。隐藏法实测在 2.0 下两种状态（折叠/展开）均正常 | 保持同步；`scale` 等已由 DOM 主导，无需额外处理 |
 
 ### 🟢 C 组：基本无需改动
 
@@ -149,7 +149,7 @@ const isNodes2 = () => {
 | `js/xb_video.js`、`js/xb_hailuo_video.js`、`js/xb_minimax_hailuo_link.js` | 本地 `xb_dispatch`/`dispatch` 换成 `setWidgetValue`（原来只改 `element`，2.0 下值不落地）；显示字段加 `options.read_only` |
 | `js/xb_list_dispatcher.js`、`js/xb_role_scene_dispatcher.js`、`js/xb_storyboard_processor.js` | 文本回显框加 `options.read_only`；`w.inputEl.xxx` 一律判空（2.0 的 Vue 部件可能没有 element，否则抛异常整个 `onExecuted` 中断） |
 | `js/xb_video_loader.js` | 2.0 下不再把预览 DOM 的指针事件转发给 `app.canvas._mousedown_callback` 等（会使节点选择/拖拽错乱），并补 `computeLayoutSize()` 预览高度 |
-| `js/xb_llama_pro.js` | **删除**：目标节点 `XB_LlamaModelLoaderPro` 已不存在（现由 JZL 包的 `JZL.LlamaModelLoaderPro` 提供），扩展永远不生效 |
+| `js/xb_llama_model_loader_pro.js` | **新建（2026-10-08）**：配套 `XB_llamaModelLoaderPro`（复刻 JZL 的模型加载 Pro，节点双输出 Llama模型 + 推理参数）。旧版曾删除的 `js/xb_llama_pro.js` 不再恢复 |
 | `.tracking` | 移除已删文件、加入 `js/xb_compat.js` |
 
 ### ⏱️ 追加：`XB_ImagePromptPreset` 两处 2.0 问题（2026-09-22 第二批）
@@ -212,7 +212,7 @@ const isNodes2 = () => {
 
     | 节点 | 实测结果 |
     | --- | --- |
-    | `XB_ModelLoaderV1` | 35 个 widget：21 个被隐藏（`type=hidden` + `hidden=true` + `options.hidden=true`），14 个可见并渲染为 DOM 控件 ✓ |
+    | ~~`XB_ModelLoaderV1`~~ | ⛔ 该节点已于 2026-10-08 按用户要求删除（连同 V2/V3 与对应 `js/xb_model_loader_v1~v3.js`）；仅保留 `XB_ModelLoaderV1/V2/V3_GGUF` |
     | `XB_Wan_RelayNode` | `xb_relay_banner` 提示条已创建且处于隐藏（未连线=未锁定），`end_image_file` 正常可见 ✓ |
     | `XB_CanvasLabel` | DOM 贴纸已挂载（element 在文档中、字号 40px、颜色 #fff）✓ |
     | `XB_AudioSlicerV1` / `XB_DigitalHumanParams_Single` | DOM 面板 widget 正常渲染、节点自动撑高 ✓ |

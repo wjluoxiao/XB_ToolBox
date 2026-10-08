@@ -8,32 +8,29 @@
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 Hardware Monitor (Memory Visualization)"
   },
-  "XB_ROCmMemCleaner": {
-    "display_name": "XB-BOX - 🧹 VRAM Cleaner"
-  },
   "XB_ROCmKSampler": {
-    "display_name": "XB-BOX - Sampler (Optimized)"
+    "display_name": "XB-BOX - Sampler (Optimized) (Legacy)"
   },
   "XB_ROCmKSamplerAdvanced": {
-    "display_name": "XB-BOX - Advanced Sampler (Optimized)"
+    "display_name": "XB-BOX - Advanced Sampler (Optimized) (Legacy)"
   },
   "XB_ROCmSamplerCustom": {
-    "display_name": "XB-BOX - Custom Sampler (Optimized)"
+    "display_name": "XB-BOX - Custom Sampler (Optimized) (Legacy)"
   },
   "XB_ROCmSamplerCustomAdvanced": {
-    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized)"
+    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized) (Legacy)"
   },
   "XB_ROCmVAEDecode": {
-    "display_name": "XB-BOX - VAE Decode (Optimized)"
+    "display_name": "XB-BOX - VAE Decode (Optimized) (Legacy)"
   },
   "XB_ROCmVAEEncode": {
-    "display_name": "XB-BOX - VAE Encode (Optimized)"
+    "display_name": "XB-BOX - VAE Encode (Optimized) (Legacy)"
   },
   "XB_ROCmVAEDecodeTemporal": {
-    "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
+    "display_name": "XB-BOX - VAE Tiled Decode (Optimized) (Legacy)"
   },
   "XB_ROCmLTXVAEDecode": {
-    "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
+    "display_name": "XB-BOX - VAE Tiled Decode LTX (Optimized) (Legacy)"
   },
   "XB_KSampler": {
     "display_name": "XB-BOX - Sampler (Optimized)"
@@ -54,7 +51,7 @@
     "display_name": "XB-BOX - VAE Tiled Decode (Optimized)"
   },
   "XB_VAEDecodeTiledImage": {
-    "display_name": "XB-BOX - VAE Decode (Optimized)"
+    "display_name": "XB-BOX - VAE Tiled Decode (Image) (Optimized)"
   },
   "XB_VAEEncode": {
     "display_name": "XB-BOX - VAE Encode (Optimized)"
@@ -65,29 +62,8 @@
   "XB_VAEEncodeForInpaint": {
     "display_name": "XB-BOX - VAE Encode For Inpaint (Optimized)"
   },
-  "XB_WanT5Loader": {
-    "display_name": "XB-BOX - 📝 Wan T5 Loader (FP8)"
-  },
   "XB_WanCompileSettings": {
     "display_name": "XB-BOX - ⚡ Wan Compile Settings"
-  },
-  "XB_WanModelLoader": {
-    "display_name": "XB-BOX - 🧠 Wan Model Loader"
-  },
-  "XB_WanBlockSwap": {
-    "display_name": "XB-BOX - 🔄 Wan Block Swap"
-  },
-  "XB_WanSampler": {
-    "display_name": "XB-BOX - 🎯 Wan Sampler"
-  },
-  "XB_WanTextEncode": {
-    "display_name": "XB-BOX - ✍️ Wan Text Encode"
-  },
-  "XB_WanVAELoader": {
-    "display_name": "XB-BOX - 🎨 Wan VAE Loader"
-  },
-  "XB_WanDecode": {
-    "display_name": "XB-BOX - 🖼️ Wan VAE Decode"
   },
   "XB_WanAnimateToVideo": {
     "display_name": "XB-BOX - 🎬 Wan Animate To Video"
@@ -182,15 +158,6 @@
   "XB_DigitalHumanParams_Dual": {
     "display_name": "XB-BOX - 🤖 Digital Human Params (Dual)"
   },
-  "XB_ModelLoaderV1": {
-    "display_name": "XB-BOX - 📦 Model Loader V1"
-  },
-  "XB_ModelLoaderV2": {
-    "display_name": "XB-BOX - 📦 Model Loader V2"
-  },
-  "XB_ModelLoaderV3": {
-    "display_name": "XB-BOX - 📦 Model Loader V3"
-  },
   "XB_ModelLoaderV1_GGUF": {
     "display_name": "XB-BOX - 📦 Model Loader V1 (GGUF)"
   },
@@ -233,30 +200,6 @@
   "XB_K2StyleRouter": {
     "display_name": "XB-BOX - 🎨 K2 Style Router (Super)"
   },
-  "XB_UNetLoaderINTROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 UNet Loader (ROCm)"
-  },
-  "XB_INT8LoraROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 Single LoRA (ROCm)"
-  },
-  "XB_INT8GroupedLoraROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 Grouped LoRA (ROCm)"
-  },
-  "XB_INT8ModelSaveROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 Model Save (ROCm)"
-  },
-  "XB_INT8PreLoraLoaderROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 Preload LoRA (ROCm)"
-  },
-  "XB_CLIPLoaderINT8ROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 CLIP Loader (ROCm)"
-  },
-  "XB_DualCLIPLoaderINT8ROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 Dual CLIP Loader (ROCm)"
-  },
-  "XB_INT8CLIPSaveROCm": {
-    "display_name": "XB-BOX - 🧊 INT8 CLIP Save (ROCm)"
-  },
   "XB_CosyVoice3_ModelLoader": {
     "display_name": "XB-BOX - 🔊 CosyVoice3 Model Loader"
   },
@@ -290,6 +233,9 @@
   "XB_llamaModelLoader": {
     "display_name": "XB-llama - 📦 Model Loader"
   },
+  "XB_llamaModelLoaderPro": {
+    "display_name": "XB-llama - 🚀 Model Loader Pro"
+  },
   "XB_llamaInstruct": {
     "display_name": "XB-llama - 💬 Instruct"
   },
@@ -301,18 +247,6 @@
   },
   "XB_llamaCleanStates": {
     "display_name": "XB-llama - 🧹 Clean States"
-  },
-  "XB_llamaParseJSON": {
-    "display_name": "XB-llama - 📋 Parse JSON"
-  },
-  "XB_llamaJSON2BBox": {
-    "display_name": "XB-llama - 🎯 JSON to BBox"
-  },
-  "XB_llamaBBox2SEGS": {
-    "display_name": "XB-llama - ✂️ BBox to SEGS"
-  },
-  "XB_llamaBBox2Mask": {
-    "display_name": "XB-llama - 🎭 BBox to Mask"
   },
   "XB_llamaBBoxes2BBox": {
     "display_name": "XB-llama - 🔍 BBoxes to BBox"
@@ -347,99 +281,235 @@
   "XB_llamaPromptReverse": {
     "display_name": "XB-llama - ✨ Prompt Enhancer Reverse",
     "inputs": {
-      "text": { "name": "Prompt" },
-      "images": { "name": "Image" }
+      "text": {
+        "name": "Prompt"
+      },
+      "images": {
+        "name": "Image"
+      }
     },
     "outputs": {
-      "0": { "name": "Full Prompt" },
-      "1": { "name": "Prompt List" },
-      "2": { "name": "Prompt Setting" }
+      "0": {
+        "name": "Full Prompt"
+      },
+      "1": {
+        "name": "Prompt List"
+      },
+      "2": {
+        "name": "Prompt Setting"
+      }
     }
   },
   "XB_ImagePromptPresetPro": {
     "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro",
     "description": "Image Prompt Preset + Prompt Enhance/Reverse fused: empty latent type + aspect params + 8-category element panel; optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Outputs: prompt / prompt list / prompt settings / empty latent.",
     "inputs": {
-      "latent_kind": { "name": "Empty Latent Type" },
-      "output_lang": { "name": "Output Language" },
-      "preset_mode": { "name": "Preset Mode" },
-      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
-      "skill_name": { "name": "SKILL Select" },
-      "skill_mode": { "name": "SKILL Mode" },
-      "io_mode": { "name": "Mode" },
-      "aspect_ratio": { "name": "Aspect Ratio" },
-      "width": { "name": "Width" },
-      "height": { "name": "Height" },
-      "batch_size": { "name": "Batch Size" },
-      "use_llm": { "name": "✅ Enable LLM Enhance" },
-      "backend": { "name": "LLM Backend" },
-      "preset": { "name": "Enhance Preset" },
-      "task_preset": { "name": "Reverse Preset" },
-      "text": { "name": "📝 Prompt" },
-      "images": { "name": "🖼️ Image" }
+      "latent_kind": {
+        "name": "Empty Latent Type"
+      },
+      "output_lang": {
+        "name": "Output Language"
+      },
+      "preset_mode": {
+        "name": "Preset Mode"
+      },
+      "three_view_text": {
+        "name": "Preset Text (3/4/5-view / transparent)"
+      },
+      "skill_name": {
+        "name": "SKILL Select"
+      },
+      "skill_mode": {
+        "name": "SKILL Mode"
+      },
+      "io_mode": {
+        "name": "Mode"
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      },
+      "width": {
+        "name": "Width"
+      },
+      "height": {
+        "name": "Height"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "use_llm": {
+        "name": "✅ Enable LLM Enhance"
+      },
+      "backend": {
+        "name": "LLM Backend"
+      },
+      "preset": {
+        "name": "Enhance Preset"
+      },
+      "task_preset": {
+        "name": "Reverse Preset"
+      },
+      "text": {
+        "name": "📝 Prompt"
+      },
+      "images": {
+        "name": "🖼️ Image"
+      }
     },
     "outputs": {
-      "0": { "name": "📝 Prompt" },
-      "1": { "name": "📊 Empty Latent" },
-      "2": { "name": "📋 Prompt List" },
-      "3": { "name": "🧩 Prompt Settings" }
+      "0": {
+        "name": "📝 Prompt"
+      },
+      "1": {
+        "name": "📊 Empty Latent"
+      },
+      "2": {
+        "name": "📋 Prompt List"
+      },
+      "3": {
+        "name": "🧩 Prompt Settings"
+      }
     }
   },
   "XB_QwenPromptPreset": {
     "display_name": "XB-BOX - 🖼️ Qwen2.1 Prompt Preset",
     "description": "Image prompt preset + official Load CLIP + official Generate Text: empty latent type / aspect params + 8-category element panel, then the text encoder turns the body into a full prompt. Outputs: prompt / empty latent.",
     "inputs": {
-      "latent_kind": { "name": "Empty Latent Type" },
-      "output_lang": { "name": "Output Language" },
-      "preset_mode": { "name": "Preset Mode" },
-      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
-      "skill_name": { "name": "SKILL Select" },
-      "skill_mode": { "name": "SKILL Mode" },
-      "io_mode": { "name": "Mode" },
-      "aspect_ratio": { "name": "Aspect Ratio" },
-      "width": { "name": "Width" },
-      "height": { "name": "Height" },
-      "batch_size": { "name": "Batch Size" },
-      "clip_name": { "name": "Model (Load CLIP)" },
-      "clip_type": { "name": "Type" },
-      "device": { "name": "Device" },
-      "max_length": { "name": "Max Length" },
-      "sampling_mode": { "name": "Sampling Mode" },
-      "temperature": { "name": "Temperature" },
-      "top_k": { "name": "top_k" },
-      "top_p": { "name": "top_p" },
-      "min_p": { "name": "min_p" },
-      "repetition_penalty": { "name": "Repetition Penalty" },
-      "presence_penalty": { "name": "Presence Penalty" },
-      "seed": { "name": "Seed" },
-      "thinking": { "name": "Thinking" },
-      "use_default_template": { "name": "Use Default Template" },
-      "mtp": { "name": "mtp" },
-      "text": { "name": "📝 Prompt" },
-      "images": { "name": "🖼️ Image" }
+      "latent_kind": {
+        "name": "Empty Latent Type"
+      },
+      "output_lang": {
+        "name": "Output Language"
+      },
+      "preset_mode": {
+        "name": "Preset Mode"
+      },
+      "three_view_text": {
+        "name": "Preset Text (3/4/5-view / transparent)"
+      },
+      "skill_name": {
+        "name": "SKILL Select"
+      },
+      "skill_mode": {
+        "name": "SKILL Mode"
+      },
+      "io_mode": {
+        "name": "Mode"
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      },
+      "width": {
+        "name": "Width"
+      },
+      "height": {
+        "name": "Height"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "clip_name": {
+        "name": "Model (Load CLIP)"
+      },
+      "clip_type": {
+        "name": "Type"
+      },
+      "device": {
+        "name": "Device"
+      },
+      "max_length": {
+        "name": "Max Length"
+      },
+      "sampling_mode": {
+        "name": "Sampling Mode"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "top_k": {
+        "name": "top_k"
+      },
+      "top_p": {
+        "name": "top_p"
+      },
+      "min_p": {
+        "name": "min_p"
+      },
+      "repetition_penalty": {
+        "name": "Repetition Penalty"
+      },
+      "presence_penalty": {
+        "name": "Presence Penalty"
+      },
+      "seed": {
+        "name": "Seed"
+      },
+      "thinking": {
+        "name": "Thinking"
+      },
+      "use_default_template": {
+        "name": "Use Default Template"
+      },
+      "mtp": {
+        "name": "mtp"
+      },
+      "text": {
+        "name": "📝 Prompt"
+      },
+      "images": {
+        "name": "🖼️ Image"
+      }
     },
     "outputs": {
-      "0": { "name": "📝 Prompt" },
-      "1": { "name": "📊 Empty Latent" }
+      "0": {
+        "name": "📝 Prompt"
+      },
+      "1": {
+        "name": "📊 Empty Latent"
+      }
     }
   },
   "XB_ImagePromptPreset": {
     "display_name": "XB-BOX - 🖼️ Image Prompt Preset",
     "inputs": {
-      "output_lang": { "name": "Output Language" },
-      "preset_mode": { "name": "Preset Mode" },
-      "latent_kind": { "name": "Empty Latent Type" },
-      "three_view_text": { "name": "Preset Text (3/4/5-view / transparent)" },
-      "aspect_ratio": { "name": "Aspect Ratio" },
-      "width": { "name": "Width" },
-      "height": { "name": "Height" },
-      "batch_size": { "name": "Batch Size" },
-      "internal_prompt": { "name": "Internal Prompt" },
-      "manager_settings": { "name": "Node Config" }
+      "output_lang": {
+        "name": "Output Language"
+      },
+      "preset_mode": {
+        "name": "Preset Mode"
+      },
+      "latent_kind": {
+        "name": "Empty Latent Type"
+      },
+      "three_view_text": {
+        "name": "Preset Text (3/4/5-view / transparent)"
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      },
+      "width": {
+        "name": "Width"
+      },
+      "height": {
+        "name": "Height"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "internal_prompt": {
+        "name": "Internal Prompt"
+      },
+      "manager_settings": {
+        "name": "Node Config"
+      }
     },
     "outputs": {
-      "0": { "name": "Prompt" },
-      "1": { "name": "Empty Latent" }
+      "0": {
+        "name": "Prompt"
+      },
+      "1": {
+        "name": "Empty Latent"
+      }
     }
   }
 }

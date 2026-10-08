@@ -9,10 +9,6 @@ XB-ToolBox Llama 节点
 - XB_llamaParameters      : Llama 推理参数
 - XB_llamaUnloadModel     : Llama 卸载模型
 - XB_llamaCleanStates     : Llama 清理状态
-- XB_llamaParseJSON       : 解析 JSON
-- XB_llamaJSON2BBox       : JSON 转 BBox
-- XB_llamaBBox2SEGS       : BBox 转 SEGS
-- XB_llamaBBox2Mask       : BBox 转 Mask
 - XB_llamaBBoxes2BBox     : BBoxes 转 BBox
 - XB_llamaUnpackCodeBlock : 解包代码块
 - XB_llamaPromptEnhancer  : 提示词增强预设
@@ -1144,6 +1140,121 @@ class XB_llamaParameters:
         return (kwargs,)
 
 
+class XB_llamaModelLoaderPro:
+    """Llama 模型加载器 Pro — 模型选择 + 全部推理参数合并，支持折叠高级选项
+
+    =「XB-llama - 📦 模型加载器」+「XB-llama - ⚙️ 推理参数」二合一（复刻自 JZL - 🚀 模型加载Pro）。
+    惰性加载：本节点只产出配置，真正加载由下游推理节点在需要时执行，
+    这样切换到「在线 API」时彻底不加载本地模型（不占显存、不打本地加载日志）。
+    """
+
+    @classmethod
+    def INPUT_TYPES(s):
+        all_llms = folder_paths.get_filename_list("LLM")
+        model_list = [f for f in all_llms if "mmproj" not in f.lower()]
+        mmproj_list = [f for f in all_llms if "mmproj" in f.lower()] or ["None"]
+
+        return {
+            "required": {
+                "model": (model_list,),
+                "mmproj": (mmproj_list,),
+                "chat_handler": (chat_handlers, {"default": "None"}),
+                "advanced_settings": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "高级参数 ▾",
+                    "label_off": "高级参数 ▸",
+                    "tooltip": "开启后显示上下文长度、显存上限、图像token 及全部推理参数"
+                }),
+                "n_ctx": ("INT", {
+                    "default": 32768,
+                    "min": 1024, "max": 262144, "step": 128,
+                    "tooltip": "上下文长度上限\nQwen3.5-9B 原生 262144（256K）；短篇 32768，56 段调到 131072-262144"
+                }),
+                "vram_limit": ("INT", {
+                    "default": -1,
+                    "min": -1, "max": 1024, "step": 1,
+                    "tooltip": "显存使用上限(GB), -1=不限制\n参考值, 实际可能略超"
+                }),
+                "image_min_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
+                "image_max_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
+                "max_tokens": ("INT", {"default": 8192, "min": 0, "max": 262144, "step": 1,
+                    "tooltip": "生成 Token 上限（Qwen3.5-9B 上限 262144）\n6 段约 12K，56 段约 128K，请按段数调整"}),
+                "top_k": ("INT", {"default": 40, "min": 0, "max": 1000, "step": 1,
+                    "tooltip": "词汇库检索范围\n40 配合 0.60 温度，兼顾格式严谨与词汇多样"}),
+                "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "min_p": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "temperature": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01,
+                    "tooltip": "温度\n0.60 确保 [SHOT_START] 格式严谨，减少幻觉"}),
+                "repeat_penalty": ("FLOAT", {"default": 1.05, "min": 0.0, "max": 10.0, "step": 0.01,
+                    "tooltip": "重复惩罚\n1.05 轻微防句式复读，同时保留台词（太高会让 LLM 省略已在故事里写过的台词）"}),
+                "frequency_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "present_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "mirostat_mode": ("INT", {"default": 0, "min": 0, "max": 2, "step": 1}),
+                "mirostat_eta": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "mirostat_tau": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "state_uid": ("INT", {
+                    "default": -1, "min": -1, "max": 999999, "step": 1,
+                    "tooltip": "使用特定 ID 保存对话状态 (-1 = 使用节点 unique_id)"
+                }),
+                "backend": (["llama-server", "llama-cpp-python"], {
+                    "default": "llama-cpp-python",
+                    "tooltip": ("本地推理后端。\n"
+                                "llama-cpp-python：进程内后端（XB_ToolBox 当前实现，默认）\n"
+                                "llama-server：子进程后端，需额外的服务端运行环境；"
+                                "当前 XB 后端尚未接入，选它不会改变实际推理方式（仅记录到配置里）")
+                }),
+                "gpu_device": (["auto", "0", "1", "2", "3"], {
+                    "default": "auto",
+                    "tooltip": ("GPU 设备索引（仅 llama-server 子进程后端使用）。\n"
+                                "auto = 自动跟随 ComfyUI 当前显卡；当前 XB 进程内后端始终自动跟随 ComfyUI")
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("LLAMACPPMODEL", "LLAMACPPARAMS")
+    RETURN_NAMES = ("llama_model", "parameters")
+    FUNCTION = "loadmodel"
+    CATEGORY = "XB-llama"
+
+    def loadmodel(self, model, mmproj, chat_handler, advanced_settings,
+                  n_ctx, vram_limit, image_min_tokens, image_max_tokens,
+                  max_tokens, top_k, top_p, min_p, typical_p,
+                  temperature, repeat_penalty, frequency_penalty, present_penalty,
+                  mirostat_mode, mirostat_eta, mirostat_tau, state_uid, backend, gpu_device):
+        custom_config = {
+            "model": model,
+            "mmproj": mmproj,
+            "chat_handler": chat_handler,
+            "n_ctx": n_ctx,
+            "vram_limit": vram_limit,
+            "image_min_tokens": image_min_tokens,
+            "image_max_tokens": image_max_tokens,
+            "backend": backend,
+            "gpu_device": gpu_device
+        }
+
+        parameters = {
+            "max_tokens": max_tokens,
+            "top_k": top_k,
+            "top_p": top_p,
+            "min_p": min_p,
+            "typical_p": typical_p,
+            "temperature": temperature,
+            "repeat_penalty": repeat_penalty,
+            "frequency_penalty": frequency_penalty,
+            "present_penalty": present_penalty,
+            "mirostat_mode": mirostat_mode,
+            "mirostat_eta": mirostat_eta,
+            "mirostat_tau": mirostat_tau,
+            "state_uid": state_uid,
+        }
+
+        # 惰性加载：本节点只产出配置，真正加载由下游推理节点（如「分镜词处理器」）
+        # 在需要时按需执行，这样选择「在线 API」时彻底不加载本地模型。
+        return (custom_config, parameters)
+
+
 class XB_llamaCleanStates:
     """清理对话状态"""
 
@@ -1188,100 +1299,6 @@ class XB_llamaUnloadModel:
         return (any,)
 
 
-class XB_llamaJSON2BBox:
-    """JSON 转 BBox"""
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "json": ("STRING", {"forceInput": True}),
-                "mode": (["simple", "Qwen3-VL", "Qwen2.5-VL"], {"default": "simple"}),
-                "label": ("STRING", {
-                    "default": "",
-                    "multiline": False,
-                    "tooltip": "仅选择特定标签的 BBox"
-                }),
-            },
-            "optional": {
-                "image": ("IMAGE",),
-            }
-        }
-
-    RETURN_TYPES = ("BBOX", "IMAGE")
-    RETURN_NAMES = ("bboxes", "image_list")
-    OUTPUT_IS_LIST = (True, True)
-    INPUT_IS_LIST = True
-    FUNCTION = "process"
-    CATEGORY = "XB-llama"
-
-    def process(self, json, mode, label, image=None):
-        mode = mode[0]
-        label = label[0]
-
-        flat_images_list = []
-        original_structure = []
-
-        if image is not None:
-            for img_batch in image:
-                if img_batch.ndim == 3:
-                    flat_images_list.append(img_batch.unsqueeze(0))
-                    original_structure.append(1)
-                else:
-                    count = img_batch.shape[0]
-                    original_structure.append(count)
-                    for n in range(count):
-                        flat_images_list.append(img_batch[n:n + 1])
-
-        total_images = len(flat_images_list)
-        output_bboxes = []
-        processed_flat_results = []
-
-        for i, j in enumerate(json):
-            bboxes = parse_json(j)
-
-            if label != "":
-                try:
-                    bboxes = [item for item in bboxes if item["label"] == label]
-                except Exception:
-                    bboxes = [item for item in bboxes if item.get("text_content") == label]
-
-            if total_images > 0:
-                curr_idx = i if i < total_images else (total_images - 1)
-                curr_img = flat_images_list[curr_idx]
-
-                try:
-                    res_img = draw_bbox(curr_img[0], bboxes, mode)
-                    if res_img.ndim == 3:
-                        res_img = res_img.unsqueeze(0)
-                    elif res_img.ndim == 4 and res_img.shape[0] > 1:
-                        res_img = res_img[0:1]
-                    processed_flat_results.append(res_img)
-                except Exception as e:
-                    print(f"绘制 BBox 出错 image {curr_idx}: {e}")
-                    processed_flat_results.append(curr_img)
-
-            if mode in ["Qwen3-VL", "Qwen2.5-VL"]:
-                if total_images == 0:
-                    raise ValueError("Qwen 模式需要输入图像!")
-                curr_idx = i if i < total_images else (total_images - 1)
-                bbox = qwen3bbox(flat_images_list[curr_idx][0], bboxes)
-            else:
-                bbox = [tuple(item["bbox_2d"]) for item in bboxes]
-
-            output_bboxes.append(bbox)
-
-        restructured_images_list = []
-        cursor = 0
-        for count in original_structure:
-            chunk = processed_flat_results[cursor: cursor + count]
-            if chunk:
-                restructured_images_list.append(torch.cat(chunk, dim=0))
-            cursor += count
-
-        return (output_bboxes, restructured_images_list)
-
-
 class SEG:
     """SEG 数据类"""
     def __init__(self, cropped_image, cropped_mask, confidence, crop_region, bbox, label, control_net_wrapper=None):
@@ -1292,161 +1309,6 @@ class SEG:
         self.bbox = bbox
         self.label = label
         self.control_net_wrapper = control_net_wrapper
-
-
-class XB_llamaBBox2SEGS:
-    """BBox 转 SEGS"""
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "bboxes": ("BBOX",),
-                "image": ("IMAGE",),
-                "dilation": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
-                "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
-            }
-        }
-
-    RETURN_TYPES = ("SEGS",)
-    FUNCTION = "process"
-    CATEGORY = "XB-llama"
-
-    def process(self, bboxes, image, dilation, feather):
-        _batch_size, height, width, _channels = image.shape
-        mask_shape = (height, width)
-
-        seg_list = []
-        image_for_cropping = image[0]
-
-        for bbox in bboxes:
-            if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
-                print(f"警告: 跳过无效 bbox: {bbox}")
-                continue
-
-            x1, y1, x2, y2 = map(int, bbox)
-            x1_exp = x1 - dilation
-            y1_exp = y1 - dilation
-            x2_exp = x2 + dilation
-            y2_exp = y2 + dilation
-
-            crop_region = [x1_exp, y1_exp, x2_exp, y2_exp]
-            crop_w = x2_exp - x1_exp
-            crop_h = y2_exp - y1_exp
-
-            if crop_h <= 0 or crop_w <= 0:
-                print(f"警告: 跳过无效扩展尺寸 bbox: {crop_region}")
-                continue
-
-            local_mask_np = np.zeros((crop_h, crop_w), dtype=np.float32)
-            local_x1 = dilation
-            local_y1 = dilation
-            local_x2 = local_x1 + (x2 - x1)
-            local_y2 = local_y1 + (y2 - y1)
-            local_mask_np[local_y1:local_y2, local_x1:local_x2] = 1.0
-
-            if feather > 0:
-                local_mask_np = gaussian_filter(local_mask_np, sigma=feather)
-
-            cropped_mask_np = local_mask_np
-            cropped_img_padded = torch.zeros((crop_h, crop_w, 3), dtype=image.dtype, device=image.device)
-
-            src_x_start = max(0, x1_exp)
-            src_y_start = max(0, y1_exp)
-            src_x_end = min(width, x2_exp)
-            src_y_end = min(height, y2_exp)
-
-            dst_x_start = src_x_start - x1_exp
-            dst_y_start = src_y_start - y1_exp
-            dst_x_end = src_x_end - x1_exp
-            dst_y_end = src_y_end - y1_exp
-
-            if src_x_end > src_x_start and src_y_end > src_y_start:
-                source_crop = image_for_cropping[src_y_start:src_y_end, src_x_start:src_x_end, :]
-                cropped_img_padded[dst_y_start:dst_y_end, dst_x_start:dst_x_end, :] = source_crop
-
-            cropped_image_tensor = cropped_img_padded.permute(2, 0, 1).unsqueeze(0)
-
-            seg = SEG(
-                cropped_image=cropped_image_tensor,
-                cropped_mask=cropped_mask_np,
-                confidence=np.array([0.9], dtype=np.float32),
-                crop_region=crop_region,
-                bbox=np.array(bbox, dtype=np.float32),
-                label="bbox"
-            )
-            seg_list.append(seg)
-
-        segs = (mask_shape, seg_list)
-        return (segs,)
-
-
-class XB_llamaBBox2Mask:
-    """BBox 转 Mask"""
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "bboxes": ("BBOX",),
-                "image": ("IMAGE",),
-                "dilation": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
-                "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
-            }
-        }
-
-    RETURN_TYPES = ("MASK",)
-    RETURN_NAMES = ("mask",)
-    FUNCTION = "process"
-    CATEGORY = "XB-llama"
-
-    def process(self, bboxes, image, dilation, feather):
-        masks = []
-        _batch_size, height, width, _channels = image.shape
-        mask_shape = (height, width)
-        combined_full_mask = torch.zeros(mask_shape, dtype=torch.float32, device=image.device)
-
-        for bbox in bboxes:
-            if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
-                print(f"警告: 跳过无效 bbox: {bbox}")
-                continue
-
-            x1, y1, x2, y2 = map(int, bbox)
-            x1_exp = x1 - dilation
-            y1_exp = y1 - dilation
-            x2_exp = x2 + dilation
-            y2_exp = y2 + dilation
-            crop_w = x2_exp - x1_exp
-            crop_h = y2_exp - y1_exp
-
-            if crop_h <= 0 or crop_w <= 0:
-                continue
-
-            local_mask_np = np.zeros((crop_h, crop_w), dtype=np.float32)
-            local_x1 = dilation
-            local_y1 = dilation
-            local_x2 = local_x1 + (x2 - x1)
-            local_y2 = local_y1 + (y2 - y1)
-            local_mask_np[local_y1:local_y2, local_x1:local_x2] = 1.0
-
-            if feather > 0:
-                local_mask_np = gaussian_filter(local_mask_np, sigma=feather)
-
-            current_full_mask_np = np.zeros(mask_shape, dtype=np.float32)
-            x1_c, y1_c = max(0, x1_exp), max(0, y1_exp)
-            x2_c, y2_c = min(width, x2_exp), min(height, y2_exp)
-
-            if x2_c > x1_c and y2_c > y1_c:
-                current_full_mask_np[y1_c:y2_c, x1_c:x2_c] = 1.0
-
-            if feather > 0:
-                current_full_mask_np = gaussian_filter(current_full_mask_np, sigma=feather)
-
-            current_full_mask_tensor = torch.from_numpy(current_full_mask_np).to(image.device)
-            combined_full_mask = torch.maximum(combined_full_mask, current_full_mask_tensor)
-
-        masks.append(combined_full_mask.unsqueeze(0))
-        return (torch.cat(masks, dim=0),)
 
 
 class XB_llamaBBoxes2BBox:
@@ -1474,54 +1336,6 @@ class XB_llamaBBoxes2BBox:
         if bbox_index != 999:
             return ([bboxes[image_index][bbox_index]],)
         return (bboxes[image_index],)
-
-
-# from: https://github.com/crystian/ComfyUI-Crystools
-class XB_llamaParseJSON:
-    """解析 JSON 字符串"""
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "input": ("STRING", {"forceInput": True}),
-            },
-            "optional": {
-                "key": ("STRING",),
-                "default": ("STRING",),
-            },
-        }
-
-    RETURN_TYPES = (any_type, "STRING", "INT", "FLOAT", "BOOLEAN")
-    RETURN_NAMES = ("any", "string", "int", "float", "boolean")
-    FUNCTION = "process"
-    CATEGORY = "XB-llama"
-
-    def process(self, input, key=None, default=None):
-        if isinstance(input, str):
-            input = [input]
-
-        result = {}
-        for i, json_str in enumerate(input):
-            val = ""
-            if key is not None and key != "":
-                val = get_nested_value(json_str.strip().removeprefix("```json").removesuffix("```"), key, default)
-            else:
-                raise ValueError("Key 不能为空!")
-
-            result.setdefault("any", []).append(val)
-            result.setdefault("string", []).append(str(val))
-            result.setdefault("int", []).append(int(val) if isinstance(val, (int, float)) else val)
-            result.setdefault("float", []).append(float(val) if isinstance(val, (int, float)) else val)
-            result.setdefault("boolean", []).append(
-                val.lower() == "true" if isinstance(val, str) else bool(val)
-            )
-
-        if len(result.get("any", [])) == 1:
-            for k in result:
-                result[k] = result[k][0]
-
-        return (result.get("any", ""), result.get("string", ""), result.get("int", 0), result.get("float", 0.0), result.get("boolean", False))
 
 
 def get_nested_value(data, dotted_key, default=None):
@@ -2869,9 +2683,6 @@ class XB_RoleSceneDispatcher:
         return {"ui": {"text": [display_text]}, "result": (prompts, bg_out, c1_out, c2_out, c3_out, c4_out)}
 
 
-
-
-
 # =============================================================================
 # 节点注册
 # =============================================================================
@@ -2882,10 +2693,6 @@ NODE_CLASS_MAPPINGS = {
     "XB_llamaParameters": XB_llamaParameters,
     "XB_llamaUnloadModel": XB_llamaUnloadModel,
     "XB_llamaCleanStates": XB_llamaCleanStates,
-    "XB_llamaParseJSON": XB_llamaParseJSON,
-    "XB_llamaJSON2BBox": XB_llamaJSON2BBox,
-    "XB_llamaBBox2SEGS": XB_llamaBBox2SEGS,
-    "XB_llamaBBox2Mask": XB_llamaBBox2Mask,
     "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
     "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
     "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
@@ -2904,10 +2711,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_llamaParameters": "XB-llama - ⚙️ 推理参数",
     "XB_llamaUnloadModel": "XB-llama - 🗑️ 卸载模型",
     "XB_llamaCleanStates": "XB-llama - 🧹 清理状态",
-    "XB_llamaParseJSON": "XB-llama - 📋 解析JSON",
-    "XB_llamaJSON2BBox": "XB-llama - 🎯 JSON转BBox",
-    "XB_llamaBBox2SEGS": "XB-llama - ✂️ BBox转SEGS",
-    "XB_llamaBBox2Mask": "XB-llama - 🎭 BBox转Mask",
     "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
     "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
     "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",

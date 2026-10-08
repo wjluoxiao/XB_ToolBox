@@ -75,21 +75,16 @@ try:
     from .nodes_blockswap_sage import XB_Sage_BlockSwap
     from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_memory_viz import XB_MemoryVisualization
-    from .nodes_tile import XB_SamplerChunkMaster
     from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
     from .nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
     from .nodes_sageatt import XB_SageAttentionAccelerator
-    from .nodes_wan_t5 import XB_WanT5Loader
-    from .nodes_wan import (XB_WanCompileSettings, XB_WanModelLoader, XB_WanBlockSwap,
-                             XB_WanSampler, XB_WanTextEncode, XB_WanVAELoader, XB_WanDecode,
-                             XB_WanAnimateToVideo)
+    from .nodes_wan import XB_WanCompileSettings, XB_WanAnimateToVideo
 
     from .nodes_label import XB_CanvasLabel
     from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
     from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
-    from .nodes_model_loader_v1 import XB_ModelLoaderV1, XB_ModelLoaderV2, XB_ModelLoaderV3
     from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
     from .nodes_status_switch import XB_NodeStatusSwitch
     from .nodes_flux_encode import XB_FluxMultiImageEncode
@@ -104,7 +99,6 @@ try:
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
     from . import xb_video_server
-    from .nodes_rocm import XB_ROCmMemCleaner
     from .nodes_vanilla_wrappers import (XB_KSampler, XB_KSamplerAdvanced,
                                           XB_SamplerCustom, XB_SamplerCustomAdvanced,
                                           XB_VAEDecode, XB_VAEDecodeTiled,
@@ -119,19 +113,12 @@ try:
     from .nodes_msr import XB_MSR
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
     from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
-    from .nodes_int8_rocm import (
-        UNetLoaderINTROCm, INT8GroupedLoraROCm, INT8LoraROCm, INT8ModelSaveROCm, PreLoraLoaderROCm
-    )
-    from .nodes_int8_clip_rocm import (
-        CLIPLoaderINT8ROCm, DualCLIPLoaderINT8ROCm, INT8CLIPSaveROCm
-    )
 
     # ── Llama 节点 (LLM/VLM) ──
     try:
         from .nodes_llama import (
-            XB_llamaModelLoader, XB_llamaInstruct, XB_llamaParameters,
-            XB_llamaUnloadModel, XB_llamaCleanStates, XB_llamaParseJSON,
-            XB_llamaJSON2BBox, XB_llamaBBox2SEGS, XB_llamaBBox2Mask,
+            XB_llamaModelLoader, XB_llamaModelLoaderPro, XB_llamaInstruct, XB_llamaParameters,
+            XB_llamaUnloadModel, XB_llamaCleanStates,
             XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
             XB_llamaMiniMaxPreset, XB_llamaMiniMaxRef2vaPreset,
             XB_llamaStoryboardEnhancer, XB_llamaStoryboardInstruct,
@@ -198,7 +185,6 @@ try:
         "XB_UNetNameBroadcaster": XB_UNetNameBroadcaster,
         "XB_CLIPNameBroadcaster": XB_CLIPNameBroadcaster,
         "XB_MemoryVisualization": XB_MemoryVisualization,
-        "XB_SamplerChunkMaster": XB_SamplerChunkMaster,
         "XB_WanImageToVideo": XB_WanImageToVideo,
         "XB_WanFirstLastFrameToVideo": XB_WanFirstLastFrameToVideo,
         "XB_WanFunControlToVideo": XB_WanFunControlToVideo,
@@ -228,7 +214,6 @@ try:
         "XB_Video_Merger": XB_Video_Merger,
         "XB_StoryboardSlicer": XB_StoryboardSlicer,
         "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
-        "XB_ROCmMemCleaner": XB_ROCmMemCleaner,
         # ── 借尸还魂：旧 ROCm 节点 ID → 别名类（兼容旧参数名） ──
         "XB_ROCmKSampler": _AliasKSampler,
         "XB_ROCmKSamplerAdvanced": _AliasKSamplerAdvanced,
@@ -249,14 +234,7 @@ try:
         "XB_VAEEncode": XB_VAEEncode,
         "XB_VAEEncodeTiled": XB_VAEEncodeTiled,
         "XB_VAEEncodeForInpaint": XB_VAEEncodeForInpaint,
-        "XB_WanT5Loader": XB_WanT5Loader,
         "XB_WanCompileSettings": XB_WanCompileSettings,
-        "XB_WanModelLoader": XB_WanModelLoader,
-        "XB_WanBlockSwap": XB_WanBlockSwap,
-        "XB_WanSampler": XB_WanSampler,
-        "XB_WanTextEncode": XB_WanTextEncode,
-        "XB_WanVAELoader": XB_WanVAELoader,
-        "XB_WanDecode": XB_WanDecode,
         "XB_WanAnimateToVideo": XB_WanAnimateToVideo,
         "XB_WanAnimate_ParamBus": XB_WanAnimate_ParamBus,
         "XB_WanAnimate_RelayNode": XB_WanAnimate_RelayNode,
@@ -288,9 +266,6 @@ try:
         "XB_AudioSlicerV3": XB_AudioSlicerV3,
         "XB_DigitalHumanParams_Single": XB_DigitalHumanParams_Single,
         "XB_DigitalHumanParams_Dual": XB_DigitalHumanParams_Dual,
-        "XB_ModelLoaderV1": XB_ModelLoaderV1,
-        "XB_ModelLoaderV2": XB_ModelLoaderV2,
-        "XB_ModelLoaderV3": XB_ModelLoaderV3,
         "XB_ModelLoaderV1_GGUF": XB_ModelLoaderV1_GGUF,
         "XB_ModelLoaderV2_GGUF": XB_ModelLoaderV2_GGUF,
         "XB_ModelLoaderV3_GGUF": XB_ModelLoaderV3_GGUF,
@@ -301,15 +276,6 @@ try:
         "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer,
         "XB_BerniniPromptRouter": XB_BerniniPromptRouter,
         "XB_K2StyleRouter": XB_K2StyleRouter,
-        # ── INT8 ROCm 量化节点 ──
-        "XB_UNetLoaderINTROCm": UNetLoaderINTROCm,
-        "XB_INT8LoraROCm": INT8LoraROCm,
-        "XB_INT8GroupedLoraROCm": INT8GroupedLoraROCm,
-        "XB_INT8ModelSaveROCm": INT8ModelSaveROCm,
-        "XB_INT8PreLoraLoaderROCm": PreLoraLoaderROCm,
-        "XB_CLIPLoaderINT8ROCm": CLIPLoaderINT8ROCm,
-        "XB_DualCLIPLoaderINT8ROCm": DualCLIPLoaderINT8ROCm,
-        "XB_INT8CLIPSaveROCm": INT8CLIPSaveROCm,
         # ── CosyVoice3 音频节点 ──
         "XB_CosyVoice3_ModelLoader": XB_CosyVoice3_ModelLoader,
         "XB_CosyVoice3_ZeroShot": XB_CosyVoice3_ZeroShot,
@@ -327,14 +293,11 @@ try:
     if _LLAMA_AVAILABLE:
         NODE_CLASS_MAPPINGS.update({
             "XB_llamaModelLoader": XB_llamaModelLoader,
+            "XB_llamaModelLoaderPro": XB_llamaModelLoaderPro,
             "XB_llamaInstruct": XB_llamaInstruct,
             "XB_llamaParameters": XB_llamaParameters,
             "XB_llamaUnloadModel": XB_llamaUnloadModel,
             "XB_llamaCleanStates": XB_llamaCleanStates,
-            "XB_llamaParseJSON": XB_llamaParseJSON,
-            "XB_llamaJSON2BBox": XB_llamaJSON2BBox,
-            "XB_llamaBBox2SEGS": XB_llamaBBox2SEGS,
-            "XB_llamaBBox2Mask": XB_llamaBBox2Mask,
             "XB_llamaBBoxes2BBox": XB_llamaBBoxes2BBox,
             "XB_llamaUnpackCodeBlock": XB_llamaUnpackCodeBlock,
             "XB_llamaPromptEnhancer": XB_llamaPromptEnhancer,
@@ -379,7 +342,6 @@ try:
         "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
         "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
         "XB_MemoryVisualization": "XB 📊 硬件监控面板 (Memory Visualization)",
-        "XB_SamplerChunkMaster": "XB-BOX - Sampler Chunk Master",
         "XB_WanImageToVideo": "XB-BOX - Wan Image2Video",
         "XB_WanFirstLastFrameToVideo": "XB-BOX - Wan First/Last Frame2Video",
         "XB_BatchFolderLoader": "XB-BOX - Batch Folder Loader",
@@ -389,16 +351,15 @@ try:
         "XB_Video_Merger": "XB-BOX - Video Merger",
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
         "XB_SageAttentionAccelerator": "XB-BOX - Acceleration Mode Selector",
-        "XB_ROCmMemCleaner": "XB-BOX - 🧹 显存清理",
         # ── 借尸还魂：旧节点名 + 新的优化版显示名 ──
-        "XB_ROCmKSampler": "XB-BOX - 采样器（原版优化）",
-        "XB_ROCmKSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）",
-        "XB_ROCmSamplerCustom": "XB-BOX - 自定义采样器（原版优化）",
-        "XB_ROCmSamplerCustomAdvanced": "XB-BOX - 自定义高级采样器（原版优化）",
-        "XB_ROCmVAEDecode": "XB-BOX - VAE解码（原版优化）",
-        "XB_ROCmVAEEncode": "XB-BOX - VAE编码（原版优化）",
-        "XB_ROCmVAEDecodeTemporal": "XB-BOX - VAE分块解码（原版优化）",
-        "XB_ROCmLTXVAEDecode": "XB-BOX - VAE分块解码（原版优化）",
+        "XB_ROCmKSampler": "XB-BOX - 采样器（原版优化）（旧）",
+        "XB_ROCmKSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）（旧）",
+        "XB_ROCmSamplerCustom": "XB-BOX - 自定义采样器（原版优化）（旧）",
+        "XB_ROCmSamplerCustomAdvanced": "XB-BOX - 自定义高级采样器（原版优化）（旧）",
+        "XB_ROCmVAEDecode": "XB-BOX - VAE解码（原版优化）（旧）",
+        "XB_ROCmVAEEncode": "XB-BOX - VAE编码（原版优化）（旧）",
+        "XB_ROCmVAEDecodeTemporal": "XB-BOX - VAE分块解码（原版优化）（旧）",
+        "XB_ROCmLTXVAEDecode": "XB-BOX - VAE分块解码 LTX（原版优化）（旧）",
         # ── 新优化版节点 ──
         "XB_KSampler": "XB-BOX - 采样器（原版优化）",
         "XB_KSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）",
@@ -406,18 +367,11 @@ try:
         "XB_SamplerCustomAdvanced": "XB-BOX - 自定义高级采样器（原版优化）",
         "XB_VAEDecode": "XB-BOX - VAE解码（原版优化）",
         "XB_VAEDecodeTiled": "XB-BOX - VAE分块解码（原版优化）",
-        "XB_VAEDecodeTiledImage": "XB-BOX - VAE解码（原版优化）",
+        "XB_VAEDecodeTiledImage": "XB-BOX - VAE分块解码·图片（原版优化）",
         "XB_VAEEncode": "XB-BOX - VAE编码（原版优化）",
         "XB_VAEEncodeTiled": "XB-BOX - VAE分块编码（原版优化）",
         "XB_VAEEncodeForInpaint": "XB-BOX - VAE修补编码（原版优化）",
-        "XB_WanT5Loader": "XB-BOX - 📝 Wan T5 加载器(FP8)",
         "XB_WanCompileSettings": "XB-BOX - ⚡ Wan 编译设置",
-        "XB_WanModelLoader": "XB-BOX - 🧠 Wan 模型加载",
-        "XB_WanBlockSwap": "XB-BOX - 🔄 Wan 分块交换",
-        "XB_WanSampler": "XB-BOX - 🎯 Wan 采样器",
-        "XB_WanTextEncode": "XB-BOX - ✍️ Wan 文本编码",
-        "XB_WanVAELoader": "XB-BOX - 🎨 Wan VAE 加载",
-        "XB_WanDecode": "XB-BOX - 🖼️ Wan VAE 解码",
         "XB_WanAnimateToVideo": "XB-BOX - 🎬 Wan 动画转视频",
         "XB_WanAnimate_ParamBus": "XB-BOX - 🎬 Animate 动作迁移总线",
         "XB_WanAnimate_RelayNode": "XB-BOX - 🏃‍♀️ Animate 无限接力点",
@@ -450,9 +404,6 @@ try:
         "XB_AudioSlicerV3": "XB-BOX - 🎵 音频切片V3（高级）",
         "XB_DigitalHumanParams_Single": "XB-BOX - 🤖 数字人参数调节（单人）",
         "XB_DigitalHumanParams_Dual": "XB-BOX - 🤖 数字人参数调节（双人）",
-        "XB_ModelLoaderV1": "XB-BOX - 📦 模型加载大全V1",
-        "XB_ModelLoaderV2": "XB-BOX - 📦 模型加载大全V2",
-        "XB_ModelLoaderV3": "XB-BOX - 📦 模型加载大全V3",
         "XB_ModelLoaderV1_GGUF": "XB-BOX - 📦 模型加载大全V1 (GGUF)",
         "XB_ModelLoaderV2_GGUF": "XB-BOX - 📦 模型加载大全V2 (GGUF)",
         "XB_ModelLoaderV3_GGUF": "XB-BOX - 📦 模型加载大全V3 (GGUF)",
@@ -467,15 +418,6 @@ try:
         "XB_BerniniConditioning": "XB-BOX - 🎨 Bernini 条件注入（VAE分块）",
         "XB_BerniniPromptRouter": "XB-BOX - 🧠 Bernini 提示词路由（超级节点）",
         "XB_K2StyleRouter": "XB-BOX - 🎨 K2 风格切换路由（超级节点）",
-        # ── INT8 ROCm 量化节点 ──
-        "XB_UNetLoaderINTROCm": "XB-BOX - 🧊 INT8 UNet 加载器 (ROCm)",
-        "XB_INT8LoraROCm": "XB-BOX - 🧊 INT8 单LoRA (ROCm)",
-        "XB_INT8GroupedLoraROCm": "XB-BOX - 🧊 INT8 组合 LoRA (ROCm)",
-        "XB_INT8ModelSaveROCm": "XB-BOX - 🧊 INT8 模型保存 (ROCm)",
-        "XB_INT8PreLoraLoaderROCm": "XB-BOX - 🧊 INT8 预加载 LoRA (ROCm)",
-        "XB_CLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 CLIP 加载器 (ROCm)",
-        "XB_DualCLIPLoaderINT8ROCm": "XB-BOX - 🧊 INT8 双CLIP加载器 (ROCm)",
-        "XB_INT8CLIPSaveROCm": "XB-BOX - 🧊 INT8 CLIP 保存 (ROCm)",
         # ── CosyVoice3 音频节点 ──
         "XB_CosyVoice3_ModelLoader": "XB-BOX - 🔊 CosyVoice3 模型加载",
         "XB_CosyVoice3_ZeroShot": "XB-BOX - 🎤 CosyVoice3 零样本克隆",
@@ -493,14 +435,11 @@ try:
     if _LLAMA_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
             "XB_llamaModelLoader": "XB-llama - 📦 模型加载器",
+            "XB_llamaModelLoaderPro": "XB-llama - 🚀 模型加载Pro",
             "XB_llamaInstruct": "XB-llama - 💬 指令推理",
             "XB_llamaParameters": "XB-llama - ⚙️ 推理参数",
             "XB_llamaUnloadModel": "XB-llama - 🗑️ 卸载模型",
             "XB_llamaCleanStates": "XB-llama - 🧹 清理状态",
-            "XB_llamaParseJSON": "XB-llama - 📋 解析JSON",
-            "XB_llamaJSON2BBox": "XB-llama - 🎯 JSON转BBox",
-            "XB_llamaBBox2SEGS": "XB-llama - ✂️ BBox转SEGS",
-            "XB_llamaBBox2Mask": "XB-llama - 🎭 BBox转Mask",
             "XB_llamaBBoxes2BBox": "XB-llama - 🔍 BBoxes取BBox",
             "XB_llamaUnpackCodeBlock": "XB-llama - 📝 解包代码块",
             "XB_llamaPromptEnhancer": "XB-llama - ✨ 提示词增强预设",
