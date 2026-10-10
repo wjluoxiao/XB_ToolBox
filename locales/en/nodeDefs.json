@@ -511,5 +511,166 @@
         "name": "Empty Latent"
       }
     }
+  },
+  "XB_YuE2StylePrompt": {
+    "display_name": "XB-BOX - 🎵 YuE2 Style Prompt",
+    "description": "Build the YuE2 style string from the official six parts (language / genre / vocal / tempo / instruments / musical characteristics), plus max_duration and seed. Structure, key and meter belong to the lyrics tags and the ABC score.",
+    "inputs": {
+      "配方": {
+        "name": "Recipe"
+      },
+      "演唱语言": {
+        "name": "Language"
+      },
+      "音乐风格": {
+        "name": "Genre"
+      },
+      "风格融合": {
+        "name": "Genre Fusion"
+      },
+      "人声编制": {
+        "name": "Vocal Setup"
+      },
+      "人声音色": {
+        "name": "Vocal Timbre"
+      },
+      "人声唱法": {
+        "name": "Vocal Technique"
+      },
+      "人声效果": {
+        "name": "Vocal FX"
+      },
+      "速度": {
+        "name": "Tempo Bucket"
+      },
+      "BPM数值": {
+        "name": "Exact BPM (0 = bucket)"
+      },
+      "情绪氛围": {
+        "name": "Mood"
+      },
+      "主奏乐器": {
+        "name": "Lead Instrument"
+      },
+      "辅助乐器": {
+        "name": "Supporting Instrument"
+      },
+      "编曲密度": {
+        "name": "Arrangement Density"
+      },
+      "制作质感": {
+        "name": "Production Texture"
+      },
+      "音乐特征": {
+        "name": "Musical Characteristics"
+      },
+      "自定义补充": {
+        "name": "Extra Notes"
+      },
+      "max_duration": {
+        "name": "Max Duration (s)"
+      },
+      "seed": {
+        "name": "Seed (planner + generator)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎵 style"
+      },
+      "1": {
+        "name": "Max Duration (s)"
+      },
+      "2": {
+        "name": "Seed"
+      }
+    }
+  },
+  "XB_YuE2Lyrics": {
+    "display_name": "XB-BOX - 🎵 YuE2 Lyrics",
+    "description": "Lyrics with section tags plus singability checks (implementation notes leaking into lyrics, round-bracket role labels, empty sections, per-line syllable counts, and whether a tag is in the official eight-tag vocabulary).",
+    "outputs": {
+      "0": {
+        "name": "🎤 lyrics"
+      },
+      "1": {
+        "name": "🔍 Check"
+      }
+    }
+  },
+  "XB_YuE2ScoreWorkbench": {
+    "display_name": "XB-BOX - 🎵 YuE2 Score Workbench",
+    "description": "Symbolic-layer operations on native YuE2 ABC: inspect / strip chords / move the vocal melody to Ins / use an edited score. Outputs the processed score plus a readable report whose first line is the mode suggestion. Note: the score carries no instruments - set those in the YuE2 Style Prompt node.",
+    "inputs": {
+      "操作": {
+        "name": "Operation"
+      },
+      "和声处理": {
+        "name": "Harmony"
+      },
+      "重叠处理": {
+        "name": "Overlap"
+      },
+      "编辑框": {
+        "name": "Edited ABC"
+      },
+      "abc": {
+        "name": "🎼 Upstream ABC"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 Report"
+      }
+    }
+  },
+  "XB_YuE2CoverPrep": {
+    "display_name": "XB-BOX - 🎵 YuE2 Cover Prep",
+    "description": "Builds cover conditions: which voice to keep x harmony handling, which decides the downstream mode (chord-free = melody, a true cover; keep chords = full, closer to a re-record). Outputs the score plus a readable report.",
+    "inputs": {
+      "保留声部": {
+        "name": "Keep Voice"
+      },
+      "和声处理": {
+        "name": "Harmony"
+      },
+      "abc": {
+        "name": "🎼 Source ABC"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 Report"
+      }
+    }
+  },
+  "XB_YuE2Transcription": {
+    "display_name": "XB-BOX - 🎵 YuE2 Transcription Intake",
+    "description": "Reads SheetSage2 output (score.abc / events.json) and validates it. Applies the mechanical normalizations from the official repair table (strip Markdown fences / BOM / curly quotes, M:C to M:4/4, Q:81 to Q:1/4=81, K:B minor to K:Bm); semantic repairs are left to you. Emits a usable score plus a readable report. It does not run transcription itself - that needs a separate Python environment.",
+    "inputs": {
+      "转谱路径": {
+        "name": "Path (folder or file)"
+      },
+      "规范化": {
+        "name": "Normalize"
+      },
+      "abc": {
+        "name": "🎼 Compare With (optional)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 Report"
+      }
+    }
   }
 }

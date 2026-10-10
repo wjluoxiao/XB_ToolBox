@@ -5440,5 +5440,118 @@
         "name": "任意输出"
       }
     }
+  },
+  "XB_YuE2StylePrompt": {
+    "display_name": "XB-BOX - 🎵 YuE2 风格提示",
+    "description": "按官方 6 段式（语言 / 曲风 / 人声 / 速度 / 乐器 / 音乐特征）生成 YuE2 的 style 串，并输出 max_duration 与 seed。不写段落结构、调式、调号、拍号——这些由歌词标签与 ABC 谱面承担。",
+    "inputs": {
+      "BPM数值": {
+        "name": "精确 BPM（0=用档位）"
+      },
+      "max_duration": {
+        "name": "最长时长（秒）"
+      },
+      "seed": {
+        "name": "种子（规划器与生成器共用）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎵 style"
+      },
+      "1": {
+        "name": "最长时长（秒）"
+      },
+      "2": {
+        "name": "种子"
+      }
+    }
+  },
+  "XB_YuE2Lyrics": {
+    "display_name": "XB-BOX - 🎵 YuE2 歌词",
+    "description": "歌词正文 + 段落标签，附带可唱性检查（实现说明混入、圆括号角色标注、空段落、逐行音节统计、标签是否属于官方 8 词表）。输出歌词与检查报告。",
+    "outputs": {
+      "0": {
+        "name": "🎤 lyrics"
+      },
+      "1": {
+        "name": "🔍 检查"
+      }
+    }
+  },
+  "XB_YuE2ScoreWorkbench": {
+    "display_name": "XB-BOX - 🎵 YuE2 乐谱工作台",
+    "description": "YuE2 原生 ABC 谱面的符号层操作：只查看 / 去掉和弦 / 人声移到器乐轨 / 用编辑框 / 编译事件。输出处理后的谱面 + 中文报告（首行即模式建议）。注意：谱面里没有乐器，配器要在上游「YuE2 风格提示」里指定。",
+    "inputs": {
+      "操作": {
+        "name": "操作"
+      },
+      "和声处理": {
+        "name": "和声处理"
+      },
+      "重叠处理": {
+        "name": "重叠处理"
+      },
+      "编辑框": {
+        "name": "编辑框（谱面 / events.json）"
+      },
+      "abc": {
+        "name": "🎼 上游谱面（ABC）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 报告"
+      }
+    }
+  },
+  "XB_YuE2CoverPrep": {
+    "display_name": "XB-BOX - 🎵 YuE2 翻唱准备",
+    "description": "生成翻唱条件：保留声部 × 和声处理 → 决定下游 mode（去掉和弦=melody 纯翻唱；保留和弦=full 连原和声一起保留）。输出谱面 + 中文报告（含官方翻唱链路与事件比对）。",
+    "inputs": {
+      "保留声部": {
+        "name": "保留声部"
+      },
+      "和声处理": {
+        "name": "和声处理"
+      },
+      "abc": {
+        "name": "🎼 原始谱面（ABC）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 报告"
+      }
+    }
+  },
+  "XB_YuE2Transcription": {
+    "display_name": "XB-BOX - 🎵 YuE2 转谱导入",
+    "description": "读入 SheetSage2 的产物（score.abc / events.json）并校验。按官方修谱表做机械规范化（去 Markdown 围栏 / BOM / 弯引号、M:C→M:4/4、Q:81→Q:1/4=81、K:B minor→K:Bm），语义性修复不猜。输出可用谱面 + 中文报告。注意：本节点不做转谱本身（那需要独立 Python 环境）。",
+    "inputs": {
+      "转谱路径": {
+        "name": "转谱路径（目录或文件）"
+      },
+      "规范化": {
+        "name": "机械规范化"
+      },
+      "abc": {
+        "name": "🎼 比对方（可选）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "🎼 abc"
+      },
+      "1": {
+        "name": "📋 报告"
+      }
+    }
   }
 }

@@ -36,6 +36,13 @@ async def get_audio_waveform(request):
     return await handle_audio_waveform(request)
 
 
+@PromptServer.instance.routes.get("/xb_toolbox/yue2_recipes")
+async def yue2_recipes(request):
+    """YuE2 风格配方表：前端「YuE2 风格提示」节点联动用，与 yue2_styles.RECIPES 同一数据源"""
+    from .yue2_styles import GENRES, RECIPES
+    return web.json_response({"recipes": RECIPES, "genres": GENRES})
+
+
 @PromptServer.instance.routes.post("/xb_toolbox/model_list")
 async def get_model_list(request):
     """根据关键字返回过滤后的模型/CLIP/VAE/LoRA列表"""
@@ -147,6 +154,17 @@ try:
     except Exception as e:
         print_warning(f"[XB-BOX] Qwen2.1提示词预设 未加载：{e}")
         _QWEN_AVAILABLE = False
+
+    # ── 🎵 YuE2 音乐节点（风格提示 / 歌词 / 乐谱工作台 / 翻唱准备 / 转谱导入）──
+    try:
+        from .nodes_yue2_style import XB_YuE2StylePrompt
+        from .nodes_yue2_lyrics import XB_YuE2Lyrics
+        from .nodes_yue2_score import XB_YuE2ScoreWorkbench, XB_YuE2CoverPrep
+        from .nodes_yue2_transcription import XB_YuE2Transcription
+        _YUE2_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] YuE2 音乐节点 未加载：{e}")
+        _YUE2_AVAILABLE = False
 
     # ── CosyVoice3 音频节点 ──
     from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
@@ -323,6 +341,16 @@ try:
             "XB_QwenPromptPreset": XB_QwenPromptPreset,
         })
 
+    # ── 🎵 YuE2 音乐节点 ──
+    if _YUE2_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_YuE2StylePrompt": XB_YuE2StylePrompt,
+            "XB_YuE2Lyrics": XB_YuE2Lyrics,
+            "XB_YuE2ScoreWorkbench": XB_YuE2ScoreWorkbench,
+            "XB_YuE2CoverPrep": XB_YuE2CoverPrep,
+            "XB_YuE2Transcription": XB_YuE2Transcription,
+        })
+
     NODE_DISPLAY_NAME_MAPPINGS = { 
         "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
         "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
@@ -463,6 +491,16 @@ try:
     if _QWEN_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
             "XB_QwenPromptPreset": "XB-BOX - 🖼️ Qwen2.1提示词预设",
+        })
+
+    # ── 🎵 YuE2 音乐节点 显示名 ──
+    if _YUE2_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_YuE2StylePrompt": "XB-BOX - 🎵 YuE2 风格提示",
+            "XB_YuE2Lyrics": "XB-BOX - 🎵 YuE2 歌词",
+            "XB_YuE2ScoreWorkbench": "XB-BOX - 🎵 YuE2 乐谱工作台",
+            "XB_YuE2CoverPrep": "XB-BOX - 🎵 YuE2 翻唱准备",
+            "XB_YuE2Transcription": "XB-BOX - 🎵 YuE2 转谱导入",
         })
 
     print_success("\n" + "="*50)
