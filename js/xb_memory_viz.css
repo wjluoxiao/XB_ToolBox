@@ -411,7 +411,7 @@
 .aimdo-mini-track {
     background: var(--aimdo-barBg);
     border-radius: 2px;
-    height: 4px;
+    height: 8px;
     overflow: hidden;
     display: flex;
     margin-bottom: 4px;
@@ -420,7 +420,7 @@
     margin-bottom: 0;
 }
 /* GPU section: one row per metric — bar + value on the same line. The compact 8px
-   font + 3px bar kicks in only when temp/power are also visible (the .is-multibar
+   font + 6px bar kicks in only when temp/power are also visible (the .is-multibar
    class); with only util showing, the row keeps the regular mini-bar styling so it
    matches RAM/VRAM/CPU above. */
 .aimdo-mini-inline {
@@ -434,10 +434,18 @@
     font-size: 0.667em;
 }
 .mini-gpu-section.is-multibar .aimdo-mini-inline .aimdo-mini-track,
-.mini-disk-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 3px; }
+.mini-disk-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 6px; }
 .aimdo-mini-inline .aimdo-mini-track {
     flex: 1 1 0;
     margin-bottom: 0;
+}
+/* Docked single-bar mode (only util visible): the inline track must keep the 4px
+   bottom margin that a standalone track has. Otherwise the GPU block is 4px shorter
+   than RAM/VRAM/CPU and, because the docked row centers its sections, the GPU bar
+   sits 2px lower than the others. Scoped to docked layout on purpose — in the
+   stacked (expanded) layout the offset does not occur and the section stays as-is. */
+#aimdo-viz-panel.aimdo-docked .mini-gpu-section:not(.is-multibar) .aimdo-mini-inline .aimdo-mini-track {
+    margin-bottom: 4px;
 }
 .aimdo-mini-inline > .mini-gpu-usage,
 .aimdo-mini-inline > .mini-temp-usage,
@@ -490,7 +498,7 @@
 /* free disk space: one row per selected drive, mountpoint left, bar middle, "free" right.
    Mountpoint column is fixed-width so multiple drives align vertically. */
 .mini-diskspace-section.is-multibar .aimdo-mini-inline { line-height: 1; font-size: 0.667em; }
-.mini-diskspace-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 3px; }
+.mini-diskspace-section.is-multibar .aimdo-mini-inline .aimdo-mini-track { height: 6px; }
 .mini-diskspace-drive-row > .mini-diskspace-mp {
     flex-shrink: 0;
     text-align: left;

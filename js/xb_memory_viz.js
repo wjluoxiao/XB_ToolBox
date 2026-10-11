@@ -42,14 +42,14 @@ let selectedDisks = [];
 let allDisksCache = [];
 let wantDisksList = false;  // one-shot — set when settings menu wants a fresh drive list
 let _rebuildDriveMenu = null;  // assigned by createPanel; called from renderData when allDisksCache refreshes
-let showHwNames = true;
+let showHwNames = false;
 let showTitle = true;
 let showExecBtn = false;  // optional play / cancel-running button in the header
 let miniShowNumbers = true;
 let miniShowUnits = true;
 let miniShowType = true;
-let miniShowGpuTemp = true;
-let miniShowGpuPower = true;
+let miniShowGpuTemp = false;
+let miniShowGpuPower = false;
 let miniShowSeparators = true;
 let graphHeight = 80;
 let currentTheme = "default";
@@ -678,7 +678,7 @@ function createPanel() {
     // .actionbar-container; mouseup-while-hovering reparents the panel into that container
     // and switches it to a flat horizontal mini-bar layout via the .aimdo-docked class.
     let isDocked = saved.docked != null ? saved.docked : true;  // 默认吸附顶栏
-    let dockSide = saved.dockSide === "left" ? "left" : "right";
+    let dockSide = saved.dockSide === "right" ? "right" : "left";
     let dockExpanded = false;     // session-only: body shown as overlay below the docked mini-bar
     let autoDockPending = false;  // true while the post-load redock poll is running
     let dockSectionWidth = (typeof saved.dockSectionWidth === "number" && saved.dockSectionWidth > 40)
