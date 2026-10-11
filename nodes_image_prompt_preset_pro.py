@@ -64,9 +64,9 @@ from .xb_skills import SKILL_NONE, skill_list, skill_sig, skill_text
 #     改这里不会影响任何别的节点（也不受别的节点影响）。
 # ════════════════════════════════════════════════════════════════════════════
 # ── 画幅比例（与本包 XB_ImageParamsMaster 完全一致的选项顺序） ──────────────
-ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"]
+ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"]
 ASPECT_RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16,
-                    "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9}
+                    "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2}
 SIZE_STEP = 16            # 宽高步长的兜底值（实际以「空latent类型」的官方最小步长为准：8/16/32）
 SIZE_MIN = 16
 BATCH_MAX = 4096          # 官方 EmptyLatentImage / EmptySD3LatentImage 的 batch 上限

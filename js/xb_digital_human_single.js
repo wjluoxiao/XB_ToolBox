@@ -32,7 +32,7 @@ app.registerExtension({
         // ── 画幅联动（来自 xb_video.js）──
         if (wR && wW && wH) {
             node._xb_syncing = false;
-            const rS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
+            const rS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2 };
             const rL = { "16:9 (LTX)": 16 / 9, "9:16 (LTX)": 9 / 16, "4:3 (LTX)": 4 / 3, "3:4 (LTX)": 3 / 4 };
 
             const sW = () => {
@@ -311,7 +311,7 @@ app.registerExtension({
 
                         if (wChanged || hChanged || rChanged) {
                             if (!isFree && !isLTX) {
-                                const ratioMap = { "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0, "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0 };
+                                const ratioMap = { "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0, "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0, "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0 };
                                 let currentRatio = ratioMap[valRatio];
                                 if (wChanged && wid % currentStep !== 0) wid = wid > node._xb_last_width ? Math.ceil(wid / currentStep) * currentStep : Math.floor(wid / currentStep) * currentStep;
                                 else wid = Math.round(wid / currentStep) * currentStep;

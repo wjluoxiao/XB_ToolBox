@@ -21,7 +21,7 @@ class XB_ImageParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"], {"default": "Free"}),
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
@@ -40,7 +40,7 @@ class XB_ImageParamsMaster:
             return (width, height, batch_size, float(strength_float), int(strength_int), max(width, height))
 
         # 解析宽高比约束，使用 round() 而非 // 避免累积误差
-        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
         target_ratio = ratio_map.get(aspect_ratio, 1.0)
         step = 16
 
@@ -63,7 +63,7 @@ class XB_ImageParamsMasterMini:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"], {"default": "Free"}),
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
@@ -80,7 +80,7 @@ class XB_ImageParamsMasterMini:
             return (width, height, batch_size, max(width, height))
 
         # 解析宽高比约束，使用 round() 而非 // 避免累积误差
-        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
         target_ratio = ratio_map.get(aspect_ratio, 1.0)
         step = 16
 
@@ -101,7 +101,7 @@ class XB_VideoParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
                 "duration_display": ("STRING", {"default": "Video Duration: 0.00 s", "multiline": False}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 16}),
@@ -136,7 +136,7 @@ class XB_VideoParamsMaster:
         else:
             # 解析宽高比并强制约束，使用 round() 避免累积误差
             step = 16
-            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
             target_ratio = ratio_map.get(aspect_ratio, 1.0)
             if width >= height:
                 safe_w = max(step, round(width / step) * step)

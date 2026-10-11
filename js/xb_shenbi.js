@@ -42,7 +42,7 @@ const PAINT_EXT_RE = /\.(png|jpe?g|webp|bmp|tiff?)$/i;
 const STEP = 32;
 const SIZE_MIN = 32;
 const SIZE_MAX = 16384;
-const RATIO_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
+const RATIO_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2 };
 
 const BG_WHITE = "白色";
 const BG_BLACK = "黑色";

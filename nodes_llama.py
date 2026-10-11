@@ -1636,7 +1636,7 @@ class XB_llamaMiniMaxPreset:
     }
 
     _ASPECTS = [
-        "16:9", "9:16", "4:3", "3:4", "1:1", "21:9", "4:5", "5:4",
+        "16:9", "9:16", "4:3", "3:4", "1:1", "21:9", "4:5", "5:4", "2:3", "3:2",
     ]
 
     _ASPECT_HINTS = {
@@ -1648,6 +1648,8 @@ class XB_llamaMiniMaxPreset:
         "21:9": "ultrawide cinematic — emphasize sweeping horizontal space, panoramic landscapes, subjects placed off-center with vast negative space",
         "4:5": "portrait tall — slightly taller than 3:4, ideal for social media portrait, subjects framed with vertical breathing room",
         "5:4": "landscape tall — slightly taller than standard, balanced composition with modest horizontal emphasis",
+        "2:3": "portrait photo — classic DSLR vertical framing, subjects stand tall in frame, strong vertical emphasis with generous headroom",
+        "3:2": "photo landscape — classic DSLR horizontal framing, natural wide composition, balanced foreground and background depth",
     }
 
     _CUTS = [
@@ -1674,8 +1676,8 @@ class XB_llamaMiniMaxPreset:
                     "首尾帧生成音视频[英文]-FL2VA [EN]", "首尾帧生成音视频[中文]-FL2VA [ZH]",
                     "尾帧图生成音视频[英文]-L2VA [EN]", "尾帧图生成音视频[中文]-L2VA [ZH]",
                 ],),
-                "视频时长": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1,
-                    "tooltip": "视频时长 (秒), MiniMax H3 支持 4–15 秒"}),
+                "视频时长": ("INT", {"default": 8, "min": 4, "max": 60, "step": 1,
+                    "tooltip": "视频时长 (秒), MiniMax H3 支持 4–60 秒"}),
                 "视觉风格": (s._STYLES, {"default": "不指定 / Unspecified"}),
                 "音乐风格": (s._MUSIC, {"default": "禁止音乐 / No Music"}),
                 "画面比例": (s._ASPECTS, {"default": "16:9"}),
@@ -1814,8 +1816,8 @@ class XB_llamaMiniMaxRef2vaPreset:
                     "placeholder": "输入参考视频描述，例：视频一运镜参考，视频二角色动作参考..."}),
                 "参考音频介绍": ("STRING", {"default": "", "multiline": True,
                     "placeholder": "输入参考音频描述，例：音频一男主音色参考，音频二女主音色参考..."}),
-                "视频时长": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1,
-                    "tooltip": "视频时长 (秒), MiniMax H3 支持 4–15 秒"}),
+                "视频时长": ("INT", {"default": 8, "min": 4, "max": 60, "step": 1,
+                    "tooltip": "视频时长 (秒), MiniMax H3 支持 4–60 秒"}),
                 "视觉风格": (s._STYLES, {"default": "保持统一风格 / Consistent Style"}),
                 "音乐风格": (s._MUSIC, {"default": "禁止音乐 / No Music"}),
                 "画面比例": (s._ASPECTS, {"default": "16:9"}),

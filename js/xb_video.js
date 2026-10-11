@@ -37,7 +37,7 @@ app.registerExtension({
             const wH = node.widgets?.find(w => w.name === "height");
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
-            const rm = {"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9};
+            const rm = {"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9,"2:3":2/3,"3:2":3/2};
 
             const sW = () => { if(node._xb_syncing||node._xb_from_polling) return;
                 const r=wR.value; if(r.includes("Free")) return; const cr=rm[r]; if(!cr) return;
@@ -64,7 +64,7 @@ app.registerExtension({
             const wL = node.widgets?.find(w => w.name === "length");
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
-            const rS={"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9};
+            const rS={"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9,"2:3":2/3,"3:2":3/2};
             const rL={"16:9 (LTX)":16/9,"9:16 (LTX)":9/16,"4:3 (LTX)":4/3,"3:4 (LTX)":3/4};
 
             const sW = () => { if(node._xb_syncing||node._xb_from_polling) return;
@@ -157,7 +157,8 @@ app.registerExtension({
                             if (!isFree && !isLTX) {
                                 const ratioMap = {
                                     "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0
+                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
+                                    "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0
                                 };
                                 let currentRatio = ratioMap[valRatio];
 
@@ -300,7 +301,8 @@ app.registerExtension({
                         if (wChanged || hChanged || rChanged) {
                             const ratioMap = {
                                 "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0
+                                "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
+                                "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0
                             };
                             let currentRatio = ratioMap[valRatio];
 

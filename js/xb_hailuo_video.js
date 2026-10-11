@@ -27,7 +27,7 @@ app.registerExtension({
                 if (node._xb_syncing || node._xb_from_polling) return;
                 let d = parseFloat(v) || 1.0;
                 d = Math.round(d);
-                d = Math.max(1.0, Math.min(300.0, d));
+                d = Math.max(4.0, Math.min(60.0, d));
                 if (wDur.value !== d) { node._xb_syncing = true; wDur.value = d; xb_dispatch(wDur, d); node._xb_syncing = false; }
                 node._xb_last_dur = d;
             };
@@ -76,7 +76,9 @@ app.registerExtension({
                     "2:3 (Portrait Photo)": [2, 3],
                     "3:2 (Photo)": [3, 2],
                     "3:4 (Portrait Standard)": [3, 4],
+                    "4:5 (Portrait Tall)": [4, 5],
                     "4:3 (Standard)": [4, 3],
+                    "5:4 (Landscape Tall)": [5, 4],
                     "9:16 (Portrait Widescreen)": [9, 16],
                     "16:9 (Widescreen)": [16, 9],
                     "21:9 (Ultrawide)": [21, 9],
@@ -92,7 +94,7 @@ app.registerExtension({
                 // duration snap
                 let dur = parseFloat(wDur.value) || 1.0;
                 dur = Math.round(dur);
-                dur = Math.max(1.0, Math.min(300.0, dur));
+                dur = Math.max(4.0, Math.min(60.0, dur));
                 if (wDur.value !== dur) {
                     wDur.value = dur;
                     xb_dispatch(wDur, dur);

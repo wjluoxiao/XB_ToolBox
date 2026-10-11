@@ -95,7 +95,7 @@ function modeHasImage(node) {
 
 
 
-const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
+const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2 };
 const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
 const SIZE_MIN = 16;
 const SIZE_MAX = 16384;

@@ -77,9 +77,9 @@ function syncAll(graph) {
         const hyDur = hyNode.widgets?.find(w => w.name === "duration");
         const hyAsp = hyNode.widgets?.find(w => w.name === "aspect_ratio");
 
-        // 时长同步 (4-15 → clamp to valid range)
+        // 时长同步 (4-60 → clamp to valid range)
         if (hyDur) {
-            const d = Math.max(1, Math.min(300, mmDurVal));
+            const d = Math.max(4, Math.min(60, mmDurVal));
             if (Math.abs(Number(hyDur.value) - d) > 0.01) {
                 hyDur.value = d;
                 dispatch(hyDur, d);
@@ -143,7 +143,7 @@ function syncHaiyoToMinimax(graph) {
 
         // 时长同步
         if (mmDur) {
-            const d = Math.max(4, Math.min(15, hyDurVal));
+            const d = Math.max(4, Math.min(60, hyDurVal));
             if (Number(mmDur.value) !== d) {
                 mmDur.value = d;
                 dispatch(mmDur, d);

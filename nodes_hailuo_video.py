@@ -33,7 +33,7 @@ class XB_HailuoH3VideoParams:
                 "megapixels": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 16.0, "step": 0.1}),
                 "multiple": ("INT", {"default": 32, "min": 8, "max": 128, "step": 4}),
                 "frames_display": ("STRING", {"default": "Frames: 0", "multiline": False}),
-                "duration": ("INT", {"default": 8, "min": 4, "max": 15, "step": 1}),
+                "duration": ("INT", {"default": 8, "min": 4, "max": 60, "step": 1}),
                 "scale_factor": ("FLOAT", {
                     "default": 1.0, "min": 1.0, "max": 5.0, "step": 0.1,
                     "tooltip": "参考图放大系数 — 接入「MiniMax H3 参考编码」的参考值放大"

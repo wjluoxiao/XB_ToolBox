@@ -32,7 +32,7 @@ class XB_DigitalHumanParams_Single:
         return {
             "required": {
                 # ── 视频参数区（来自 XB_VideoParamsMaster）──
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 16}),
                 "fps": ("INT", {"default": 25, "min": 1, "max": 120, "step": 1}),
@@ -73,7 +73,7 @@ class XB_DigitalHumanParams_Single:
                 safe_w = max(step, round((safe_h * target_ratio) / step) * step)
         else:
             step = 16
-            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
             target_ratio = ratio_map.get(aspect_ratio, 1.0)
             if width >= height:
                 safe_w = max(step, round(width / step) * step)
@@ -149,7 +149,7 @@ class XB_DigitalHumanParams_Dual:
         return {
             "required": {
                 # ── 视频参数区（来自 XB_VideoParamsMaster）──
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
+                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 16}),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 120, "step": 1}),
@@ -251,7 +251,7 @@ class XB_DigitalHumanParams_Dual:
                 safe_w = max(step, round((safe_h * target_ratio) / step) * step)
         else:
             step = 16
-            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9}
+            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
             target_ratio = ratio_map.get(aspect_ratio, 1.0)
             if width >= height:
                 safe_w = max(step, round(width / step) * step)
