@@ -15,7 +15,7 @@ const FADE_TICKS = 6;
 const execState = { running: false, node: null, progress: null };
 let peakVramUsed = 0;
 let modelCollapsed = {};
-let colorModelBars = false;
+let colorModelBars = true;
 let colorModelStroke = true;
 let colorModelName = true;
 let showLegends = true;
@@ -43,7 +43,7 @@ let allDisksCache = [];
 let wantDisksList = false;  // one-shot — set when settings menu wants a fresh drive list
 let _rebuildDriveMenu = null;  // assigned by createPanel; called from renderData when allDisksCache refreshes
 let showHwNames = false;
-let showTitle = true;
+let showTitle = false;  // 标题默认隐藏：停靠顶栏里"硬件监控 (aimdo)"很占横向空间（菜单「迷你视图→头部显示」可开）
 let showExecBtn = false;  // optional play / cancel-running button in the header
 let miniShowNumbers = true;
 let miniShowUnits = true;
@@ -52,8 +52,8 @@ let miniShowGpuTemp = false;
 let miniShowGpuPower = false;
 let miniShowSeparators = true;
 let graphHeight = 80;
-let currentTheme = "default";
-let fontSize = 12;  // 面板基础字号 (px)
+let currentTheme = "fallout";
+let fontSize = 13;  // 面板基础字号 (px)
 let lang = "zh";    // 界面语言: "zh" | "en"
 
 // ── 中英文翻译映射表 ──
@@ -89,7 +89,7 @@ const L = {
         resetHistory: "重置历史", resetHistoryTitle: "重置峰值显存标记并清除历史图表",
         toggleColorBars: "模型条着色", toggleColorStroke: "模型边框着色",
         toggleColorName: "模型名着色", toggleShowLegends: "显示图例",
-        toggleShowTitle: "显示标题", toggleExecBtn: "执行按钮",
+        toggleShowHeader: "头部显示", toggleExecBtn: "执行按钮",
         toggleRam: "内存", toggleVram: "显存", togglePagefile: "页面文件",
         toggleIO: "I/O", toggleFaults: "页面抖动 (硬缺页)",
         toggleUtil: "利用率", toggleNames: "设备名称",
@@ -135,7 +135,7 @@ const L = {
         resetHistory: "Reset history", resetHistoryTitle: "Reset peak VRAM marker and clear history graph",
         toggleColorBars: "Color model bars", toggleColorStroke: "Color model stroke",
         toggleColorName: "Color model name", toggleShowLegends: "Show legends",
-        toggleShowTitle: "Show title", toggleExecBtn: "Execute button",
+        toggleShowHeader: "Show header", toggleExecBtn: "Execute button",
         toggleRam: "RAM", toggleVram: "VRAM", togglePagefile: "Pagefile",
         toggleIO: "I/O", toggleFaults: "Thrashing (hard faults)",
         toggleUtil: "util", toggleNames: "Device names",
@@ -332,6 +332,15 @@ function formatBytes(bytes, withUnit = true) {
     if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(1) + (withUnit ? " GB" : "");
     if (bytes >= 1024 ** 2) return (bytes / 1024 ** 2).toFixed(0) + (withUnit ? " MB" : "");
     return (bytes / 1024).toFixed(0) + (withUnit ? " KB" : "");
+}
+
+
+// Mini-bar variant of formatBytes: drops the space before the unit ("31.2GB"
+// rather than "31.2 GB") so the narrow docked sections stay on a single line.
+// Safe because the docked mini-bar keeps every row span nowrap, so a value can
+// never be split from its unit.
+function formatBytesCompact(bytes) {
+    return formatBytes(bytes).replace(/\u00a0/g, "");
 }
 
 
@@ -682,7 +691,7 @@ function createPanel() {
     let dockExpanded = false;     // session-only: body shown as overlay below the docked mini-bar
     let autoDockPending = false;  // true while the post-load redock poll is running
     let dockSectionWidth = (typeof saved.dockSectionWidth === "number" && saved.dockSectionWidth > 40)
-        ? saved.dockSectionWidth : 110;
+        ? saved.dockSectionWidth : 70;
     let savedPanelCss = null;     // snapshot before docking so undock can restore exact styles
     let preDockCollapsed = null;
     let dropZoneLeft = null;      // present only while a drag is in progress
@@ -1665,8 +1674,10 @@ function createPanel() {
         () => colorModelName, v => { colorModelName = v; }, "colorModelName");
     const showLeg = makeToggleItem(_t("toggleShowLegends"),
         () => showLegends, v => { showLegends = v; }, "showLegends");
-    const showTitleItem = makeToggleItem(_t("toggleShowTitle"),
-        () => showTitle, v => { showTitle = v; }, "showTitle");
+    const showTitleItem = makeToggleItem(_t("toggleShowHeader"),
+        () => showTitle,
+        v => { showTitle = v; titleSpan.style.display = v ? "" : "none"; },
+        "showTitle");
     const showExecBtnItem = makeToggleItem(_t("toggleExecBtn"),
         () => showExecBtn,
         v => { showExecBtn = v; execBtn.style.display = v ? "" : "none"; },
@@ -1675,7 +1686,6 @@ function createPanel() {
     displaySubmenu.appendChild(colorStroke.item);
     displaySubmenu.appendChild(colorName.item);
     displaySubmenu.appendChild(showLeg.item);
-    displaySubmenu.appendChild(showTitleItem.item);
     displaySubmenu.appendChild(showExecBtnItem.item);
 
     // --- Mini view submenu
@@ -1789,6 +1799,7 @@ function createPanel() {
     miniSubmenu.appendChild(showNumbers.item);
     miniSubmenu.appendChild(showUnits.item);
     miniSubmenu.appendChild(showSeparators.item);
+    miniSubmenu.appendChild(showTitleItem.item);   // 头部显示：顶栏开头的"硬件监控 (aimdo)"标题
 
     // --- Polling interval submenu (single-select like Scale)
     const pollPresets = [100, 250, 500, 1000, 2000, 5000];
@@ -2629,14 +2640,14 @@ function renderData(body, data) {
         return (p < 10 ? "0" : "") + p + "%";
     };
     m.vramUsage.textContent = !_n ? "" :
-        _u ? `${formatBytes(used)}|${formatBytes(data.total_vram)}`
+        _u ? `${formatBytesCompact(used)}|${formatBytesCompact(data.total_vram)}`
            : asPct(used, data.total_vram);
     m.vramSegs[0].style.width = aimdoPct + "%";
     m.vramSegs[1].style.width = torchPct + "%";
     m.vramSegs[2].style.width = torchCachePct + "%";
     m.vramSegs[3].style.width = otherPct + "%";
     m.ramUsage.textContent = !_n ? "" :
-        _u ? `${formatBytes(ramUsed)}|${formatBytes(ramTotal)}`
+        _u ? `${formatBytesCompact(ramUsed)}|${formatBytesCompact(ramTotal)}`
            : asPct(ramUsed, ramTotal);
     m.ramSegs[0].style.width = pinnedRamPct + "%";
     m.ramSegs[1].style.width = loadedRamPct + "%";
@@ -2682,8 +2693,8 @@ function renderData(body, data) {
         diskState.prevRead = data.disk_read;
         diskState.prevWrite = data.disk_write;
         diskState.prevTime = now;
-        m.diskReadUsage.textContent = _n ? (formatBytes(readRate) + "/s ↓") : "";
-        m.diskWriteUsage.textContent = _n ? (formatBytes(writeRate) + "/s ↑") : "";
+        m.diskReadUsage.textContent = _n ? (formatBytesCompact(readRate) + "/s ↓") : "";
+        m.diskWriteUsage.textContent = _n ? (formatBytesCompact(writeRate) + "/s ↑") : "";
         m.diskReadFill.style.width = (readRate / diskState.peakRead * 100) + "%";
         m.diskWriteFill.style.width = (writeRate / diskState.peakWrite * 100) + "%";
         m.diskLabel.style.display = miniShowType ? "" : "none";
@@ -2732,7 +2743,7 @@ function renderData(body, data) {
             fillEl.style.background = pct >= 90 ? C.gpuUtilHi : (pct >= 75 ? C.gpuUtil : C.pinned);
             usageEl.textContent = !_n ? "" :
                 (free == null || !total) ? "?" :
-                _u ? formatBytes(free)
+                _u ? formatBytesCompact(free)
                    : asPct(used, total);
         }
         m.diskSpaceSection.title = buildDiskTooltip(allDisksCache);
@@ -2744,7 +2755,7 @@ function renderData(body, data) {
         m.pagefileSection.style.display = "";
         const swapPct = Math.round(data.used_swap / data.total_swap * 100);
         m.pagefileUsage.textContent = _n
-            ? (_u ? `${formatBytes(data.used_swap)}|${formatBytes(data.total_swap)}` : (swapPct < 10 ? "0" : "") + swapPct + "%")
+            ? (_u ? `${formatBytesCompact(data.used_swap)}|${formatBytesCompact(data.total_swap)}` : (swapPct < 10 ? "0" : "") + swapPct + "%")
             : "";
         m.pagefileSegs[0].style.width = (data.used_swap / data.total_swap * 100) + "%";
         m.pagefileLabel.style.display = miniShowType ? "" : "none";

@@ -493,6 +493,10 @@
     border-left: 1px solid var(--aimdo-border);
     padding-left: 16px;
     margin-left: 6px;
+    /* content-box: the 16px indent + 1px divider must NOT eat into the declared
+       width. With the global border-box they shortened this section's bar by 17px,
+       so the group-start bar was visibly shorter than the others. */
+    box-sizing: content-box;
 }
 
 /* free disk space: one row per selected drive, mountpoint left, bar middle, "free" right.
@@ -516,25 +520,39 @@
     min-width: 18px;
 }
 
-/* docked mini-bar: horizontal, fixed-width sections */
+/* docked mini-bar: horizontal, fixed-width sections. flex-end (not center) keeps
+   every bar on one horizontal line: all sections end with a bar plus the same 4px
+   trailing gap, so bottom-aligning the sections aligns the bars even when a label
+   row wraps to a second line and grows taller than the others. */
 #aimdo-viz-panel.aimdo-docked .aimdo-mini-bar {
     display: flex !important; flex-direction: row !important;
-    padding: 0 !important; gap: 12px; align-items: center;
+    padding: 0 !important; gap: 12px; align-items: flex-end;
     flex: 1 1 auto; min-width: 0;
     font-size: 0.75em;
 }
 #aimdo-viz-panel.aimdo-docked .aimdo-mini-row {
     flex-wrap: wrap;
-    gap: 0 6px;
+    justify-content: flex-start;
+    gap: 0;
     margin-bottom: 3px;
+}
+/* "label|value" with no wasted space: the separator rides on the label so it
+   disappears together with a hidden label (miniShowType off) and never leaves a
+   stray leading "|"; :not(:only-child) skips single-span rows (e.g. disk space). */
+#aimdo-viz-panel.aimdo-docked .aimdo-mini-row > span:first-child:not(:only-child)::after {
+    content: "|";
+}
+/* keep the GPU header value next to the label instead of pushed to the far right */
+#aimdo-viz-panel.aimdo-docked .mini-gpu-header-value {
+    margin-left: 0;
 }
 #aimdo-viz-panel.aimdo-docked .aimdo-mini-row > span {
     flex-shrink: 0;
     white-space: nowrap;
 }
 #aimdo-viz-panel.aimdo-docked .aimdo-mini-bar > * {
-    width: var(--aimdo-dock-section-w, 110px);
-    min-width: var(--aimdo-dock-section-w, 110px);
+    width: var(--aimdo-dock-section-w, 70px);
+    min-width: var(--aimdo-dock-section-w, 70px);
     flex: 0 0 auto;
     overflow: hidden;
 }
