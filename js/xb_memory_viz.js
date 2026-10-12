@@ -52,7 +52,7 @@ let miniShowGpuTemp = false;
 let miniShowGpuPower = false;
 let miniShowSeparators = true;
 let graphHeight = 80;
-let currentTheme = "fallout";
+let currentTheme = "default";
 let fontSize = 13;  // 面板基础字号 (px)
 let lang = "zh";    // 界面语言: "zh" | "en"
 
