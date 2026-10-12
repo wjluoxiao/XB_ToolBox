@@ -785,15 +785,37 @@ function createPanel() {
         return true;
     }
 
-    function reconcileDocking() {
-        if (!isDocked || panel.isConnected) return;
+    // Keep the docked panel inside .actionbar-container. Vue can remove OR reparent the
+    // panel when it re-renders the topbar (UI zoom / layout changes), so compare the real
+    // parent: a reparented panel is still "connected", and the old isConnected guard left
+    // it stranded outside the top bar. Whatever moves it also fires disconnectedCallback,
+    // which re-arms this — and the watchdog keeps retrying while the topbar is mid-rebuild.
+    function reattachToActionbar() {
         const ac = getActionbarContainer();
-        if (!ac) return;
-        panel.style.order = dockSide === "left" ? "-1" : "1";
-        ac.appendChild(panel);
+        if (!ac) return false;                        // topbar rebuilding — retry later
+        if (panel.parentNode !== ac) {
+            panel.style.order = dockSide === "left" ? "-1" : "1";
+            ac.appendChild(panel);
+        }
+        return true;
+    }
+    let dockWatch = null;
+    function stopDockWatch() { if (dockWatch != null) { clearInterval(dockWatch); dockWatch = null; } }
+    function startDockWatch(ms) {
+        if (dockWatch != null) return;
+        dockWatch = setInterval(() => {
+            if (!isDocked && !autoDockPending) { stopDockWatch(); return; }  // user undocked on purpose
+            if (!isDocked) { if (dock(dockSide)) stopDockWatch(); return; }  // boot: topbar not up yet
+            if (reattachToActionbar()) stopDockWatch();
+        }, ms || 400);
+    }
+    function reconcileDocking() {
+        if (!isDocked) return;
+        if (reattachToActionbar()) stopDockWatch();
+        else startDockWatch();
     }
     // The panel is a custom element — its disconnectedCallback fires the instant Vue
-    // (or anything else) removes it from the DOM.
+    // (or anything else) removes or moves it.
     panel._onDisconnect = () => { if (isDocked) queueMicrotask(reconcileDocking); };
 
     function undock() {
@@ -1288,6 +1310,10 @@ function createPanel() {
     window.addEventListener("blur", () => { panel.style.cursor = ""; });
     panel.addEventListener("mousedown", (e) => {
         if (!isModifier(e) || dragging || pendingDrag) return;
+        // While docked the panel is locked to the top bar: a modifier-click on a metric
+        // must not drag it out (a few px of jitter was enough to detach it silently).
+        // Use the drag handle to pull it out, or 右键 → 取消停靠.
+        if (isDocked) return;
         e.preventDefault();
         e.stopPropagation();
         pendingDrag = { startX: e.clientX, startY: e.clientY, dockedAtStart: isDocked };
@@ -2009,7 +2035,9 @@ function createPanel() {
 
     // restore docked placement once ComfyUI has built the topbar. Until the container
     // exists we wait — the panel sits floating in its persisted spot in the meantime.
-    // Capped at ~3s so a user who disabled the new menu doesn't keep us polling.
+    // The fast rAF pass lasts ~3s, then hands over to the slow watchdog: a topbar that is
+    // slow to build (heavy startup, UI zoom, layout switch) must not cost the user their
+    // docked preference, so the timeout never persists docked:false.
     // Any user-initiated drag or explicit undock during the wait cancels the poll so
     // we don't yank the panel out from under them.
     if (isDocked) {
@@ -2019,7 +2047,7 @@ function createPanel() {
         const tryDock = () => {
             if (!autoDockPending) return;
             if (dock(dockSide)) return;
-            if (++frames > 180) { autoDockPending = false; saveState({ docked: false }); return; }
+            if (++frames > 180) { startDockWatch(1000); return; }  // fall back to slow retries
             requestAnimationFrame(tryDock);
         };
         requestAnimationFrame(tryDock);
