@@ -29,6 +29,29 @@ The primary goal of **XB_ToolBox** is to help AI beginners new to ComfyUI quickl
 
 ---
 
+## 🗺️ What's inside — 141 nodes
+
+| Area | Nodes | Highlights |
+|------|:---:|---|
+| 🎛️ Media parameters & I/O | 7 | Image / Video Params Master, Hailuo H3 params, Video Loader & Combine, Master Parameter |
+| 🧊 VRAM optimization | 25 | 17 official-node wrappers with tiered cleanup, Block Swap, SageAttention, GGUF loaders V1–V3 |
+| 🎬 Long-form video relays | 19 | InfiniteTalk / SCAIL / Wan Animate infinite relays, LTX-2.3 streamer, Video Merger, Storyboard Slicer, Digital-Human params |
+| 🎥 Wan node family | 24 | I2V, first/last frame, VACE, Fun, Camera, Phantom, HuMo, SCAIL, Dancer, Sound, InfiniteTalk — all with VAE tiling |
+| 🎵 Audio & speech | 15 | Audio Slicer ×4, CosyVoice3 ×10, Play Sound |
+| 🧠 Local LLM (XB-llama) | 17 | Loaders, instruct, parameters, prompt enhance / reverse, storyboard, MiniMax H3 presets |
+| 🖼️ Image presets | 4 | Image Prompt Preset / Pro, Qwen2.1 preset, ShenBi board |
+| 🖼️ Model-specific encoders | 3 | FLUX multi-image, Qwen image-edit (+ Plus) |
+| 🎨 Super routers | 2 | Bernini prompt router, K2 style router |
+| 🎵 YuE2 music | 5 | Style prompt, lyrics, score workbench, cover prep, transcription intake |
+| ✂️ Segmentation | 2 | ONNX human segmentation with a GPU (DirectML) path on AMD |
+| 💬 Comic | 3 | Dialogue parser, exact-coordinate text renderer, auto bubble renderer |
+| 🧰 Utilities & wiring | 11 | Batch loaders, image scale, list dispatcher, string merge, reference-any, status switch, label, MSR, name broadcasters |
+| 📊 Hardware dashboard | 1 | Live VRAM / RAM / CPU / GPU / disk panel |
+
+> Counts are read straight from `NODE_CLASS_MAPPINGS` in `__init__.py`.
+
+---
+
 ### ✨ Core Nodes
 
 #### 1. 🎬 Media Parameters & Spatiotemporal Visualization
@@ -41,16 +64,75 @@ The primary goal of **XB_ToolBox** is to help AI beginners new to ComfyUI quickl
 
 #### 2. 🧊 VRAM Optimization
 
-- **🧊 Sampler Chunk Master**: Tailored for WAN/LTX. Performs spatiotemporal dual-axis slicing (Spatial Tiles & Temporal Chunks) in the Latent space. Hijacks model parameters in-place with an built-in `rocm_optimized` extreme memory reclamation strategy, breaking the large-tensor OOM curse.
-- **✂️ Model Block Swap**: Supports both UNet and Checkpoint modes. Forcibly unloads the first N Transformer Blocks and Text/Image embedding layers to system RAM, trading time for space.
-- **🧹 VRAM Cleaner**: Essential for pre-generation clearing. Delivers "nuclear-level cleanup" by deeply invoking `gc.collect()` and `torch.cuda.empty_cache()` to crush PyTorch cache fragmentation.
+- **🧊 Official Sampler / VAE Wrappers (17)**: call the official ComfyUI nodes verbatim — dynamic `INPUT_TYPES`, `**kwargs` passthrough, zero changes to the underlying algorithm — and inject a tiered cache cleanup (`不做任何清理` / `单次缓存清理` / `双次缓存清理` / `卸载显存模型`) before each run. Covers `KSampler`, `KSamplerAdvanced`, `SamplerCustom(+Advanced)`, `VAEDecode(+Tiled / TiledImage)`, `VAEEncode(+Tiled / ForInpaint)`, plus legacy `ROCm`-named aliases for old workflows.
+- **✂️ Block Swap (UNet / Checkpoint)**: forcibly parks the first N transformer blocks and the text/image embedding layers in system RAM, trading time for space.
+- **🧠 SageAttention Accelerator / Sage + Block Swap Duo**: mount the attention-acceleration patch alone (auto / PyTorch SDPA / comfy-kitchen), or combined with physical block swapping in one node.
+- **📦 GGUF Model Loaders V1 / V2 / V3**: all-in-one loaders stacking GGUF UNet + GGUF CLIP + LoRA (multi-slot) + VAE + Sage + Block Swap. V2 adds high/low-noise UNet pairs, V3 adds dual CLIP and dual VAE.
 
 #### 3. 🎛️ Workflow Deployment Assistants
 
-- **🪄 XB Dashboard Zen**: A "Mirror Clone Console" developed using low-level LiteGraph features. Batch-clones any scattered components in your workflow into a fixed panel. Features two-way data synchronization and direct arterial connections to create a clean, customized monitoring dashboard.
-- **🎛️ Dynamic Bus**: An ultra-compact N-in/N-out `AnyType` universal bus node. Provides custom UI type labels and one-click channel addition/removal to save your workflow from "noodle wire" chaos.
+- **🎛️ Param Bus & Relay Nodes**: an ultra-compact `AnyType` bus that holds every shared parameter (model, VAE, prompt, size, FPS, cleanup tier) plus a matching relay node that executes one segment and passes the accumulated result on. One node replaces a 10-node subgraph and sets your workflow free from "noodle wire" chaos.
+- **🧰 Small tools that save a workflow**: list dispatcher (split one list into N outputs), reference-any (single-select switch over dynamic slots), node status switch (mute/bypass a target node from a boolean), string merge, name broadcasters, canvas label, Play Sound.
+- **📊 Mirror panel**: the hardware dashboard clones the numbers you care about into one always-visible strip — see §13.
 
-#### 4. 🎵 YuE2 Music
+#### 4. 🎬 Long-form Video Relays
+
+A two-minute talking-head clip will OOM in a single pass on almost any GPU. These nodes split the job into reusable relay hops: a **Param Bus** holds every shared parameter (model, VAE, size, FPS, prompts, cleanup tier) and each **Relay Node** runs one segment (encode → sample → decode → trim → accumulate), then hands the accumulated result to the next hop.
+
+- **🎵 InfiniteTalk Param Bus / Relay** — single speaker, dual speaker, multi-reference, and an all-in-one variant; the bus encodes the audio once and slices it per segment automatically.
+- **🏃 Wan Animate Param Bus / Relay** — motion transfer from a driving video, same relay pattern.
+- **🆕 SCAIL Param Bus / Relay** — SCAIL pose-driven video relay.
+- **🔄 LTX-2.3 Infinite Streamer** — single-sample (8-step) long-form streamer with guide stitching.
+- **🎬 Video Merger / Storyboard Slicer / Digital-Human params** — merge clips, slice grid storyboards into panels, and one-stop parameter + audio preparation for digital-human workflows.
+
+#### 5. 🎥 Wan Node Family (24)
+
+Re-implementations of the Wan video nodes with **VAE tiling** built in (spatial + temporal chunking to flatten the decode peak): `ImageToVideo`, `FirstLastFrameToVideo`, `VaceToVideo`, `FunControl` / `FunInpaint`, `Camera`, `PhantomSubject`, `HuMo`, `SoundImageToVideo` (+ Extend), `SCAIL` (+ Pro), `Dancer` (+ Dance Switcher and Dancer Combo), `InfiniteTalkToVideo` (single / dual / legacy mode switch), `Wan22ImageToVideoLatent`, `WanVAEDecodeTiled`.
+
+> These are graph members only — the Wan **model / sampler / VAE / text-encode** nodes come from [ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper). `XB_WanAnimateToVideo` and `XB_WanCompileSettings` are fully self-contained.
+
+#### 6. 🎵 Audio & Speech (15)
+
+- **🎵 Audio Slicer ×4** — waveform display with draggable cut handles: basic, V1 (single speaker), V2 (two speakers + gap), V3 (advanced, dual-track mixing).
+- **🔊 CosyVoice3 ×10** — model loader (auto-download + cache), zero-shot cloning, cross-lingual synthesis, instruct-style control, speaker-preset save / clone, voice conversion, multi-speaker dialog, audio crop. Presets are stored as CosyVoice-compatible `.pt` files, so you never re-upload the reference clip.
+- **🔊 Play Sound** — play a notification when a workflow finishes.
+
+#### 7. 🧠 Local LLM Prompt Suite (XB-llama, 17)
+
+Local LLM/VLM inference for prompt work: model loader (+ Pro, which folds every inference parameter into one panel), instruct, reasoning parameters, unload / clean-state, bbox extraction, code-block unpacking, prompt **enhancer**, prompt **reverse** (a five-in-one node: loader + parameters + API settings + preset + instruct), storyboard enhancer / instruct / processor (+ Pro), MiniMax H3 prompt presets (`fl2va`, `ref2va`) and the role/scene dispatcher.
+
+Both a **local model** and an **online API** backend are supported; API keys live in the ComfyUI `user` directory and are never written into the workflow.
+
+#### 8. 🖼️ Image Prompt Presets (4)
+
+- **🖼️ Image Prompt Preset** — one node replacing "prompt box + aspect-ratio node + official empty latent", with step-locked width/height and ratio linking.
+- **🖼️ Image Prompt Preset Pro** — the same, plus built-in LLM prompt enhancement / reverse.
+- **🖼️ Qwen2.1 Prompt Preset** — preset + element panel, wired to the official Load CLIP + Generate Text chain.
+- **🖌️ ShenBi** — an input-less paint board (create / edit modes) that outputs a strictly on-resolution image.
+
+#### 9. 🖼️ Model-specific Encoders (3)
+
+- **FLUX Multi-Image Encode** — resize → VAE encode → ReferenceLatent chained, with image slots auto-expanding up to 9.
+- **Qwen Image-Edit Encode (+ Plus)** — ports of the official `TextEncodeQwenImageEdit` / `...Plus`, dynamic image slots up to 9.
+
+#### 10. 🎨 Super Routers (2)
+
+**Bernini Prompt Router** and **K2 Style Router** rewrite heavy multi-switch subgraphs (Fast Muter + Any Switch chains) as a single native node, so the front-end cost of refreshing and dragging drops from O(n) hidden nodes to O(1).
+
+#### 11. ✂️ Segmentation & Comic (5)
+
+- **✂️ Human Segmentation** — ONNX u2net (RMBG-1.4) model loader plus a mask / cutout node, running on the GPU through DirectML on AMD.
+- **💬 Comic ×3** — parse dialogue out of a script, render text at exact coordinates, or auto-detect white speech bubbles and fill them in.
+
+#### 12. 🧰 Utilities & Wiring (11)
+
+Batch folder / batch images (muted inputs are skipped), batch image scale (N-in / N-out), list dispatcher, string merge (with a per-segment newline option), reference-any, node status switch, canvas label, MSR multi-image → frame sequence, and UNet / CLIP name broadcasters.
+
+#### 13. 📊 Hardware Dashboard (1)
+
+**XB 📊 Memory Visualization** — a live panel for VRAM / RAM / CPU / GPU / disk / pagefile, with a per-model VRAM breakdown, an aimdo page-residency heatmap, history graphs, themes, and a docked mini-bar that pins to the ComfyUI top bar. Full guide: [docs/XB_MemoryVisualization_manual.md](docs/XB_MemoryVisualization_manual.md).
+
+#### 14. 🎵 YuE2 Music
 
 YuE2 is a white-box song generator: it plans an editable ABC score from style + lyrics, then renders audio from that score. These nodes bring the official skill's symbolic-layer workflow into ComfyUI (the ABC parser is an in-node port of the official bounded-dialect implementation, standard library only, nothing leaves your machine).
 
@@ -92,7 +174,51 @@ Navigate to your ComfyUI `custom_nodes` directory and run:
 git clone https://github.com/wjluoxiao/XB_ToolBox.git
 ```
 
-(Note: This extension relies purely on the native ComfyUI ecosystem through elegant Python/JS architecture. NO extra pip dependencies required! Plug and play.)
+(Note: the core architecture relies purely on the native ComfyUI ecosystem — elegant Python/JS, no patched libraries. Some node groups do import extra packages; see below.)
+
+#### 🔧 Dependencies
+
+Most nodes are dependency-free, but a few groups import extra packages. Install them all with:
+
+```bash
+pip install -r requirements.txt
+```
+
+| Node group | Packages |
+|---|---|
+| Audio slicer, video I/O | `av`, `imageio-ffmpeg` |
+| Comic text detection | `easyocr`, `opencv-python` |
+| Human segmentation | `onnxruntime` (on AMD use `onnxruntime-directml`) |
+| Hardware dashboard | `psutil`, `pythonnet` (bundles `LibreHardwareMonitorLib.dll`) |
+| Local LLM (XB-llama) | `diskcache`, `gguf`, and **`llama-cpp-python`** — install that one manually to match your GPU |
+| CosyVoice3 | `modelscope`, `huggingface_hub`, `transformers`, `librosa`, `soundfile`, `HyperPyYAML`, `omegaconf`, `hydra-core`, `conformer`, `openai-whisper`, `tiktoken`, `scipy`, `einops`, … |
+| Audio waveform endpoint | `aiohttp` |
+
+**Optional companion extensions** — a few groups expect these to be installed:
+
+| Feature | Needs |
+|---|---|
+| Wan nodes & relay pipelines | [ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper) — supplies the Wan model loader / sampler / VAE / text-encode nodes |
+| GGUF model loaders | [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) |
+| YuE2 preset nodes | A ComfyUI build that ships `YuE2GenerateABC` / `YuE2GenerateMusic` |
+
+Nodes that are fully self-contained say so in their own docstring.
+
+---
+
+### 🙏 Credits
+
+XB_ToolBox stands on the shoulders of the ComfyUI ecosystem. Several nodes are ports, wrappers or adaptations — thanks to their authors:
+
+- **VideoHelperSuite (VHS)** — the video loader/combine and audio-slicing logic derive from VHS.
+- **rgthree-comfy** — `XB_ReferenceAny` fuses Fast Muter + Any Switch; `XB_NodeStatusSwitch` is a port of DaSiWa's node (ported with permission).
+- **ComfyUI-KJNodes** — `XB_StringMerge` is reworked from `JoinStringMulti`; the SageAttention node keeps the original KJNodes design.
+- **ComfyUI-Custom-Scripts (pysssss)** — `XB_PlaySound` is an independent re-implementation.
+- **ComfyUI-GGUF (city96)** — the GGUF loaders wrap its official nodes.
+- **ComfyUI-WanVideoWrapper (kijai)** — companion extension for the Wan family.
+- **ComfyUI-MemoryVisualization (kijai)** — the hardware panel started from this project and has since grown its own themes, docking and metrics.
+- **ComfyUI-llama-cpp_vlm** — the `XB-llama` nodes are adapted from it.
+- `XB_KSampler` and friends call the **official ComfyUI nodes** verbatim and only add cache cleanup.
 
 ---
 

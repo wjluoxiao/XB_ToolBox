@@ -13,10 +13,12 @@ import av
 from aiohttp import web
 import server
 
+from .xb_av import open_av
+
 def _load_audio_file(filepath: str):
     """用 av 解码音频，返回 (waveform_2d, sample_rate)。加载失败返回 None"""
     try:
-        with av.open(filepath) as af:
+        with open_av(filepath) as af:
             if not af.streams.audio:
                 return None
             stream = af.streams.audio[0]

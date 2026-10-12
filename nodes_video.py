@@ -13,6 +13,8 @@ import folder_paths
 from comfy.utils import common_upscale, ProgressBar
 import nodes
 
+from .xb_av import open_av
+
 # ============================================================
 # XB_ImageParamsMaster — 图像参数主控
 # ============================================================
@@ -384,7 +386,7 @@ def _lazy_get_audio(file, start_time=0, duration=0):
         raise RuntimeError("Video audio loading requires PyAV (av)") from exc
     # 只探测流元数据，不解码；这样可选 AUDIO 消费端能拿到 None 而不是非法的单采样点张量
     try:
-        with av.open(file) as container:
+        with open_av(file) as container:
             if not any(stream.type == 'audio' for stream in container.streams):
                 return None
     except Exception as exc:
@@ -395,7 +397,7 @@ def _lazy_get_audio(file, start_time=0, duration=0):
         def _load(s):
             if s._d is not None: return
             try:
-                with av.open(s.file) as c:
+                with open_av(s.file) as c:
                     a = next((x for x in c.streams if x.type == 'audio'), None)
                     if a is None:
                         raise ValueError("Audio stream disappeared after probing")
