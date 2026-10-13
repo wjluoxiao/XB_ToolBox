@@ -207,7 +207,7 @@ pip install -r requirements.txt
 XB_ToolBox 站在 ComfyUI 生态的肩膀上，部分节点为移植 / 套壳 / 改编，感谢原作者：
 
 - **VideoHelperSuite (VHS)** —— 视频加载 / 拼接与音频切片逻辑源自 VHS。
-- **rgthree-comfy** —— `XB_ReferenceAny` 融合了 Fast Muter + Any Switch；`XB_NodeStatusSwitch` 移植自 DaSiWa 的节点（经授权）。
+- **rgthree-comfy** —— `XB_ReferenceAny` 融合了 Fast Muter + Any Switch。
 - **ComfyUI-KJNodes** —— `XB_StringMerge` 由 `JoinStringMulti` 重构而来；SageAttention 节点保持原版 KJNodes 设计。
 - **ComfyUI-Custom-Scripts (pysssss)** —— `XB_PlaySound` 为独立重写实现。
 - **ComfyUI-GGUF (city96)** —— GGUF 加载节点套壳其官方节点。

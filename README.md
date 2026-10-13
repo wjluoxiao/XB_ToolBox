@@ -211,7 +211,7 @@ Nodes that are fully self-contained say so in their own docstring.
 XB_ToolBox stands on the shoulders of the ComfyUI ecosystem. Several nodes are ports, wrappers or adaptations — thanks to their authors:
 
 - **VideoHelperSuite (VHS)** — the video loader/combine and audio-slicing logic derive from VHS.
-- **rgthree-comfy** — `XB_ReferenceAny` fuses Fast Muter + Any Switch; `XB_NodeStatusSwitch` is a port of DaSiWa's node (ported with permission).
+- **rgthree-comfy** — `XB_ReferenceAny` fuses Fast Muter + Any Switch.
 - **ComfyUI-KJNodes** — `XB_StringMerge` is reworked from `JoinStringMulti`; the SageAttention node keeps the original KJNodes design.
 - **ComfyUI-Custom-Scripts (pysssss)** — `XB_PlaySound` is an independent re-implementation.
 - **ComfyUI-GGUF (city96)** — the GGUF loaders wrap its official nodes.
