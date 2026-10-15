@@ -3249,6 +3249,8 @@ function setupNode(node) {
  *                + 提示词框标题行（右侧「📋 复制」）+ 参数设定显示（只读摘要 5 行）
  *                + 「📝 提示词」端口接线 → 提示词框锁定（二选一）
  *  弹窗：导演台同款二级弹窗（底部：自动保存 + 字号 + 界面缩放 + 取消/💾 保存）
+ *  🤖 LLM设置 顶部 = LLM 增强总开关（单选必选：启用LLM增强 / 关闭LLM增强，默认启用）
+ *              → 节点 widget `llm_enable`（BOOLEAN，节点表面隐藏）；关闭 = 后端不加载文本编码器、不生成文本
  *  配置：manager_settings.qwen = { run.seed_control, extra_settings }（Generate Text 的全量参数走节点 widget，由弹窗读写）
  *  说明：本块所有标识符统一 xbr/XBR 前缀，避免与生图预设面板既有函数/常量重名。
  * ========================================================================== */
@@ -3258,12 +3260,15 @@ const XBR_SEED_MODES = ["randomize", "fixed", "increment", "decrement"];const XB
 const XBR_IO_MODES = ["自动", "文生图", "图生图"];
 const XBR_SAMPLING_MODES = ["on", "off"];
 const XBR_MTP_MODES = ["auto", "off", "2", "3", "4", "5"];
+/** LLM 增强总开关（🤖 LLM设置 弹窗顶部单选，必选；默认「启用LLM增强」）*/
+const XBR_LLM_MODES = ["启用LLM增强", "关闭LLM增强"];
 const XBR_PANEL_BUTTONS = [
-  { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "模型选择 = 官方 Load CLIP；参数设置 = 官方 Generate Text 全量参数。执行节点即生成，没有开关。" },
+  { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "顶部 = LLM 增强总开关（默认启用）；模型选择 = 官方 Load CLIP；参数设置 = 官方 Generate Text 全量参数。" },
   { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "输出语言 / 空latent类型 / 预设模式 / 设定词 / SKILL。提示词正文在节点上的提示词框里编辑。" },
 ];
 /** 全部收进弹窗的节点 widget（节点表面只留画幅参数 / 生成数量） */
 const XBR_QWEN_WIDGETS = [
+  "llm_enable",
   "clip_name", "clip_type", "device",
   "max_length", "sampling_mode", "temperature", "top_k", "top_p", "min_p",
   "repetition_penalty", "presence_penalty", "seed", "control_after_generate",
@@ -3497,7 +3502,18 @@ function xbrDialog({ label, title, subtitle, width = 820, autoSaveRef = null, on
 function xbrRenderLlm(body, node, draft, ctx) {
   const s = draft.settings.qwen;
 
-  body.append(makeSectionTitle("模型选择（官方 Load CLIP）"));
+  // ── 顶部：LLM 增强总开关（单选必选，默认「启用LLM增强」）──
+  body.append(makeSectionTitle("LLM 增强"));
+  body.append(field("LLM 增强", radioRow(XBR_LLM_MODES, draft.llm ? XBR_LLM_MODES[0] : XBR_LLM_MODES[1], (v) => {
+    draft.llm = (v === XBR_LLM_MODES[0]);
+    ctx.rerender();                                   // 关闭 → 下面的区块标成不生效
+  })));
+  body.append(xbrHint(draft.llm
+    ? "启用（默认）：执行节点时加载文本编码器，把正文生成成完整提示词（下面的模型与参数全部生效）。"
+    : "关闭：执行节点只输出拼装好的提示词 + 空latent —— 不加载文本编码器、不生成文本（下面的模型与参数都不生效）。"));
+
+  const offMark = draft.llm ? "" : "　—　已关闭 LLM 增强，不生效";
+  body.append(makeSectionTitle("模型选择（官方 Load CLIP）" + offMark));
   const clips = xbrWidgetOptions(node, "clip_name");
   if (clips.length) body.append(field("模型", selectControl(clips, draft.clip_name, (v) => { draft.clip_name = v; })));
   else body.append(field("模型", xbrTextControl(draft.clip_name, "models/text_encoders 里没有模型", (v) => { draft.clip_name = v; })));
@@ -3505,7 +3521,7 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(field("设备", selectControl(xbrWidgetOptions(node, "device"), draft.device, (v) => { draft.device = v; })));
   body.append(xbrHint("与官方 Load CLIP 完全一致：模型来自 ComfyUI/models/text_encoders；Qwen-Image 系文本编码器请选 类型 = qwen_image。"));
 
-  body.append(makeSectionTitle("参数设置（官方 Generate Text 全量参数）"));
+  body.append(makeSectionTitle("参数设置（官方 Generate Text 全量参数）" + offMark));
   const t = draft.text;
   body.append(field("最大长度 max_length", xbrNumberControl(t.max_length, { min: 1, max: 32768, step: 1 }, (v) => { t.max_length = Math.round(v); })));
   body.append(field("采样模式 sampling_mode", selectControl(XBR_SAMPLING_MODES, t.sampling_mode, (v) => { t.sampling_mode = v; ctx.rerender(); })));
@@ -3527,7 +3543,10 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(field("使用内置模板 use_default_template", checkboxControl(t.use_default_template, "使用模型自带的系统提示词 / 对话模板", (v) => { t.use_default_template = v; })));
   body.append(field("mtp", selectControl(XBR_MTP_MODES, t.mtp, (v) => { t.mtp = v; })));
   body.append(xbrHint("mtp：多 token 预测投机解码，没有 MTP 权重时无效；与官方 Generate Text 同义。"));
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"));
+  body.append(el("div", "font-size:11px;color:" + (draft.llm ? "#888" : "#d9a441") + ";line-height:1.6;margin:2px 0 8px;",
+    draft.llm
+      ? "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"
+      : "已关闭 LLM 增强：执行节点不会加载上面的模型、也不会用这些参数，输出 = 本档设定词置顶 + 提示词框正文（「📝 提示词」端口接线时用它）。"));
 }
 
 /* ── 弹窗内容：✨ 预设参数（生图预设 + 设定词 + SKILL）───────────── */
@@ -3685,7 +3704,8 @@ function xbrRenderHelp(body) {
     "  · 第 2 行按钮：🎨 风格 ｜ 📐 视角 ｜ 👤 主体 ｜ 🕺 姿态 ｜ 👗 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景",
     "  · 画幅比例 / 宽度 / 高度 / 生成数量：按空latent类型的官方步长自动对齐",
     "  · 提示词框右上角 📋 复制；下面是参数设定显示，实时告诉你当前配置",
-    "  · 没有开关：执行节点就会用文本编码器生成",
+    "  · 开关：🤖 LLM设置 顶部「启用LLM增强 / 关闭LLM增强」（默认启用）；",
+    "    关闭后执行节点只用拼装好的提示词，不加载文本编码器、不生成文本",
     "",
     "【元素面板怎么用】",
     "  · 点选项行 = 加入提示词，再点一下 = 移除",
@@ -3695,6 +3715,10 @@ function xbrRenderHelp(body) {
     "  · 搜索框与「全部加入」只作用于当前子类",
     "",
     "【🤖 LLM设置】",
+    "  · 顶部总开关（单选必选，默认「启用LLM增强」）：",
+    "      ◆ 启用LLM增强 = 执行节点时加载文本编码器，把正文生成成完整提示词",
+    "      ◆ 关闭LLM增强 = 只输出拼装好的提示词 + 空latent（不加载文本编码器、不生成文本）",
+    "        下面的模型选择与参数全部不生效（面板里会标出「不生效」）",
     "  · 模型选择 = 官方 Load CLIP：模型 / 类型 / 设备，枚举与官方节点逐字一致",
     "  · 参数设置 = 官方 Generate Text 全量参数：max_length ｜ sampling_mode ｜ temperature ｜",
     "    top_k ｜ top_p ｜ min_p ｜ repetition_penalty ｜ presence_penalty ｜ seed ｜",
@@ -3780,6 +3804,7 @@ function xbrRenderHelp(body) {
     "    （多 GPU 机器上核显常被枚举成 cuda:0）→ 启动前设 HIP_VISIBLE_DEVICES=1 让 ComfyUI 用独显再试",
     "  · 生成慢 / 显存不够：设备改 cpu，或把 max_length 调小",
     "  · 结果太发散：温度调低、top_p 调小；想复现同一结果就把生成后控制改成固定",
+    "  · 只想拼提示词（不跑模型、省显存）：🤖 LLM设置 顶部切成「关闭LLM增强」再执行",
     "  · 节点表面参数很少？故意的：选项都收在弹窗里",
     "  · 改完参数要重新执行节点才生效",
     "",
@@ -3819,6 +3844,7 @@ async function xbrOpenModal(node, panelId) {
     skill: String(xbrWidgetVal(node, "skill_name") ?? ""),
     skillMode: (() => { const v = String(xbrWidgetVal(node, "skill_mode") ?? ""); return XBR_SKILL_MODES.includes(v) ? v : "自动"; })(),
     // 官方 Load CLIP
+    llm: xbrFlag(xbrWidgetVal(node, "llm_enable"), true),     // LLM 增强总开关（默认启用）
     clip_name: String(xbrWidgetVal(node, "clip_name") ?? ""),
     clip_type: String(xbrWidgetVal(node, "clip_type") ?? "qwen_image"),
     device: String(xbrWidgetVal(node, "device") ?? "default"),
@@ -3855,6 +3881,7 @@ async function xbrOpenModal(node, panelId) {
       node.__ippWritePreset?.(draft.mode, ioCommit, draft.lang, draft.presetText);
     } catch (_) {}
     // 官方 Load CLIP
+    xbrSetWidget(node, "llm_enable", draft.llm);              // LLM 增强总开关
     xbrSetWidget(node, "clip_name", draft.clip_name, true);
     xbrSetWidget(node, "clip_type", draft.clip_type, true);
     xbrSetWidget(node, "device", draft.device, true);
@@ -3931,11 +3958,14 @@ function xbrInfoLines(node, promptText) {
   const model = xbrClean(xbrWidgetVal(node, "clip_name"));
   const modelShort = String(model).split(/[\\/]/).pop() || model;   // 只留文件名，不带目录
   const line1 = `📊 空 latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
-  const line2 = `🤖 LLM 模型：${modelShort || "未选择"}`;
-  const line3 = `⚙️ Text 参数: 最大长度 ${xbrWidgetVal(node, "max_length")} 丨 思考模式 ${xbrFlag(xbrWidgetVal(node, "thinking"), false) ? "开" : "关"} 丨 温度 ${xbrWidgetVal(node, "temperature")}`;
+  const llmOn = xbrFlag(xbrWidgetVal(node, "llm_enable"), true);
+  const line2 = llmOn ? `🤖 LLM 增强：已启用 ｜ 模型：${modelShort || "未选择"}`
+                      : "🤖 LLM 增强：已关闭（只输出拼装好的提示词）";
+  const line3 = `⚙️ Text 参数: 最大长度 ${xbrWidgetVal(node, "max_length")} 丨 思考模式 ${xbrFlag(xbrWidgetVal(node, "thinking"), false) ? "开" : "关"} 丨 温度 ${xbrWidgetVal(node, "temperature")}`
+    + (llmOn ? "" : "（不生效）");
   const ctlRaw = xbrClean(xbrWidgetVal(node, XBR_SEED_CTL_WIDGET)) || "randomize";
   const line4 = `✨ 生成种子：${xbrWidgetVal(node, "seed")} ｜ ${XBR_SEED_LABEL[ctlRaw] || ctlRaw}`;
-  const line5 = `📝 文本数量：${genLen} 字`;
+  const line5 = llmOn ? `📝 文本数量：${genLen} 字` : "📝 文本数量：未生成（已关闭 LLM 增强）";
   return [line1, line2, line3, line4, line5].join("\n");
 }
 

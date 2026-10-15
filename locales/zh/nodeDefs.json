@@ -5315,6 +5315,9 @@
       "batch_size": {
         "name": "生成数量"
       },
+      "llm_enable": {
+        "name": "LLM 增强"
+      },
       "clip_name": {
         "name": "模型·Load CLIP"
       },

@@ -10,7 +10,9 @@ XB-BOX - 🖼️ Qwen2.1提示词预设
    · 画幅比例 / 宽度 / 高度 / 生成数量
    · 元素面板提示词拼装（8 大类词表，前端 js/xb_qwen_prompt_preset.js）
 
-② 文本生成（官方两个节点的参数，逐字对齐；没有开关，执行即生成）
+② 文本生成（官方两个节点的参数，逐字对齐）
+   · 总开关 llm_enable（弹窗「🤖 LLM设置」顶部的单选「启用LLM增强 / 关闭LLM增强」，默认启用）
+     ⛔ 关闭 = 只输出拼装好的提示词 + 空latent：不加载文本编码器、不生成文本（模型与参数都不生效）
    · 模型选择 = 官方 Load CLIP：clip_name（models/text_encoders）+ type（默认 qwen_image）+ device（默认 default）
    · 参数设置 = 官方 Generate Text 全量参数：
      max_length / sampling_mode（on·off）/ temperature / top_k / top_p / min_p /
@@ -711,7 +713,7 @@ _LANG_HINT = {
 }
 
 _SETTING_KEYS = ("latent_kind", "output_lang", "preset_mode", "io_mode", "three_view_text", "aspect_ratio",
-                 "width", "height", "batch_size", "clip_name", "clip_type", "device",
+                 "width", "height", "batch_size", "llm_enable", "clip_name", "clip_type", "device",
                  "max_length", "sampling_mode", "temperature", "top_k", "top_p", "min_p",
                  "repetition_penalty", "presence_penalty", "seed", "thinking",
                  "use_default_template", "mtp", "skill_name", "skill_mode", "internal_prompt")
@@ -913,7 +915,15 @@ class XB_QwenPromptPreset:
                     "tooltip": "一次生成的图片数量（空 latent 的 batch 维度）",
                 }),
 
-                # ══ ② 官方 Load CLIP（模型选择）══
+                # ══ ② LLM 增强总开关（弹窗「🤖 LLM设置」顶部的单选，默认启用）══
+                "llm_enable": ("BOOLEAN", {
+                    "default": True,
+                    "label_on": "✅ 启用 LLM 增强", "label_off": "⛔ 关闭 LLM 增强",
+                    "tooltip": "启用（默认）= 用文本编码器把正文生成成完整提示词\n"
+                               "关闭 = 只输出拼装好的提示词 + 空latent（不加载文本编码器、不生成文本）",
+                }),
+
+                # ══ ③ 官方 Load CLIP（模型选择）══
                 "clip_name": (text_encoder_list(), {
                     "tooltip": "文本编码器（models/text_encoders）。与官方 Load CLIP 同一个列表。",
                 }),
@@ -926,7 +936,7 @@ class XB_QwenPromptPreset:
                     "tooltip": "设备：与官方 Load CLIP 一致；default=自动，cpu=放内存",
                 }),
 
-                # ══ ③ 官方 Generate Text（参数设置，全量）══
+                # ══ ④ 官方 Generate Text（参数设置，全量）══
                 "max_length": ("INT", {
                     "default": 512, "min": 1, "max": 32768,
                     "tooltip": "Generate Text · max_length：最大生成长度",
@@ -978,7 +988,7 @@ class XB_QwenPromptPreset:
                     "tooltip": "Generate Text · mtp：多 token 预测投机解码；没有 MTP 权重时无效",
                 }),
 
-                # ══ ④ 内部字段（节点表面由前端面板隐藏）══
+                # ══ ⑤ 内部字段（节点表面由前端面板隐藏）══
                 "internal_prompt": ("STRING", {
                     "default": "", "multiline": True,
                     "tooltip": "节点内拼装/编辑的提示词正文（随工作流保存）",
@@ -1009,7 +1019,8 @@ class XB_QwenPromptPreset:
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
     DESCRIPTION = ("Qwen2.1提示词预设：生图预设（空latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板拼装）"
-                   "＋ 官方 Load CLIP 与官方 Generate Text（纯本地文本生成，无开关，执行即生成）。"
+                   "＋ 官方 Load CLIP 与官方 Generate Text（纯本地文本生成）。"
+                   "「启用 / 关闭 LLM 增强」在弹窗「🤖 LLM设置」顶部（默认启用；关闭 = 只输出拼装好的提示词）。"
                    "输出：提示词 / 空latent。")
 
     @classmethod
@@ -1024,6 +1035,7 @@ class XB_QwenPromptPreset:
                  clip_name, clip_type, device,
                  max_length, sampling_mode, temperature, top_k, top_p, min_p,
                  repetition_penalty, presence_penalty, seed, thinking, use_default_template, mtp,
+                 llm_enable=True,   # LLM 增强总开关（默认启用；关闭 = 不加载文本编码器、不生成文本）
                  internal_prompt="", manager_settings="", text="", images=None, unique_id=None,
                  skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO, io_mode=IO_MODE_AUTO):
         # ① 画幅归一 + 空 latent（与「🖼️ 生图提示词预设」逐行一致）
@@ -1054,7 +1066,6 @@ class XB_QwenPromptPreset:
                                           with_lang_hint=not bool(skill_text))
 
         # ③ 官方 Load CLIP + 官方 Generate Text（参数与调用方式逐字对齐官方节点）
-        clip = get_clip(clip_name, clip_type, device)
         # 官方 image 输入：一批图 = N 张参考图（官方图像编辑最多 10 张，提示词可引用「第 N 张图」）
         # ⚠️ 不能把多帧当 video：Qwen-Image-2.1 的文本编码器链里**没人读 video**
         #    （qwen_image21/qwen3vl/sd1_clip 全程不碰 video，全库只有 gemma4 那个 tokenizer 认），
@@ -1069,55 +1080,67 @@ class XB_QwenPromptPreset:
         if mode_needs_image(preset_mode) and img_count == 0:
             safe_print(f"[XB-Qwen提示词预设] ⚠️ 当前档位「{preset_mode}」属于图生图，但没有接参考图"
                   f"（🖼️ 图像，多张按批接即可）→ 本次按「文生图」设定词纯文字生成")
-        try:                                              # 日志留痕：看得见“到底送了什么给文本编码器”
-            print(f"[XB-Qwen提示词预设] 送模型 prompt（{len(model_prompt)} 字）："
-                  f"{model_prompt[:120].replace(chr(10), ' / ')}" + ("…" if len(model_prompt) > 120 else ""))
-        except Exception:
-            pass
-        # SKILL 已在上方读入 skill_text，并在那里决定了要不要叠加语言提示
-        tokens = clip.tokenize(
-            model_prompt,
-            image=image_arg,
-            skip_template=not bool(use_default_template),
-            min_length=1,
-            thinking=bool(thinking),
-            system_prompt=skill_text,
-        )
-        _mtp = False if mtp == "off" else (True if mtp == "auto" else int(mtp))
-        generated_ids = clip.generate(
-            tokens,
-            do_sample=(sampling_mode == "on"),
-            max_length=int(max_length),
-            temperature=float(temperature),
-            top_k=int(top_k),
-            top_p=float(top_p),
-            min_p=float(min_p),
-            repetition_penalty=float(repetition_penalty),
-            presence_penalty=float(presence_penalty),
-            seed=int(seed),
-            mtp=_mtp,
-        )
-        raw = clip.decode(generated_ids) or ""
 
-        # 思考段分离（与官方 TextGenerate 完全一致：不闭合时整段都算正文）
-        reasoning, _, gen_text = raw.partition("</think>")
-        if not reasoning.lstrip().startswith("<think>") and not model_prompt.rstrip().endswith("<think>"):
-            gen_text = raw
-        gen_text = gen_text.strip()
+        # ⛔「关闭 LLM 增强」（默认启用）：整段跳过 —— 不加载文本编码器、不生成文本
+        gen_text = ""
+        if llm_enable:
+            clip = get_clip(clip_name, clip_type, device)
+            try:                                          # 日志留痕：看得见“到底送了什么给文本编码器”
+                print(f"[XB-Qwen提示词预设] 送模型 prompt（{len(model_prompt)} 字）："
+                      f"{model_prompt[:120].replace(chr(10), ' / ')}" + ("…" if len(model_prompt) > 120 else ""))
+            except Exception:
+                pass
+            # SKILL 已在上方读入 skill_text，并在那里决定了要不要叠加语言提示
+            tokens = clip.tokenize(
+                model_prompt,
+                image=image_arg,
+                skip_template=not bool(use_default_template),
+                min_length=1,
+                thinking=bool(thinking),
+                system_prompt=skill_text,
+            )
+            _mtp = False if mtp == "off" else (True if mtp == "auto" else int(mtp))
+            generated_ids = clip.generate(
+                tokens,
+                do_sample=(sampling_mode == "on"),
+                max_length=int(max_length),
+                temperature=float(temperature),
+                top_k=int(top_k),
+                top_p=float(top_p),
+                min_p=float(min_p),
+                repetition_penalty=float(repetition_penalty),
+                presence_penalty=float(presence_penalty),
+                seed=int(seed),
+                mtp=_mtp,
+            )
+            raw = clip.decode(generated_ids) or ""
+
+            # 思考段分离（与官方 TextGenerate 完全一致：不闭合时整段都算正文）
+            reasoning, _, gen_text = raw.partition("</think>")
+            if not reasoning.lstrip().startswith("<think>") and not model_prompt.rstrip().endswith("<think>"):
+                gen_text = raw
+            gen_text = gen_text.strip()
+        else:
+            safe_print("[XB-Qwen提示词预设] ⛔ 已关闭 LLM 增强 → 只输出拼装好的提示词"
+                       "（不加载文本编码器、不生成文本）")
 
         # ④ 设定词原封不动置顶（与未生成时的成句规则一致；t2i/i2i 模版条款同样进最终提示词）
-        final_prompt = build_prompt(lang, preset_mode, three_view_text, gen_text,
+        #    关闭 LLM 增强时正文用「外接提示词优先」的那一份（与外接端口时的成句规则一致）
+        final_prompt = build_prompt(lang, preset_mode, three_view_text,
+                                    gen_text if llm_enable else body,
                                     has_image=has_img, io_mode=io_mode)
 
         try:
             shape = tuple(latent.get("samples").shape)
         except Exception:
             shape = ()
+        llm_state = (f"丨CLIP {clip_name}（{clip_type}·{device}）"
+                     f"丨Text 最大长度 {max_length}·采样 {sampling_mode}·思考 {'开' if thinking else '关'}"
+                     f"丨SKILL {skill_used}（{len(skill_text)} 字·{skill_mode_of(skill_mode)}）"
+                     ) if llm_enable else "丨LLM 增强 关闭（不加载 CLIP、不生成文本）"
         print(f"[XB-Qwen提示词预设] {spec['label']} 丨 {w}x{h}（{aspect_ratio}·步长 {spec['step']}）"
               f"丨数量 {shape[0] if shape else batch_size}丨空latent {shape}"
-              f"丨CLIP {clip_name}（{clip_type}·{device}）"
-              f"丨Text 最大长度 {max_length}·采样 {sampling_mode}·思考 {'开' if thinking else '关'}"
-              f"丨SKILL {skill_used}（{len(skill_text)} 字·{skill_mode_of(skill_mode)}）"
+              f"{llm_state}"
               f"丨模式 {preset_mode}丨模版 {io_eff}"
               f"{'（自动' + ('：检测到参考图' if has_img else '：未接参考图') + '）' if io_mode_of(io_mode) == IO_MODE_AUTO else ''}"
               f"丨参考图 {img_count} 张"
@@ -1125,7 +1148,7 @@ class XB_QwenPromptPreset:
 
         ui = {
             "text": [final_prompt],
-            "model": [str(clip_name or "-")],
+            "model": [str(clip_name or "-") if llm_enable else "- （已关闭 LLM 增强）"],
             "gen_len": [len(gen_text)],
         }
         # 种子回写不在后端做：节点上的 seed widget 由 ComfyUI 原生的

@@ -408,6 +408,9 @@
       "batch_size": {
         "name": "Batch Size"
       },
+      "llm_enable": {
+        "name": "LLM Enhance"
+      },
       "clip_name": {
         "name": "Model (Load CLIP)"
       },

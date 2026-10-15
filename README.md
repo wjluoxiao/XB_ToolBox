@@ -109,6 +109,10 @@ Both a **local model** and an **online API** backend are supported; API keys liv
 - **🖼️ Image Prompt Preset Pro** — the same, plus built-in LLM prompt enhancement / reverse.
 - **🖼️ Qwen2.1 Prompt Preset** — preset + element panel, wired to the official Load CLIP + Generate Text chain.
 - **🖌️ ShenBi** — an input-less paint board (create / edit modes) that outputs a strictly on-resolution image.
+  > The preview window reads files from **this server's** `input` dir (boards live in `input/xb_shenbi/`).
+  > A workflow only stores the file name, so after copying it to another machine (local ↔ cloud) the window
+  > falls back to a blank canvas and explains why in the badge / browser console. The window itself needs a
+  > recent ComfyUI frontend (DOM widgets).
 
 #### 9. 🖼️ Model-specific Encoders (3)
 

@@ -9,6 +9,14 @@
  *       创作模式 —— 没有画板存档时显示「设定分辨率 + 画布底色」的纯色画布（默认纯白）；
  *       编辑模式 —— 显示画板存档，没画过则显示源图；
  *       画过之后两个模式都显示画板存档。
+ *   ⚠️ 显示窗要显示「存档 / 源图」时必须满足两条**服务端本机**条件：
+ *       ① 该文件存在于这台机器的 ComfyUI/input（画板在 input/xb_shenbi/）；
+ *       ② /api/view 能取到它。
+ *      工作流只带**文件名**，画板文件不会跟着工作流走 —— 从本地拷到云机、或云端 input 被重置时，
+ *      文件不存在（/view 404），旧版本就是一块「图裂」黑窗（用户报的「云机上看不到画布」）。
+ *      现在前端会把加载失败的 URL 记下来，回落成空白画布 / 源图，并在角标 + 控制台说明原因。
+ *   ⚠️ 显示窗是 DOM 部件（LGraphNode.addDOMWidget）：ComfyUI 前端太旧（无该 API）时整块窗口都不出现，
+ *      此时会在控制台报错并弹提示（提示升级前端）。
  * · 显示窗只做显示，不做点击编辑（避免和操作按钮重复成两个编辑入口）；
  *   官方 image_upload 自带的 `upload` 按钮按模式显隐，`$$canvas-image-preview` 面板一律隐藏，
  *   保证「显示窗」全节点只有一个。
@@ -185,6 +193,11 @@ function isPainting(value) {
     return PAINT_EXT_RE.test(text) && !/[\n\r]/.test(text);
 }
 
+/** 存档值的短标签：老工作流里的内嵌 base64 太长，提示里只写"内嵌画像存档" */
+function archiveLabel(value) {
+    return String(value || "").startsWith("data:") ? "内嵌画像存档" : String(value || "");
+}
+
 /** 把画布 PNG 传到 input/xb_shenbi/ 下，返回节点里要存的文件名（"子目录/文件名"） */
 async function uploadPainting(blob, filename) {
     const body = new FormData();
@@ -263,27 +276,36 @@ async function openBrushEditor(cfg) {
     let width = 0;
     let height = 0;
     let bitmap = null;
-    try {
-        if (cfg.paintedUrl) {
-            bitmap = await loadBitmap(cfg.paintedUrl);
-            width = bitmap.naturalWidth;
-            height = bitmap.naturalHeight;
-        } else if (cfg.imageUrl) {
-            bitmap = await loadBitmap(cfg.imageUrl);
-            const sw = bitmap.naturalWidth;
-            const sh = bitmap.naturalHeight;
-            // 编辑模式：大于设定分辨率才缩小裁切，小于则保持原尺寸
-            if (cfg.targetW && cfg.targetH && (sw > cfg.targetW || sh > cfg.targetH)) {
-                width = cfg.targetW;
-                height = cfg.targetH;
+    // 底图候选：画板存档 → 源图。⚠️ 两者都是**服务端本机**的文件，工作流从别的机器
+    // （如本地 → 云机）拷过来时常常读不到：读不到就退到下一个候选，都读不到按设定分辨率的
+    // 空白画布打开 —— 绝不因为"存档不在本机"就把用户堵在"载入失败"上（后端也是这个兜底口径）。
+    const candidates = [];
+    if (cfg.paintedUrl) candidates.push({ url: cfg.paintedUrl, painted: true });
+    if (cfg.imageUrl) candidates.push({ url: cfg.imageUrl, painted: false });
+    for (const cand of candidates) {
+        try {
+            bitmap = await loadBitmap(cand.url);
+            if (cand.painted) {
+                width = bitmap.naturalWidth;
+                height = bitmap.naturalHeight;
             } else {
-                width = sw;
-                height = sh;
+                const sw = bitmap.naturalWidth;
+                const sh = bitmap.naturalHeight;
+                // 编辑模式：大于设定分辨率才缩小裁切，小于则保持原尺寸
+                if (cfg.targetW && cfg.targetH && (sw > cfg.targetW || sh > cfg.targetH)) {
+                    width = cfg.targetW;
+                    height = cfg.targetH;
+                } else {
+                    width = sw;
+                    height = sh;
+                }
             }
+            break;
+        } catch (err) {
+            bitmap = null;
+            notify((cand.painted ? "画板存档" : "源图") + "在本机读不到，已跳过（文件不在服务端 input 目录）："
+                + ((err && err.message) || err), "warn");
         }
-    } catch (err) {
-        notify("图片载入失败：" + ((err && err.message) || err), "error");
-        return null;
     }
     if (!width || !height) { width = cfg.width || 1024; height = cfg.height || 1024; }
 
@@ -756,7 +778,11 @@ function setupNode(node) {
     let panelImg = null;
     let panelHint = null;
     let panelCaption = null;
+    let panelNote = null;
     let panelBox = null;
+    /** 本机加载失败的图 URL（存档 / 源图文件不在服务端本机时最常见）——
+        记住它，显示窗就不再拿它去撞墙，改为回落显示 + 说明 */
+    const badSrcs = new Set();
 
     /* ── 按钮：打开画板（放在显示窗上面） ─────────────────────── */
     const openBoard = async () => {
@@ -881,12 +907,42 @@ function setupNode(node) {
         panelCaption = document.createElement("span");
         panelCaption.style.cssText = "position:absolute;left:10px;top:10px;padding:4px 11px;border-radius:999px;" +
             "background:rgba(20,20,25,.78);color:#cfd5df;font-size:12px;line-height:1;pointer-events:none;display:none;";
-        box.append(panelImg, panelHint, panelCaption);
+        // 存档读不到时的说明角标（压在左下角：纯白/纯黑画布上都看得清）
+        panelNote = document.createElement("span");
+        panelNote.style.cssText = "position:absolute;left:10px;bottom:10px;max-width:calc(100% - 20px);padding:7px 12px;" +
+            "border-radius:8px;background:rgba(58,31,31,.94);border:1px solid #7d3b3b;color:#ffd9d9;" +
+            "font-size:12px;line-height:1.6;pointer-events:none;display:none;white-space:pre-wrap;text-align:left;" +
+            "box-sizing:border-box;overflow:hidden;";
+        box.append(panelImg, panelHint, panelCaption, panelNote);
         panelBox = box;
         panel = node.addDOMWidget("xb_sb_preview", "preview", box, { serialize: false, hideOnZoom: false });
     } catch (err) {
         panel = null;
-        console.warn("[XB-BOX 神笔] 显示窗不可用：", err);
+        // 显示窗是 DOM 部件（addDOMWidget）。老版 ComfyUI 前端没有这个 API → 整个窗口都不会出现，
+        // 节点上只剩几个按钮。这是「云机上完全看不到画布窗口」的第一嫌疑人，必须说出来。
+        // 必需要求：ComfyUI 前端 ≥ 1.3（或任何带 addDOMWidget 的版本）。
+        console.error("[XB-BOX 神笔] 显示窗不可用：当前 ComfyUI 前端不支持 DOM 部件（LGraphNode.addDOMWidget）。"
+            + "请把 ComfyUI / ComfyUI_frontend 升级到较新版本后刷新页面。", err);
+        notify("显示窗不可用：当前 ComfyUI 前端太旧（缺 addDOMWidget），升级前端后刷新页面即可", "error");
+    }
+    if (panelImg) {
+        // 存档 / 源图都是**服务端本机**的文件：工作流从别的机器（如本地 → 云机）拷过来、
+        // 或云端 input 目录被重置时，这个文件不存在 → <img> 只会烂成一块"图裂"空窗
+        // （用户看到的就是"画布显示不出来"）。这里把它记进 badSrcs，refreshPanel 回落到
+        // 空白画布 / 源图，并给出明确说明，而不是留一块黑框让人猜。
+        panelImg.addEventListener("error", () => {
+            const src = panelImg.getAttribute("src");
+            if (!src || badSrcs.has(src)) return;
+            // img 的 error 也可能是"上一次请求被中断"的迟到事件 → 用独立探针复核，避免误判好图
+            const probe = new Image();
+            probe.onerror = () => {
+                if (badSrcs.size > 32) badSrcs.clear();
+                badSrcs.add(src);
+                reportBadSrc(src);
+                refreshPanel();
+            };
+            probe.src = src;
+        });
     }
     if (panel) {
         // 只给 computeLayoutSize（弹性）——不能给 computeSize，否则会被当成固定高度部件
@@ -896,6 +952,34 @@ function setupNode(node) {
         try { panel.serialize = false; } catch (_) { /* ignore */ }
     }
 
+    /**
+     * 显示窗图片加载失败时的诊断输出。
+     * 「云机上看不到画布」最常见的一条就是：工作流里存的是画板**文件名**，而那个文件只存在于
+     * 另一台机器的 input 目录里 → /view 404 → <img> 什么都不显示（旧版本连提示都没有，只剩一块黑框）。
+     */
+    const reportBadSrc = (src) => {
+        const create = isCreateMode();
+        const arch = create ? (paintValue(true) || transientPaint()) : paintValue(false);
+        const label = (arch && String(paintingSrc(arch)) === String(src))
+            ? `画板存档「${archiveLabel(arch)}」`
+            : `源图「${String(getVal(node, "image") || "")}」`;
+        let file = "?";
+        try {
+            const u = new URL(src, location.href);
+            const sub = u.searchParams.get("subfolder") || "";
+            file = `input/${sub ? sub + "/" : ""}${u.searchParams.get("filename") || ""}`;
+        } catch (_) { /* ignore */ }
+        console.warn("[XB-BOX 神笔] ❌ 显示窗图片加载失败 → 已回落显示\n"
+            + `  · 类型：${label}\n`
+            + `  · URL：${src}\n`
+            + `  · 服务端文件：${file}\n`
+            + "  · 排查：① 把上面的 URL 贴到浏览器地址栏：404 = 文件不在那台机器上，500 = 后端读不了\n"
+            + "          ② 到该机器 ComfyUI 的 input 目录看这个文件在不在\n"
+            + "          ③ 工作流是从别的机器（本地 ↔ 云机）拷来的？画板只记文件名，文件不会跟着走\n"
+            + "  · 处理：在本机重新点「🎨 创作画布」/「🖌️ 编辑图片」作画并保存，即可重建存档");
+        notify(`显示窗读不到${label}：该文件不在本机 input 目录，已回落显示（详情见浏览器控制台 [XB-BOX 神笔]）`, "warn");
+    };
+
     function refreshPanel() {
         if (!panelImg) return;
         const create = isCreateMode();
@@ -904,18 +988,39 @@ function setupNode(node) {
         const [targetW, targetH] = resolveTarget(node);
         const color = String(getVal(node, "canvas_color") || BG_WHITE);
 
+        // 画板存档：创作 = created_data（后端未重启时退到本次会话的临时存档）；编辑 = painted_data
+        const archive = create ? (painted || transientPaint()) : painted;
+        const archiveUrl = archive ? paintingSrc(archive) : "";
+        const sourceUrl = source ? viewUrl(source) : "";
+
         // 创作模式没画过 → 纯色空白画布：直接用 CSS 背景铺色，**完全不经过 canvas**。
         // ⚠️ 原来这里是 blankCanvasUrl()：建画布 → 填色 → toDataURL → <img>。
         //    但画布渲染失效时不会报错（画出来是透明的），于是"创作模式加载不出空白画布"；
         //    而编辑模式走的是 <img src="/api/view?...">，不碰 canvas，所以一直正常。
+        // ⚠️ 存档/源图在**服务端本机**读不到时（换机器、云端 input 被重置），后端是"忽略存档 →
+        //    输出空白画布"，前端同样回落，绝不把一块"图裂"空窗丢给用户。
         let url = "";
         let solid = null;
-        if (painted) url = paintingSrc(painted);
-        else if (create) {
-            const temp = transientPaint();
-            if (temp) url = paintingSrc(temp);
-            else solid = color === BG_BLACK ? BLACK : WHITE;
-        } else if (source) url = viewUrl(source);
+        let note = "";
+        if (archiveUrl) {
+            if (badSrcs.has(archiveUrl)) {
+                note = `⚠️ 画板存档读不到：${archiveLabel(archive)}\n（服务端 input/${PAINT_SUBFOLDER} 里没有这个文件）`;
+                if (create) {
+                    solid = color === BG_BLACK ? BLACK : WHITE;
+                    note += `\n已按 ${targetW} × ${targetH} 显示空白画布；点「🎨 创作画布」重新作画即可`;
+                } else if (sourceUrl && !badSrcs.has(sourceUrl)) {
+                    url = sourceUrl;
+                    note += "\n已回落到源图显示";
+                }
+            } else {
+                url = archiveUrl;
+            }
+        } else if (create) {
+            solid = color === BG_BLACK ? BLACK : WHITE;
+        } else if (sourceUrl) {
+            if (badSrcs.has(sourceUrl)) note = `⚠️ 源图读不到：${source}\n（服务端 input 目录里没有这个文件）`;
+            else url = sourceUrl;
+        }
 
         if (panelBox) {
             panelBox.style.background = solid || "#141419";
@@ -934,7 +1039,14 @@ function setupNode(node) {
             panelImg.removeAttribute("src");
             panelImg.style.display = "none";
             panelHint.style.display = "block";
-            panelHint.textContent = "尚未作画\n请先在「图片」里选择或上传一张本地图片";
+            panelHint.textContent = note || "尚未作画\n请先在「图片」里选择或上传一张本地图片";
+        }
+
+        // 说明角标：有图 / 有纯色画布时用角标；都没有时上面那行提示文字已经说了，不用重复
+        if (panelNote) {
+            const badge = (url || solid) ? note : "";
+            panelNote.style.display = badge ? "block" : "none";
+            panelNote.textContent = badge;
         }
 
         // 标注两个模式都显示：切换分辨率时这里会立刻反映目标尺寸
