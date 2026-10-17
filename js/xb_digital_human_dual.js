@@ -380,7 +380,7 @@ app.registerExtension({
                         let isLTX = valRatio.includes("(LTX)");
 
                         let currentStep = isFree ? 1 : (isLTX ? 32 : 16);
-                        wWidth.options.step = currentStep; wHeight.options.step = currentStep;
+                        wWidth.options.step = wWidth.options.step2 = currentStep; wHeight.options.step = wHeight.options.step2 = currentStep;
                         if (wWidth.inputEl) { wWidth.inputEl.step = currentStep; wWidth.inputEl.setAttribute("step", String(currentStep)); }
                         else if (wWidth.element) { wWidth.element.step = currentStep; wWidth.element.setAttribute("step", String(currentStep)); }
                         if (wHeight.inputEl) { wHeight.inputEl.step = currentStep; wHeight.inputEl.setAttribute("step", String(currentStep)); }

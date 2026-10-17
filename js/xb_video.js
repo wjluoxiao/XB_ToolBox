@@ -12,9 +12,9 @@ const IMAGE_PARAMS_NODES = new Set(["XB_ImageParamsMaster", "XB_ImageParamsMaste
 
 // 旧版写值函数（仅输入框/回调，Nodes 2.0 下会漏写 widget.value）
 const __xbLegacyDispatch = (w, val) => {
-    if (w.inputEl) { 
-        w.inputEl.value = val; 
-        w.inputEl.dispatchEvent(new Event("input", { bubbles: true })); 
+    if (w.inputEl) {
+        w.inputEl.value = val;
+        w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
     } else if (w.element) {
         w.element.value = val;
         w.element.dispatchEvent(new Event("input", { bubbles: true }));
@@ -100,7 +100,7 @@ app.registerExtension({
     init() {
         setInterval(() => {
             if (!app.graph || !app.graph._nodes) return;
-            
+
             for (const node of app.graph._nodes) {
                 if (node.comfyClass === "XB_VideoParamsMaster" && node.widgets) {
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
@@ -110,7 +110,7 @@ app.registerExtension({
                     const wFpsF = node.widgets.find(w => w.name === "fps_float");
                     const wWidth = node.widgets.find(w => w.name === "width");
                     const wHeight = node.widgets.find(w => w.name === "height");
-                    
+
                     if (wDisp && wLen && wFps && wFpsF && wWidth && wHeight && wRatio) {
                         node._xb_from_polling = true;
                         // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
@@ -134,15 +134,15 @@ app.registerExtension({
                             node._xb_last_ratio = wRatio.value;
                             node._xb_last_dur = parseFloat(wDisp.value) || 0;
                         }
-                        
+
                         let needsUpdate = false;
                         let valRatio = wRatio.value;
                         let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
                         let isLTX = valRatio.includes("(LTX)");
-                        
+
                         let currentStep = isFree ? 1 : (isLTX ? 32 : 16);
-                        wWidth.options.step = currentStep; wHeight.options.step = currentStep;
+                        wWidth.options.step = wWidth.options.step2 = currentStep; wHeight.options.step = wHeight.options.step2 = currentStep;
                         if (wWidth.inputEl) { wWidth.inputEl.step = currentStep; wWidth.inputEl.setAttribute("step", String(currentStep)); }
                         else if (wWidth.element) { wWidth.element.step = currentStep; wWidth.element.setAttribute("step", String(currentStep)); }
                         if (wHeight.inputEl) { wHeight.inputEl.step = currentStep; wHeight.inputEl.setAttribute("step", String(currentStep)); }
@@ -232,7 +232,7 @@ app.registerExtension({
                         }
 
                         let alignStepLen = isFree ? 1 : 8;
-                        wLen.options.step = alignStepLen;
+                        wLen.options.step = wLen.options.step2 = alignStepLen;
                         if (wLen.inputEl) { wLen.inputEl.step = alignStepLen; wLen.inputEl.setAttribute("step", String(alignStepLen)); }
                         else if (wLen.element) { wLen.element.step = alignStepLen; wLen.element.setAttribute("step", String(alignStepLen)); }
 
@@ -271,7 +271,7 @@ app.registerExtension({
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
                     const wWidth = node.widgets.find(w => w.name === "width");
                     const wHeight = node.widgets.find(w => w.name === "height");
-                    
+
                     if (wRatio && wWidth && wHeight) {
                         node._xb_from_polling = true;
 
@@ -287,7 +287,7 @@ app.registerExtension({
                         let rChanged = valRatio !== node._xb_last_ratio;
 
                         let currentStep = isFree ? 1 : 16;
-                        wWidth.options.step = currentStep; wHeight.options.step = currentStep;
+                        wWidth.options.step = wWidth.options.step2 = currentStep; wHeight.options.step = wHeight.options.step2 = currentStep;
                         if (wWidth.inputEl) { wWidth.inputEl.step = currentStep; wWidth.inputEl.setAttribute("step", String(currentStep)); }
                         else if (wWidth.element) { wWidth.element.step = currentStep; wWidth.element.setAttribute("step", String(currentStep)); }
                         if (wHeight.inputEl) { wHeight.inputEl.step = currentStep; wHeight.inputEl.setAttribute("step", String(currentStep)); }

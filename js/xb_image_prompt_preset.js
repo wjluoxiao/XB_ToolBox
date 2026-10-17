@@ -21,7 +21,7 @@
  */
 
 import { app } from "../../scripts/app.js";
-import { installNodes2BoxResize } from "./xb_compat.js";
+import { bindNodes2NodeFill } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
 
@@ -2908,7 +2908,7 @@ function setupNode(node) {
   const applyKindLimits = () => {
     const sp = latentSpec(surfaceOf().kind);
     for (const w of [wW, wH]) {
-      if (w && w.options) { w.options.step = sp.step; w.options.min = sp.min; w.options.max = sp.max; }
+      if (w && w.options) { w.options.step = w.options.step2 = sp.step; w.options.min = sp.min; w.options.max = sp.max; }
     }
     if (wB && wB.options) wB.options.max = sp.batchMax;
     if (wKind && wKind.options) wKind.options.tooltip = `空latent类型（${sp.desc}）\n尺寸步长 ${sp.step}，batch 上限 ${sp.batchMax}。\n选你正在用的模型即可，形状/下采样/步长会自动适配。`;
@@ -3082,10 +3082,11 @@ function setupNode(node) {
   // Nodes 2.0：面板里的提示词框不会自己长高（节点高度由 DOM 内容主导，flex:1 停在 min-height）
   //   → 默认 300px；用户拖节点尺寸手柄时按指针位移实时跟随（两个方向都跟手）；
   //   切回经典模式自动还原原样，交回原有 flex 布局。
+  // ⚠️ 不能只把「提示词框」钉成固定 px：节点拖高后容器高度仍由内容决定 ⇒ 框下方留一片空白
+  //    （用户报障）。这里改钉**容器**：高度 = `--node-height`（前端自带的 CSS 变量）− 实测 chrome，
+  //    容器内的 flex 链（标签 + 提示词框 flex:1）自然把框撑到节点下边缘。
   try {
-    node._xbUninstallBoxResize = installNodes2BoxResize(node, promptBox, {
-      min: TEXT_MIN_H, max: 4000, deflt: TEXT_MIN_H,
-    });
+    node._xbUninstallNodeFill = bindNodes2NodeFill(node, container, { min: DOM_MIN_H });
   } catch (e) { console.warn("[XB-生图提示词预设] 2.0 高度跟随安装失败", e); }
 
   // 节点 resize：立即同步 overlay 宽度 + 重绘；防抖后只校正「最小宽度 / 最小高度」。

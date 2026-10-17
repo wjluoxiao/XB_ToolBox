@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { isNodes2, sizeDomWidget } from "./xb_compat.js";
+import { isNodes2, sizeDomWidget, refreshWidgets } from "./xb_compat.js";
 
 // ============================================================
 // XB_CanvasLabel — 文字标签节点
@@ -43,6 +43,32 @@ function ensureXbLabelStyle() {
     document.head.appendChild(st);
 }
 
+/** 安全取文本：某些环境（内嵌预览 / 禁用弹窗）会直接抛 "prompt() is not supported"，不能让它冒出来 */
+function askText(message, dflt) {
+    try {
+        return prompt(message, dflt);
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * 统一的「改文字」入口：右键菜单 / 2.0 双击共用。
+ * ⚠️ 写成模块级函数（而不是挂在 node 上）：2.0 下 node 对象可能被前端包装/替换，
+ *    闭包里拿到的 `node` 和 `onNodeCreated` 里的 `this` 不一定是同一个引用（实测取到过 undefined）。
+ */
+function editLabelTitle(node) {
+    if (!node) return;
+    const old = node.title || "";
+    const val = askText("输入文字（\\n 换行）:", old);
+    if (val !== null && val !== old) {
+        node.title = val || "机智罗";
+        node._xbLabelRender?.();
+        node.setDirtyCanvas?.(true, true);
+        node.graph?.setDirtyCanvas?.(true, true);
+    }
+}
+
 function installDomLabel(node) {
     ensureXbLabelStyle();
     const el = document.createElement("div");
@@ -55,7 +81,6 @@ function installDomLabel(node) {
         "max-width:100%",
         "transform-origin:center center",
         "user-select:none",
-        "pointer-events:auto",
     ].join(";");
 
     const w = node.addDOMWidget("xb_label_view", "xb_label_view", el, {
@@ -64,6 +89,21 @@ function installDomLabel(node) {
         getMinHeight: () => 40,
     });
     sizeDomWidget(node, w, 40);
+    node.__xbLabelDom = w;
+    node.__xbLabelEl = el;
+
+    // ── 鼠标穿透：Nodes 2.0 的节点拖拽由 Vue 转发（useNodePointerInteractions），
+    //    但只要 pointerdown 落在 widget 行上就不再拖 —— 本节点整块都是贴纸 ⇒ 完全拖不动。
+    //    把贴纸与官方 WidgetDOM 行 wrapper 都设成 pointer-events:none，事件直接命中节点根元素
+    //    ⇒ 抓哪里都能拖（与原画布版手感一致），双击则改用节点根元素上的监听（见 bindRootDblClick）。
+    const applyPassthrough = () => {
+        try {
+            el.style.pointerEvents = "none";
+            const wrap = el.parentElement;
+            if (wrap && wrap.style.pointerEvents !== "none") wrap.style.pointerEvents = "none";
+        } catch (_) { /* ignore */ }
+    };
+    applyPassthrough();
 
     const clamp = (v, lo, hi, dflt) => {
         const n = Number(v);
@@ -97,42 +137,99 @@ function installDomLabel(node) {
     };
 
     node._xbLabelRender = render;
+    node._xbLabelPassthrough = applyPassthrough;
     render();
 
     // 2.0：给节点根元素打标记（Vue 重建 DOM 后需要重打）→ 配合上面的 CSS 关掉徽标
-    const markRoot = () => {
+    //     同时把「双击编辑文字」挂到根元素上：贴纸已 pointer-events:none，dblclick 只会落在根元素。
+    const bindRoot = () => {
         try {
             const root = el.closest?.("[data-node-id]") || node.domElement?.closest?.("[data-node-id]");
-            if (root) root.setAttribute("data-xb-label-root", "1");
+            if (!root) return;
+            root.setAttribute("data-xb-label-root", "1");
+            if (!root.__xbLabelDbl) {
+                root.__xbLabelDbl = true;
+                root.addEventListener("dblclick", (e) => {
+                    if (!node.__xbLabelDom) return;                       // 已切回经典模式
+                    // ⚠️ 只判事件目标本身：ComfyUI 画布容器的祖先链上有 contenteditable 元素，
+                    //    用 closest() 会一路匹配到它 → 双击永远被当成"正在输入"而吞掉。
+                    const t = e.target;
+                    const tag = (t?.tagName || "").toUpperCase();
+                    if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
+                    e.stopPropagation();
+                    editLabelTitle(node);
+                });
+            }
         } catch (_) { /* ignore */ }
     };
-    markRoot();
-    [60, 300, 1000].forEach((t) => setTimeout(markRoot, t));
+    bindRoot();
+    [60, 300, 1000].forEach((t) => setTimeout(bindRoot, t));
 
     // 属性面板改 @fontSize / 通过其它入口改 properties 时没有统一回调 → 轻量轮询兜底（只在变化时重绘）
     let sig = "";
-    node._xbLabelTimer = setInterval(() => {
+    node._xbLabelTick = () => {
         const p = node.properties || {};
         const s = [node.title, p.fontSize, p.fontColor, p.textAlign, p.backgroundColor, p.padding, p.borderRadius, p.angle].join("|");
         if (s !== sig) { sig = s; render(); }
-    }, 300);
-
-    // 双击贴纸 → 编辑文字（替代经典模式的 onDblClick）
-    el.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
-        const old = node.title || "";
-        const val = prompt("输入文字（\\n 换行）:", old);
-        if (val !== null && val !== old) {
-            node.title = val || "机智罗";
-            render();
-        }
-    });
-
-    const origRemoved = node.onRemoved;
-    node.onRemoved = function () {
-        try { clearInterval(node._xbLabelTimer); } catch (_) { /* ignore */ }
-        return origRemoved?.apply(this, arguments);
+        applyPassthrough();     // Vue 重建行 wrapper 后要重新打穿透
+        bindRoot();
     };
+}
+
+/** 拆掉 DOM 贴纸（切回经典模式时用）：widget 一并摘掉，否则画布文字 + DOM 贴纸 = 双层文字 */
+function uninstallDomLabel(node) {
+    const el = node.__xbLabelEl;
+    const w = node.__xbLabelDom;
+    node.__xbLabelDom = null;
+    node.__xbLabelEl = null;
+    node._xbLabelRender = null;
+    node._xbLabelTick = null;
+    node._xbLabelPassthrough = null;
+    try {
+        if (w && Array.isArray(node.widgets)) {
+            node.widgets = node.widgets.filter((x) => x !== w && !(x && x.name === "xb_label_view"));
+        }
+    } catch (_) { /* ignore */ }
+    try { el?.remove(); } catch (_) { /* ignore */ }
+    // 切回经典时官方渲染器会把 DOM 部件重新挂到画布容器里 ⇒ 残留元素必须一起清掉，
+    // 否则画布文字 + 残留贴纸 = 用户说的「双层文字」。
+    try {
+        document.querySelectorAll("[data-xb-label]").forEach((e) => {
+            const root = e.closest?.("[data-node-id]");
+            if (!root || root.getAttribute("data-node-id") === String(node.id)) e.remove();
+        });
+    } catch (_) { /* ignore */ }
+    try {
+        refreshWidgets(node);
+        node.setDirtyCanvas?.(true, true);
+        node.graph?.setDirtyCanvas?.(true, true);
+    } catch (_) { /* ignore */ }
+}
+
+/**
+ * 按当前渲染模式装配/拆除 DOM 贴纸。
+ * ⚠️ 用户可以在设置里**运行时**切换 Nodes 2.0（前端不刷新页面）：
+ *   · 2.0 → 经典：DOM 贴纸会残留在画布上，而经典渲染又照常画一遍文字 ⇒ 两层字（用户报障）；
+ *   · 经典 → 2.0：onNodeCreated 时没建过 DOM 贴纸，画布这边又 early-return ⇒ 文字直接消失，
+ *     只有刷新页面（重建节点）才恢复（用户报障）。
+ *   所以模式判定不能只在创建时做一次，必须每次 tick 都对一遍。
+ */
+function syncLabelMode(node, { immediate = false } = {}) {
+    const want = isNodes2();
+    // 设置项是异步回写服务器的，切换瞬间可能读到来回跳的值 → 要求模式稳定两拍再动手，
+    // 否则会出现「刚拆掉又装上」→ 旧 DOM 元素被官方 WidgetLegacy 重新挂回画布 = 又变成两层字。
+    if (!immediate && node.__xbLabelWant !== want) {
+        node.__xbLabelWant = want;
+        return;
+    }
+    node.__xbLabelWant = want;
+    if (want) {
+        if (!node.__xbLabelDom) installDomLabel(node);
+        node.color = node.bgcolor = "transparent";
+    } else {
+        if (node.__xbLabelDom) uninstallDomLabel(node);
+        node.color = node.bgcolor = "#fff0";
+    }
 }
 
 // ---- 3. 注册扩展 ----
@@ -182,12 +279,23 @@ app.registerExtension({
             this.color = this.bgcolor = "#fff0";
             this.size = [320, 80];
 
-            if (isNodes2()) {
-                // 2.0：节点本体透明 + DOM 贴纸承载内容
-                this.color = "transparent";
-                this.bgcolor = "transparent";
-                installDomLabel(this);
-            }
+            const self = this;
+
+            // 2.0：节点本体透明 + DOM 贴纸承载内容（经典模式：画布自己画，不建 DOM 贴纸）
+            syncLabelMode(this, { immediate: true });
+
+            // 运行时切换「Nodes 2.0」不会重建节点 → 每次 tick 核对一次模式（300ms，开关注释见 syncLabelMode）
+            this._xbLabelTimer = setInterval(() => {
+                syncLabelMode(self);
+                self._xbLabelTick?.();
+            }, 300);
+
+            const origRemoved = this.onRemoved;
+            this.onRemoved = function () {
+                try { clearInterval(self._xbLabelTimer); } catch (_) { /* ignore */ }
+                uninstallDomLabel(self);
+                return origRemoved?.apply(this, arguments);
+            };
         };
 
         // ---- draw()：自定义绘制（仅经典模式会被调用）----
@@ -278,19 +386,12 @@ app.registerExtension({
                 app.graph.setDirtyCanvas(true, false);
             };
             options.unshift(
-                { content: "✏️ 编辑文字", callback: () => {
-                    const old = self.title || "";
-                    const val = prompt("输入文字（\\n 换行）:", old);
-                    if (val !== null && val !== old) {
-                        self.title = val || "机智罗";
-                        refresh();
-                    }
-                }},
+                { content: "✏️ 编辑文字", callback: () => { editLabelTitle(self); } },
                 // 2.0 下节点标题栏被隐藏（照抄 rgthree 的 title_mode），属性面板在右键菜单里也没有入口
                 // → 标签的排版参数直接放进右键菜单，两个模式都能改
                 { content: "🔤 字号…", callback: () => {
                     const cur = Number(self.properties.fontSize) || 40;
-                    const val = prompt("字号（1~800）:", String(cur));
+                    const val = askText("字号（1~800）:", String(cur));
                     const num = Number(val);
                     if (val !== null && Number.isFinite(num)) { self.properties.fontSize = Math.max(1, Math.min(800, Math.round(num))); refresh(); }
                 }},
@@ -302,19 +403,19 @@ app.registerExtension({
                 }},
                 { content: "📐 内边距…", callback: () => {
                     const cur = Number(self.properties.padding) || 0;
-                    const val = prompt("内边距 px（0~400）:", String(cur));
+                    const val = askText("内边距 px（0~400）:", String(cur));
                     const num = Number(val);
                     if (val !== null && Number.isFinite(num)) { self.properties.padding = Math.max(0, Math.min(400, Math.round(num))); refresh(); }
                 }},
                 { content: "⭕ 圆角…", callback: () => {
                     const cur = Number(self.properties.borderRadius) || 0;
-                    const val = prompt("圆角 px（0~400）:", String(cur));
+                    const val = askText("圆角 px（0~400）:", String(cur));
                     const num = Number(val);
                     if (val !== null && Number.isFinite(num)) { self.properties.borderRadius = Math.max(0, Math.min(400, Math.round(num))); refresh(); }
                 }},
                 { content: "🔄 旋转角度…", callback: () => {
                     const cur = Number(self.properties.angle) || 0;
-                    const val = prompt("旋转角度（度，负值=逆时针）:", String(cur));
+                    const val = askText("旋转角度（度，负值=逆时针）:", String(cur));
                     const num = Number(val);
                     if (val !== null && Number.isFinite(num)) { self.properties.angle = Math.round(num); refresh(); }
                 }},

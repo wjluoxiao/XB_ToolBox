@@ -6,10 +6,11 @@ XB-BOX - 🖌️ 神笔（ShenBi）
 · 两种模式（部件 mode）
     创作 —— 载入白色 / 黑色纯色画布，设好分辨率后点「🎨 创作画布」作画；
              输出**严格对齐**设定的分辨率（宽 × 高）。
-             「🗑️ 删除画布」清掉创作画板存档 → 显示窗回到按当前分辨率现铺的空白画布，
+             「🔄 重置画布」清掉创作画板存档 → 显示窗回到按当前分辨率现铺的空白画布，
              以便换分辨率重新开画（画过之后画板尺寸锁在画板自身）。
-    编辑 —— 载入本地图片（官方 Load Image 同款下拉 + 上传按钮），点「🖌️ 编辑图片」作画；
-             源图大于设定分辨率 → 等比缩小后居中裁切；小于设定分辨率 → 保持原尺寸、不放大。
+    编辑 —— 载入本地图片（官方 Load Image 同款下拉 + 上传按钮），点「🖌️ 编辑图片」作画。
+             两种模式的输出都**严格等于设定分辨率**：改完宽高/比例直接运行即可，
+             输出会立刻按新分辨率等比覆盖 + 居中裁切，不必重新进画板画一遍。
 · 画幅比例 / 宽度 / 高度：与「XB-BOX - 🖼️ 图片参数大全mini」同一套比例联动，步长对齐 32。
 · 画笔（粗细 / 颜色 / 橡皮 / 翻转 / 旋转 / 上一步 / 下一步）在前端 js/xb_shenbi.js；
   两个模式的画板**各存各的**、互不串台。⚠️ 画板存成**图片文件**（前端 POST /upload/image 到
@@ -17,7 +18,7 @@ XB-BOX - 🖌️ 神笔（ShenBi）
   base64：一幅 1024² 的图就 1.7MB，工作流 JSON 会涨到几 MB，撑爆浏览器草稿配额后**整个工作流
   刷新即丢**。老工作流里已存在的 dataURL 仍然兼容解码。
     创作模式 → created_data（空 = 按设定分辨率现铺纯色画布）
-    编辑模式 → painted_data（空 = 直接用源图，只在超过设定分辨率时缩小裁切）
+    编辑模式 → painted_data（空 = 直接用源图）
 """
 
 import base64
@@ -51,7 +52,9 @@ RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 
 
 SIZE_STEP = 32
 SIZE_MIN = 32
-MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
+# 宽/高上限：固定 8192（不再跟随 nodes.MAX_RESOLUTION=16384，超大画布在常见显存/内存下没有意义）
+SIZE_MAX = 8192
+MAX_RESOLUTION = min(SIZE_MAX, int(getattr(nodes, "MAX_RESOLUTION", SIZE_MAX) or SIZE_MAX))
 
 _RESAMPLE = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
 
@@ -109,7 +112,7 @@ def _solid_tensor(width, height, canvas_color):
     """纯色空画布 → IMAGE 张量：直接生成，不经 PIL / float32 副本。
 
     ⚠️ 走 PIL 时峰值内存是「PIL 图 ×2 + float32 数组」≈ 5 倍像素量
-       （16384² 时 804MB×2 + 3.2GB ≈ 4.8GB，低内存 / 显存吃紧的机器上会直接被拖垮），
+       （8192² 时 201MB×2 + 0.8GB ≈ 1.2GB，低内存 / 显存吃紧的机器上会直接被拖垮），
        而纯色图其实只需要一个定值张量。
     """
     dtype, device = _intermediate()
@@ -171,13 +174,14 @@ def _cover_crop(image, width, height):
     return resized.crop((left, top, left + width, top + height))
 
 
-def _fit_to_target(image, width, height, force=False):
-    """编辑模式：源图大于设定分辨率才缩小裁切；小于设定值则原尺寸返回、绝不放大。
-    创作模式（force=True）：严格对齐设定分辨率。"""
-    src_w, src_h = image.size
-    if force or src_w > width or src_h > height:
-        return _cover_crop(image, width, height)
-    return image
+def _fit_to_target(image, width, height):
+    """等比覆盖目标框后中心裁切 ⇒ 结果**必然是** width × height（按需放大或缩小）。
+
+    统一口径：只要设定的分辨率变了，输出立刻跟着变，不需要重新进画板画一遍。
+    （旧逻辑「源图小于设定值就原样返回、绝不放大」会让改大分辨率毫无效果 ——
+      实测画板存档 1024² + 设定 1536² 时输出仍是 1024²。）
+    """
+    return _cover_crop(image, width, height)
 
 
 def _blank(width, height, canvas_color):
@@ -206,9 +210,9 @@ class XB_ShenBi:
                 "aspect_ratio": (ASPECT_RATIOS, {"default": "Free",
                                                  "tooltip": "画幅比例，与宽高联动（步长 32）"}),
                 "width": ("INT", {"default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION,
-                                  "step": SIZE_STEP, "tooltip": "目标宽度，对齐 32 的倍数"}),
+                                  "step": SIZE_STEP, "tooltip": "目标宽度，对齐 32 的倍数（32 ~ 8192）"}),
                 "height": ("INT", {"default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION,
-                                   "step": SIZE_STEP, "tooltip": "目标高度，对齐 32 的倍数"}),
+                                   "step": SIZE_STEP, "tooltip": "目标高度，对齐 32 的倍数（32 ~ 8192）"}),
                 "canvas_color": (CANVAS_COLORS, {"default": BG_WHITE,
                                                  "tooltip": "创作模式的纯色画布颜色"}),
                 "image": (sorted(files), {"image_upload": True,
@@ -225,8 +229,8 @@ class XB_ShenBi:
     FUNCTION = "render"
     CATEGORY = "XB_ToolBox/Image"
     DESCRIPTION = ("无输入端的画板节点：创作模式输出纯色/手绘画布并严格对齐设定分辨率"
-                   "（「删除画布」可清掉创作画板，按新分辨率重新开）；"
-                   "编辑模式在本地图片上手绘，图片大于设定分辨率则缩小裁切、小于则原样保留不放大。")
+                   "（「🔄 重置画布」可清掉创作画板，按新分辨率重新开）；"
+                   "编辑模式在本地图片上手绘；两种模式的输出都严格等于设定分辨率。")
 
     @classmethod
     def VALIDATE_INPUTS(cls, **kwargs):
@@ -271,8 +275,8 @@ class XB_ShenBi:
                 print(f"[XB-BOX 神笔] 画板存档读取失败，已忽略：{exc}")
 
         if painting is not None:
-            # 有画板存档：创作模式严格对齐设定分辨率；编辑模式沿用「大了才缩小裁切」规则
-            out = _fit_to_target(painting, target_w, target_h, force=create_mode)
+            # 有画板存档：严格对齐设定分辨率（改分辨率后无需重进画板，输出立即按新尺寸缩放裁切）
+            out = _fit_to_target(painting, target_w, target_h)
             return (_to_comfy(out),)
 
         if create_mode:

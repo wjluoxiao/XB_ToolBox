@@ -401,5 +401,159 @@ export function installNodes2BoxResize(node, box, opts = {}) {
     return uninstall;
 }
 
+/**
+ * ============================================================
+ * Nodes 2.0：让一个「面板显示框」始终填满节点剩余空间（随节点高度自由伸缩）
+ * ============================================================
+ * 与 installNodes2BoxResize（按指针位移改固定 px）不同，这里把框高绑到前端自带的
+ * CSS 变量 `--node-height`（= 节点高度 + 固定余量），减去一次性标定出的 chrome：
+ *   · 纯 CSS 跟随 ⇒ 拖大拖小都跟手，不会「只能变大不能变小」（写 px 会写回 node.size 自锁）；
+ *   · 与 JZL 导演台/查看器同一套做法，多节点共用一个实现。
+ *
+ * @param {object} node LiteGraph 节点
+ * @param {HTMLElement} box 要伸缩的显示框
+ * @param {object} [opts] { min }
+ * @returns {() => void} 卸载函数
+ */
+export function bindNodes2BoxFill(node, box, opts = {}) {
+    if (!node || !box) return () => {};
+    const MIN = Number(opts.min) || 120;
+    const PROBE = 3000;
+    const orig = { height: box.style.height, maxHeight: box.style.maxHeight, minHeight: box.style.minHeight, flex: box.style.flex };
+    let K = 0, applied = false, timer = 0;
+
+    const rootEl = () => (box.closest ? box.closest(".lg-node") : null);
+    // chrome = 节点根部高度 − 显示框高度：用固定 3000px 撑开量，与框内内容无关
+    const calibrate = () => {
+        const root = rootEl();
+        if (!root) return false;
+        const keep = { max: box.style.maxHeight, min: box.style.minHeight, flex: box.style.flex, h: box.style.height };
+        try {
+            box.style.maxHeight = "";
+            box.style.minHeight = "0px";
+            box.style.flex = "0 0 auto";
+            box.style.height = PROBE + "px";
+            const rh = root.clientHeight, bh = box.clientHeight;
+            if (!bh || rh <= bh) return false;
+            K = Math.max(40, Math.round(rh - bh));
+            return true;
+        } finally {
+            box.style.maxHeight = keep.max;
+            box.style.minHeight = keep.min;
+            box.style.flex = keep.flex;
+            box.style.height = keep.h;
+        }
+    };
+    const apply = () => {
+        if (!isNodes2()) return;
+        if (!K && !calibrate()) return;
+        const h = `calc(var(--node-height, ${PROBE}px) - ${K}px)`;
+        applied = true;
+        box.style.flex = "0 0 auto";
+        if (box.style.height !== h) box.style.height = h;
+        if (box.style.maxHeight !== h) box.style.maxHeight = h;
+        if (box.style.minHeight !== MIN + "px") box.style.minHeight = MIN + "px";
+    };
+    const restore = () => {
+        if (!applied) return;
+        applied = false;
+        try {
+            box.style.height = orig.height;
+            box.style.maxHeight = orig.maxHeight;
+            box.style.minHeight = orig.minHeight;
+            box.style.flex = orig.flex;
+        } catch (_) { /* ignore */ }
+    };
+    const tick = () => {
+        try {
+            if (isNodes2()) apply();
+            else restore();
+        } catch (_) { /* ignore */ }
+    };
+    [0, 120, 400, 1000].forEach((d) => setTimeout(tick, d));
+    timer = setInterval(tick, 1000);
+
+    const uninstall = () => {
+        try { clearInterval(timer); } catch (_) { /* ignore */ }
+        restore();
+    };
+    try {
+        const origRemoved = node.onRemoved;
+        node.onRemoved = function () { uninstall(); return origRemoved?.apply(this, arguments); };
+    } catch (_) { /* ignore */ }
+    return uninstall;
+}
+
+/**
+ * ============================================================
+ * Nodes 2.0：让「面板容器」始终填满节点剩余高度（贴住节点下边缘）
+ * ============================================================
+ * 与 installNodes2BoxResize（按指针位移写固定 px）不同：这里每拍按**当前实际可用高度**重算。
+ *   · 可用高度 = 节点根部 clientHeight − 容器顶部偏移（标题 + 原生输入行） − 底部留白
+ *   · 容器写死 height/maxHeight ⇒ 内部 `flex:1` 的输入框/显示窗自然吃掉剩余空间
+ *     ⇒ 节点拉高时不会再在底部留一片空白，也不会出现"内容撑出面板"的滚动条。
+ *   · 不写 node.setSize（节点尺寸完全由用户/前端决定）⇒ 没有自激抖动。
+ *   · 经典模式（无 .lg-node）→ 立即还原行内原样。
+ *
+ * @param {object} node  LiteGraph 节点
+ * @param {HTMLElement} box 要撑满的容器（DOM widget 内容根）
+ * @param {object} [opts] { min, bottomPad }
+ * @returns {() => void} 卸载函数
+ */
+export function bindNodes2NodeFill(node, box, opts = {}) {
+    if (!node || !box) return () => {};
+    const MIN = Number(opts.min) || 120;
+    const PAD = Number.isFinite(opts.bottomPad) ? Number(opts.bottomPad) : 12;
+    const orig = { height: box.style.height, maxHeight: box.style.maxHeight, minHeight: box.style.minHeight, flex: box.style.flex };
+    let applied = false, timer = 0;
+
+    const restore = () => {
+        if (!applied) return;
+        applied = false;
+        try {
+            box.style.height = orig.height;
+            box.style.maxHeight = orig.maxHeight;
+            box.style.minHeight = orig.minHeight;
+            box.style.flex = orig.flex;
+        } catch (_) { /* ignore */ }
+    };
+
+    const apply = () => {
+        const root = box.closest ? box.closest(".lg-node") : null;
+        if (!root) { restore(); return; }         // 经典模式 / 还没挂到 DOM
+        try {
+            const rb = root.getBoundingClientRect();
+            const bb = box.getBoundingClientRect();
+            // ⚠️ getBoundingClientRect 是**屏幕像素**（含画布缩放），而 calc() 里的 px 是布局像素。
+            //    不除掉缩放比的话：缩放一变 → 减掉的 chrome 跟着变 → 容器高度跟着变
+            //    ⇒ 用户看到「节点随画布缩放变大变小」。clientHeight/offset* 不受 transform 影响，
+            //    这里统一按 canvas.ds.scale 折算回布局像素。
+            const scale = Number(app?.canvas?.ds?.scale) || 1;
+            const top = Math.max(0, Math.round((bb.top - rb.top) / scale));
+            const css = `calc(var(--node-height, 3000px) - ${top + PAD}px)`;
+            applied = true;
+            if (box.style.flex !== "0 0 auto") box.style.flex = "0 0 auto";
+            if (box.style.minHeight !== MIN + "px") box.style.minHeight = MIN + "px";
+            if (box.style.maxHeight !== css) box.style.maxHeight = css;
+            if (box.style.height !== css) box.style.height = css;
+        } catch (_) { /* ignore */ }
+    };
+
+    const tick = () => { try { apply(); } catch (_) { /* ignore */ } };
+    // 首帧 + 之后 500ms 轮询（切 2.0 开关、面板重建、前端重排都能兜住）
+    [0, 60, 200, 600].forEach((d) => setTimeout(tick, d));
+    timer = setInterval(tick, 500);
+
+    const uninstall = () => {
+        try { clearInterval(timer); } catch (_) { /* ignore */ }
+        restore();
+    };
+    try {
+        const origRemoved = node.onRemoved;
+        node.onRemoved = function () { uninstall(); return origRemoved?.apply(this, arguments); };
+    } catch (_) { /* ignore */ }
+    return uninstall;
+}
+
 /** 供自动化/排查使用 */
 export const XB_COMPAT = { version: 1 };

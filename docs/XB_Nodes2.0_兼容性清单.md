@@ -241,3 +241,193 @@ node.graph.trigger("node:slot-label:changed", { nodeId: node.id, slotType: 2 });
 且重排不能放在 `ResizeObserver` 回调里同步执行（会刷 `ResizeObserver loop completed with undelivered notifications`，丢到 `requestAnimationFrame` 即消失）。
 
 > 同轮修复的另一个包见 `D:\AI_JZL\ComfyUI-JZL-MiniMax-H3\docs\NODES2_COMPAT.md`（含面板高度公式与实测数值）。
+
+---
+
+## 七、2026-10-17 复检（ComfyUI 0.41.2 / 前端 1.55.17）——DOM widget 行高机制变更
+
+> 环境：`Comfy.VueNodes.Enabled = true`（Nodes 2.0）/ `comfyui-frontend-package 1.55.17`
+> 方法：在运行实例里逐个创建 14 个「有 DOM widget」的节点，量 `节点模型高度 vs 节点 DOM 根部高度 vs widget 高度 / 内部行高`
+
+### 7.1 新版前端的行高规则（关键变更，替代第一节的旧结论）
+
+第一节写的「DOM widget 高度走 `computeLayoutSize().minHeight`」在 **1.55.x 已不成立**。现行源码事实：
+
+| 事实 | 位置（前端 1.55.17） |
+| --- | --- |
+| `deriveWidgetRenderState(e) => { hasLayoutSize: typeof e.computeLayoutSize === 'function' }` | `settingStore-*.js` |
+| `WidgetGrid`：`rowSize = (shouldExpand(type) || hasLayoutSize) ? 'auto' : 'min-content'`，并写进 `grid-template-rows` | `settingStore-*.js` |
+| `DOMWidgetImpl` 原型上本就有 `computeLayoutSize` ⇒ 我们所有 DOM widget 的 `hasLayoutSize` **恒为 true** ⇒ 行高恒为 `auto` = **内容最大高度** | `settingStore-*.js` |
+| `WidgetDOM` 包装层是 `<div class="flex flex-col *:flex-1">`，容器被 `flex:1` 拉满；祖先链全是 `min-height:auto` | `GraphView-*.js` |
+
+⇒ **`options.getMinHeight` / `computeLayoutSize().minHeight` 不再决定行高**；
+`height:100%` + 内容都是绝对定位/隐藏元素 ⇒ 内容高度 ≈ 0 ⇒ **行高塌成 1~2px，面板整个看不见**。
+
+### 7.2 本轮修掉的 BUG：`XB_ShenBi` 显示窗塌成 1.33px
+
+| 项 | 内容 |
+| --- | --- |
+| 现象 | Nodes 2.0 下「🖌️ 神笔」的显示窗只剩一行提示文字（`width`/`height:100%` 的容器被压成 **1.33px**），预览图看不见；经典模式正常 |
+| 根因 | 显示窗依赖第一节的旧规则（只给 `computeLayoutSize`，让旧版 `_arrangeWidgets` 把剩余空间分给它）。1.55.17 下该机制不存在，行高 = 内容高度；显示窗内容是 `<img style="height:100%">`（未加载时 0）+ 绝对定位角标 ⇒ 内容高度 ≈ 0 |
+| 修法 | `js/xb_shenbi.js`：`if (panel)` 块里调用公共助手 `installNodes2BoxResize(node, panelBox, {min: PANEL_MIN, max: 4000, deflt: PANEL_EXTRA})` —— 2.0 下给显示窗**确定像素高度**（默认 180px），并随节点尺寸手柄实时跟随；经典模式该助手自动空转（保留原弹性逻辑） |
+| 实测 | 行高 `1.33px → 180px`、显示窗 `0 → 179px`、`__xbBoxResizeHooked = true`、截图确认白色画布窗口正常显示；经典模式行为不变 |
+| 踩的坑 | 第一次写成 `installNodes2BoxResize(node, box, …)` —— `box` 是 `try` 块里的 `const`，在那个作用域外是 `ReferenceError`，被 `catch` 吞掉 ⇒ 看起来"改了没生效"。改为外层已保存的 `panelBox`（回退 `panel.element`）后立即生效。**教训：静默吞异常必须配合日志，否则会把作用域错误伪装成"前端不配合"** |
+
+### 7.3 本轮复检结论（14 个 DOM widget 节点）
+
+| 节点 | DOM widget 高度 | 结论 |
+| --- | --- | --- |
+| `XB_ShenBi` | 0 → **179** | ✅ 本轮修复（见 7.2） |
+| `XB_AudioSlicer` | 0 | ✅ 正常：未选音频时播放器 `display:none`（设计如此） |
+| `XB_VideoLoader` | 0 | ✅ 正常：与官方 `LoadVideo` 空态一致（实测官方也是 0），载入视频后由 `<video>` 固有比例撑开 |
+| `XB_AudioSlicerV1/V2/V3` | 92 / 193 / 267 | ✅ 内容自定高度，行高稳定 |
+| `XB_DigitalHumanParams_Single/Dual` | 92 / 267 | ✅ 同上 |
+| `XB_ImagePromptPreset / Pro / XB_QwenPromptPreset` | 413 / 614 / 670 | ✅ 已走 `installNodes2BoxResize` |
+| `XB_llamaPromptReverse` | 449 | ✅ 同上 |
+| `XB_CanvasLabel` | 80 | ✅ 贴纸文字正常 |
+| `XB_WanDancerCombo` | 92 | ✅ 同上 |
+| `XB_ModelLoaderV1_GGUF`（33 widget / 12 行） | — | ✅ `hideWidget` 生效：隐藏项**不占行**（旧 B 组问题已解决） |
+
+### 7.4 已知但**不需要改**的现象
+
+* **节点 DOM 根部比 `node.size[1]` 高**（如 `XB_AudioSlicerV3` 466 → 851）：2.0 把输入/参数渲染成 DOM 行，行高比画布版高；**官方节点同样如此**（实测 KSampler +54、CheckpointLoaderSimple +58、EmptyLatentImage +66）。属前端行为，且可见卡片高度由 DOM 决定，不影响交互。
+* 隐藏内部字段（`internal_prompt` / `manager_settings` / `three_view_text`）高度为 0：正确（已 `hideWidget`）。
+---
+
+## 八、2026-10-17 复检（神笔专用）
+
+**问题 1：神笔节点刷新瞬间会多出一个「官方图片预览窗」。**
+
+* 成因：2.0 的官方预览不在 `node.widgets` 里，而是 Vue 的节点内容组件渲染的 `.image-preview`；
+  它由 `NodeContent` 的 `media` 计算属性驱动，源码条件是
+  `if (!node || !output?.images?.length || node.hideOutputImages || …) return;`。
+  早前用 CSS `display:none` 隐藏 ⇒ 属性/CSS 生效前会有一次渲染（闪一下），而且 DOM 里仍然存在。
+* 修法：给节点打 **`node.hideOutputImages = true`**（官方 `ImageCompositor` 用的就是同一个开关），
+  在 `setupNode`（`onNodeCreated`）与 `onConfigure` 里各设一次 ⇒ **官方预览根本不会被渲染**，
+  DOM 里查不到 `.image-preview`，也不再需要 CSS 补丁。
+
+**问题 2：神笔显示窗在 2.0 下是固定 180px，不能跟着节点变大（对比官方 Create Bounding Boxes 的编辑框）。**
+
+* 修法：改用新的 `bindNodes2BoxFill(node, box, { min })`（`js/xb_compat.js`）——把显示窗高度绑到前端
+  自带的 CSS 变量 `--node-height`（= 节点高度 + 固定余量），减去一次性标定出的 chrome：
+  `height = calc(var(--node-height, 3000px) - K)`。纯 CSS 跟随，拖大拖小都跟手（不会「只能变大不能变小」）。
+* 实测（Nodes 2.0）：节点 700 → 显示窗 **361**；节点 420 → **132**；经典模式还原 `height:100%` 原布局。
+
+保留：`XB_ImagePromptPreset` 等仍用 `installNodes2BoxResize`（按指针位移改固定 px），行为不变。
+
+---
+
+## 九、2026-10-17 复检（文字标签 XB_CanvasLabel）
+
+用户报的三个现象其实同源：**DOM 贴纸的生命周期只在 onNodeCreated 里决定了一次**。
+
+| 现象 | 根因 | 修法 |
+| --- | --- | --- |
+| Nodes 2.0 下节点拖不动 | 整块节点就是一张贴纸（`pointer-events:auto`），而 2.0 的节点拖拽由 `useNodePointerInteractions` 处理、只要 `pointerdown` 落在 widget 行上就不再拖（官方 Note 节点拖正文区同样不动） | 贴纸 + 官方 `WidgetDOM` 行 wrapper 都设 `pointer-events:none`，事件直接命中节点根元素 ⇒ 抓哪都能拖 |
+| 关掉 2.0 变双层文字 | 切回经典时 DOM 贴纸残留（官方 `WidgetLegacy` 还会把它重新挂到画布容器），画布这边也照常画一遍 | 检测到 `isNodes2()` 变 false → 摘掉 DOM widget + 删掉残留元素（含被挪到画布容器里的），节点色恢复 `#fff0` |
+| 打开 2.0 文字消失 | 创建节点时是经典模式 → 从没建过贴纸；画布侧又 early-return | 检测到变成 2.0 → 现场建贴纸（模式判定放进 300ms tick，且要求"稳定两拍"再切换，避免设置异步回写导致刚拆又装） |
+
+顺带修掉两处隐患：
+
+* 双击编辑原本挂在贴纸元素上（贴纸已穿透后收不到事件）→ 改挂**节点根元素**；
+  判断"是否在输入框里"不能用 `closest()`（画布容器祖先链上有 `contenteditable`，会一路匹配到它），只判 `e.target` 自身标签。
+* `prompt()` 在部分环境会抛 `prompt() is not supported` → 统一走 `askText()` 包一层 try/catch。
+
+实测（Nodes 2.0）：贴纸 `pointer-events:none`；拖拽 200,200 → 230,220 生效；双击改字生效；
+切经典：widget 摘除、`[data-xb-label]` 计数 0、节点尺寸由 `draw()` 重新算出（单层文字）；
+再切回 2.0：贴纸自动重建、计数 1、可继续拖拽。
+
+---
+
+## 十、2026-10-17 复检（宽高步长：点「减小」不生效）
+
+**现象**：`XB-BOX - 🖼️ 生图提示词预设` 的宽度/高度点右侧「增加」能变大，点左侧「减小」数值弹回原值、看起来"缩不小"。
+
+**根因**（前端源码 `WidgetInputNumber-*.js`）：
+
+```js
+function useNumberStepCalculation(options, precision) {
+  if (options.step2 !== undefined) return options.step2;   // ← 优先用 step2
+  if (options.step !== undefined && options.step > 10) return options.step / 10;
+  ...
+}
+```
+
+2.0 的 +/- 按钮步长取 **`step2`**，而各节点只同步了 `options.step`（空 latent 类型的官方步长，如 Qwen-image / Hunyuan = 32），
+`step2` 仍是注册时的 16。于是：点减小 → 1024−16＝1008 → JS 按 32 归一到 **1024**（弹回原值）；
+点增加 → 1024+16＝1040 → 归一到 **1056**（确实变大）。所以才有"只能放大不能缩小"。
+
+**修法**：所有「按类型/比例同步步长」的地方同时写 `step2`：
+
+| 文件 | 说明 |
+| --- | --- |
+| `js/xb_image_prompt_preset.js`、`js/xb_image_prompt_preset_pro.js`、`js/xb_qwen_prompt_preset.js` | 空 latent 类型 → 宽高步长（8/16/32） |
+| `js/xb_video.js` | 画幅比例 → 宽高步长；帧数 → 8/1 |
+| `js/xb_digital_human_single.js`、`js/xb_digital_human_dual.js` | 画幅比例 → 宽高步长 |
+
+**实测**（Nodes 2.0）：
+* 生图提示词预设 + `Hunyuan`（步长 32）：`step=step2=32`，减小 1024 → 992 → 960 → 928，增加回到 960 → 992。
+* Qwen2.1 提示词预设：`step=step2=32`，减小 1024 → 992 → 960 → 928。
+* 视频参数主控（Free，步长 1）：减小 480 → 479 → 478 → 477。
+
+---
+
+## 十一、2026-10-17 复检（提示词框没贴住节点下边缘，底部留白）
+
+**现象**：`生图提示词预设` / `Pro` / `Qwen2.1提示词预设` 把节点拉高后，提示词输入框不再变高，
+面板底部（紫色区域）出现一片空白。
+
+**根因**：原先只把「提示词框」用 `installNodes2BoxResize` 钉成固定 px（默认 300，拖拽时按指针位移改）。
+框自己是变高了，但**容器高度仍由内容决定**（2.0 里 DOM widget 所在 grid 行是 `auto`），
+节点比内容高出来的那部分就变成容器下方的空白。
+
+**修法**：新增 `bindNodes2NodeFill(node, container, { min, bottomPad })`（`js/xb_compat.js`），
+按 CSS 变量给出**容器**的确定高度：
+
+```
+容器 height/max-height = calc(var(--node-height, 3000px) - (容器顶部偏移 + 底部留白))
+```
+
+* `--node-height` 是前端按 `node.size[1] + 30` 写在 `.lg-node` 上的 CSS 变量，节点拉多高它就多高；
+* 顶部偏移 = 容器相对节点根部的 y 距离（标题 + 原生输入行），**只与容器上方的内容有关**，与容器自身高度无关
+  ⇒ 不会出现「改高度 → 撑高节点 → 再改高度」的自激（实测第一版用 `root.clientHeight` 反推就自激到 1300+px）；
+* 容器有确定高度后，内部 `flex:1` 的输入框自然吃掉剩余空间；经典模式（无 `.lg-node`）立即还原行内原样。
+
+对应用户看到的两个状态：
+| 场景 | 修前 | 修后 |
+| --- | --- | --- |
+| 节点高 620 | 框 274px，面板底部空白 | 框 286px，贴住面板底（只剩 8px 内边距） |
+| 节点高 820 | 框仍 274px，空白更大 | 框 437px |
+| 节点高 1060 | 框 433px（跟不上） | 框 655px |
+| 切回经典模式 | — | 内联样式还原 `height:100%`、max/min 清空 |
+
+保留：`installNodes2BoxResize`（按指针位移）仍供其它节点使用，本次只把三个「提示词预设」节点换成撑满模式。
+
+### 11.1 追加修复：节点高度随画布缩放变化（同批，2026-10-17）
+
+**现象**：`生图提示词预设` 节点在滚轮缩放画布时会自己变大/变小（提示词框高度跟着变）。
+
+**根因**：`bindNodes2NodeFill` 用 `getBoundingClientRect()` 量「容器顶部偏移」，
+拿到的是**屏幕像素**（已被画布 `transform: scale()` 缩放过），却被当成 CSS/布局像素写进了
+`calc(var(--node-height) - Npx)`。于是缩放比一变，减掉的 chrome 就变 ⇒ 容器高度、进而节点高度跟着变。
+
+**修法**：按 `app.canvas.ds.scale` 折算回布局像素：
+
+```js
+const scale = Number(app?.canvas?.ds?.scale) || 1;
+const top = Math.round((bb.top - rb.top) / scale);     // 屏幕像素 → 布局像素
+```
+
+（`clientHeight` / `offsetHeight` 不受 transform 影响，所以 `bindNodes2BoxFill`（神笔）与
+JZL 导演台的 `bindDomWidgetMaxHeight` 本来就是缩放安全的，无需改动。）
+
+**实测**（同一节点，改缩放后等 1s 采样）：
+
+| 画布缩放 | 修前 容器布局高 | 修后 容器布局高 | 修后 屏幕高 |
+| --- | --- | --- | --- |
+| 100% | 437 | **437** | 437 |
+| 50% | 328（自己长胖了） | **437** | 219（= 437×0.5） |
+| 150% | 575（自己变瘦了） | **437** | 656（= 437×1.5） |
+| 75% | 393 | **437** | 328（= 437×0.75） |
+
+同类节点复核（同样稳定，不随缩放变）：`XB_ShenBi` 显示窗固定 218、JZL 短剧导演台面板固定 498。

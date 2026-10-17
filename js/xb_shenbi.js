@@ -4,7 +4,7 @@
  * · 无输入端，只有一个 Image 输出；两个模式：创作 / 编辑
  * · 画幅比例 + 宽高：32 步长对齐 + 比例联动（与「XB-BOX - 🖼️ 图片参数大全mini」同一套算法）
  * · 节点布局（自上而下）：模式 / 画幅比例 / 宽度 / 高度 / 画布底色 或 图片+上传
- *   → 「🎨 创作画布」/「🗑️ 删除画布」（删除仅在创作模式出现）→ 显示窗。
+ *   → 「🎨 创作画布」/「🔄 重置画布」（仅创作模式出现）→ 显示窗。
  *   显示窗**两个模式都有**，且高度吸附节点：
  *       创作模式 —— 没有画板存档时显示「设定分辨率 + 画布底色」的纯色画布（默认纯白）；
  *       编辑模式 —— 显示画板存档，没画过则显示源图；
@@ -22,7 +22,7 @@
  *   保证「显示窗」全节点只有一个。
  * · 画板（参考官方 Load Image 节点「右击 → 在遮罩编辑器中打开」的交互）：画笔粗细 /
  *   颜色 / 橡皮 / 水平·垂直翻转 / 左·右旋转 / 上一步 / 下一步 / 清空。
- * · 「🗑️ 删除画布」（仅创作模式）：铲掉创作画板的存档 → 显示窗立刻回到「按当前分辨率现铺的
+ * · 「🔄 重置画布」（仅创作模式）：铲掉创作画板的存档 → 显示窗立刻回到「按当前分辨率现铺的
  *   空白画布」。画过之后画板尺寸会锁在画板自身、改分辨率不生效，删掉即可按新分辨率重新开。
  *   两步确认（首点"上膛"、3 秒内再点才真删）；画板文件名固定，下次作画直接覆盖，不堆垃圾文件。
  * · 画板**以图片文件形式存**（和官方遮罩编辑器同一套做法，POST /upload/image 到 input/xb_shenbi/），
@@ -33,7 +33,7 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { setWidgetValue, setWidgetHidden, refreshWidgets } from "./xb_compat.js";
+import { setWidgetValue, setWidgetHidden, refreshWidgets, bindNodes2BoxFill } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ShenBi";
 const MODE_CREATE = "创作";
@@ -49,7 +49,7 @@ const PAINT_EXT_RE = /\.(png|jpe?g|webp|bmp|tiff?)$/i;
 
 const STEP = 32;
 const SIZE_MIN = 32;
-const SIZE_MAX = 16384;
+const SIZE_MAX = 8192;   // 与后端 MAX_RESOLUTION 一致：宽/高上限 8192
 const RATIO_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2 };
 
 const BG_WHITE = "白色";
@@ -311,7 +311,7 @@ async function openBrushEditor(cfg) {
 
     // 工作画布尺寸上限：创作模式的**空白**画布不需要按设定分辨率全尺寸作画 ——
     // 后端会把笔迹强制对齐（cover）到设定分辨率，所以在这里缩小、保存后由后端放大回去，
-    // 构图与输出尺寸都不变，却能避免为超大目标（8192/16384）分配几块几百 MB 的画布。
+    // 构图与输出尺寸都不变，却能避免为超大目标（上限 8192）分配几块几百 MB 的画布。
     // ⚠️ 编辑模式（真实图片）与"续画已有创作画板"不缩放，避免损失原图细节。
     let boardScaled = false;
     if (cfg.mode === MODE_CREATE && !bitmap) {
@@ -746,6 +746,10 @@ function setupNode(node) {
     if (!wMode || !wAR || !wW || !wH || !wPaint) return;
     node.__xbSbReady = true;
 
+    // 从第一帧起就压掉官方预览（Nodes 2.0 的 Vue 节点内容里那块图）——必须在任何渲染前设置，
+    // 否则刷新时会先闪出官方预览窗（前端只认 hideOutputImages，见 dropOfficialPreview 的说明）
+    try { node.hideOutputImages = true; } catch (_) { /* ignore */ }
+
     setWidgetHidden(node, wPaint, true);
     setWidgetHidden(node, wCreate, true);
 
@@ -851,46 +855,46 @@ function setupNode(node) {
     const actionWidget = node.addWidget("button", "🎨 创作画布", null, () => openBoard());
     if (actionWidget) { try { actionWidget.serialize = false; } catch (_) { /* ignore */ } }
 
-    /* ── 删除画布（仅创作模式）：铲掉创作画板的存档，换回"按当前分辨率现铺的空白画布" ──
+    /* ── 重置画布（仅创作模式）：铲掉创作画板的存档，换回"按当前分辨率现铺的空白画布" ──
        用途：画过之后画板尺寸会锁在画板自身，改分辨率不生效；删掉存档就能按新分辨率重新开
        （画板文件名固定为 xb_shenbi_<节点id>_create.png，下次作画直接覆盖，不会堆垃圾文件）。 */
-    const DELETE_LABEL = "🗑️ 删除画布";
-    const CONFIRM_LABEL = "⚠️ 再点一次确认删除";
-    let deleteArmed = false;
-    let deleteTimer = null;
+    const RESET_LABEL = "🔄 重置画布";
+    const CONFIRM_LABEL = "⚠️ 再点一次确认重置";
+    let resetArmed = false;
+    let resetTimer = null;
 
-    const disarmDelete = () => {
-        deleteArmed = false;
-        if (deleteTimer) { clearTimeout(deleteTimer); deleteTimer = null; }
-        if (deleteWidget) { deleteWidget.name = DELETE_LABEL; deleteWidget.label = DELETE_LABEL; }
+    const disarmReset = () => {
+        resetArmed = false;
+        if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+        if (resetWidget) { resetWidget.name = RESET_LABEL; resetWidget.label = RESET_LABEL; }
         try { refreshWidgets(node); } catch (_) { /* ignore */ }
     };
 
-    const clearBoard = () => {
+    const resetBoard = () => {
         // 两步确认：第一次点只是"上膛"，3 秒内再点才真删（避免误触丢掉画好的图）
-        if (!deleteArmed) {
+        if (!resetArmed) {
             if (!paintValue(true) && !transientPaint()) {
-                notify("当前没有创作画布可删除", "info");
+                notify("当前画布本来就是空白，无需重置", "info");
                 return;
             }
-            deleteArmed = true;
-            if (deleteWidget) { deleteWidget.name = CONFIRM_LABEL; deleteWidget.label = CONFIRM_LABEL; }
+            resetArmed = true;
+            if (resetWidget) { resetWidget.name = CONFIRM_LABEL; resetWidget.label = CONFIRM_LABEL; }
             try { refreshWidgets(node); } catch (_) { /* ignore */ }
-            deleteTimer = setTimeout(disarmDelete, 3000);
+            resetTimer = setTimeout(disarmReset, 3000);
             return;
         }
 
-        disarmDelete();
+        disarmReset();
         if (wCreate) setWidgetValue(wCreate, "");
         node.__xbSbTransient = "";      // 后端未重启时的临时存档也一并清掉
         paintStamp = Date.now();
         refreshPanel();
         const [w, h] = resolveTarget(node);
-        notify(`创作画布已删除，已按 ${w} × ${h} 重置为空白画布`, "success");
+        notify(`创作画布已重置，已按 ${w} × ${h} 铺成空白画布`, "success");
     };
 
-    const deleteWidget = node.addWidget("button", DELETE_LABEL, null, () => clearBoard());
-    if (deleteWidget) { try { deleteWidget.serialize = false; } catch (_) { /* ignore */ } }
+    const resetWidget = node.addWidget("button", RESET_LABEL, null, () => resetBoard());
+    if (resetWidget) { try { resetWidget.serialize = false; } catch (_) { /* ignore */ } }
 
     /* ── 显示窗（两个模式都有，只做显示） ─────────────────────── */
     try {
@@ -948,6 +952,13 @@ function setupNode(node) {
         // 只给 computeLayoutSize（弹性）——不能给 computeSize，否则会被当成固定高度部件
         try { delete panel.computeSize; } catch (_) { panel.computeSize = undefined; }
         panel.computeLayoutSize = () => ({ minHeight: PANEL_MIN, maxHeight: undefined, minWidth: 0 });
+        // ⚠️ Nodes 2.0（前端 ≥1.55）：`computeLayoutSize().minHeight` 已**不再决定行高** —— 新版把
+        //    DOM 部件排进 CSS grid，行高取 `auto`（= 内容最大高度）。而显示窗是 `height:100%` +
+        //    内容全是绝对定位/隐藏元素 ⇒ 内容高度 ≈ 0 ⇒ 行高塌成 1.33px，预览图整个看不见。
+        //    修法：2.0 下把显示窗高度绑到前端自带的 CSS 变量 `--node-height`（= 节点高度 + 余量），
+        //    减去一次性标定出的 chrome ⇒ 拖大节点编辑框跟着变大、拖小跟着变小（同官方 bbox 编辑框的手感），
+        //    且纯 CSS 跟随、不会「只能变大不能变小」。
+        try { bindNodes2BoxFill(node, panelBox || panel.element, { min: PANEL_MIN }); } catch (_) { /* ignore */ }
         // 显示窗纯展示，不进 widgets_values（保持存档里的参数顺序干净）
         try { panel.serialize = false; } catch (_) { /* ignore */ }
     }
@@ -979,6 +990,10 @@ function setupNode(node) {
             + "  · 处理：在本机重新点「🎨 创作画布」/「🖌️ 编辑图片」作画并保存，即可重建存档");
         notify(`显示窗读不到${label}：该文件不在本机 input 目录，已回落显示（详情见浏览器控制台 [XB-BOX 神笔]）`, "warn");
     };
+
+    // 下游预览触发器的状态（在 refreshPanel 里会用到 → 必须声明在它前面）
+    let outPreviewSig = "";
+    let outPreviewTimer = null;
 
     function refreshPanel() {
         if (!panelImg) return;
@@ -1056,6 +1071,79 @@ function setupNode(node) {
                 ? `${targetW} × ${targetH} · ${color}画布`
                 : `目标 ${targetW} × ${targetH}`;
         }
+        scheduleOutputPreview();
+    }
+
+    /* ── 下游刷新触发器（官方 Create Bounding Boxes 的背景图）──────────────
+       官方 bbox 的背景取自 `app.nodeOutputs[上游节点].images`（前端源码 useBoundingBoxesSources →
+       getNodeImageUrls），而这个值只在两种时机更新：
+         ① 服务器推 `executed` 事件（前端 app.addApiUpdateHandlers → setNodeOutputsByExecutionId）；
+         ② 官方 image_upload 选中/上传图片时前端自己写一份。
+       所以"画完画 / 改完分辨率"不会刷新下游背景，而"重新选一次图片"会 —— 差别就在这条事件。
+       这里按当前设定分辨率画一张与后端一致的预览图（等比覆盖 + 居中裁切）上传，
+       再派发同一条 `executed` ⇒ 下游背景立刻刷新，且与最终输出同构图，不必先跑一遍工作流。
+       签名（模式/来源/分辨率/底色/绘画版本）相同就跳过，避免每次刷新面板都上传一次。 */
+
+    const buildOutputPreview = async (srcValue, create, color, targetW, targetH) => {
+        // 预览不必全尺寸：长边压到 2048 内，等比缩放 + 同样裁切，构图与输出完全一致
+        const k = Math.min(1, 2048 / Math.max(targetW, targetH));
+        const cw = Math.max(1, Math.round(targetW * k));
+        const ch = Math.max(1, Math.round(targetH * k));
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        if (!ctx || !canvasWorks(canvas)) return null;
+        ctx.clearRect(0, 0, cw, ch);
+        if (srcValue) {
+            const bitmap = await loadBitmap(paintingUrl(srcValue)).catch(() => null);
+            if (!bitmap) return null;
+            drawCover(ctx, bitmap, cw, ch);
+        } else if (create) {
+            // 创作模式空画布：就是后端会输出的那张纯色图
+            ctx.fillStyle = color === BG_BLACK ? BLACK : WHITE;
+            ctx.fillRect(0, 0, cw, ch);
+        } else {
+            return null;   // 编辑模式既没画板也没源图 → 没有内容可显示
+        }
+        return canvasToBlob(canvas);
+    };
+
+    const pushOutputPreview = async () => {
+        const create = isCreateMode();
+        const archive = create ? (paintValue(true) || transientPaint()) : paintValue(false);
+        const srcValue = archive || String(getVal(node, "image") || "");
+        const [targetW, targetH] = resolveTarget(node);
+        const color = String(getVal(node, "canvas_color") || BG_WHITE);
+        const sig = [create ? 1 : 0, srcValue, targetW, targetH, color, paintStamp].join("|");
+        if (sig === outPreviewSig) return;
+        try {
+            const blob = await buildOutputPreview(srcValue, create, color, targetW, targetH);
+            if (!blob) return;
+            const stored = await uploadPainting(blob, `xb_shenbi_${node.id ?? 0}_out.png`);
+            outPreviewSig = sig;
+            const slash = stored.lastIndexOf("/");
+            api.dispatchEvent(new CustomEvent("executed", {
+                detail: {
+                    node: node.id,
+                    output: {
+                        images: [{
+                            filename: slash >= 0 ? stored.slice(slash + 1) : stored,
+                            subfolder: slash >= 0 ? stored.slice(0, slash) : "",
+                            type: "input",
+                        }],
+                    },
+                },
+            }));
+        } catch (err) {
+            console.warn("[XB-BOX 神笔] 生成下游预览图失败（不影响节点输出）：", err);
+        }
+    };
+
+    // 拖宽高 / 换比例会连着触发 refreshPanel → 合并成一次
+    function scheduleOutputPreview() {
+        if (outPreviewTimer) clearTimeout(outPreviewTimer);
+        outPreviewTimer = setTimeout(() => { outPreviewTimer = null; pushOutputPreview(); }, 250);
     }
 
     /* ── 模式联动 ────────────────────────────────────────────── */
@@ -1066,9 +1154,9 @@ function setupNode(node) {
         const create = isCreateMode();
         setWidgetHidden(node, wColor, !create);
         setWidgetHidden(node, wImage, create);
-        // 「删除画布」只在创作模式出现；离开创作模式时把"上膛"状态一起清掉
-        if (deleteWidget) setWidgetHidden(node, deleteWidget, !create);
-        if (!create) disarmDelete();
+        // 「重置画布」只在创作模式出现；离开创作模式时把"上膛"状态一起清掉
+        if (resetWidget) setWidgetHidden(node, resetWidget, !create);
+        if (!create) disarmReset();
         if (actionWidget) {
             actionWidget.name = create ? "🎨 创作画布" : "🖌️ 编辑图片";
             actionWidget.label = actionWidget.name;
@@ -1080,13 +1168,36 @@ function setupNode(node) {
 
     const needChange = (w, wantHidden) => !!w && (wantHidden ? !w.__xbHide : !!w.__xbHide);
 
-    /** 官方 image_upload 的 upload 按钮 / $$canvas-image-preview 面板是后加的、可能被重建，按周期兜住 */
+    /**
+     * 官方预览必须彻底关掉（否则「编辑窗 + 官方预览」= 两张大图）：
+     *  ① Nodes 2.0（前端 1.55.x）：Vue 的节点内容里那块官方预览由
+     *     `NodeContent` 的 `media` 计算属性决定，源码条件里就有 `n.hideOutputImages`：
+     *       `if (!n || !t?.images?.length || n.hideOutputImages || …) return;`
+     *     ⇒ 给节点打 `hideOutputImages = true`，官方预览**根本不会被渲染出来**
+     *     （不是隐藏，DOM 里没有这个块）。官方 `ImageCompositor` 用的就是这个开关。
+     *  ② 经典模式：`$$canvas-image-preview` 是画布绘制的 widget → 直接从 widgets 里摘掉。
+     */
+    const dropOfficialPreview = () => {
+        try { node.hideOutputImages = true; } catch (_) { /* ignore */ }
+        try {
+            const ws = node.widgets || [];
+            for (let i = ws.length - 1; i >= 0; i--) {
+                const w = ws[i];
+                if (!w) continue;
+                if (w.name === WIDGET_OFFICIAL_PREVIEW || (String(w.name).startsWith("$$") && String(w.type) === "IMAGE_PREVIEW")) {
+                    try { w.onRemove?.(); } catch (_) { /* ignore */ }
+                    ws.splice(i, 1);
+                }
+            }
+        } catch (_) { /* ignore */ }
+    };
+
+    /** 官方 image_upload 的 upload 按钮 / 预览面板是后加的、可能被重建，按周期兜住 */
     const enforceOfficial = () => {
         const create = isCreateMode();
         const upload = findWidget(node, WIDGET_UPLOAD);
         if (needChange(upload, create)) setWidgetHidden(node, upload, create);
-        const official = findWidget(node, WIDGET_OFFICIAL_PREVIEW);
-        if (needChange(official, true)) setWidgetHidden(node, official, true);
+        dropOfficialPreview();
     };
 
     /* ── 画幅比例 + 宽高：32 步长联动 ─────────────────────────── */
@@ -1254,6 +1365,8 @@ app.registerExtension({
         nodeType.prototype.onConfigure = function () {
             const result = onConfigure?.apply(this, arguments);
             const self = this;
+            // 从文件读回节点时再压一次官方预览（hideOutputImages 是前端渲染官方预览的开关）
+            try { self.hideOutputImages = true; } catch (_) { /* ignore */ }
             // 读工作流期间前端可能回放一次 widget 回调，这里先立旗再同步，避免误清画板存档
             self.__xbSbLoading = true;
             self.__xbSbConfigured = true;
