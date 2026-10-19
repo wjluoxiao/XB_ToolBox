@@ -53,6 +53,30 @@ function askText(message, dflt) {
 }
 
 /**
+ * 调起系统取色器。只在用户**真的换了颜色**时才回调 ——
+ * 旧写法把初始色写在 oninput/onchange 里，光打开取色器然后取消，也会把
+ * 「背景 = 黑色」写进节点（默认的透明背景被意外变成不透明，用户报障）。
+ */
+function pickColor(initial, onPick) {
+    const inp = document.createElement("input");
+    inp.type = "color";
+    inp.value = initial;
+    inp.style.cssText = "position:fixed;top:50%;left:50%;width:1px;height:1px;opacity:0.01;z-index:99999;";
+    document.body.appendChild(inp);
+    let changed = false;
+    inp.oninput = function () {
+        if (this.value === initial) return;     // 只是打开取色器，值没变 → 不写回
+        changed = true;
+        onPick(this.value);
+    };
+    inp.onchange = function () {
+        if (changed || this.value !== initial) onPick(this.value);
+        if (document.body.contains(this)) document.body.removeChild(this);
+    };
+    requestAnimationFrame(() => inp.click());
+}
+
+/**
  * 统一的「改文字」入口：右键菜单 / 2.0 双击共用。
  * ⚠️ 写成模块级函数（而不是挂在 node 上）：2.0 下 node 对象可能被前端包装/替换，
  *    闭包里拿到的 `node` 和 `onNodeCreated` 里的 `this` 不一定是同一个引用（实测取到过 undefined）。
@@ -66,6 +90,20 @@ function editLabelTitle(node) {
         node._xbLabelRender?.();
         node.setDirtyCanvas?.(true, true);
         node.graph?.setDirtyCanvas?.(true, true);
+    }
+}
+
+/** 量文字宽度（与贴纸同字体）：Nodes 2.0 下用来把节点/贴纸宽度收口到文字宽度 */
+let _xbMeasureCtx = null;
+function measureTextWidth(fontSize, lines) {
+    try {
+        _xbMeasureCtx = _xbMeasureCtx || document.createElement("canvas").getContext("2d");
+        _xbMeasureCtx.font = fontSize + "px Arial";
+        let maxW = 1;
+        for (const s of lines) maxW = Math.max(maxW, _xbMeasureCtx.measureText(s || " ").width);
+        return maxW;
+    } catch (_) {
+        return 0;
     }
 }
 
@@ -110,6 +148,37 @@ function installDomLabel(node) {
         return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt;
     };
 
+    // Nodes 2.0 的 DOM 规则：节点根高度 = node.size[1] + 固定余量，贴纸(本元素)又比根小一圈。
+    // 只按字号估 node.size 会让「文字横向溢出节点」「贴纸比文字高一截（背景大出一圈）」。
+    // 这里按文字内容的实测尺寸与贴纸尺寸的差值，把 node.size 收敛到贴纸正好包住文字（两拍即稳定）。
+    const fitNodeToText = () => {
+        try {
+            if (!node.__xbLabelDom || !node.size || !el.isConnected) return;
+            const rng = document.createRange();
+            rng.selectNodeContents(el);
+            const rect = rng.getBoundingClientRect();
+            if (!rect || !rect.width) return;
+            const p = node.properties || {};
+            const fontSize = clamp(p.fontSize, 1, 800, 40);
+            const pad = Math.max(0, Number(p.padding) || 0);
+            const lineCount = Math.max(1, String(node.title ?? "").replace(/\\n/g, "\n").split("\n").length);
+            // ⚠️ getBoundingClientRect 是屏幕像素（含画布缩放），offsetWidth/offsetHeight 是布局像素，
+            //    两者不能直接相减：高倍缩放下差值会被反复累加 → 节点宽度失控膨胀。
+            const scale = Number(app?.canvas?.ds?.scale) || 1;
+            const needW = Math.ceil(rect.width / scale) + pad * 2;
+            const needH = Math.ceil(Math.max(rect.height / scale, fontSize * 1.15 * lineCount)) + pad * 2;
+            const dw = needW - el.offsetWidth;
+            const dh = needH - el.offsetHeight;
+            if (Math.abs(dw) <= 1 && Math.abs(dh) <= 1) return;
+            const curW = Math.round(node.size[0] || 0);
+            const curH = Math.round(node.size[1] || 0);
+            const newW = Math.max(120, curW + Math.round(dw));
+            const newH = Math.max(24, curH + Math.round(dh));
+            if (newW === curW && newH === curH) return;
+            node.setSize?.([newW, newH]);
+        } catch (_) { /* ignore */ }
+    };
+
     const render = () => {
         const p = node.properties || {};
         const fontSize = clamp(p.fontSize, 1, 800, 40);
@@ -129,10 +198,25 @@ function installDomLabel(node) {
         el.style.borderRadius = clamp(p.borderRadius, 0, 400, 0) + "px";
         el.style.transform = angle ? `rotate(${angle}deg)` : "";
 
-        // 让节点高度跟着文字走（Nodes 2.0 下节点尺寸由 DOM 主导，这里只做一次“够用”的设置）
+        // 让节点尺寸跟着文字走（Nodes 2.0 下贴纸尺寸由节点尺寸 + 前端固定余量决定）：
+        //   · 宽 = 文字宽 + 内边距 + 节点左右留白（24）
+        //   · 高 = 行高总和 + 内边距 − 前端固定余量（贴纸高 = 节点高 + 10）
+        // 这两组余量是实测值，前端改版后由挂载后的 fitNodeToText() 按真实 DOM 再收口。
         try {
-            const h = Math.max(60, Math.round(fontSize * lines.length * 1.15 + pad * 2 + 24));
-            node.setSize?.([Math.max(120, node.size?.[0] || 320), h]);
+            const maxW = measureTextWidth(fontSize, lines);
+            const textW = maxW > 0 ? maxW : Math.max(1, (node.size?.[0] || 320) - pad * 2 - 24);
+            const textH = fontSize * 1.15 * lines.length;
+            node.setSize?.([
+                Math.max(120, Math.round(textW + pad * 2 + 24)),
+                Math.max(24, Math.round(textH + pad * 2 - 10)),
+            ]);
+        } catch (_) { /* ignore */ }
+        try {
+            if (node.__xbLabelDom) {
+                requestAnimationFrame(fitNodeToText);
+                setTimeout(fitNodeToText, 60);
+                setTimeout(fitNodeToText, 300);
+            }
         } catch (_) { /* ignore */ }
     };
 
@@ -171,6 +255,7 @@ function installDomLabel(node) {
         const p = node.properties || {};
         const s = [node.title, p.fontSize, p.fontColor, p.textAlign, p.backgroundColor, p.padding, p.borderRadius, p.angle].join("|");
         if (s !== sig) { sig = s; render(); }
+        fitNodeToText();        // Vue 晚挂载 / 重建 DOM 后，按真实 DOM 再收口一次
         applyPassthrough();     // Vue 重建行 wrapper 后要重新打穿透
         bindRoot();
     };
@@ -420,38 +505,21 @@ app.registerExtension({
                     if (val !== null && Number.isFinite(num)) { self.properties.angle = Math.round(num); refresh(); }
                 }},
                 { content: "🎨 字体颜色…", callback: () => {
-                    const inp = document.createElement("input");
-                    inp.type = "color";
-                    inp.value = self.properties.fontColor || "#ffffff";
-                    inp.style.cssText = "position:fixed;top:50%;left:50%;width:1px;height:1px;opacity:0.01;z-index:99999;";
-                    document.body.appendChild(inp);
-                    inp.oninput = function () {
-                        self.properties.fontColor = this.value;
+                    pickColor(self.properties.fontColor || "#ffffff", (v) => {
+                        self.properties.fontColor = v;
                         refresh();
-                    };
-                    inp.onchange = function () {
-                        self.properties.fontColor = this.value;
-                        refresh();
-                        if (document.body.contains(this)) document.body.removeChild(this);
-                    };
-                    requestAnimationFrame(() => inp.click());
+                    });
                 }},
                 { content: "🖌️ 背景颜色…", callback: () => {
-                    const inp = document.createElement("input");
-                    inp.type = "color";
-                    inp.value = self.properties.backgroundColor === "transparent" ? "#000000" : (self.properties.backgroundColor || "#000000");
-                    inp.style.cssText = "position:fixed;top:50%;left:50%;width:1px;height:1px;opacity:0.01;z-index:99999;";
-                    document.body.appendChild(inp);
-                    inp.oninput = function () {
-                        self.properties.backgroundColor = this.value;
+                    const cur = self.properties.backgroundColor || "transparent";
+                    pickColor(cur === "transparent" ? "#000000" : cur, (v) => {
+                        self.properties.backgroundColor = v;
                         refresh();
-                    };
-                    inp.onchange = function () {
-                        self.properties.backgroundColor = this.value;
-                        refresh();
-                        if (document.body.contains(this)) document.body.removeChild(this);
-                    };
-                    requestAnimationFrame(() => inp.click());
+                    });
+                }},
+                { content: "🧽 背景恢复透明", callback: () => {
+                    self.properties.backgroundColor = "transparent";
+                    refresh();
                 }}
             );
         };

@@ -2889,6 +2889,173 @@
       }
     }
   },
+  "XB_SaveVideo": {
+    "display_name": "XB-BOX - 🎬 保存视频",
+    "inputs": {
+      "images": {
+        "name": "图片"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "bit_depth": {
+        "name": "位深"
+      },
+      "color_space": {
+        "name": "色彩空间"
+      },
+      "format": {
+        "name": "格式"
+      },
+      "autoplay": {
+        "name": "自动播放"
+      },
+      "audio": {
+        "name": "音频"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "视频"
+      }
+    }
+  },
+  "XB_LoadVideo": {
+    "display_name": "XB-BOX - 🎬 加载视频",
+    "inputs": {
+      "file": {
+        "name": "视频文件"
+      },
+      "force_rate": {
+        "name": "强制帧率"
+      },
+      "custom_width": {
+        "name": "输出宽度"
+      },
+      "custom_height": {
+        "name": "输出高度"
+      },
+      "frame_load_cap": {
+        "name": "帧数上限"
+      },
+      "skip_first_frames": {
+        "name": "跳过帧数"
+      },
+      "select_every_nth": {
+        "name": "间隔取帧"
+      },
+      "autoplay": {
+        "name": "自动播放"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
+      },
+      "1": {
+        "name": "音频"
+      },
+      "2": {
+        "name": "帧率"
+      },
+      "3": {
+        "name": "位深"
+      },
+      "4": {
+        "name": "色彩空间"
+      }
+    }
+  },
+  "XB_TripleLoraLoaderModelOnly": {
+    "display_name": "XB-BOX - 🔗 三连 LoRA 加载（仅模型）",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "lora_01": {
+        "name": "LORA-01"
+      },
+      "strength_01": {
+        "name": "强度-01"
+      },
+      "lora_02": {
+        "name": "LORA-02"
+      },
+      "strength_02": {
+        "name": "强度-02"
+      },
+      "lora_03": {
+        "name": "LORA-03"
+      },
+      "strength_03": {
+        "name": "强度-03"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      }
+    }
+  },
+  "XB_TripleLoraLoader": {
+    "display_name": "XB-BOX - 🔗 三连 LoRA 加载",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "clip": {
+        "name": "CLIP"
+      },
+      "lora_01": {
+        "name": "LORA-01"
+      },
+      "strength_01": {
+        "name": "强度-01"
+      },
+      "lora_02": {
+        "name": "LORA-02"
+      },
+      "strength_02": {
+        "name": "强度-02"
+      },
+      "lora_03": {
+        "name": "LORA-03"
+      },
+      "strength_03": {
+        "name": "强度-03"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL"
+      },
+      "1": {
+        "name": "CLIP"
+      }
+    }
+  },
+  "XB_CLIPTextEdit": {
+    "display_name": "XB-BOX - 📝 CLIP 文本编辑",
+    "inputs": {
+      "clip": {
+        "name": "CLIP模型"
+      },
+      "text": {
+        "name": "提示词"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "正向条件"
+      },
+      "1": {
+        "name": "零化后负面条件"
+      }
+    }
+  },
   "XB_StringMerge": {
     "display_name": "XB-BOX - 📝 字符串合并",
     "inputs": {
@@ -5392,7 +5559,7 @@
         "name": "空latent类型"
       },
       "three_view_text": {
-        "name": "预设句（三/四/五视图·透明背景）"
+        "name": "预设句（右上角按钮管理预设）"
       },
       "aspect_ratio": {
         "name": "画幅比例"

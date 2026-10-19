@@ -1,7 +1,7 @@
 """
 SKILL（技能文件 = 系统提示词）公共读取
 ======================================
-· 位置：`<本包>/support_llama/skills/*.txt | *.md`
+· 位置：`<本包>/xb_skill/skills/*.txt | *.md`
 · 被两个节点共用：
     - `XB_QwenPromptPreset`（🖼️ Qwen2.1提示词预设）→ 官方 Generate Text 的 system_prompt
     - `XB_ImagePromptPresetPro`（🖼️ 生图提示词预设Pro）→ LLM 反推的 system prompt
@@ -16,23 +16,105 @@ SKILL（技能文件 = 系统提示词）公共读取
 """
 
 import os
+import re
 import threading
 import time
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-SKILL_DIR = os.path.join(PACKAGE_DIR, "support_llama", "skills")
+# 技能文件统一放在 xb_skill/skills（与预设词 txt 同一个 xb_skill 根目录）
+SKILL_DIR = os.path.join(PACKAGE_DIR, "xb_skill", "skills")
+# 旧位置（xb_skill/skills）：首次使用时自动把文件迁移过去，老部署无需手动搬
+LEGACY_SKILL_DIR = os.path.join(PACKAGE_DIR, "support_llama", "skills")
 SKILL_NONE = "不使用"
 _SKILL_EXTS = (".txt", ".md")
 _CACHE = {"key": None, "text": ""}
 
 
-def skill_list():
-    """技能文件列表（combo 选项；第一个是「不使用」）"""
+def _migrate_legacy():
+    """把旧目录（xb_skill/skills）的文件搬到 xb_skill/skills（只搬一次，已存在的不覆盖）"""
+    try:
+        os.makedirs(SKILL_DIR, exist_ok=True)
+        if not os.path.isdir(LEGACY_SKILL_DIR):
+            return
+        have = {f.lower() for f in os.listdir(SKILL_DIR)}
+        for name in os.listdir(LEGACY_SKILL_DIR):
+            if not name.lower().endswith(_SKILL_EXTS) or name.lower() in have:
+                continue
+            try:
+                with open(os.path.join(LEGACY_SKILL_DIR, name), "rb") as src:
+                    data = src.read()
+                with open(os.path.join(SKILL_DIR, name), "wb") as dst:
+                    dst.write(data)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+
+# ── 技能文件读写（面板「编辑 / 新增 skill」用）────────────────────────────────
+_NAME_RE = re.compile(r"^[^\\/:*?\"<>|]+$")
+
+
+def _safe_name(name):
+    """只接受纯文件名（防目录穿越）；非法返回空串"""
+    n = os.path.basename(str(name or "").strip())
+    if not n or n == SKILL_NONE or not _NAME_RE.match(n):
+        return ""
+    if not n.lower().endswith(_SKILL_EXTS):
+        n += ".txt"
+    return n
+
+
+def skill_files():
+    """技能文件列表（不含「不使用」；按名字排序）"""
+    _migrate_legacy()
     try:
         names = [f for f in os.listdir(SKILL_DIR) if f.lower().endswith(_SKILL_EXTS)]
     except Exception:
-        return [SKILL_NONE]
-    return [SKILL_NONE] + sorted(names)
+        return []
+    return sorted(names)
+
+
+def read_skill(name):
+    """读技能文件全文（面板编辑用；不存在返回空串）"""
+    n = _safe_name(name)
+    if not n:
+        return ""
+    return skill_text(n, "[XB-SKILL]")
+
+
+def save_skill(name, text):
+    """保存技能文件；返回 (文件名, 错误信息)"""
+    n = _safe_name(name)
+    if not n:
+        return "", "请填写合法的技能文件名（不能包含路径字符）"
+    _migrate_legacy()
+    try:
+        os.makedirs(SKILL_DIR, exist_ok=True)
+        with open(os.path.join(SKILL_DIR, n), "w", encoding="utf-8", newline="\n") as fp:
+            fp.write(str(text or ""))
+        return n, ""
+    except Exception as exc:
+        return "", str(exc)
+
+
+def delete_skill(name):
+    """删除技能文件；返回错误信息（成功为空串）"""
+    n = _safe_name(name)
+    if not n:
+        return "文件名为空或不合法"
+    p = os.path.join(SKILL_DIR, n)
+    try:
+        if os.path.isfile(p):
+            os.remove(p)
+        return ""
+    except Exception as exc:
+        return str(exc)
+
+
+def skill_list():
+    """技能文件列表（combo 选项；第一个是「不使用」）"""
+    return [SKILL_NONE] + skill_files()
 
 
 def skill_path(name):
@@ -305,5 +387,39 @@ try:
     async def xb_skill_folder(request):  # noqa: ANN001
         ok, info = open_skill_folder()
         return web.json_response({"ok": bool(ok), "path": SKILL_DIR, "info": info}, status=200 if ok else 500)
+
+    @PromptServer.instance.routes.get("/xb_toolbox/skills/list")
+    async def xb_skills_list(request):  # noqa: ANN001
+        return web.json_response({"ok": True, "dir": SKILL_DIR, "files": skill_files()})
+
+    @PromptServer.instance.routes.get("/xb_toolbox/skills/get")
+    async def xb_skills_get(request):  # noqa: ANN001
+        name = request.rel_url.query.get("name", "")
+        n = _safe_name(name)
+        if not n:
+            return web.json_response({"ok": False, "error": "文件名为空或不合法"}, status=400)
+        return web.json_response({"ok": True, "name": n, "text": read_skill(n)})
+
+    @PromptServer.instance.routes.post("/xb_toolbox/skills/save")
+    async def xb_skills_save(request):  # noqa: ANN001
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        name, err = save_skill(data.get("name"), data.get("text"))
+        if err:
+            return web.json_response({"ok": False, "error": err}, status=400)
+        return web.json_response({"ok": True, "name": name, "files": skill_files()})
+
+    @PromptServer.instance.routes.post("/xb_toolbox/skills/delete")
+    async def xb_skills_delete(request):  # noqa: ANN001
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        err = delete_skill(data.get("name"))
+        if err:
+            return web.json_response({"ok": False, "error": err}, status=400)
+        return web.json_response({"ok": True, "files": skill_files()})
 except Exception:  # pragma: no cover - 仅在没有运行中的 ComfyUI 时走到
     pass

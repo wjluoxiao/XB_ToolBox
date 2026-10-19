@@ -117,6 +117,8 @@ try:
                                           _AliasVAEDecode, _AliasVAEDecodeTemporal,
                                           _AliasLTXVAEDecode, _AliasVAEEncode)
     from .nodes_string_merge import XB_StringMerge
+    from .nodes_clip_text_edit import XB_CLIPTextEdit
+    from .nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
     from .nodes_msr import XB_MSR
     from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
     from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
@@ -177,6 +179,22 @@ try:
     from .cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
     from .cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
     from .cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
+
+    # ── 🎬 保存视频（Create Video + Save Video 二合一，依赖新版 V3 API）──
+    try:
+        from .nodes_save_video import XB_SaveVideo
+        _SAVE_VIDEO_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 保存视频节点 未加载：{e}")
+        _SAVE_VIDEO_AVAILABLE = False
+
+    # ── 🎬 加载视频（Load Video + Get Video Components 二合一，依赖新版 V3 API）──
+    try:
+        from .nodes_load_video import XB_LoadVideo
+        _LOAD_VIDEO_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 加载视频节点 未加载：{e}")
+        _LOAD_VIDEO_AVAILABLE = False
 
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
     from .nodes_image_prompt_preset import XB_ImagePromptPreset
@@ -288,6 +306,9 @@ try:
         "XB_ModelLoaderV2_GGUF": XB_ModelLoaderV2_GGUF,
         "XB_ModelLoaderV3_GGUF": XB_ModelLoaderV3_GGUF,
         "XB_StringMerge": XB_StringMerge,
+        "XB_CLIPTextEdit": XB_CLIPTextEdit,
+        "XB_TripleLoraLoader": XB_TripleLoraLoader,
+        "XB_TripleLoraLoaderModelOnly": XB_TripleLoraLoaderModelOnly,
         "XB_MSR": XB_MSR,
         "XB_ComicPromptParser": XB_ComicPromptParser,
         "XB_ComicTextRenderer": XB_ComicTextRenderer,
@@ -306,6 +327,18 @@ try:
         "XB_CosyVoice3_SpeakerClone": XB_CosyVoice3_SpeakerClone,
         "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
     }
+
+    # ── 🎬 保存视频 ──
+    if _SAVE_VIDEO_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_SaveVideo": XB_SaveVideo,
+        })
+
+    # ── 🎬 加载视频 ──
+    if _LOAD_VIDEO_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_LoadVideo": XB_LoadVideo,
+        })
 
     # ── 条件注册 Llama 节点 ──
     if _LLAMA_AVAILABLE:
@@ -439,6 +472,9 @@ try:
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
         "XB_StringMerge": "XB-BOX - 📝 字符串合并",
+        "XB_CLIPTextEdit": "XB-BOX - 📝 CLIP 文本编辑",
+        "XB_TripleLoraLoader": "XB-BOX - 🔗 三连 LoRA 加载",
+        "XB_TripleLoraLoaderModelOnly": "XB-BOX - 🔗 三连 LoRA 加载（仅模型）",
         "XB_MSR": "XB-BOX - 🎞️ MSR 多图合成帧序列",
         "XB_ComicPromptParser": "XB-BOX - 📝 漫画提示词智能解析",
         "XB_ComicTextRenderer": "XB-BOX - 💬 漫画文字渲染 (精确坐标)",
@@ -458,6 +494,18 @@ try:
         "XB_CosyVoice3_SpeakerClone": "XB-BOX - 🗣️ CosyVoice3 说话人克隆",
         "XB_CosyVoice3_SpeakerInstruct2": "XB-BOX - 🎭 CosyVoice3 说话人指令",
     }
+
+    # ── 🎬 保存视频 显示名 ──
+    if _SAVE_VIDEO_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_SaveVideo": "XB-BOX - 🎬 保存视频",
+        })
+
+    # ── 🎬 加载视频 显示名 ──
+    if _LOAD_VIDEO_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_LoadVideo": "XB-BOX - 🎬 加载视频",
+        })
 
     # ── 条件注册 Llama 显示名 ──
     if _LLAMA_AVAILABLE:

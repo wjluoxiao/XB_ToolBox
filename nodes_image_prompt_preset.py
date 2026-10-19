@@ -3,19 +3,21 @@
 一个节点顶替「提示词输入框 + 画幅比例节点 + 官方空 latent」三件套：
 
 · 表面参数（顺序 = 节点上从上到下的显示顺序）：
-    空latent类型 / 输出语言 / 预设模式 / 预设句（三视图·四视图·五视图·背景纯透明 四个模式显示）
-    / 画幅比例 / 宽度 / 高度 / 生成数量
+    空latent类型 / 输出语言 / 预设模式 / 画幅比例 / 宽度 / 高度 / 生成数量
   —— 画幅比例 + 步长锁定 + 比例联动 100% 复刻本包「XB-BOX - 🖼️ 图片参数大全」
      （去掉强度(小数)/强度(整数)/缩放尺寸三项）
+  —— 预设句不再是表面参数（节点上没有文本显示框）：选哪个预设模式，就用该模式预设 txt 的内容
 · 表面 6 个按钮（UI 在 js/xb_image_prompt_preset.js）：
      🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
      每个按钮打开**该分类**的独立面板；面板顶部「分类签」切换子类
      （例：风格 → 真人/动画/3D/绘画插画/特殊风格），选项行 = ➕ ➖ 选项名 添加详细描述
-· 输出①「提示词」= 预设句（人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明；无预设档不前置）+ 正文（节点提示词框 ↔ 面板预览框双向同步）
+· 输出①「提示词」= 预设文件里的设定词 + 正文（节点提示词框 ↔ 面板预览框双向同步；无预设档不前置）
 · 输出②「空latent」= 主流模型直接可用的空 latent（选项名 = 模型名，规格按官方 latent_format；
   通道数 / 下采样除数 / 步长 / 上下限 / batch 上限 / downscale 元数据逐项对齐）：
      · Z-image   16 通道 · /8   · 步长 16  （官方 latent_format = Flux）
      · Flux2     128 通道 · /16 · 步长 16  （官方 EmptyFlux2LatentImage）
+     · Flux3     128 通道 · /16 · 步长 16  （与 Flux2 完全同规格，仅多一个选项）
+     · Moss-image 128 通道 · /16 · 步长 16 （与 Flux2 完全同规格，仅多一个选项）
      · Qwen-image 16 通道 · /8  · 步长 32  （官方 latent_format = Wan21，采样时自动补 T 维；按用户要求锁 32）
      · Krea2     16 通道 · /8   · 步长 16  （官方 latent_format = Wan21）
      · Anima     16 通道 · /8   · 步长 8   （官方模板用 4 通道 EmptyLatentImage，零 latent 会被自动补齐）
@@ -32,6 +34,12 @@
   （已选词条 / 自建槽位 / 补充描述 / 自动保存），随工作流保存、节点间互不影响；
 · `internal_prompt`（内部字段，同上前端隐藏）存提示词正文；
 · 空latent类型 / 输出语言 / 预设模式 / 预设句 都是**节点表面参数**（随工作流保存）。
+
+预设模式 = 预设 txt 文件（见 xb_presets.py）：
+· 目录 `xb_skill/XB_ImagePromptPreset/ZH` 与 `.../EN`，**一个 txt = 一个选项**；
+· 文件名（去掉 `01-` 这类排序前缀）= 选项名，文件内容 = 该选项的设定词；
+· 按 ComfyUI 系统语言自动选目录：中文 → ZH，其他语言 → EN；
+· 目录缺失或没有 txt 时回退到下面内置的 PRESET_TEXT（老部署/老工作流行为不变）。
 """
 
 import json
@@ -42,6 +50,7 @@ import comfy.model_management
 import nodes
 
 from .xb_skills import SKILL_NONE, skill_text
+from . import xb_presets
 
 # ── 画幅比例（与本包 XB_ImageParamsMaster 完全一致的选项顺序） ──────────────
 ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"]
@@ -54,28 +63,16 @@ MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
 
 # ── 面板枚举（字符串即存储值，前端面板与后端按同一份字符串对齐） ────────────
 OUTPUT_LANGS = ["中文 [ZH]", "英文 [EN]"]
-# 预设模式：第 1 档 = 无预设（不前置任何设定词，只输出正文），其余按「文生图组 → 图生图组」排列
-# （官方 Qwen-Image-2.1 示例库归纳）。⚠️ 这些字符串就是工作流里的存储值，改名必须同步 MODE_ALIASES
-PRESET_MODES = [
-    "无预设", "人物三视图", "人物四视图", "人物五视图", "背景纯透明",
-    "图文版面",
-    "信息图",
-    "多格分镜",
-    "广告分镜板",
-    "保持主体换场景",
-    "局部编辑",
-    "老照片修复",
-    "整图风格化",
-    "360°全景",
-    "多图指认合成",
-]
-
 LANG_ZH = OUTPUT_LANGS[0]
-MODE_TEXT2IMG = PRESET_MODES[0]
-MODE_THREE_VIEW = PRESET_MODES[1]
-MODE_FOUR_VIEW = PRESET_MODES[2]
-MODE_FIVE_VIEW = PRESET_MODES[3]
-MODE_TRANSPARENT = PRESET_MODES[4]
+LANG_EN = OUTPUT_LANGS[1]
+
+# 预设模式：改由 xb_skill 预设文件提供（一个 txt = 一个选项），这里只保留**内置兜底**清单
+# （老部署没有预设文件夹 / 文件被删光时用；也是老工作流里的历史档位名，改名必须同步 MODE_ALIASES）
+MODE_TEXT2IMG = "无预设"
+MODE_THREE_VIEW = "人物三视图"
+MODE_FOUR_VIEW = "人物四视图"
+MODE_FIVE_VIEW = "人物五视图"
+MODE_TRANSPARENT = "背景纯透明"
 MODE_UI = "图文版面"
 MODE_INFO = "信息图"
 MODE_STORYBOARD = "多格分镜"
@@ -86,6 +83,27 @@ MODE_RESTORE = "老照片修复"
 MODE_STYLIZE = "整图风格化"
 MODE_PANO360 = "360°全景"
 MODE_MULTI_REF = "多图指认合成"
+_BUILTIN_PRESET_MODES = [
+    MODE_TEXT2IMG, MODE_THREE_VIEW, MODE_FOUR_VIEW, MODE_FIVE_VIEW, MODE_TRANSPARENT,
+    MODE_UI, MODE_INFO, MODE_STORYBOARD, MODE_ADBOARD,
+    MODE_KEEP_SUBJECT, MODE_LOCAL_EDIT, MODE_RESTORE, MODE_STYLIZE, MODE_PANO360, MODE_MULTI_REF,
+]
+
+PRESET_NODE_NAME = "XB_ImagePromptPreset"
+
+
+def preset_lang_folder(output_lang=None):
+    """「输出语言」下拉值 → 预设文件语言目录（中文 [ZH] → ZH，其余 → EN）"""
+    return xb_presets.ZH if output_lang == LANG_ZH else xb_presets.EN
+
+
+def preset_modes():
+    """「预设模式」下拉选项：无预设 + 预设文件（按系统语言选目录），没有文件则用内置兜底"""
+    labels = xb_presets.preset_labels(PRESET_NODE_NAME)
+    return [MODE_TEXT2IMG] + (labels if labels else _BUILTIN_PRESET_MODES[1:])
+
+
+PRESET_MODES = preset_modes()
 # 需要输入图的档位（图生图组）：面板会给「必须接图」提示
 MODE_NEEDS_IMAGE = [
     MODE_KEEP_SUBJECT,
@@ -103,7 +121,7 @@ def mode_needs_image(preset_mode):
 
 
 def mode_skill_hint(preset_mode):
-    """该预设模式推荐搭配的 SKILL 文件（support_llama/skills；仅供面板展示，不自动改用户设置）"""
+    """该预设模式推荐搭配的 SKILL 文件（xb_skill/skills；仅供面板展示，不自动改用户设置）"""
     return "system_prompt_edit.txt" if mode_needs_image(preset_mode) else "system_prompt_t2i.txt"
 
 # ── SKILL 三态：不用 / 手动 / 自动（默认自动）────────────────────────────
@@ -176,8 +194,10 @@ _OFFICIAL_LATENT_ROWS = [
     ("Anima",       16, 8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
     ("Boogu",       16, 8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
     ("Flux2",      128, 16, 16, 16, 16, MAX_RESOLUTION, 4096, 16),
+    ("Flux3",      128, 16, 16, 16, 16, MAX_RESOLUTION, 4096, 16),   # 与 Flux2 同规格：只是给用户多一个选项
     ("Hunyuan",     64, 32, 32, 32, 64, MAX_RESOLUTION, 4096, 32),
     ("Krea2",       16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
+    ("Moss-image", 128, 16, 16, 16, 16, MAX_RESOLUTION, 4096, 16),   # 与 Flux2 同规格：只是给用户多一个选项
     ("Qwen-image",  16, 8,  8,  32, 32, MAX_RESOLUTION, 4096, 8),
     ("SD3",         16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
     ("SDXL",        4,  8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
@@ -278,8 +298,15 @@ PRESET_TEXT = {
     },
 }
 
-# 兼容旧引用（三视图预设句）
+# 兼容旧引用（三视图预设句）：默认值优先取预设文件，其次内置文案
 THREE_VIEW_TEXT = PRESET_TEXT[MODE_THREE_VIEW]
+
+
+def three_view_default(output_lang=LANG_ZH):
+    """「预设句」框的默认值：优先 人物三视图 预设文件，没有则用内置文案"""
+    txt = xb_presets.preset_text(PRESET_NODE_NAME, MODE_THREE_VIEW,
+                                 preset_lang_folder(output_lang))
+    return txt or PRESET_TEXT[MODE_THREE_VIEW][output_lang]
 
 # 元素分类白名单（必须与 js/xb_image_prompt_preset.js 的 CATEGORIES 顺序逐字一致；
 # 自测会断言两者相等）。这里只用来过滤配置里的脏数据。
@@ -629,17 +656,20 @@ PRESET_TEXT_T2I = {
 
 
 def preset_text_for(preset_mode, output_lang=None, io_mode=None):
-    """某预设模式在指定模版下的**默认**设定词（无预设 → 永远 ""）。
+    """某预设模式的**默认**设定词（无预设 → 永远 ""）。
 
-    io_mode 可传「自动」（按该档默认）、「文生图」或「图生图」。
-    · 无预设：无论接不接图、哪个模版 → **都是空**（不前置任何设定词，也不加「以输入图为准」条款）
-    · 文生图模版：图生图档 → PRESET_TEXT_T2I；其余文生图档 → PRESET_TEXT
-    · 图生图模版：图生图档 → PRESET_TEXT；其余文生图档 → PRESET_TEXT + IO_I2I_COMMON 条款
+    取法：① 先读 xb_skill 预设文件（一个 txt = 一个选项，按输出语言选 ZH / EN 目录）；
+          ② 文件缺失时回退到内置 PRESET_TEXT / PRESET_TEXT_T2I（老部署行为不变）。
     """
     mode = normalize_mode(preset_mode)
     lg = output_lang if output_lang in OUTPUT_LANGS else LANG_ZH
     if not mode or mode == MODE_TEXT2IMG:
         return ""
+    # ① 预设文件（用户可直接编辑 txt 改文案）
+    from_file = xb_presets.preset_text(PRESET_NODE_NAME, mode, preset_lang_folder(lg))
+    if from_file:
+        return from_file
+    # ② 内置兜底
     texts = PRESET_TEXT.get(mode, {})
     io = io_mode_of(io_mode)
     if io == IO_MODE_AUTO:
@@ -659,24 +689,33 @@ def all_default_texts(preset_mode):
     · 无预设档额外算「默认」的还有：IO_I2I_COMMON 条款（早期版本在「图生图模版」下把它当
       设定词写进了 widget / 存档）+ **所有内置预设句**（节点上 three_view_text 的老默认值就是
       三视图预设句 → 无预设档必须把它当空白，不能当成用户的「自定义」继续前置）。
+    · 预设文件里的文案与内置文案都算默认：改了 txt 之后，老工作流里遗留的内置文案会被
+      自动换成新的文件文案（不会被当成用户自定义而挡住更新）。
     """
     out = []
     for lg in OUTPUT_LANGS:
         for io in (IO_MODE_T2I, IO_MODE_I2I):
             t = preset_text_for(preset_mode, lg, io).strip()
-            if t:
+            if t and t not in out:
                 out.append(t)
         if normalize_mode(preset_mode) == MODE_TEXT2IMG:
             c = _as_str(IO_I2I_COMMON.get(lg, "")).strip()
-            if c:
+            if c and c not in out:
                 out.append(c)
-    if normalize_mode(preset_mode) == MODE_TEXT2IMG:
-        for table in (PRESET_TEXT, PRESET_TEXT_T2I):
-            for texts in table.values():
-                for t in texts.values():
-                    t = _as_str(t).strip()
-                    if t and t not in out:
-                        out.append(t)
+    mode = normalize_mode(preset_mode)
+    if mode == MODE_TEXT2IMG:
+        tables = (PRESET_TEXT, PRESET_TEXT_T2I)
+        extra = xb_presets.all_preset_texts(PRESET_NODE_NAME)
+        for texts in list(extra.values()) + [t2 for table in tables for t2 in table.values()]:
+            for t in (texts or {}).values():
+                t = _as_str(t).strip()
+                if t and t not in out:
+                    out.append(t)
+    else:
+        for t in (xb_presets.all_preset_texts(PRESET_NODE_NAME).get(mode) or {}).values():
+            t = _as_str(t).strip()
+            if t and t not in out:
+                out.append(t)
     return out
 
 
@@ -723,15 +762,17 @@ def build_prompt(lang, preset_mode, three_view_text, body, has_image=None, io_mo
     """设定词 + 正文，按输出语言使用合适的分句符。
 
     · 正文 = 节点表面提示词框（也等于面板预览框，两者双向同步）；
-    · 设定词 = preset_text_of(...)：改过的用改过的，没改过则按「当前模版（文生图/图生图）」取默认；
-    · 无预设档：接不接图、哪个模版 → 设定词都是空串（只输出正文）；
-    · has_image=None（基础节点不传）时按文生图处理，行为与旧版一致。
+    · 设定词 = 节点上的「预设句」文本框（用右上角「添加预设」从预设文件里挑选，或直接手写）；
+      文本框为空时，若老工作流还留着 preset_mode，则回退到该档的预设文案（向后兼容）；
+    · has_image / io_mode 仅为兼容旧调用保留，不再影响取词。
     """
     core = (body if isinstance(body, str) else "").strip()
-    mode = _pick(PRESET_MODES, preset_mode, PRESET_MODES[0])
     lg = _pick(OUTPUT_LANGS, lang, LANG_ZH)
-    preset = preset_text_of(mode, lg, three_view_text, io_mode=io_mode,
-                            has_image=bool(has_image))
+    preset = _as_str(three_view_text).strip()
+    if not preset:
+        mode = normalize_mode(preset_mode)
+        if mode and mode != MODE_TEXT2IMG:
+            preset = preset_text_for(mode, lg)
     if not preset:
         return core
     if not core:
@@ -747,21 +788,23 @@ def build_prompt(lang, preset_mode, three_view_text, body, has_image=None, io_mo
 class XB_ImagePromptPreset:
     """XB-BOX - 🖼️ 生图提示词预设：画幅参数 + 提示词拼装 + 官方空 latent 一体化。
 
-    · 表面参数顺序 = 输出语言 / 预设模式 / 空latent类型 / 预设句（三视图·四视图·五视图·背景纯透明 显示）
-      / 画幅比例 / 宽度 / 高度 / 生成数量；
-    · 「提示词」输出 = 预设句（人物三视图）+ 节点提示词框正文；
-    · 「空latent」输出 = 官方空 latent（见 LATENT_KINDS，共 9 种，逐字段对齐，选项按首字母排列）。
+    · 表面参数顺序 = 空latent类型 / 输出语言 / 预设句（带「添加预设 / 编辑预设 / 复制文本」三个小按钮）
+      / 画幅比例 / 宽度 / 高度 / 生成数量（「预设模式」下拉已取消，字段仅作老工作流兼容保留）；
+    · 「提示词」输出 = 预设句 + 节点提示词框正文；
+    · 「空latent」输出 = 官方空 latent（见 LATENT_KINDS，共 11 种，逐字段对齐，选项按首字母排列）。
     """
 
     @classmethod
     def INPUT_TYPES(cls):
+        modes = preset_modes()
         return {
             "required": {
                 # ── 空latent 类型放最顶（用户要求）──
                 "latent_kind": (list(LATENT_KINDS), {
                     "default": DEFAULT_LATENT_KIND,
                     "tooltip": "空latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）。\n"
-                               "Z-image 16ch·/8·16　Flux2 128ch·/16·16　Qwen-image 16ch·/8·32\n"
+                               "Z-image 16ch·/8·16　Flux2 128ch·/16·16　Flux3 128ch·/16·16（同 Flux2）\n"
+                               "Moss-image 128ch·/16·16（同 Flux2）　Qwen-image 16ch·/8·32\n"
                                "Krea2 16ch·/8·16　Anima 16ch·/8·8　Boogu 16ch·/8·8\n"
                                "SDXL 4ch·/8·8　SD3 16ch·/8·16　Hunyuan 64ch·/32·32\n"
                                "（步长 = 各模型官方最小步长，仅 Qwen-image 按需求锁 32；通道/下采样同样按官方 latent_format）",
@@ -771,17 +814,15 @@ class XB_ImagePromptPreset:
                     "default": LANG_ZH,
                     "tooltip": "输出语言：影响预设句、元素拼装分隔符（面板里新加入的词条也按此语言）",
                 }),
-                "preset_mode": (list(PRESET_MODES), {
-                    "default": PRESET_MODES[0],
-                    "tooltip": "预设模式：无预设=不前置任何设定词，只输出正文（完全可控）；"
-                               "人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 = 成句自动在正文前加对应预设句"
-                               "（下方预设句框仅这三个模式显示，切模式时未改过的默认句会自动跟随）",
+                "preset_mode": (list(modes), {
+                    "default": modes[0],
+                    # 界面已取消这个下拉（前端隐藏），仅保留字段保证老工作流的 widgets_values 顺序不错位
+                    "tooltip": "（已隐藏）老工作流的预设模式存档字段；现在改用下方「预设句」文本框 + 右上角按钮管理预设。",
                 }),
                 "three_view_text": ("STRING", {
-                    "default": THREE_VIEW_TEXT[LANG_ZH], "multiline": True,
-                    "tooltip": "预设句 / 设定词（人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 四个模式生效；无预设时本框自动隐藏）\n"
-                               "· 用户改过的设定词按「模式 + 语言」存进本节点（换模式 / 换语言都不会丢）；\n"
-                               "· 最终提示词输出时它会被原封不动加在正文最顶端",
+                    "default": "", "multiline": True,
+                    "tooltip": "预设句 / 设定词：点右上角「添加预设」从预设文件里挑一个，或直接手写。\n"
+                               "输出提示词时它会被原封不动加在正文最顶端（留空则只输出正文）。",
                 }),
                 "aspect_ratio": (list(ASPECT_RATIO_OPTIONS), {
                     "default": "Free",
@@ -791,7 +832,7 @@ class XB_ImagePromptPreset:
                 "width": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
                     "tooltip": "图片宽度（像素）。固定比例下改宽度会按比例重算高度；步长按「空latent类型」的官方最小步长"
-                               "（SDXL/Anima/Boogu=8，Flux2/Krea2/SD3/Z-image=16，Qwen-image/Hunyuan=32）",
+                               "（SDXL/Anima/Boogu=8，Flux2/Flux3/Krea2/SD3/Z-image=16，Qwen-image/Hunyuan=32）",
                 }),
                 "height": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
@@ -821,9 +862,10 @@ class XB_ImagePromptPreset:
     RETURN_NAMES = ("提示词", "空latent")
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("生图提示词预设：空latent类型（主流模型一键适配 Z-image/Flux2/Qwen-image/Krea2/"
+    DESCRIPTION = ("生图提示词预设：空latent类型（主流模型一键适配 Z-image/Flux2/Flux3/Moss-image/Qwen-image/Krea2/"
                    "Anima/Boogu/SDXL/SD3/Hunyuan）+ 输出语言/预设模式 + 画幅比例/宽度/高度/生成数量"
                    "（步长按各模型官方最小步长 8/16/32 + 比例联动）＋ 提示词拼装（8 大类：风格/视角/主体/姿态/穿搭/道具/光影/背景）。"
+                   "预设模式的选项与设定词来自 xb_skill/XB_ImagePromptPreset 下的 ZH / EN 预设 txt（按系统语言自动选择）。"
                    "输出：①提示词 ②空latent。")
 
     @classmethod
@@ -867,6 +909,7 @@ __all__ = [
     "ASPECT_RATIO_OPTIONS", "ASPECT_RATIO_MAP", "SIZE_STEP", "SIZE_MIN", "MAX_RESOLUTION",
     "BATCH_MAX", "MODE_FIVE_VIEW", "OUTPUT_LANGS", "PRESET_MODES", "PRESET_TEXT", "THREE_VIEW_TEXT",
     "LATENT_KINDS", "LATENT_KIND_SPEC", "DEFAULT_LATENT_KIND", "ELEMENT_CATEGORIES",
+    "preset_modes", "preset_text_for", "all_default_texts", "three_view_default",
     "default_settings", "parse_settings", "round_step", "normalize_size",
     "latent_kind_spec", "latent_step_of", "latent_shape_of",
     "build_empty_latent", "build_prompt",

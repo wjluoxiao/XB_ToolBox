@@ -2,10 +2,14 @@
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
- * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图/四视图/五视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
+ * 表面：空latent类型 / 输出语言 / 预设模式 / （预设句：选中有预设文件的档位时显示）/ 画幅比例 / 宽度 / 高度 / 生成数量
  *       ＋ 节点提示词框 ＋ 8 个分类按钮（4 列 × 2 行）：🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
  *       每个按钮一个面板，面板顶部「分类签」切子类；选项行整行可点（加入 → 变蓝 ✔ / 再点移除）
  *       道具类点行会先弹「与主体的关系」多宫格标签窗（30 个关系词）
+ *
+ * 预设模式 = 预设 txt 文件（xb_skill/XB_ImagePromptPreset/ZH|EN/*.txt）：
+ *   一个文件一个选项，文件内容即设定词；后端 /xb/presets 按 ComfyUI 系统语言选目录，
+ *   前端拿到后刷新下拉选项并用文件文案覆盖内置默认句（拉不到则完全按旧版内置文案跑）。
  *
  * 界面逻辑与「短剧导演台」（ComfyUI-JZL-MiniMax-H3/js/asset_manager.js）一致：
  *   · 容器 width/height:100% + overflow:hidden，提示词框 flex:1 1 auto 吃剩余高（CSS 排版，零 JS 高度计算）
@@ -21,6 +25,7 @@
  */
 
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 import { bindNodes2NodeFill } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
@@ -104,16 +109,18 @@ const BATCH_MAX = 4096;
 // ── 主流模型的空 latent（选项名 = 模型名，规格按官方 latent_format；必须与后端 _OFFICIAL_LATENT_ROWS 逐字一致）──
 // 选项按首字母（A→Z，不区分大小写）排列；DEFAULT_LATENT_KIND 固定 Z-image，不受排序影响。
 const LATENT_KINDS = [
-  "Anima", "Boogu", "Flux2", "Hunyuan", "Krea2", "Qwen-image", "SD3", "SDXL", "Z-image",
+  "Anima", "Boogu", "Flux2", "Flux3", "Hunyuan", "Krea2", "Moss-image", "Qwen-image", "SD3", "SDXL", "Z-image",
 ];
 // 每项：channels(通道) / hDiv・wDiv(下采样除数) / step(尺寸步长 = 各模型官方最小步长) / min・max / batchMax / downscale / desc(悬停说明)
-// 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
+// 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2/Flux3 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
 const LATENT_KIND_SPEC = {
   "Anima": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Anima：16 通道 · /8 · 步长 8（官方模板用 4 通道 EmptyLatentImage，零 latent 会被自动补齐）" },
   "Boogu": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Boogu：16 通道 · /8 · 步长 8（同上，官方 latent_format = Flux）" },
   "Flux2": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux2：128 通道 · /16 · 步长 16（官方 EmptyFlux2LatentImage）" },
+  "Flux3": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux3：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Hunyuan": { channels: 64, hDiv: 32, wDiv: 32, step: 32, min: 64, max: 16384, batchMax: 4096, downscale: 32, desc: "Hunyuan：64 通道 · /32 · 步长 32（官方 EmptyHunyuanImageLatent / HunyuanImage 2.1）" },
   "Krea2": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Krea2：16 通道 · /8 · 步长 16（官方 latent_format = Wan21）" },
+  "Moss-image": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Moss-image：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Qwen-image": { channels: 16, hDiv: 8, wDiv: 8, step: 32, min: 32, max: 16384, batchMax: 4096, downscale: 8, desc: "Qwen-image：16 通道 · /8 · 步长 32（官方 latent_format = Wan21，采样时自动补 T 维；按需求锁 32）" },
   "SD3": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SD3：16 通道 · /8 · 步长 16（官方 EmptySD3LatentImage）" },
   "SDXL": { channels: 4, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SDXL：4 通道 · /8 · 步长 8（官方 EmptyLatentImage）" },
@@ -182,6 +189,8 @@ const PRESET_TEXT_DEFAULT = {
 };
 /** 某模式某语言下的默认预设句（无预设句的模式 → 空串） */
 const defaultPresetOf = (mode, lang) => ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
+/** 内置文案快照（在预设文件覆盖之前留存）：老工作流里遗留的内置默认句仍要能被认出来 */
+const PRESET_TEXT_STOCK = JSON.parse(JSON.stringify(PRESET_TEXT_DEFAULT));
 
 /* ── 模版（文生图 / 图生图）：每个预设模式都有两套设定词 ────────────────────────
  * · 自动 = 按有没有接参考图判断（没接 → 文生图，接了 → 图生图）
@@ -229,10 +238,16 @@ const resolveIoMode = (io, hasImage) => {
 };
 /** 该模式的默认模版（图生图档默认图生图，其余默认文生图） */
 const modeDefaultIo = (mode) => (MODE_NEEDS_IMAGE.includes(mode) ? IO_I2I : IO_T2I);
+/** 把「预设模式」的值归一：认历史别名，未知但非空的值原样保留（预设文件可能随时新增选项） */
+const modeValueOf = (v) => {
+  const s = String(v == null ? "" : v).trim();
+  if (!s) return MODE_TP;
+  return MODE_ALIASES[s] || s;
+};
 /** 该模式在某模版下的**默认**设定词（io 已归一为 文生图 / 图生图）
  *  ⚠️ PRESET_TEXT_DEFAULT 的键是「中文 [ZH]/英文 [EN]」，PRESET_TEXT_T2I 的键是 "zh"/"en" */
 const presetTextOf = (mode, lang, io) => {
-  if (!MODES.includes(mode)) return "";
+  if (!PRESET_TEXT_DEFAULT[mode] && !MODES.includes(mode)) return "";
   if (mode === MODE_TP) return "";       // 无预设：接不接图、哪个模版 → 设定词都是空白
   const lg = (lang === LANG_EN) ? "en" : "zh";
   const base = ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
@@ -254,18 +269,20 @@ const allDefaultTextsOf = (mode) => {
     const t = presetTextOf(mode, lg, io).trim();
     if (t && !out.includes(t)) out.push(t);
   }
+  // 内置快照（预设文件覆盖前的文案）永远算「默认」：改了 txt 之后老工作流会自动跟上
+  const others = mode === MODE_TP
+    ? [...Object.values(PRESET_TEXT_STOCK), ...Object.values(PRESET_TEXT_DEFAULT), ...Object.values(PRESET_TEXT_T2I)]
+    : [PRESET_TEXT_STOCK[mode], PRESET_TEXT_DEFAULT[mode]];
+  for (const texts of others) {
+    for (const t of Object.values(texts || {})) {
+      const s = String(t || "").trim();
+      if (s && !out.includes(s)) out.push(s);
+    }
+  }
   if (mode === MODE_TP) {
     for (const k of ["zh", "en"]) {
       const c = String(IO_I2I_COMMON[k] || "").trim();
       if (c && !out.includes(c)) out.push(c);
-    }
-    for (const table of [PRESET_TEXT_DEFAULT, PRESET_TEXT_T2I]) {
-      for (const texts of Object.values(table)) {
-        for (const t of Object.values(texts || {})) {
-          const s = String(t || "").trim();
-          if (s && !out.includes(s)) out.push(s);
-        }
-      }
     }
   }
   return out;
@@ -275,6 +292,42 @@ const isDefaultPresetText = (mode, text) => !!String(text || "").trim()
   && allDefaultTextsOf(mode).includes(String(text).trim());
 /** 兼容旧引用：三视图预设句 */
 const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
+
+/* ── 预设文件（xb_skill/<节点名>/ZH|EN/*.txt）：一个 txt = 一个「预设模式」选项 ──────────
+ * · 后端 /xb/presets 按 ComfyUI 系统语言选目录（中文 → ZH，其他 → EN）并读出文案；
+ * · 前端拿到后：① 刷新「预设模式」下拉选项 ② 用文件内容覆盖内置默认句（切模式即用文件文案）；
+ * · 拉不到（老后端 / 目录为空）→ 继续用内置文案，行为与旧版完全一致。 */
+const PRESET_NODE_NAME = "XB_ImagePromptPreset";
+let presetFilesPromise = null;
+
+function loadPresetFiles() {
+  if (!presetFilesPromise) {
+    presetFilesPromise = (async () => {
+      try {
+        const r = await api.fetchApi(`/xb/presets?node=${encodeURIComponent(PRESET_NODE_NAME)}`);
+        if (!r || !r.ok) return null;
+        return await r.json();
+      } catch (_) { return null; }
+    })();
+  }
+  return presetFilesPromise;
+}
+
+/** 把预设文件合并进内置表（原地改值，THREE_VIEW_DEFAULT 等引用继续有效），返回选项名列表 */
+function mergePresetFiles(data) {
+  const modes = Array.isArray(data?.modes) ? data.modes.filter((m) => typeof m === "string" && m.trim()) : [];
+  const texts = (data && typeof data.texts === "object" && data.texts) || {};
+  for (const [mode, byLang] of Object.entries(texts)) {
+    if (!mode || !byLang || typeof byLang !== "object") continue;
+    const target = PRESET_TEXT_DEFAULT[mode] || (PRESET_TEXT_DEFAULT[mode] = {});
+    for (const [label, txt] of Object.entries(byLang)) {
+      if (typeof txt === "string" && txt.trim()) target[label] = txt;
+    }
+    if (!MODES.includes(mode)) MODES.push(mode);
+  }
+  for (const m of modes) if (!MODES.includes(m)) MODES.push(m);
+  return modes;
+}
 
 /**
  * ── 预设句（设定词）档案 ─────────────────────────────────────────────
@@ -292,10 +345,10 @@ function parsePresetTexts(raw) {
     if (typeof v !== "string" || !v.trim()) continue;
     const seg = String(k).split("|");
     if (seg.length === 3) {                       // 新格式：模式|模版|语言
-      if (!MODES.includes(seg[0]) || !IO_MODES.includes(seg[1]) || !LANGS.includes(seg[2])) continue;
+      if (!(PRESET_TEXT_DEFAULT[seg[0]] || MODES.includes(seg[0])) || !IO_MODES.includes(seg[1]) || !LANGS.includes(seg[2])) continue;
       out[`${seg[0]}|${seg[1]}|${seg[2]}`] = v;
     } else if (seg.length === 2) {                // 旧格式：模式|语言 → 按该档默认模版归档
-      if (!MODES.includes(seg[0]) || !LANGS.includes(seg[1])) continue;
+      if (!(PRESET_TEXT_DEFAULT[seg[0]] || MODES.includes(seg[0])) || !LANGS.includes(seg[1])) continue;
       out[`${seg[0]}|${modeDefaultIo(seg[0])}|${seg[1]}`] = v;
     }
   }
@@ -1739,11 +1792,11 @@ function rebuildBody(settings, index, lang) {
   }
   return parts.join(sepOf(lang));
 }
-/** 最终成句（与后端 build_prompt 逐行一致：预设句 + 正文）—— 三个值均来自节点表面参数 */
+/** 最终成句（与后端 build_prompt 逐行一致：预设句 + 正文）—— 预设句直接取节点「预设句」文本框 */
 function finalPrompt(mode, presetText, lang, body, io) {
   const core = String(body || "").trim();
-  if (!PRESET_TEXT_DEFAULT[mode]) return core;          // 无预设 → 不前置
   const preset = String(presetText || "").trim() || presetTextOf(mode, lang, io || IO_T2I);
+  if (!preset) return core;
   if (!core) return preset;
   if (lang === LANG_EN) return preset.replace(/[.\s]+$/, "") + ". " + core;
   return preset.replace(/[。．.\s]+$/, "") + "。" + core;
@@ -1836,10 +1889,13 @@ function openPanel(ctx, panelId) {
   header.append(el("div", "font-size:12px;color:#999;margin-top:5px;", "点选项行即加入提示词（变蓝），再点一下移除（变灰）；点【添加详细描述】会在新窗口里给该词条写补充描述（悬停行可看）。配置随工作流保存，改完重新执行节点即生效。"));
   dialog.append(header);
 
-  const panelBox = el("div", "padding:14px 20px;overflow-y:auto;flex:1;min-height:280px;");
+  // ⚠️ 顶部不留内边距：滚动容器的 padding 区不参与裁剪，滚上去的行会从这条缝里
+  //    「穿透」到吸顶预览框上方（用户看到预览标题上方漏出半截按钮/文字）。
+  //    顶部留白改由吸顶块自己的 padding 提供（它有实底背景，能盖住身后滚动的内容）。
+  const panelBox = el("div", "padding:0 20px 14px;overflow-y:auto;flex:1;min-height:280px;");
 
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
-  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:2px 0 10px;margin:-2px 0 6px;border-bottom:1px solid #333;");
+  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid #333;");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
   head.append(el("span", "font-size:12px;font-weight:600;color:#9fc3e8;", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
@@ -1855,12 +1911,9 @@ function openPanel(ctx, panelId) {
     const body = ctx.body.get();
     if (fromEl !== preview) preview.value = body;
     headCount.textContent = `${body.length} 字 → 成句 ${finalPrompt(surf.mode, surf.presetText, surf.lang, body, surf.io).length} 字`;
-    const hasPreset = !!PRESET_TEXT_DEFAULT[surf.mode];
-    presetChip.style.display = hasPreset ? "block" : "none";
-    if (hasPreset) {
-      const t = String(surf.presetText || "") || presetTextOf(surf.mode, surf.lang, surf.io || IO_T2I);
-      presetChip.textContent = `📌 自动前置（${surf.mode}设定词，可在节点表面「预设句」框里改；改过的按模式记住、换模式不丢）：` + (t.length > 150 ? t.slice(0, 150) + "…" : t);
-    }
+    const t = String(surf.presetText || "").trim();
+    presetChip.style.display = t ? "block" : "none";
+    if (t) presetChip.textContent = "📌 自动前置（节点「预设句」文本框的内容）：" + (t.length > 150 ? t.slice(0, 150) + "…" : t);
   };
   preview.addEventListener("input", () => { ctx.body.set(preview.value); refreshPreview(preview); });
 
@@ -2160,7 +2213,7 @@ function renderCategoryPanel(box, api, catId) {
       fire();
       notify(t ? "已按已选元素重建正文" : "当前没有已选元素（重建后正文为空）", t ? "success" : "warning");
     }),
-    smallBtn("📋 复制成句", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:6px 12px;", "复制最终成句（三视图模式下含预设句）", () => {
+    smallBtn("📋 复制成句", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:6px 12px;", "复制最终成句（选中有预设的档位时含预设句）", () => {
       copyText(finalPrompt(surf.mode, surf.presetText, surf.lang, bodyGet(), surf.io));
     }),
     smallBtn("⬆️ 导出词表", "border:1px solid #6b9b5b;background:#3a5a2a;color:#d7f0c8;padding:6px 12px;", "把「自建槽位 + 已选 + 描述」导出成 JSON 备份", () => exportJson(s)),
@@ -2685,10 +2738,9 @@ function setupNode(node) {
   // 模版切换（文生图 / 图生图）：基础节点没有这个 widget → null，逻辑自动按「文生图」走
   const wIo = findWidget(node, "io_mode");
 
-  // ── 预设句（设定词）存档：用户改过的那条按「模式|语言」存进节点 ──────────────
-  // 切换模式 / 切换语言一律取「该键的存档 → 该键的默认」，所以用户改过的设定词不会被冲掉。
-  // ⚠️ 写入用「原样 JSON 合并」——不能走 persistSettings（那会丢掉 Pro 的 llm 段等其它键）。
-  let lastAppliedPreset = String(readWidgetValue(w3v) ?? "");
+  // ── 预设句（设定词）存档：Pro 节点/老工作流仍按「模式|语言」读写 ──────────────
+  let lastPresetLabel = "";        // 上一次「添加预设 / 编辑预设」用到的预设名（编辑窗默认填它）
+  let cachedPresets = null;        // /xb/presets 的缓存（{modes, texts, ...}）
   const presetStoreOf = () => {
     try { return parsePresetTexts(parseSettings(readWidgetValue(findWidget(node, "manager_settings"))).preset_texts); }
     catch (_) { return {}; }
@@ -2768,11 +2820,21 @@ function setupNode(node) {
   container.appendChild(btnRow);
 
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
-  const promptLab = el("div", "font-size:12px;color:#bbb;flex:0 0 auto;", "📝 节点提示词（与面板预览框双向同步）");
-  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
+  //    右上角三个小按钮：添加预设 / 编辑预设 / 复制文本（都作用于这一个提示词文本框）
+  const promptLab = el("div", "font-size:12px;color:#bbb;flex:1 1 auto;min-width:0;",
+    "📝 节点提示词（与面板预览框双向同步）");
+  const promptBtns = el("div", "display:flex;gap:6px;align-items:center;flex:0 0 auto;");
+  promptBtns.append(
+    mkTinyBtn("添加预设", "从已保存的预设里挑一个加到提示词最前面", () => { showPresetPicker(); }),
+    mkTinyBtn("编辑预设", "载入已有预设 / 把当前提示词另存为新预设", () => { showPresetEditor(); }),
+    mkTinyBtn("复制文本", "复制提示词文本框的全部文字", () => { copyPromptText(); }),
+  );
+  const promptHead = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto;");
+  promptHead.append(promptLab, promptBtns);
+  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;");
   promptBox.spellcheck = false;
   promptBox.placeholder = "点上方 8 个按钮开面板、点选项行加入元素，或直接在这里写提示词…";
-  container.append(promptLab, promptBox);
+  container.append(promptHead, promptBox);
 
   // ── 提示词框 ↔ internal_prompt ──
   const syncPromptBoxFromWidget = () => {
@@ -2786,10 +2848,12 @@ function setupNode(node) {
   const curIoMode = () => resolveIoMode(ioModeOf(wIo ? readWidgetValue(wIo) : ""), modeHasImage(node));
   const surfaceOf = () => ({
     lang: pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH),
-    mode: pickOpt(MODES, readWidgetValue(wMode), MODE_TP),
+    // 预设模式下拉已取消：固定无预设（老工作流残留值不影响取词）
+    mode: MODE_TP,
     io: curIoMode(),
     kind: pickOpt(LATENT_KINDS, readWidgetValue(wKind), DEFAULT_LATENT_KIND),
-    presetText: String(readWidgetValue(w3v) ?? ""),
+    // 只剩一个提示词文本框：预设内容已经并进正文，面板不再额外前置
+    presetText: "",
   });
   /** 当前空latent类型对应的步长/上下限（后端按同一张表算，保证所见即所得） */
   const sizeOpt = () => {
@@ -2801,106 +2865,460 @@ function setupNode(node) {
   // 必须手动对齐节点表面提示词框：同宽（容器左右各 8px 内边距）+ 同样的圆角 / 配色
   const nodeEl = () => document.querySelector(`[data-node-id="${node.id}"]`);
   const markNodeEl = () => { try { nodeEl()?.setAttribute("data-xb-ipp", "1"); } catch (_) {} };
-  // Nodes 2.0：原生 widget 的 DOM 是 Vue 重建的，`w3v.element / inputEl` 是**已脱离文档**的老元素
-  // （实测 connected=false），真正显示的那个 textarea 用的是前端 Textarea 组件，
-  // class 带 scrollbar-gutter-stable，默认 min-height 只有 4rem 且 overflow-y:hidden
-  // → 预设句较长时直接截断、也拉不高。这里单独给它放宽（面板自己的预览框没有这个 class，不受影响）。
-  const IPP_STYLE_ID = "xb-ipp-preset-textarea-style";
-  const ensurePresetBoxStyle = () => {
+  // ══════════════════════════════════════════════════════════════
+  //  预设工具栏（添加预设 / 编辑预设 / 复制文本）—— 钉在节点提示词文本框的右上角
+  //  · 添加预设：列出预设目录 + 备份目录里的 txt，点一个就加到提示词最前面
+  //  · 编辑预设：载入已有预设到提示词框（可改），再按「同名覆盖 / 新名新建」存成 txt
+  //  · 复制文本：复制提示词文本框的全部文字
+  // ══════════════════════════════════════════════════════════════
+  // ⚠️ 这两个用 function 声明（会被提升）：按钮在面板构建时就创建，早于本段代码
+  function mkTinyBtn(label, tip, onClick) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.title = tip;
+    b.style.cssText = "font-size:0.92em;line-height:1.35;height:1.9em;padding:0 0.75em;border-radius:4px;"
+      + "border:1px solid #555;background:#2b2b2b;color:#ddd;cursor:pointer;white-space:nowrap;";
+    b.addEventListener("pointerdown", (e) => e.stopPropagation());
+    b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); onClick?.(); });
+    b.addEventListener("mouseenter", () => { b.style.background = "#3a3a3a"; });
+    b.addEventListener("mouseleave", () => { b.style.background = "#2b2b2b"; });
+    return b;
+  }
+
+  // ── 弹窗字号 / 界面缩放（所有预设弹窗共用，独立记忆） ─────────────────────
+  const MODAL_FONT_KEY = "xb_ipp_modal_font";
+  const MODAL_ZOOM_KEY = "xb_ipp_modal_zoom";
+  const FONT_MIN = 10, FONT_MAX = 30, FONT_DEF = 15;   // 默认字号跟元素面板同级偏大一点
+  const MZOOM_MIN = 0.6, MZOOM_MAX = 2.0;
+  const MODAL_DEFAULT_WIDTH = 880;                     // 与「风格」等元素面板同宽
+
+  const modalFontGet = () => {
     try {
-      if (document.getElementById(IPP_STYLE_ID)) return;
-      const st = document.createElement("style");
-      st.id = IPP_STYLE_ID;
-      st.textContent = `
-        [data-xb-ipp] textarea[class*="scrollbar-gutter-stable"] {
-          min-height: 132px;
-          max-height: 360px;
-          overflow-y: auto !important;
-          resize: vertical;
-        }`;
-      document.head.appendChild(st);
+      const v = parseInt(localStorage.getItem(MODAL_FONT_KEY) || "", 10);
+      if (Number.isFinite(v)) return Math.max(FONT_MIN, Math.min(FONT_MAX, v));
     } catch (_) {}
+    return FONT_DEF;
   };
-  const livePresetBox = () => {
-    try {
-      const el = nodeEl();
-      if (!el) return null;
-      const cands = Array.from(el.querySelectorAll('textarea[class*="scrollbar-gutter-stable"]'));
-      if (!cands.length) return null;
-      const val = String(readWidgetValue(w3v) ?? "");
-      return cands.find((t) => String(t.value || "") === val) || cands[0];
-    } catch (_) { return null; }
+  const modalFontSet = (v) => {
+    const n = Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(v)));
+    try { localStorage.setItem(MODAL_FONT_KEY, String(n)); } catch (_) {}
+    return n;
   };
-  const stylePresetTextBox = () => {
+  const modalZoomGet = () => {
     try {
-      ensurePresetBoxStyle();
-      markNodeEl();
-      // 1.0（canvas 里的 DOM widget）：按老做法修边
-      if (w3v) for (const box of [w3v.element, w3v.inputEl]) {
-        if (!box || !box.style) continue;
-        box.style.width = "calc(100% - 16px)";
-        box.style.margin = "0 8px";
-        box.style.boxSizing = "border-box";
-        box.style.borderRadius = "4px";
-        box.style.border = "1px solid #444";
-        box.style.background = "#1d1d1d";
-        box.style.color = "#ccc";
-        box.style.padding = "5px 8px";
-        box.style.fontSize = "12px";
-        box.style.lineHeight = "1.6";
-        box.style.fontFamily = "inherit";
-      }
-      // 2.0：把“活的”多行框调成够看、可滚、可拉高
-      const live = livePresetBox();
-      // 用户在这个原生框里手改设定词 → 立刻存档（换模式 / 换语言时不丢）
-      if (live && !live.__ippBound) {
-        live.__ippBound = true;
-        const commitUserEdit = () => {
-          try {
-            const v = String(live.value ?? "");
-            if (v === lastAppliedPreset) return;          // 程序化写入的回声 → 忽略
-            lastAppliedPreset = v;
-            setWidgetValue(w3v, v);
-            const s = surfaceOf();
-            writePresetStore(s.mode, s.io, s.lang, v);
-          } catch (_) {}
-        };
-        live.addEventListener("change", commitUserEdit);
-        live.addEventListener("blur", commitUserEdit);
-      }
-      if (live && live.style) {
-        live.style.minHeight = "132px";
-        live.style.maxHeight = "360px";
-        live.style.overflowY = "auto";
-        live.style.resize = "vertical";
-        live.style.whiteSpace = "pre-wrap";
-        live.style.lineHeight = "1.6";
-      }
+      const v = parseFloat(localStorage.getItem(MODAL_ZOOM_KEY) || "");
+      if (Number.isFinite(v) && v > 0) return Math.max(MZOOM_MIN, Math.min(MZOOM_MAX, v));
     } catch (_) {}
+    return 1;
+  };
+  const modalZoomSet = (v) => {
+    const n = Math.round(Math.max(MZOOM_MIN, Math.min(MZOOM_MAX, v)) * 20) / 20;
+    try { localStorage.setItem(MODAL_ZOOM_KEY, String(n)); } catch (_) {}
+    return n;
+  };
+  /** 把字号 / 界面缩放套到弹窗上（textarea 显式跟随，避免被 CSS 类固定 px 压回原样） */
+  const applyModalScale = (card) => {
+    if (!card) return;
+    const f = modalFontGet(), z = modalZoomGet();
+    card.style.fontSize = f + "px";
+    card.style.zoom = String(z);
+    // ⚠️ zoom 会等比放大整个盒子：`90vh` 是先按视口算成布局像素、再被 zoom 放大的，
+    //    所以界面缩放 >100% 时实际渲染高度 = 90vh × zoom > 视口 ⇒ 弹窗顶/底超出屏幕。
+    //    这里把上限按 zoom 折回布局像素（90vh / zoom），渲染出来才恒为 90vh。
+    card.style.maxHeight = `calc(${90 / z}vh)`;
+    card.style.maxWidth = `calc(${96 / z}vw)`;
+    card.querySelectorAll("textarea").forEach((n) => { n.style.fontSize = f + "px"; });
+    // 让编辑框按新字号重新计算最小高度
+    card.querySelectorAll("textarea[data-autofit]").forEach((n) => {
+      try { n.dispatchEvent(new Event("input")); } catch (_) {}
+    });
   };
 
-  /** 写预设句：同时写 widget 值 + textarea（新版前端 customtext 把值存在 DOM 上，只手写 widget 可能不刷新显示）
-   *  lastAppliedPreset 记下「程序写进去的值」→ 回调里只有不等于它的才算用户手改（防回声被误存档） */
-  const setPresetText = (txt) => {
-    const v = String(txt ?? "");
-    lastAppliedPreset = v;
-    try { setWidgetValue(w3v, v); } catch (_) {}
-    try { if (w3v && w3v.element && "value" in w3v.element) w3v.element.value = v; } catch (_) {}
+  /** 通用弹窗：宽度与「风格」元素面板一致（880px）+ 顶部「字号 / 界面」调节（所有预设弹窗共用） */
+  function openModal(title, opts = {}) {
+    const mask = document.createElement("div");
+    mask.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.78);"
+      + "display:flex;overflow:auto;padding:0;box-sizing:border-box;";
+    const card = document.createElement("div");
+    // ⚠️ 用 margin:auto 居中（而不是 align-items/justify-content:center）：
+    //    后者在内容比视口高时会把溢出的部分均分到上下两侧，顶部的标题/✕ 按钮会被切到屏幕外且滚不到。
+    card.style.cssText = "width:" + (opts.width || MODAL_DEFAULT_WIDTH) + "px;max-width:96vw;max-height:90vh;"
+      + "margin:auto;flex:0 0 auto;"
+      + "display:flex;flex-direction:column;"
+      + "background:#1c1c1e;border:1px solid #333;border-radius:8px;color:#ddd;"
+      + "font:15px/1.65 system-ui,sans-serif;box-shadow:0 20px 40px rgba(0,0,0,.6);overflow:hidden;";
+
+    const head = document.createElement("div");
+    head.style.cssText = "padding:14px 18px 12px;background:#232326;border-bottom:1px solid #3a3a3a;"
+      + "display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
+    const titleEl = document.createElement("span");
+    titleEl.textContent = title;
+    titleEl.style.cssText = "flex:1 1 300px;min-width:220px;font-size:1.2em;font-weight:700;color:#eee;";
+    head.append(titleEl);
+
+    const tools = document.createElement("span");
+    tools.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:normal;";
+    // 字号
+    const fontVal = document.createElement("span");
+    fontVal.style.cssText = "min-width:26px;text-align:center;color:#e8a87c;font-variant-numeric:tabular-nums;";
+    fontVal.textContent = String(modalFontGet());
+    const fontMinus = mkTinyBtn("A−", "缩小弹窗字号（Ctrl/⌘+滚轮 也可）", () => {
+      modalFontSet(modalFontGet() - 1); fontVal.textContent = String(modalFontGet()); applyModalScale(card);
+    });
+    const fontPlus = mkTinyBtn("A+", "放大弹窗字号（Ctrl/⌘+滚轮 也可）", () => {
+      modalFontSet(modalFontGet() + 1); fontVal.textContent = String(modalFontGet()); applyModalScale(card);
+    });
+    // 界面缩放
+    const zoomVal = document.createElement("span");
+    zoomVal.style.cssText = "min-width:44px;text-align:center;color:#ffd98a;font-variant-numeric:tabular-nums;";
+    zoomVal.textContent = Math.round(modalZoomGet() * 100) + "%";
+    const zoomMinus = mkTinyBtn("−", "缩小整个弹窗界面", () => {
+      modalZoomSet(modalZoomGet() - 0.1); zoomVal.textContent = Math.round(modalZoomGet() * 100) + "%"; applyModalScale(card);
+    });
+    const zoomPlus = mkTinyBtn("+", "放大整个弹窗界面", () => {
+      modalZoomSet(modalZoomGet() + 0.1); zoomVal.textContent = Math.round(modalZoomGet() * 100) + "%"; applyModalScale(card);
+    });
+    const closeBtn = mkTinyBtn("✕", "关闭", () => close());
+    tools.append(
+      el("span", "color:#8a8a8a;", "字号"), fontMinus, fontVal, fontPlus,
+      el("span", "color:#5a5a5a;", "|"),
+      el("span", "color:#8a8a8a;", "界面"), zoomMinus, zoomVal, zoomPlus,
+      closeBtn,
+    );
+    head.append(tools);
+
+    const bodyEl = document.createElement("div");
+    bodyEl.style.cssText = "padding:14px 18px 16px;display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0;";
+    card.append(head, bodyEl);
+    mask.append(card);
+    const close = () => { try { mask.remove(); } catch (_) {} };
+    mask.addEventListener("pointerdown", (e) => { if (e.target === mask) close(); window.app?.canvas?.setDirty?.(true, true); });
+    // Ctrl/⌘ + 滚轮 = 调字号（和元素面板一致）
+    mask.addEventListener("wheel", (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      modalFontSet(modalFontGet() + (e.deltaY < 0 ? 1 : -1));
+      fontVal.textContent = String(modalFontGet());
+      applyModalScale(card);
+    }, { passive: false });
+    document.body.append(mask);
+    applyModalScale(card);
+    return { bodyEl, card, close, applyScale: () => applyModalScale(card) };
+  }
+
+  /** 把提示词文本框的内容写回节点（DOM + widget 双写） */
+  const setPromptBody = (text) => {
+    const v = String(text ?? "");
+    try { setWidgetValue(ipWidget, v); } catch (_) {}
+    try { if (promptBox.value !== v) promptBox.value = v; } catch (_) {}
     try { node.setDirtyCanvas?.(true, true); } catch (_) {}
   };
 
-  // 预设句输入框：无预设以外的模式（三视图/四视图/五视图/背景纯透明 等）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
-  const applyPresetTextVisibility = () => {
+  /** 「添加预设」：把预设内容加到提示词最前面，并在末尾自动换一行（已有正文则接在下一行；重复内容不重复加） */
+  const applyPresetLabel = (label, text) => {
+    lastPresetLabel = label || "";
+    const t = String(text || "").trim();
+    const cur = String(readWidgetValue(ipWidget) ?? "");
+    let next;
+    if (!t) next = cur;
+    else if (cur.includes(t)) next = cur.endsWith("\n") ? cur : cur + "\n";
+    else next = t + "\n" + cur.replace(/^\s+/, "");
+    setPromptBody(next);
+    // 光标落到末尾，正好停在刚换出来的那一行
     try {
-      if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);
+      promptBox.focus();
+      const end = promptBox.value.length;
+      promptBox.setSelectionRange(end, end);
     } catch (_) {}
+    notify(`已添加预设「${label}」到提示词`, "success");
+  };
+
+  /** 「编辑预设」载入：用预设内容替换提示词框，方便直接改完再保存 */
+  const loadPresetIntoBox = (label, text) => {
+    lastPresetLabel = label || "";
+    setPromptBody(String(text || ""));
+    notify(`已载入预设「${label}」到提示词框（改完可「保存」覆盖或另存新名）`, "success");
+  };
+
+  /** 拉取预设列表（带缓存；force = 强制刷新） */
+  const fetchPresets = async (force) => {
+    if (!force && cachedPresets) return cachedPresets;
+    try {
+      const r = await api.fetchApi(`/xb/presets?node=${encodeURIComponent(PRESET_NODE_NAME)}&t=${Date.now()}`);
+      if (r && r.ok) cachedPresets = await r.json();
+    } catch (_) { /* ignore */ }
+    return cachedPresets;
+  };
+
+  const showPresetPicker = async () => {
+    const data = await fetchPresets(false);
+    const modes = Array.isArray(data?.modes) ? data.modes : [];
+    const texts = (data && data.texts) || {};
+    const backupOnly = Array.isArray(data?.backup_only) ? data.backup_only : [];
+    const langLabel = surfaceOf().lang;
+    const { bodyEl, close } = openModal("📥 添加预设（点一项 → 加进下面的提示词文本框）");
+    if (!modes.length) {
+      const tip = document.createElement("div");
+      tip.style.cssText = "color:#ffb74d;";
+      tip.textContent = `没有找到预设文件：xb_skill/${PRESET_NODE_NAME}/${data?.lang || "ZH"} 目录里没有 .txt。`
+        + "可以先在「编辑预设」里把当前提示词存成一个新预设。";
+      bodyEl.append(tip);
+    }
+    const list = document.createElement("div");
+    // 与 8 个元素面板同一套限高方式：头部固定、**只有列表区滚动**（flex:1 + min-height:0 + overflow-y:auto），
+    // 底部「刷新列表 / 关闭」永远留在可见范围内，窗口再矮也不会把弹窗顶出屏幕。
+    bodyEl.style.overflow = "hidden";
+    bodyEl.style.flex = "1 1 auto";
+    list.style.cssText = "display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:6px;";
+    for (const label of modes) {
+      const byLang = texts[label] || {};
+      const txt = String(byLang[langLabel] || byLang[Object.keys(byLang)[0]] || "");
+      const row = document.createElement("button");
+      row.type = "button";
+      row.style.cssText = "text-align:left;padding:7px 10px;border-radius:5px;border:1px solid #3d3d3d;"
+        + "background:#1f1f1f;color:#ddd;cursor:pointer;font-size:1em;";
+      const nameSpan = document.createElement("div");
+      nameSpan.textContent = (backupOnly.includes(label) ? "📦 " : "") + label;
+      nameSpan.style.cssText = "font-weight:bold;color:#8fd3ff;font-size:1.05em;";
+      nameSpan.title = backupOnly.includes(label) ? "来自备份目录（output/生图提示词预设）" : "来自预设目录（xb_skill）";
+      const prev = document.createElement("div");
+      prev.textContent = txt.length > 60 ? txt.slice(0, 60) + "…" : (txt || "（空文件）");
+      prev.style.cssText = "color:#9a9a9a;font-size:0.9em;margin-top:3px;line-height:1.5;";
+      row.append(nameSpan, prev);
+      row.addEventListener("mouseenter", () => { row.style.background = "#2c3a44"; row.style.borderColor = "#4a7a99"; });
+      row.addEventListener("mouseleave", () => { row.style.background = "#1f1f1f"; row.style.borderColor = "#3d3d3d"; });
+      row.addEventListener("click", () => { applyPresetLabel(label, txt); close(); });
+      list.append(row);
+    }
+    bodyEl.append(list);
+    const bdir = document.createElement("div");
+    bdir.style.cssText = "color:#8a8a8a;font-size:0.88em;margin-top:6px;word-break:break-all;flex:0 0 auto;";
+    bdir.textContent = `📦 备份目录（也会被读取）：${data?.backup_dir || "output/生图提示词预设"}`;
+    const foot = document.createElement("div");
+    foot.style.cssText = "display:flex;justify-content:flex-end;gap:6px;margin-top:4px;flex:0 0 auto;flex-wrap:wrap;";
+    const refresh = mkTinyBtn("刷新列表", "重新扫描预设目录与备份目录", async () => { close(); await fetchPresets(true); showPresetPicker(); });
+    const cancel = mkTinyBtn("关闭", "关闭窗口", close);
+    foot.append(refresh, cancel);
+    bodyEl.append(bdir, foot);
+  };
+
+  const showPresetEditor = async () => {
+    let data = await fetchPresets(true);
+    const langLabel = surfaceOf().lang;
+    const { bodyEl, card, close } = openModal("✏️ 编辑预设（选择或新建 → 在下方大文本框里编写 → 保存）");
+
+    // ── 第 1 行：选择已有预设 + 预设名称（并排） ──
+    const rowSel = document.createElement("div");
+    rowSel.style.cssText = "display:flex;gap:6px;align-items:center;flex:1 1 300px;min-width:240px;flex-wrap:nowrap;";
+    const sel = document.createElement("select");
+    sel.style.cssText = "flex:1 1 260px;min-width:200px;height:2em;background:#1e1e1e;color:#ddd;"
+      + "border:1px solid #444;border-radius:4px;padding:0 6px;font-size:1em;";
+    rowSel.append(el("span", "color:#aaa;white-space:nowrap;", "已有预设（选中即载入）"), sel);
+
+    const rowName = document.createElement("div");
+    rowName.style.cssText = "display:flex;gap:6px;align-items:center;flex:1 1 260px;min-width:220px;flex-wrap:nowrap;";
+    rowName.append(el("span", "color:#aaa;white-space:nowrap;", "预设名称"));
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "例如：电影感特写（同名 = 覆盖，新名 = 新建）";
+    nameInput.style.cssText = "flex:1;min-width:140px;height:2em;background:#1e1e1e;color:#ddd;"
+      + "border:1px solid #444;border-radius:4px;padding:0 8px;font-size:1em;";
+    nameInput.value = lastPresetLabel || "";
+    rowName.append(nameInput);
+
+    const fillSelect = (d) => {
+      const cur = sel.value;
+      sel.innerHTML = "";
+      const optNew = document.createElement("option");
+      optNew.value = "";
+      optNew.textContent = "＋ 新建预设（在右侧填写名称）";
+      sel.append(optNew);
+      for (const label of (Array.isArray(d?.modes) ? d.modes : [])) {
+        const o = document.createElement("option");
+        o.value = label;
+        o.textContent = label;
+        sel.append(o);
+      }
+      sel.value = (cur && Array.from(sel.options).some((o) => o.value === cur)) ? cur : "";
+    };
+    fillSelect(data);
+
+    const fromPromptBtn = mkTinyBtn("取当前提示词", "把节点提示词文本框的内容复制到编辑框", () => {
+      box.value = String(readWidgetValue(ipWidget) ?? "");
+      status.style.color = "#aaa";
+      status.textContent = "已取当前提示词，可另存为新预设";
+      fitBox();
+    });
+
+    // 第 1 行整体（选择 + 名称，并排不换行）
+    const firstRow = document.createElement("div");
+    firstRow.style.cssText = "display:flex;gap:10px;align-items:center;flex:0 0 auto;flex-wrap:wrap;";
+    firstRow.append(rowSel, rowName);
+
+    // ── 第 2 行：大文本编辑框 ──
+    const boxHead = document.createElement("div");
+    boxHead.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;";
+    const boxLabel = el("span", "color:#9fc3e8;font-weight:bold;", "预设内容（这里是最终会加到提示词最顶端/被保存的正文）");
+    const charCount = el("span", "color:#8a8a8a;font-variant-numeric:tabular-nums;", "0 字");
+    const boxHeadRight = document.createElement("div");
+    boxHeadRight.style.cssText = "display:flex;gap:8px;align-items:center;flex:0 0 auto;";
+    boxHeadRight.append(charCount, fromPromptBtn);
+    boxHead.append(boxLabel, boxHeadRight);
+
+    const box = document.createElement("textarea");
+    box.spellcheck = false;
+    box.dataset.autofit = "1";
+    box.placeholder = "在这里编写预设内容…（在左上方选择已有预设会自动载入到这里，或点「取当前提示词」）";
+    box.style.cssText = "width:100%;flex:1 1 auto;min-height:300px;resize:vertical;box-sizing:border-box;"
+      + "background:#1d1d1d;color:#ddd;border:1px solid #444;border-radius:5px;padding:10px 12px;"
+      + "line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;"
+      + "font-family:inherit;font-size:" + modalFontGet() + "px;";
+    const fitBox = () => {
+      charCount.textContent = `${box.value.length} 字`;
+      // 高度交给 flex 撑满剩余空间（卡片 90vh 上限），这里只在内容很多时放大最小高度
+      const lines = box.value.split("\n").length;
+      const per = Math.round(modalFontGet() * 1.7);
+      box.style.minHeight = Math.min(560, Math.max(300, lines * per + 48)) + "px";
+    };
+    box.addEventListener("input", fitBox);
+    fitBox();
+
+    // ── 说明 / 状态 ──
+    const hint = document.createElement("div");
+    hint.style.cssText = "color:#8a8a8a;font-size:0.88em;word-break:break-all;";
+    hint.textContent = `保存位置：xb_skill/${PRESET_NODE_NAME}/${data?.lang || "ZH"}/　　备份：${data?.backup_dir || "output/生图提示词预设"}`;
+
+    const status = document.createElement("div");
+    status.style.cssText = "min-height:18px;color:#aaa;";
+
+    // ── 底部按钮 ──
+    const foot = document.createElement("div");
+    foot.style.cssText = "display:flex;justify-content:flex-end;gap:6px;margin-top:2px;flex-wrap:wrap;";
+
+    const saveBtn = mkTinyBtn("保存", "把编辑框内容保存成预设文件（同名覆盖 / 新名新建）", async () => {
+      const label = String(nameInput.value || "").trim();
+      if (!label) { status.style.color = "#ff8a80"; status.textContent = "请先填写预设名称"; nameInput.focus(); return; }
+      if (!String(box.value).trim()) { status.style.color = "#ff8a80"; status.textContent = "编辑框是空的，没有可保存的内容"; box.focus(); return; }
+      status.style.color = "#aaa"; status.textContent = "保存中…";
+      try {
+        const r = await api.fetchApi("/xb/presets/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node: PRESET_NODE_NAME, label, text: box.value }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) {
+          status.style.color = "#ff8a80"; status.textContent = "保存失败：" + (j.error || r.status);
+          return;
+        }
+        cachedPresets = j.modes ? j : null;
+        lastPresetLabel = label;
+        data = j;
+        fillSelect(j);
+        sel.value = label;
+        status.style.color = "#8bc34a"; status.textContent = `已保存：${label}`;
+        notify(`预设「${label}」已保存`, "success");
+      } catch (e) {
+        status.style.color = "#ff8a80"; status.textContent = "保存失败：" + (e?.message || e);
+      }
+    });
+    const delBtn = mkTinyBtn("删除", "删除选中的预设文件", async () => {
+      const label = sel.value;
+      if (!label) { status.style.color = "#ff8a80"; status.textContent = "请先在上方选中要删除的预设"; return; }
+      try {
+        const r = await api.fetchApi("/xb/presets/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node: PRESET_NODE_NAME, label }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) { status.style.color = "#ff8a80"; status.textContent = "删除失败：" + (j.error || r.status); return; }
+        cachedPresets = j.modes ? j : null;
+        data = j;
+        fillSelect(j);
+        box.value = "";
+        fitBox();
+        status.style.color = "#ffc107"; status.textContent = `已删除：${label}`;
+        notify(`预设「${label}」已删除`, "warning");
+      } catch (e) {
+        status.style.color = "#ff8a80"; status.textContent = "删除失败：" + (e?.message || e);
+      }
+    });
+    const backupBtn = mkTinyBtn("一键备份", "把所有预设 txt 备份到 ComfyUI/output/生图提示词预设", async () => {
+      status.style.color = "#aaa"; status.textContent = "备份中…";
+      try {
+        const r = await api.fetchApi("/xb/presets/backup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node: PRESET_NODE_NAME }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) {
+          status.style.color = "#ff8a80"; status.textContent = "备份失败：" + (j.error || r.status);
+          return;
+        }
+        cachedPresets = null;
+        status.style.color = "#8bc34a";
+        status.textContent = `已备份 ${j.count || 0} 个预设 → ${j.backup_dir || ""}`;
+        notify(`已备份 ${j.count || 0} 个预设到 output/生图提示词预设`, "success");
+      } catch (e) {
+        status.style.color = "#ff8a80"; status.textContent = "备份失败：" + (e?.message || e);
+      }
+    });
+    const cancel = mkTinyBtn("关闭", "关闭窗口", close);
+    foot.append(delBtn, backupBtn, saveBtn, cancel);
+
+    const loadInto = (label) => {
+      const byLang = ((data && data.texts) || {})[label] || {};
+      const txt = String(byLang[langLabel] || byLang[Object.keys(byLang)[0]] || "");
+      box.value = txt;
+      nameInput.value = label;
+      lastPresetLabel = label;
+      status.style.color = "#8bc34a";
+      status.textContent = txt
+        ? `已载入「${label}」（${txt.length} 字），修改后点「保存」即可覆盖`
+        : `「${label}」暂无内容，可直接编写后保存`;
+      fitBox();
+    };
+    sel.addEventListener("change", () => {
+      if (sel.value) { loadInto(sel.value); return; }
+      nameInput.value = "";
+      status.style.color = "#aaa";
+      status.textContent = "新建预设：在右侧填写名称并编写内容";
+      try { nameInput.focus(); } catch (_) {}
+    });
+    bodyEl.append(firstRow, boxHead, box, hint, status, foot);
+    // 打开时：有上次用过的预设就自动载入；否则预填当前提示词，方便另存为新预设
+    if (lastPresetLabel && (Array.isArray(data?.modes) ? data.modes : []).includes(lastPresetLabel)) {
+      sel.value = lastPresetLabel;
+      loadInto(lastPresetLabel);
+    } else if (!String(box.value || "").trim()) {
+      box.value = String(readWidgetValue(ipWidget) ?? "");
+      fitBox();
+    }
+    try { box.focus(); } catch (_) {}
+    try { card.querySelectorAll("textarea").forEach((t) => { t.style.fontSize = modalFontGet() + "px"; }); } catch (_) {}
+  };
+
+  const copyPromptText = async () => {
+    const text = String(readWidgetValue(ipWidget) ?? "");
+    if (!text.trim()) { notify("提示词文本框是空的，没有可复制的内容", "warning"); return; }
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); notify("已复制提示词文本", "success"); return; }
+    } catch (_) { /* 走兜底 */ }
+    try {
+      promptBox.focus(); promptBox.select(); document.execCommand("copy");
+      notify("已复制提示词文本", "success"); return;
+    } catch (_) { /* ignore */ }
+    notify("复制失败：浏览器不允许访问剪贴板", "error");
+  };
+
+  const applyPresetTextVisibility = () => {
+    try { hideWidget(wMode); } catch (_) {}          // 预设模式下拉已从界面取消（字段保留给老工作流序列化）
+    try { hideWidget(w3v); } catch (_) {}            // 只保留一个提示词文本框；该字段仅作老工作流兼容
     refreshNodes2View(node);
-    // 2.0 下 Vue 可能稍后才把原生 widget 的 DOM 挂上/重建 → 几个时机各补一次样式与节点标记
-    [0, 60, 200, 600].forEach((d) => setTimeout(() => {
-      ensurePresetBoxStyle();
-      markNodeEl();
-      try { if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) stylePresetTextBox(); } catch (_) {}
-    }, d));
+    [0, 60, 200, 600].forEach((d) => setTimeout(() => { markNodeEl(); }, d));
     node.setDirtyCanvas?.(true, true);
   };
 
@@ -2949,30 +3367,14 @@ function setupNode(node) {
   hook(wW, snapByWidth);
   hook(wH, snapByHeight);
   hook(wKind, () => { applyKindLimits(); snapByWidth(); });                     // 换类型 → 按新步长重新归一宽高
-  // 2.0：注入「原生多行框放宽」样式 + 给节点元素打标记（数据属性是 CSS 作用域的锚点；
-  //     Vue 重建节点 DOM 后会丢，所以拖后几次重打）
-  ensurePresetBoxStyle();
+  // 2.0：给节点元素打标记（数据属性是 CSS 作用域的锚点；Vue 重建节点 DOM 后会丢，所以拖后几次重打）
   markNodeEl();
-  [0, 300, 1200].forEach((d) => setTimeout(() => { ensurePresetBoxStyle(); markNodeEl(); }, d));
-  hook(w3v, () => {                                                            // 用户手改设定词 → 立刻存进节点
-    const cur = String(readWidgetValue(w3v) ?? "");
-    if (cur === lastAppliedPreset) return;                                     // 程序化写入的回声 → 忽略
-    lastAppliedPreset = cur;
-    const s = surfaceOf();
-    writePresetStore(s.mode, s.io, s.lang, cur);
+  [0, 300, 1200].forEach((d) => setTimeout(() => { markNodeEl(); }, d));
+  hook(wMode, () => { applyPresetTextVisibility(); });                          // 预设模式（已隐藏）：只同步界面
+  hook(wLang, () => {                                                          // 换语言：提示词框是用户内容，不覆盖
+    try { node.setDirtyCanvas?.(true, true); } catch (_) {}
   });
-  hook(wMode, () => {                                                          // 换模式 = 显/隐设定词框 +
-    const { mode, lang, io } = surfaceOf();                                    //   取该「模式 × 模版」的「用户存档 → 默认」
-    setPresetText(presetTextFor(mode, io, lang));                              //   （改过的设定词不会被冲掉；无预设 → 写空）
-    applyPresetTextVisibility();
-  });
-  hook(wLang, () => {                                                          // 换语言 = 同模式同模版按下语言取「存档 → 默认」
-    const { mode, lang, io } = surfaceOf();
-    setPresetText(presetTextFor(mode, io, lang));
-  });
-  hook(wIo, () => {                                                            // 换模版（文生图/图生图）= 换设定词那一套
-    const { mode, lang, io } = surfaceOf();
-    setPresetText(presetTextFor(mode, io, lang));
+  hook(wIo, () => {                                                            // 换模版：只刷新信息行，不动提示词
     try { node.__qbrRefreshInfo?.(); } catch (_) {}
     try { node.__xbrRefreshInfo?.(); } catch (_) {}
   });
@@ -3072,8 +3474,10 @@ function setupNode(node) {
     } catch (_) {}
     node.setDirtyCanvas?.(true, true);
   };
-  refreshSize();
-  requestAnimationFrame(refreshSize);
+  // ⚠️ 不能在这里同步跑 refreshSize：工作流加载时 configure 还没应用存档尺寸，
+  //    先按默认 widget 算出来的高度会让节点「长高一下」，随后被存档高度拉回 → 刷新瞬间高度闪烁。
+  //    排到本轮任务末尾（configure 已落定）再做下限保护。
+  setTimeout(refreshSize, 0);
   setTimeout(refreshSize, 60);
   setTimeout(refreshSize, 1200);   // 兜底：加载工作流后 widget 才铺完时再校正一次（只增不减）
   node._xbRefreshSize = refreshSize;
@@ -3144,11 +3548,11 @@ function setupNode(node) {
       if (!data || typeof data !== "object") return;
       const out = data.output;
       const untouched = pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH) === LANG_ZH
-        && pickOpt(MODES, readWidgetValue(wMode), MODE_TP) === MODE_TP
+        && modeValueOf(readWidgetValue(wMode)) === MODE_TP
         && String(readWidgetValue(w3v) ?? "").trim() === THREE_VIEW_DEFAULT[LANG_ZH];
       if (out && typeof out === "object" && untouched) {
         if (LANGS.includes(out.lang)) setWidgetValue(wLang, out.lang);
-        if (MODES.includes(out.preset_mode)) setWidgetValue(wMode, out.preset_mode);
+        if (PRESET_TEXT_DEFAULT[out.preset_mode] || MODES.includes(out.preset_mode)) setWidgetValue(wMode, out.preset_mode);
         if (typeof out.three_view_text === "string" && out.three_view_text.trim()) setWidgetValue(w3v, out.three_view_text);
         if (String(out.latent_channels || "").startsWith("16")) setWidgetValue(wKind, LATENT_KINDS[1]);
         notify("已把旧版「输出设置」里的语言/模式/预设句/空latent类型迁到节点表面参数", "success");
@@ -3161,23 +3565,36 @@ function setupNode(node) {
   };
 
   // ── 载入 / 执行后的对齐 ──
+  // ── 老工作流迁移：以前有独立的「预设句」框（three_view_text）和「预设模式」下拉，
+  //    现在只有一个提示词文本框 → 把那份设定词并进提示词正文，然后把旧字段清空（只做一次）
+  const migrateLegacyPreset = () => {
+    try {
+      if (node.__ippPresetMigrated) return;
+      node.__ippPresetMigrated = true;
+      const mode = modeValueOf(readWidgetValue(wMode));
+      let extra = String(readWidgetValue(w3v) ?? "").trim();
+      if (!extra && mode && mode !== MODE_TP) {
+        extra = String(presetTextOf(mode, surfaceOf().lang, IO_T2I) || "").trim();
+      }
+      if (!extra) { if (String(readWidgetValue(w3v) ?? "").trim()) setWidgetValue(w3v, ""); return; }
+      const body = String(readWidgetValue(ipWidget) ?? "");
+      if (!body.includes(extra)) {
+        const merged = body.trim() ? extra + "\n" + body : extra;
+        setPromptBody(merged);
+      }
+      setWidgetValue(w3v, "");
+      if (mode && mode !== MODE_TP) setWidgetValue(wMode, MODE_TP);
+      notify("已把旧版「预设句 / 预设模式」的内容并入提示词文本框", "success");
+    } catch (_) { /* ignore */ }
+  };
+
   const boot = () => {
     hideInternal();          // 工作流加载后 widget 可能被重建 → 重新藏
     migrateLegacyOutput();
+    migrateLegacyPreset();
     syncPromptBoxFromWidget();
     applyKindLimits();       // 按当前空latent类型同步 step / 上下限
     applyPresetTextVisibility();
-    // 设定词：以「用户存档 → 当前模版默认」为准
-    //   · 空 → 当前模版默认（无预设 → 默认就是空 → 保持空）；
-    //   · 等于别的模版 / 语言的默认 / 任一内置预设句（老工作流存的是另一套，或节点老默认句）→ 也换成当前模版默认；
-    //   · 用户改过的 → 一个字不动。
-    {
-      const m = surfaceOf().mode, l = surfaceOf().lang, iom = surfaceOf().io;
-      const nowTxt = presetTextOf(m, l, iom);
-      const cur = String(readWidgetValue(w3v) ?? "").trim();
-      if (!cur) { if (nowTxt) setPresetText(presetTextFor(m, iom, l)); }
-      else if (cur !== nowTxt && allDefaultTextsOf(m).includes(cur)) setPresetText(presetTextFor(m, iom, l));
-    }
     const ar = String(readWidgetValue(wAR) ?? "Free");
     const [nw, nh] = normalizeSize(ar, readWidgetValue(wW), readWidgetValue(wH), sizeOpt());
     if (nw !== parseInt(readWidgetValue(wW), 10) || nh !== parseInt(readWidgetValue(wH), 10)) {
@@ -3189,16 +3606,27 @@ function setupNode(node) {
   node.__ippSyncPromptBox = syncPromptBoxFromWidget;
   // 供 Pro 弹窗（✨ 增强预设）读写设定词：取「存档 → 默认」/ 写 widget / 存进节点
   node.__ippPresetTextFor = presetTextFor;
-  node.__ippSetPreset = setPresetText;
+  node.__ippSetPreset = setPromptBody;
   node.__ippWritePreset = writePresetStore;
   setTimeout(boot, 0);
   setTimeout(boot, 200);
+
+  // ── xb_skill 预设文件：只用于「添加预设 / 编辑预设」两个弹窗的列表与文案 ──
+  const applyPresetFiles = async () => {
+    const data = await loadPresetFiles();
+    if (!data || !node.graph) return;
+    cachedPresets = data;
+    mergePresetFiles(data);          // 同步内置表（老工作流无预设句时可回退取文案）
+    applyPresetTextVisibility();
+  };
+  applyPresetFiles();
 
   const prevConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
     const r = prevConfigure?.apply(this, args);
     setTimeout(boot, 60);
     setTimeout(killGhost, 200);
+    setTimeout(applyPresetFiles, 120);
     return r;
   };
 

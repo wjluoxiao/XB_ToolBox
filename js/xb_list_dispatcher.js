@@ -61,7 +61,19 @@ function setupDynamicOutputs(node) {
             displays.push(dw);
         }
 
-        node.setSize(node.computeSize());
+        // 新节点首次成型按内容自适应（新前端给本节点的默认高度可能大得离谱）；
+        // 已载入/已初始化过的节点只增不减，尊重用户拖拽保存的尺寸
+        const need = node.computeSize() || [];
+        if (!node.__xbSizeInitialized) {
+            node.setSize(need);
+            node.__xbSizeInitialized = true;
+        } else {
+            const curW = Number(node.size?.[0]) || 0;
+            const curH = Number(node.size?.[1]) || 0;
+            const newW = Math.max(curW, Number(need[0]) || 0);
+            const newH = Math.max(curH, Number(need[1]) || 0);
+            if (newW !== curW || newH !== curH) node.setSize([newW, newH]);
+        }
         node.graph?.setDirtyCanvas?.(true, true);
     };
 
@@ -101,6 +113,7 @@ app.registerExtension({
             const origConfigure = this.configure;
             this.configure = function (info) {
                 if (origConfigure) origConfigure.apply(this, arguments);
+                this.__xbSizeInitialized = true;   // 存档尺寸已生效，之后只增不减
                 rebuild();
             };
 

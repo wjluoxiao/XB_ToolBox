@@ -287,8 +287,8 @@ app.registerExtension({
 
             [1, 2].forEach(t => {
                 const tr = tracks[t];
-                if (tr.wA) { const o = tr.wA.callback; tr.wA.callback = function () { o?.apply(this, arguments); updateSrc(t); fetchPeaks(tr.wA.value, t).then(() => draw(t)); }; }
-                if (tr.wMC) { const o = tr.wMC.callback; tr.wMC.callback = function () { o?.apply(this, arguments); parseMutes(t); draw(t); }; }
+                if (tr.wA) { const o = tr.wA.callback; tr.wA.callback = function () { o?.apply(this, arguments); updateSrc(t); fetchPeaks(tr.wA.value, t).then(() => drawWave(t)); }; }
+                if (tr.wMC) { const o = tr.wMC.callback; tr.wMC.callback = function () { o?.apply(this, arguments); parseMutes(t); drawWave(t); }; }
                 if (tr.wS) { const o = tr.wS.callback; tr.wS.callback = function () { o?.apply(this, arguments); const val = parseFloat(tr.wS?.value) || 0; if (val < 0) tr.wS.value = 0; updateTot(); if (tr.ael.readyState >= 1) tr.ael.currentTime = parseFloat(tr.wS?.value) || 0; }; }
                 if (tr.wE) { const o = tr.wE.callback; tr.wE.callback = function () { o?.apply(this, arguments); const dur = tr.dur || 10; const val = parseFloat(tr.wE?.value) || 0; if (val > dur) { const fps = parseFloat(wFps?.value) || 24; tr.wE.value = Math.floor(dur * fps) / fps; } updateTot(); }; }
                 

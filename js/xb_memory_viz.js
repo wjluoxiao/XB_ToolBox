@@ -1,4 +1,4 @@
-﻿import { app } from "../../scripts/app.js";
+import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import {
     GRAPH_POINTS, HISTORY_TICK_MS,

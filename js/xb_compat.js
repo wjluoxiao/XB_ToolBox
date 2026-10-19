@@ -402,6 +402,25 @@ export function installNodes2BoxResize(node, box, opts = {}) {
 }
 
 /**
+ * 结构变化（切换 Nodes 2.0 时前端会整块卸载/重建 `.lg-node`）的统一监听。
+ * MutationObserver 的回调在**绘制前**执行 ⇒ 在它里面同步重算高度，用户看不到中间态
+ * （否则容器会先按"无上限"铺开一帧，再被压回，表现为节点像弹簧一样变长再缩回）。
+ */
+const XB_NODES2_APPLIERS = new Set();
+let XB_NODES2_OBSERVER = null;
+function watchNodes2Mount(apply) {
+    if (typeof MutationObserver !== "function") return;
+    XB_NODES2_APPLIERS.add(apply);
+    if (XB_NODES2_OBSERVER) return;
+    try {
+        XB_NODES2_OBSERVER = new MutationObserver(() => {
+            for (const fn of XB_NODES2_APPLIERS) { try { fn(); } catch (_) { /* ignore */ } }
+        });
+        XB_NODES2_OBSERVER.observe(document.body, { childList: true, subtree: true });
+    } catch (_) { XB_NODES2_OBSERVER = null; }
+}
+
+/**
  * ============================================================
  * Nodes 2.0：让一个「面板显示框」始终填满节点剩余空间（随节点高度自由伸缩）
  * ============================================================
@@ -445,9 +464,14 @@ export function bindNodes2BoxFill(node, box, opts = {}) {
         }
     };
     const apply = () => {
-        if (!isNodes2()) return;
+        const root = box.closest ? box.closest(".lg-node") : null;
+        if (!root) { restore(); return; }
+        // `--node-height` 是 2.0 渲染器写在 .lg-node 上的；拿不到就不写 calc（否则回落兜底值 → 弹簧闪动）
+        let vh = "";
+        try { vh = getComputedStyle(root).getPropertyValue("--node-height").trim(); } catch (_) { /* ignore */ }
+        if (!vh) return;
         if (!K && !calibrate()) return;
-        const h = `calc(var(--node-height, ${PROBE}px) - ${K}px)`;
+        const h = `calc(var(--node-height) - ${K}px)`;
         applied = true;
         box.style.flex = "0 0 auto";
         if (box.style.height !== h) box.style.height = h;
@@ -472,9 +496,11 @@ export function bindNodes2BoxFill(node, box, opts = {}) {
     };
     [0, 120, 400, 1000].forEach((d) => setTimeout(tick, d));
     timer = setInterval(tick, 1000);
+    watchNodes2Mount(tick);   // 切 2.0 时在绘制前同步重算，避免一帧的"无上限"铺开
 
     const uninstall = () => {
         try { clearInterval(timer); } catch (_) { /* ignore */ }
+        XB_NODES2_APPLIERS.delete(tick);
         restore();
     };
     try {
@@ -505,32 +531,72 @@ export function bindNodes2NodeFill(node, box, opts = {}) {
     const MIN = Number(opts.min) || 120;
     const PAD = Number.isFinite(opts.bottomPad) ? Number(opts.bottomPad) : 12;
     const orig = { height: box.style.height, maxHeight: box.style.maxHeight, minHeight: box.style.minHeight, flex: box.style.flex };
-    let applied = false, timer = 0;
+    let applied = false, timer = 0, rafId = 0;
+    // ⚠️ Nodes 2.0 刚挂载时，上方原生 widget 行还在逐行铺开，量到的 top 会先小后大。
+    //    用偏小的 top 算出的容器高度比可用空间大 → 把整个节点撑高，
+    //    下一拍 top 变大再缩回 ⇒ 用户看到「进界面时节点长高一下又恢复」。
+    //    所以挂载后的 SETTLE_MS 内只测量、不写入，等布局稳定后再贴合。
+    const SETTLE_MS = 300;
+    let mountedAt = 0;
+    // 已确认的「容器顶部相对节点根部」偏移（布局像素）与待确认候选值
+    let stableTop = -1, candTop = -1, candCount = 0;
+
+    // ⚠️ 必须用 offsetTop 累加取偏移，不能用 getBoundingClientRect 相减再除以缩放比：
+    //    滚轮缩放时 `app.canvas.ds.scale` 立刻变成新值，而 DOM 的 transform 要下一帧才跟上，
+    //    两者不同步 ⇒ 量到的 chrome 比实际小（实测 234 vs 256）⇒ 容器被算高 22px、
+    //    节点被内容撑高 13px，下一拍又校正回来 = 用户看到的「跟弹簧一样变一下」。
+    //    offsetTop/offsetParent 是布局像素，与画布缩放完全无关，可彻底避开这个不同步。
+    const layoutTop = (el, root) => {
+        let y = 0;
+        let cur = el;
+        while (cur && cur !== root) {
+            y += cur.offsetTop || 0;
+            cur = cur.offsetParent;
+        }
+        return cur === root ? y : null;
+    };
 
     const restore = () => {
-        if (!applied) return;
+        if (applied) {
+            try {
+                box.style.height = orig.height;
+                box.style.maxHeight = orig.maxHeight;
+                box.style.minHeight = orig.minHeight;
+                box.style.flex = orig.flex;
+            } catch (_) { /* ignore */ }
+        }
         applied = false;
-        try {
-            box.style.height = orig.height;
-            box.style.maxHeight = orig.maxHeight;
-            box.style.minHeight = orig.minHeight;
-            box.style.flex = orig.flex;
-        } catch (_) { /* ignore */ }
+        mountedAt = 0;
+        stableTop = -1; candTop = -1; candCount = 0;
     };
 
     const apply = () => {
         const root = box.closest ? box.closest(".lg-node") : null;
         if (!root) { restore(); return; }         // 经典模式 / 还没挂到 DOM
         try {
+            // `--node-height` 是 2.0 渲染器写在 .lg-node 上的；拿不到就不写 calc，
+            // 否则 calc 会回落到兜底值（3000px）⇒ 切换 2.0 的瞬间节点像弹簧一样变长再缩回。
+            let vh = "";
+            try { vh = getComputedStyle(root).getPropertyValue("--node-height").trim(); } catch (_) { /* ignore */ }
+            if (!vh) { restore(); return; }
+            if (!mountedAt) mountedAt = performance.now();
+            if (performance.now() - mountedAt < SETTLE_MS) return;   // 布局还在长，写入会撑高节点
             const rb = root.getBoundingClientRect();
             const bb = box.getBoundingClientRect();
-            // ⚠️ getBoundingClientRect 是**屏幕像素**（含画布缩放），而 calc() 里的 px 是布局像素。
-            //    不除掉缩放比的话：缩放一变 → 减掉的 chrome 跟着变 → 容器高度跟着变
-            //    ⇒ 用户看到「节点随画布缩放变大变小」。clientHeight/offset* 不受 transform 影响，
-            //    这里统一按 canvas.ds.scale 折算回布局像素。
-            const scale = Number(app?.canvas?.ds?.scale) || 1;
-            const top = Math.max(0, Math.round((bb.top - rb.top) / scale));
-            const css = `calc(var(--node-height, 3000px) - ${top + PAD}px)`;
+            if (!(bb.width > 0 && bb.height > 0 && rb.height > 0)) return;   // 还没真正布局
+            const rawTop = layoutTop(box, root);
+            if (rawTop == null) return;                                      // 还不在节点 DOM 里
+            // 收缩方向（top 变小 ⇒ 容器会被撑高）必须连续两拍一致才采纳，
+            // 避免前端重排的中间帧把节点顶高一下再缩回。
+            if (stableTop < 0 || rawTop >= stableTop) {
+                stableTop = rawTop; candTop = -1; candCount = 0;
+            } else if (rawTop === candTop) {
+                if (++candCount >= 1) { stableTop = rawTop; candTop = -1; candCount = 0; }
+            } else {
+                candTop = rawTop; candCount = 0;
+            }
+            const top = Math.max(0, Math.round(stableTop));
+            const css = `calc(var(--node-height) - ${top + PAD}px)`;
             applied = true;
             if (box.style.flex !== "0 0 auto") box.style.flex = "0 0 auto";
             if (box.style.minHeight !== MIN + "px") box.style.minHeight = MIN + "px";
@@ -542,10 +608,19 @@ export function bindNodes2NodeFill(node, box, opts = {}) {
     const tick = () => { try { apply(); } catch (_) { /* ignore */ } };
     // 首帧 + 之后 500ms 轮询（切 2.0 开关、面板重建、前端重排都能兜住）
     [0, 60, 200, 600].forEach((d) => setTimeout(tick, d));
+    // 布局稳定后立刻贴合，不必等下一个 500ms 轮询
+    setTimeout(tick, SETTLE_MS + 20);
     timer = setInterval(tick, 500);
+    // 结构变化（切 2.0 时 .lg-node 重建）→ MutationObserver 在**绘制前**同步重算，避免看到中间态
+    watchNodes2Mount(tick);
+    // 挂载初期用 rAF 连续测量，保证 SETTLE_MS 一到就能用最新的 top
+    let burst = 40;
+    const rafTick = () => { tick(); if (--burst > 0) rafId = requestAnimationFrame(rafTick); };
+    rafId = requestAnimationFrame(rafTick);
 
     const uninstall = () => {
         try { clearInterval(timer); } catch (_) { /* ignore */ }
+        try { cancelAnimationFrame(rafId); } catch (_) { /* ignore */ }
         restore();
     };
     try {

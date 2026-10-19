@@ -33,7 +33,7 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { setWidgetValue, setWidgetHidden, refreshWidgets, bindNodes2BoxFill } from "./xb_compat.js";
+import { setWidgetValue, setWidgetHidden, refreshWidgets, bindNodes2BoxFill, isNodes2 } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ShenBi";
 const MODE_CREATE = "创作";
@@ -866,8 +866,7 @@ function setupNode(node) {
     const disarmReset = () => {
         resetArmed = false;
         if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
-        if (resetWidget) { resetWidget.name = RESET_LABEL; resetWidget.label = RESET_LABEL; }
-        try { refreshWidgets(node); } catch (_) { /* ignore */ }
+        try { syncActionLabels(); } catch (_) { /* ignore */ }
     };
 
     const resetBoard = () => {
@@ -878,8 +877,7 @@ function setupNode(node) {
                 return;
             }
             resetArmed = true;
-            if (resetWidget) { resetWidget.name = CONFIRM_LABEL; resetWidget.label = CONFIRM_LABEL; }
-            try { refreshWidgets(node); } catch (_) { /* ignore */ }
+            try { syncActionLabels(); } catch (_) { /* ignore */ }
             resetTimer = setTimeout(disarmReset, 3000);
             return;
         }
@@ -895,6 +893,99 @@ function setupNode(node) {
 
     const resetWidget = node.addWidget("button", RESET_LABEL, null, () => resetBoard());
     if (resetWidget) { try { resetWidget.serialize = false; } catch (_) { /* ignore */ } }
+
+    /* ── Nodes 2.0：把「创作画布 / 重置画布」排成同一行 ────────────────────
+       原生 button 部件在 Vue 节点里由 CSS grid 一行放一个 → 两个按钮上下堆叠。
+       2.0 下改用一条 DOM 行装两个按钮，并把原生按钮隐藏；经典模式没有 DOM 部件，
+       仍用原生按钮（保持原样）。 */
+    let domCreateBtn = null, domResetBtn = null, domActionWidget = null;
+    try {
+        if (typeof node.addDOMWidget === "function") {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:8px;width:100%;box-sizing:border-box;";
+            const mkBtn = (label, onClick) => {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.textContent = label;
+                b.style.cssText = "flex:1 1 0;min-width:0;height:28px;box-sizing:border-box;border-radius:6px;" +
+                    "border:1px solid #4a4a52;background:#2f2f36;color:#e8e8ea;font-size:13px;line-height:1;" +
+                    "cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:inherit;";
+                b.addEventListener("mousedown", (e) => e.stopPropagation());
+                b.addEventListener("mouseenter", () => { b.style.background = "#3b3b44"; });
+                b.addEventListener("mouseleave", () => { b.style.background = "#2f2f36"; });
+                b.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+                row.appendChild(b);
+                return b;
+            };
+            domCreateBtn = mkBtn("🎨 创作画布", () => openBoard());
+            domResetBtn = mkBtn(RESET_LABEL, () => resetBoard());
+            domActionWidget = node.addDOMWidget("xb_sb_actions", "xb_sb_actions", row, {
+                serialize: false,
+                hideOnZoom: false,
+                getMinHeight: () => 36,
+            });
+            try { domActionWidget.options = domActionWidget.options || {}; domActionWidget.options.getMinHeight = () => 36; } catch (_) { /* ignore */ }
+            try { domActionWidget.computeLayoutSize = () => ({ minHeight: 36, maxHeight: undefined, minWidth: 0 }); } catch (_) { /* ignore */ }
+        }
+    } catch (err) {
+        console.warn("[XB-BOX 神笔] 按钮排成一行失败（前端不支持 DOM 部件），回退为上下两个按钮", err);
+        domActionWidget = null;
+    }
+
+    /** 同步按钮文案 / 显隐：原生按钮 + 2.0 的 DOM 按钮保持一致 */
+    const syncActionLabels = () => {
+        const create = isCreateMode();
+        const nodes2 = isNodes2();
+        const actionText = create ? "🎨 创作画布" : "🖌️ 编辑图片";
+        const resetText = resetArmed ? CONFIRM_LABEL : RESET_LABEL;
+        if (actionWidget) { actionWidget.name = actionText; actionWidget.label = actionText; }
+        if (resetWidget) { resetWidget.name = resetText; resetWidget.label = resetText; }
+        if (domCreateBtn) domCreateBtn.textContent = actionText;
+        if (domResetBtn) { domResetBtn.textContent = resetText; domResetBtn.style.display = create ? "" : "none"; }
+        // 2.0：原生按钮让位给 DOM 行；经典模式反之（只在状态变化时刷，避免每拍重排）
+        const setHidden = (w, want) => { if (w && !!w.__xbHide !== want) setWidgetHidden(node, w, want); };
+        setHidden(actionWidget, nodes2);
+        setHidden(resetWidget, nodes2 || !create);
+        if (domActionWidget) setHidden(domActionWidget, !nodes2);
+    };
+    node.__xbSbSyncActions = syncActionLabels;
+
+    /** 2.0：图片文件名行比普通参数行高 8px（前端给文件上传框套了一层 32px 的 label），
+     *  切到编辑模式会把节点撑高。这里把该行的 label / 按钮高度对齐到普通参数行（24px）。 */
+    const normalizeFileRow = () => {
+        try {
+            if (!isNodes2()) return;
+            const root = node.domElement?.closest?.("[data-node-id]") || document.querySelector(`[data-node-id="${node.id}"]`);
+            if (!root) return;
+            const row = root.querySelector('.lg-node-widget input[type="file"]')?.closest(".lg-node-widget");
+            if (!row) return;
+            // 参考高度：普通参数行（模式/画幅比例/宽/高），跳过 DOM 行与显示窗行
+            let refH = 24;
+            for (const r of root.querySelectorAll(".lg-node-widget")) {
+                if (r === row) continue;
+                const h = r.offsetHeight;
+                if (h >= 18 && h <= 40) { refH = h; break; }
+            }
+            const lab = row.querySelector("label");
+            if (lab) {
+                if (lab.style.height !== refH + "px") {
+                    lab.style.height = refH + "px";
+                    lab.style.minHeight = refH + "px";
+                    lab.style.overflow = "hidden";
+                    lab.style.lineHeight = Math.max(12, refH - 2) + "px";
+                }
+            } else if (row.style.height !== refH + "px") {
+                row.style.height = refH + "px";
+                row.style.minHeight = refH + "px";
+            }
+            for (const b of row.querySelectorAll("button")) {
+                if (b.style.height !== refH + "px") {
+                    b.style.height = refH + "px";
+                    b.style.minHeight = refH + "px";
+                }
+            }
+        } catch (_) { /* ignore */ }
+    };
 
     /* ── 显示窗（两个模式都有，只做显示） ─────────────────────── */
     try {
@@ -1155,12 +1246,11 @@ function setupNode(node) {
         setWidgetHidden(node, wColor, !create);
         setWidgetHidden(node, wImage, create);
         // 「重置画布」只在创作模式出现；离开创作模式时把"上膛"状态一起清掉
-        if (resetWidget) setWidgetHidden(node, resetWidget, !create);
         if (!create) disarmReset();
-        if (actionWidget) {
-            actionWidget.name = create ? "🎨 创作画布" : "🖌️ 编辑图片";
-            actionWidget.label = actionWidget.name;
-        }
+        // 按钮文案 / 显隐（含 2.0 下"两个按钮同一行"的 DOM 行）
+        syncActionLabels();
+        // 编辑模式的图片文件名行与普通参数行等高，避免切模式时节点被撑高
+        normalizeFileRow();
         refreshWidgets(node);
         refreshPanel();
         try { node.setDirtyCanvas?.(true, true); } catch (_) { /* ignore */ }
@@ -1303,6 +1393,8 @@ function setupNode(node) {
     const tick = () => {
         if (node.__xbSbRemoved || !node.graph) return;
         enforceOfficial();
+        syncActionLabels();   // 运行时切换 Nodes 2.0 / 经典模式时，按钮行跟着换
+        normalizeFileRow();   // Vue 重建行 DOM 后，把图片文件名行的高度再对齐一次
         const sig = [getVal(node, "mode"), getVal(node, "image") || "", getVal(node, "canvas_color"),
             getVal(node, "width"), getVal(node, "height"),
             getVal(node, "painted_data") ? "1" : "0", getVal(node, "created_data") ? "1" : "0"].join("|");

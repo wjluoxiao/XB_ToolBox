@@ -1846,10 +1846,12 @@ function openPanel(ctx, panelId) {
   header.append(el("div", "font-size:12px;color:#999;margin-top:5px;", "点选项行即加入提示词（变蓝），再点一下移除（变灰）；点【添加详细描述】会在新窗口里给该词条写补充描述（悬停行可看）。配置随工作流保存，改完重新执行节点即生效。"));
   dialog.append(header);
 
-  const panelBox = el("div", "padding:14px 20px;overflow-y:auto;flex:1;min-height:280px;");
+  // ⚠️ 顶部不留内边距：滚动容器的 padding 区不参与裁剪，滚上去的行会从这条缝里
+  //    「穿透」到吸顶预览框上方。顶部留白改由吸顶块自己的 padding 提供（有实底背景可遮挡）。
+  const panelBox = el("div", "padding:0 20px 14px;overflow-y:auto;flex:1;min-height:280px;");
 
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
-  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:2px 0 10px;margin:-2px 0 6px;border-bottom:1px solid #333;");
+  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid #333;");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
   head.append(el("span", "font-size:12px;font-weight:600;color:#9fc3e8;", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
@@ -3094,8 +3096,10 @@ function setupNode(node) {
     } catch (_) {}
     node.setDirtyCanvas?.(true, true);
   };
-  refreshSize();
-  requestAnimationFrame(refreshSize);
+  // ⚠️ 不能在这里同步跑 refreshSize：工作流加载时 configure 还没应用存档尺寸，
+  //    先按默认 widget 算出来的高度会让节点「长高一下」，随后被存档高度拉回 → 刷新瞬间高度闪烁。
+  //    排到本轮任务末尾（configure 已落定）再做下限保护。
+  setTimeout(refreshSize, 0);
   setTimeout(refreshSize, 60);
   setTimeout(refreshSize, 1200);   // 兜底：加载工作流后 widget 才铺完时再校正一次（只增不减）
   node._xbRefreshSize = refreshSize;

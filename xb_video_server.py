@@ -29,6 +29,149 @@ else:
     print("⚠️ [XB-BOX] ffmpeg 未找到，视频预览转码不可用")
 
 ENCODE_ARGS = ("utf-8", "backslashreplace")
+PREVIEW_MAX = 960      # 预览转码的长边上限（只影响预览，不影响真实输出）
+
+
+async def _stream_media(request, args, filename, content_type="video/webm"):
+    """把 ffmpeg 的 stdout 直接流给浏览器，中途取消也能安全收尾。"""
+    proc = await asyncio.create_subprocess_exec(
+        *args, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
+    resp = web.StreamResponse()
+    resp.content_type = content_type
+    resp.headers["Content-Disposition"] = f'filename="{os.path.basename(filename)}"'
+    resp.headers["Cache-Control"] = "no-store"
+    try:
+        await resp.prepare(request)
+        while True:
+            chunk = await proc.stdout.read(2**20)
+            if not chunk:
+                break
+            await resp.write(chunk)
+    except (ConnectionResetError, ConnectionError, BrokenPipeError):
+        pass
+    finally:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        await proc.wait()
+    return resp
+
+
+@server.PromptServer.instance.routes.get("/xb/videopreview")
+async def xb_video_preview(request):
+    """加载视频节点用的实时参数预览：按 跳过帧 / 间隔取帧 / 帧率 / 分辨率 / 帧数上限 重新转码。"""
+    if _ffmpeg_path is None:
+        return web.Response(status=501, text="ffmpeg not found")
+
+    query = request.rel_url.query
+    filename = query.get("filename", "")
+    file_type = query.get("type", "input")
+    if not filename:
+        return web.Response(status=400)
+
+    try:
+        if file_type == "input":
+            filepath = folder_paths.get_annotated_filepath(filename)
+        else:
+            filepath = folder_paths.get_annotated_filepath(filename, file_type)
+        if not os.path.isfile(filepath):
+            return web.Response(status=404)
+    except Exception:
+        return web.Response(status=404)
+
+    def _num(name, default=0.0):
+        try:
+            return float(query.get(name, default) or default)
+        except (TypeError, ValueError):
+            return default
+
+    # 源帧率/尺寸用 PyAV 读元数据，比跑一遍 ffmpeg 探测快得多
+    base_fps = 0.0
+    src_w = src_h = 0
+    try:
+        import av
+        with av.open(filepath, mode="r") as container:
+            stream = container.streams.video[0]
+            rate = stream.average_rate or stream.guessed_rate
+            base_fps = float(rate) if rate else 0.0
+            src_w = int(stream.codec_context.width or 0)
+            src_h = int(stream.codec_context.height or 0)
+            if stream.metadata.get("rotate") in ("90", "-90", "270", "-270"):
+                src_w, src_h = src_h, src_w
+    except Exception:
+        base_fps = 0.0
+    if base_fps <= 0:
+        base_fps = 30.0
+
+    skip = max(0, int(_num("skip_first_frames")))
+    nth = max(1, int(_num("select_every_nth", 1)))
+    force_rate = _num("force_rate")
+    cap = max(0, int(_num("frame_load_cap")))
+    width = max(0, int(_num("custom_width")))
+    height = max(0, int(_num("custom_height")))
+
+    start_time = skip / base_fps if skip else 0.0
+    out_rate = force_rate if force_rate > 0 else base_fps / nth
+
+    pre_seek, post_seek = [], []
+    if start_time > 0:
+        if start_time > 4:
+            post_seek = ["-ss", "4"]
+            pre_seek = ["-ss", str(start_time - 4)]
+        else:
+            post_seek = ["-ss", str(start_time)]
+
+    args = [_ffmpeg_path, "-v", "error"] + pre_seek + ["-i", filepath] + post_seek
+
+    if out_rate > 0 and abs(out_rate - base_fps) > 1e-6:
+        args += ["-r", f"{out_rate:.6f}"]
+
+    def _even(v):
+        return max(2, int(v) - int(v) % 2)
+
+    # 预览尺寸：用户填了宽高就按输出尺寸出；没填就按原尺寸，超过 PREVIEW_MAX 的长边等比压下来（只影响预览）
+    crop_to_box = False
+    if width and height:
+        # 与节点实际输出一致：宽高都填 → 居中裁剪到目标比例，再缩放（不是拉伸）
+        target_w, target_h = _even(width), _even(height)
+        crop_to_box = True
+    elif width and src_w and src_h:
+        target_w, target_h = _even(width), _even(round(src_h * width / src_w))
+    elif height and src_w and src_h:
+        target_w, target_h = _even(round(src_w * height / src_h)), _even(height)
+    elif width or height:
+        target_w, target_h = _even(width) if width else 0, _even(height) if height else 0
+    else:
+        target_w, target_h = src_w, src_h
+        if target_w and target_h and max(target_w, target_h) > PREVIEW_MAX:
+            ratio = PREVIEW_MAX / max(target_w, target_h)
+            target_w, target_h = _even(round(target_w * ratio)), _even(round(target_h * ratio))
+
+    vfilters = []
+    if crop_to_box:
+        vfilters.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase")
+        vfilters.append(f"crop={target_w}:{target_h}")
+    elif target_w and target_h:
+        vfilters.append(f"scale={target_w}:{target_h}")
+    elif target_w:
+        vfilters.append(f"scale={target_w}:-2")
+    elif target_h:
+        vfilters.append(f"scale=-2:{target_h}")
+    else:
+        # 源尺寸是奇数时 yuv420p 会编码失败，兜一层偶数对齐
+        vfilters.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+    args += ["-vf", ",".join(vfilters)]
+
+    if cap > 0:
+        args += ["-frames:v", str(cap)]
+
+    # 用渐进式 H.264(fMP4)：比 VP9/WebM 兼容性更好，浏览器不用等整段转码完就能播
+    args += ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-b:a", "96k",
+             "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+             "-f", "mp4", "-"]
+    return await _stream_media(request, args, filename, content_type="video/mp4")
 
 
 @server.PromptServer.instance.routes.get("/xb/viewvideo")

@@ -176,6 +176,38 @@
   "XB_WanInfiniteTalkToVideo_Dual": {
     "display_name": "XB-BOX - 🎵 Voice To Video Chunk (Dual)"
   },
+  "XB_CLIPTextEdit": {
+    "display_name": "XB-BOX - 📝 CLIP Text Edit"
+  },
+  "XB_TripleLoraLoader": {
+    "display_name": "XB-BOX - 🔗 Triple LoRA Loader"
+  },
+  "XB_TripleLoraLoaderModelOnly": {
+    "display_name": "XB-BOX - 🔗 Triple LoRA Loader (Model Only)"
+  },
+  "XB_SaveVideo": {
+    "display_name": "XB-BOX - 🎬 Save Video"
+  },
+  "XB_LoadVideo": {
+    "display_name": "XB-BOX - 🎬 Load Video",
+    "inputs": {
+      "file": { "name": "Video File" },
+      "force_rate": { "name": "Force FPS" },
+      "custom_width": { "name": "Output Width" },
+      "custom_height": { "name": "Output Height" },
+      "frame_load_cap": { "name": "Frame Cap" },
+      "skip_first_frames": { "name": "Skip First Frames" },
+      "select_every_nth": { "name": "Select Every Nth" },
+      "autoplay": { "name": "Autoplay" }
+    },
+    "outputs": {
+      "0": { "name": "images" },
+      "1": { "name": "audio" },
+      "2": { "name": "fps" },
+      "3": { "name": "bit_depth" },
+      "4": { "name": "color_space" }
+    }
+  },
   "XB_StringMerge": {
     "display_name": "XB-BOX - 📝 String Merge"
   },
@@ -485,7 +517,7 @@
         "name": "Empty Latent Type"
       },
       "three_view_text": {
-        "name": "Preset Text (3/4/5-view / transparent)"
+        "name": "Preset Text (manage presets from the buttons above)"
       },
       "aspect_ratio": {
         "name": "Aspect Ratio"

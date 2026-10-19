@@ -277,7 +277,13 @@ function syncTargetSlots(node) {
             if (isTargetSlot(allInputs[i]) && allInputs[i].link == null) { node.removeInput(i); break; }
         }
     }
-    node.setSize(node.computeSize());
+    // 只增不减：载入工作流时 configure 已写入存档尺寸，这里只在内部下限更大时扩张
+    const need = node.computeSize() || [];
+    const curW = Number(node.size?.[0]) || 0;
+    const curH = Number(node.size?.[1]) || 0;
+    const newW = Math.max(curW, Number(need[0]) || 0);
+    const newH = Math.max(curH, Number(need[1]) || 0);
+    if (newW !== curW || newH !== curH) node.setSize([newW, newH]);
 }
 
 function syncExternalToLocal(switchNode) {

@@ -91,16 +91,18 @@ const BATCH_MAX = 4096;
 // ── 主流模型的空 latent（选项名 = 模型名，规格按官方 latent_format；必须与后端 _OFFICIAL_LATENT_ROWS 逐字一致）──
 // 选项按首字母（A→Z，不区分大小写）排列；DEFAULT_LATENT_KIND 固定 Z-image，不受排序影响。
 const LATENT_KINDS = [
-  "Anima", "Boogu", "Flux2", "Hunyuan", "Krea2", "Qwen-image", "SD3", "SDXL", "Z-image",
+  "Anima", "Boogu", "Flux2", "Flux3", "Hunyuan", "Krea2", "Moss-image", "Qwen-image", "SD3", "SDXL", "Z-image",
 ];
 // 每项：channels(通道) / hDiv・wDiv(下采样除数) / step(尺寸步长 = 各模型官方最小步长) / min・max / batchMax / downscale / desc(悬停说明)
-// 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
+// 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2/Flux3 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
 const LATENT_KIND_SPEC = {
   "Anima": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Anima：16 通道 · /8 · 步长 8（官方模板用 4 通道 EmptyLatentImage，零 latent 会被自动补齐）" },
   "Boogu": { channels: 16, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Boogu：16 通道 · /8 · 步长 8（同上，官方 latent_format = Flux）" },
   "Flux2": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux2：128 通道 · /16 · 步长 16（官方 EmptyFlux2LatentImage）" },
+  "Flux3": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux3：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Hunyuan": { channels: 64, hDiv: 32, wDiv: 32, step: 32, min: 64, max: 16384, batchMax: 4096, downscale: 32, desc: "Hunyuan：64 通道 · /32 · 步长 32（官方 EmptyHunyuanImageLatent / HunyuanImage 2.1）" },
   "Krea2": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Krea2：16 通道 · /8 · 步长 16（官方 latent_format = Wan21）" },
+  "Moss-image": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Moss-image：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Qwen-image": { channels: 16, hDiv: 8, wDiv: 8, step: 32, min: 32, max: 16384, batchMax: 4096, downscale: 8, desc: "Qwen-image：16 通道 · /8 · 步长 32（官方 latent_format = Wan21，采样时自动补 T 维；按需求锁 32）" },
   "SD3": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SD3：16 通道 · /8 · 步长 16（官方 EmptySD3LatentImage）" },
   "SDXL": { channels: 4, hDiv: 8, wDiv: 8, step: 8, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SDXL：4 通道 · /8 · 步长 8（官方 EmptyLatentImage）" },
@@ -1704,9 +1706,9 @@ function normalizeSize(ar, w, h, opt) {
   return [sw, sh];
 }
 
-function copyText(text) {
+function copyText(text, what) {
   if (!text) { notify("没有可复制的内容", "warning"); return; }
-  const done = () => notify("已复制提示词", "success");
+  const done = () => notify(`已复制${what || "提示词"}`, "success");
   const fallback = () => {
     try {
       const ta = document.createElement("textarea");
@@ -1747,10 +1749,12 @@ function openPanel(ctx, panelId) {
   header.append(el("div", "font-size:12px;color:#999;margin-top:5px;", "点选项行即加入提示词（变蓝），再点一下移除（变灰）；点【添加详细描述】会在新窗口里给该词条写补充描述（悬停行可看）。配置随工作流保存，改完重新执行节点即生效。"));
   dialog.append(header);
 
-  const panelBox = el("div", "padding:14px 20px;overflow-y:auto;flex:1;min-height:280px;");
+  // ⚠️ 顶部不留内边距：滚动容器的 padding 区不参与裁剪，滚上去的行会从这条缝里
+  //    「穿透」到吸顶预览框上方。顶部留白改由吸顶块自己的 padding 提供（有实底背景可遮挡）。
+  const panelBox = el("div", "padding:0 20px 14px;overflow-y:auto;flex:1;min-height:280px;");
 
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
-  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:2px 0 10px;margin:-2px 0 6px;border-bottom:1px solid #333;");
+  const sticky = el("div", "position:sticky;top:0;z-index:6;background:#1c1c1e;padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid #333;");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
   head.append(el("span", "font-size:12px;font-weight:600;color:#9fc3e8;", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
@@ -2638,13 +2642,12 @@ function setupNode(node) {
     hideWidget(findWidget(node, "preset"));
     hideWidget(findWidget(node, "task_preset"));
     hideWidget(findWidget(node, "open_api_settings"));
-    hideWidget(findWidget(node, "output_lang"));     // 语言只留：LLM设置 里的「输出语言」
-    hideWidget(findWidget(node, "latent_kind"));     // → 「✨ 增强预设」弹窗
-    hideWidget(findWidget(node, "preset_mode"));     // → 「✨ 增强预设」弹窗
-    hideWidget(findWidget(node, "three_view_text")); // 设定词 → 只在「✨ 增强预设」弹窗里编辑（用户要求：不在节点表面显示）
-    hideWidget(findWidget(node, "skill_name"));      // SKILL 选择 → 只在「✨ 预设参数」弹窗里选
-    hideWidget(findWidget(node, "skill_mode"));      // SKILL 三态 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "preset_mode"));     // → 「✨ 预设参数」弹窗
+    hideWidget(findWidget(node, "three_view_text")); // 设定词 → 只在「✨ 预设参数」弹窗里编辑（用户要求：不在节点表面显示）
+    hideWidget(findWidget(node, "skill_name"));      // skill 选择 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "skill_mode"));      // skill 三态 → 只在「✨ 预设参数」弹窗里选
     hideWidget(findWidget(node, "io_mode"));         // 模版（文生图/图生图）→ 只在「✨ 预设参数」弹窗里选
+    // ⚠️ output_lang / latent_kind 保留在节点表面（与「🖼️ 生图提示词预设」一致）
     refreshNodes2View(node);
     node.setDirtyCanvas?.(true, true);
   };
@@ -3002,8 +3005,10 @@ function setupNode(node) {
     } catch (_) {}
     node.setDirtyCanvas?.(true, true);
   };
-  refreshSize();
-  requestAnimationFrame(refreshSize);
+  // ⚠️ 不能在这里同步跑 refreshSize：工作流加载时 configure 还没应用存档尺寸，
+  //    先按默认 widget 算出来的高度会让节点「长高一下」，随后被存档高度拉回 → 刷新瞬间高度闪烁。
+  //    排到本轮任务末尾（configure 已落定）再做下限保护。
+  setTimeout(refreshSize, 0);
   setTimeout(refreshSize, 60);
   setTimeout(refreshSize, 1200);   // 兜底：加载工作流后 widget 才铺完时再校正一次（只增不减）
   node._xbRefreshSize = refreshSize;
@@ -3180,7 +3185,7 @@ const IO_T2I_ONLY = "文生图";
 const XBR_SEED_LABEL = { randomize: "随机", fixed: "固定", increment: "增加", decrement: "减少" };
 const XBR_PANEL_BUTTONS = [
   { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "LLM 反推的后端与推理配置；本弹窗里的「输出语言」是全节点唯一的语言设置（决定词表加载语言 + 最终提示词语言）。" },
-  { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "空latent类型 / 预设模式 / 增强预设（= 提示词设定）/ 反推预设 / 追加设定 / SKILL。提示词正文在节点上的提示词框里编辑。" },
+  { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "设定词（含预设词工具）/ 提示词增强（设定词来源：skill 或 预设词）。空latent类型与输出语言在节点表面。" },
 ];
 const XBR_API_ENDPOINT = "/xb_toolbox/llm_api_settings";
 
@@ -3250,6 +3255,13 @@ function xbrParseLlm(raw) {
   cfg.params.mirostat_tau = xbrNum(p.mirostat_tau, cfg.params.mirostat_tau, 0, 10);
   cfg.params.state_uid = xbrInt(p.state_uid, cfg.params.state_uid, -1, 999999);
   cfg.extra_system = String(d.extra_system ?? "");
+  // 反推预设来源（skill = 技能文档；preset = 预设词，等价于原「增强预设 + 反推预设」）
+  const rev = (d.reverse && typeof d.reverse === "object") ? d.reverse : {};
+  cfg.reverse = {
+    source: String(rev.source || "").toLowerCase() === "preset" ? "preset" : "skill",
+    label: String(rev.label ?? ""),
+    text: String(rev.text ?? ""),
+  };
   return cfg;
 }
 
@@ -3310,7 +3322,8 @@ function xbrLangTagOf(v) {
 function xbrFilterByLang(opts, lang) {
   const want = xbrLangTagOf(lang);
   if (!want) return opts.slice();
-  const hit = opts.filter((o) => xbrLangTagOf(o) === want);
+  // 无语言标签的项（例如 xb_skill 里自建的增强/反推预设文件）与语言无关 → 一律保留
+  const hit = opts.filter((o) => { const t = xbrLangTagOf(o); return !t || t === want; });
   return hit.length ? hit : opts.slice();      // 全无语言标签（老预设）→ 全量兜底
 }
 /** 语言变了：优先换到「同名的另一语言项」，否则取该语言第一项 */
@@ -3522,7 +3535,7 @@ function xbrRenderLlm(body, node, draft, ctx) {
     draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, v);
     draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, v);
   })));
-  body.append(xbrHint("本项是唯一的语言设置：① 词表 / 设定词 / 预设句按哪种语言加载　② 增强预设与反推预设只列该语言的选项　③ 最终输出的提示词语言。"));
+  body.append(xbrHint("本项是唯一的语言设置：① 词表 / 设定词 / 预设句按哪种语言加载　② 预设词按该语言从 xb_skill 取　③ 最终输出的提示词语言。"));
 
   body.append(makeSectionTitle("提示词增强反推（总开关在节点表面的「启用 LLM 反推」）"));
 
@@ -3591,122 +3604,741 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"));
 }
 
+/* ── 预设词库：与「🖼️ 生图提示词预设」共用 xb_skill/XB_ImagePromptPreset/{ZH,EN}/*.txt ──────
+ * · 一个 txt = 一个预设词选项，两个节点读写同一批文件（后端 /xb/presets* 路由）；
+ * · 「添加预设 / 编辑预设 / 复制文本」与基础节点同一套行为与观感（880px、字号 / 界面缩放）。 */
+const XBR_PRESET_LIB_NODE = "XB_ImagePromptPreset";
+/** 增强预设 / 反推预设 的可编辑 txt 目录（与后端 LLM_ENHANCER_NODE / LLM_TASK_NODE 对齐） */
+const XBR_ENHANCER_NODE = "XB_LLMEnhancerPreset";
+const XBR_TASK_NODE = "XB_LLMTaskPreset";
+let xbrPresetLibCache = null, xbrPresetLibAt = 0;
+const xbrPresetLibMap = new Map();     // nodeName → { at, data }
+
+/** 按节点名取预设文件快照（/xb/presets?node=…）；未指定 = 设定词用的那个节点 */
+async function xbrFetchPresetLibFor(nodeName, force) {
+  const name = String(nodeName || XBR_PRESET_LIB_NODE);
+  const now = Date.now();
+  const hit = xbrPresetLibMap.get(name);
+  if (!force && hit && now - hit.at < 3000) return hit.data;
+  let data = null;
+  try {
+    const r = await api.fetchApi(`/xb/presets?node=${encodeURIComponent(name)}&t=${now}`);
+    if (r && r.ok) data = await r.json();
+  } catch (_) { /* 老后端 / 目录为空 → 空列表，界面照样能用 */ }
+  xbrPresetLibMap.set(name, { at: now, data });
+  return data;
+}
+
+/** 把文件里的预设标签并进某个 combo widget 的选项（新增 / 删除文件后下拉即时同步）
+ *  · widget 上记一份「上次由文件加进来的标签」，下次先把失效的清掉，避免删了文件还留在下拉里 */
+async function xbrMergeWidgetFileOptions(node, widgetName, nodeName) {
+  const data = await xbrFetchPresetLibFor(nodeName, true);
+  const labels = Array.isArray(data?.modes) ? data.modes : [];
+  const w = xbrWidget(node, widgetName);
+  if (!w) return [];
+  const vals = (Array.isArray(w.options?.values) ? w.options.values
+    : Array.isArray(w.values) ? w.values : []);
+  const prev = Array.isArray(w.__xbFilePresets) ? w.__xbFilePresets : [];
+  for (const lb of prev) {
+    if (labels.includes(lb)) continue;
+    const i = vals.indexOf(lb);
+    if (i >= 0) vals.splice(i, 1);
+  }
+  for (const lb of labels) if (!vals.includes(lb)) vals.push(lb);
+  w.__xbFilePresets = labels.slice();
+  if (w.options) w.options.values = vals;
+  else w.values = vals;
+  return labels;
+}
+
+async function xbrFetchPresetLib(force) {
+  const data = await xbrFetchPresetLibFor(XBR_PRESET_LIB_NODE, force);
+  if (data) {
+    xbrPresetLibCache = data;
+    xbrPresetLibAt = Date.now();
+    mergePresetFilesPro(data);
+  }
+  return xbrPresetLibCache;
+}
+
+/** 增强预设 / 反推预设的完整清单（内置 + 文件；文件同名时内容优先） */
+async function xbrFetchLlmPresets(kind, lang) {
+  try {
+    const r = await api.fetchApi(`/xb_toolbox/llm_presets?kind=${encodeURIComponent(kind)}`
+      + `&lang=${encodeURIComponent(lang || "")}&t=${Date.now()}`);
+    if (r && r.ok) return await r.json();
+  } catch (_) { /* 老后端 → 退回只用文件 */ }
+  return null;
+}
+
+/** 把预设文件合并进内置表（原地改值）→ 「预设模式」下拉与文件选项一一对应
+ *  · 一个 txt = 一个预设模式选项，文件内容 = 该模式的设定词；
+ *  · 新增 / 改名 / 删除 txt 后，打开面板即生效（无需重启）。 */
+function mergePresetFilesPro(data) {
+  const modes = Array.isArray(data?.modes) ? data.modes.filter((m) => typeof m === "string" && m.trim()) : [];
+  const texts = (data && typeof data.texts === "object" && data.texts) || {};
+  for (const [mode, byLang] of Object.entries(texts)) {
+    if (!mode || !byLang || typeof byLang !== "object") continue;
+    const target = PRESET_TEXT_DEFAULT[mode] || (PRESET_TEXT_DEFAULT[mode] = {});
+    for (const [label, txt] of Object.entries(byLang)) {
+      if (typeof txt === "string" && txt.trim()) target[label] = txt;
+    }
+    if (!MODES.includes(mode)) MODES.push(mode);
+  }
+  for (const m of modes) if (!MODES.includes(m)) MODES.push(m);
+  return modes;
+}
+function xbrLibLang(lang) { return String(lang) === LANG_EN ? LANG_EN : LANG_ZH; }
+function xbrLibLabels() { return Array.isArray(xbrPresetLibCache?.modes) ? xbrPresetLibCache.modes.slice() : []; }
+function xbrLibText(label, lang) {
+  if (!label) return "";
+  const by = (xbrPresetLibCache?.texts || {})[label];
+  if (!by || typeof by !== "object") return "";
+  const L = xbrLibLang(lang);
+  return String(by[L] ?? by[Object.keys(by)[0]] ?? "");
+}
+
+function xbrPromptText(node) { return String(xbrWidgetVal(node, "internal_prompt") ?? ""); }
+function xbrSetPromptText(node, text) {
+  xbrSetWidget(node, "internal_prompt", String(text ?? ""));
+  try { node.__ippSyncPromptBox?.(); } catch (_) {}
+  try { node.setDirtyCanvas?.(true, true); } catch (_) {}
+  try { node.__xbrProRefreshInfo?.(); } catch (_) {}
+}
+/** 添加预设：预设正文加到提示词最前面，并在末尾留一个换行（已有同样内容只补换行） */
+function xbrApplyPresetText(node, label, text) {
+  const t = String(text || "").trim();
+  const cur = xbrPromptText(node);
+  let next;
+  if (!t) { notify(`预设「${label}」是空文件，未添加`, "warning"); return; }
+  else if (cur.includes(t)) next = cur.endsWith("\n") ? cur : cur + "\n";
+  else next = t + "\n" + cur.replace(/^\s+/, "");
+  xbrSetPromptText(node, next);
+  notify(`已添加预设「${label}」到提示词`, "success");
+}
+function xbrCopyPromptText(node) {
+  const text = xbrPromptText(node);
+  if (!text.trim()) { notify("提示词框是空的，没有可复制的内容", "warning"); return; }
+  copyText(text);
+}
+
+/** 预设弹窗外壳（与基础节点同宽 880px，同样带字号 / 界面缩放） */
+function xbrPresetDialog(title) {
+  const overlay = el("div", "position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:10300;display:flex;overflow:auto;");
+  const dialog = el("section", "width:880px;max-width:96vw;max-height:90vh;margin:auto;flex:0 0 auto;"
+    + "display:flex;flex-direction:column;background:#1c1c1e;border:1px solid #333;border-radius:8px;color:#ddd;"
+    + "font:15px/1.65 system-ui,sans-serif;box-shadow:0 20px 40px rgba(0,0,0,.6);overflow:hidden;");
+  const header = el("div", "padding:14px 18px 12px;background:#232326;border-bottom:1px solid #3a3a3a;"
+    + "display:flex;align-items:center;gap:12px;flex-wrap:wrap;");
+  header.append(el("span", "flex:1 1 300px;min-width:220px;font-size:1.2em;font-weight:700;color:#eee;", title));
+  const tools = el("span", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:normal;");
+  tools.append(el("span", "color:#8a8a8a;", "字号"), buildZoomRow(dialog),
+    el("span", "color:#5a5a5a;", "|"), buildUIRow(dialog));
+  const closeBtn = smallBtn("✕", "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:3px 10px;", "关闭");
+  tools.append(closeBtn);
+  header.append(tools);
+  const body = el("div", "padding:14px 18px 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;flex:1 1 auto;min-height:0;");
+  dialog.append(header, body);
+  overlay.append(dialog);
+  const close = () => { try { overlay.remove(); } catch (_) {} };
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
+  const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(); document.removeEventListener("keydown", onKey, true); } };
+  document.addEventListener("keydown", onKey, true);
+  document.body.append(overlay);
+  zoomApplyContainer(dialog);
+  uiApply(dialog);
+  bindWheelZoom(dialog);
+  return { body, dialog, close };
+}
+
+/** 「添加预设」：列出预设目录 + 备份目录的 txt
+ *  · 传入 onPick → 只把选中的预设交给调用方（例如填入「设定词」）；
+ *  · 不传 onPick → 默认加到节点提示词最前面（与基础节点一致）。 */
+async function xbrShowPresetPicker(node, onPick) {
+  const data = await xbrFetchPresetLib(true);
+  const lang = String(xbrWidgetVal(node, "output_lang") ?? LANG_ZH);
+  const labels = Array.isArray(data?.modes) ? data.modes : [];
+  const backupOnly = Array.isArray(data?.backup_only) ? data.backup_only : [];
+  const { body, close } = xbrPresetDialog("📥 添加预设（点一项 → 加进节点提示词）");
+  if (!labels.length) {
+    body.append(el("div", "color:#ffb74d;",
+      `没有找到预设文件：xb_skill/${XBR_PRESET_LIB_NODE}/${data?.lang || "ZH"} 目录里没有 .txt。`
+      + "可以先在「✏️ 编辑预设」里把当前提示词存成一个新预设。"));
+  }
+  const list = el("div", "display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:6px;");
+  for (const label of labels) {
+    const txt = xbrLibText(label, lang);
+    const row = el("button", "text-align:left;padding:7px 10px;border-radius:5px;border:1px solid #3d3d3d;"
+      + "background:#1f1f1f;color:#ddd;cursor:pointer;font-size:1em;font-family:inherit;");
+    row.type = "button";
+    const name = el("div", "font-weight:bold;color:#8fd3ff;font-size:1.05em;", (backupOnly.includes(label) ? "📦 " : "") + label);
+    name.title = backupOnly.includes(label) ? "来自备份目录（output/生图提示词预设）" : "来自预设目录（xb_skill）";
+    const prev = el("div", "color:#9a9a9a;font-size:0.9em;margin-top:3px;line-height:1.5;",
+      txt.length > 60 ? txt.slice(0, 60) + "…" : (txt || "（空文件）"));
+    row.append(name, prev);
+    row.addEventListener("mouseenter", () => { row.style.background = "#2c3a44"; row.style.borderColor = "#4a7a99"; });
+    row.addEventListener("mouseleave", () => { row.style.background = "#1f1f1f"; row.style.borderColor = "#3d3d3d"; });
+    row.addEventListener("click", () => {
+      if (typeof onPick === "function") onPick(label, txt);
+      else xbrApplyPresetText(node, label, txt);
+      close();
+    });
+    list.append(row);
+  }
+  body.append(list);
+  body.append(el("div", "color:#8a8a8a;font-size:0.88em;word-break:break-all;flex:0 0 auto;",
+    `📦 备份目录（也会被读取）：${data?.backup_dir || "output/生图提示词预设"}`));
+  const foot = el("div", "display:flex;justify-content:flex-end;gap:6px;flex:0 0 auto;flex-wrap:wrap;");
+  foot.append(
+    smallBtn("刷新列表", "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:5px 12px;font-size:12px;", "重新扫描预设目录与备份目录",
+      async () => { close(); await xbrFetchPresetLib(true); xbrShowPresetPicker(node); }),
+    smallBtn("关闭", "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:5px 12px;font-size:12px;", "关闭窗口", close),
+  );
+  body.append(foot);
+}
+
+/** 「编辑预设」：选择 / 新建 → 在下方大文本框里编写 → 保存（同名覆盖 / 新名新建）
+ *  opts: { nodeName, title, contentLabel, placeholder, fromPrompt, onSaved }
+ *  · 默认编辑「设定词」用的 XB_ImagePromptPreset；
+ *  · 增强预设 / 反推预设 传各自 nodeName，面板与交互完全一致。 */
+async function xbrShowPresetEditor(node, opts = {}) {
+  const cfg = {
+    nodeName: XBR_PRESET_LIB_NODE,
+    title: "✏️ 编辑预设（选择或新建 → 在下方大文本框里编写 → 保存）",
+    contentLabel: "预设内容（保存进 txt，也会被「添加预设」原样插入提示词）",
+    placeholder: "在这里编写预设内容…（在上方选择已有预设会自动载入到这里，或点「取当前提示词」）",
+    fromPrompt: true,
+    onSaved: null,
+    fetch: null,       // 自定义清单来源（增强预设 / 反推预设需要「内置 + 文件」）
+    ...opts,
+  };
+  let data = cfg.fetch ? await cfg.fetch() : await xbrFetchPresetLibFor(cfg.nodeName, true);
+  const lang = String(xbrWidgetVal(node, "output_lang") ?? LANG_ZH);
+  const libText = (label) => {
+    const by = (data && data.texts || {})[label];
+    if (!by || typeof by !== "object") return "";
+    const L = xbrLibLang(lang);
+    return String(by[L] ?? by[Object.keys(by)[0]] ?? "");
+  };
+  const reload = async () => {
+    const d = cfg.fetch ? await cfg.fetch() : await xbrFetchPresetLibFor(cfg.nodeName, true);
+    if (d) data = d;
+    return d || { modes: [] };
+  };
+  const { body, close } = xbrPresetDialog(cfg.title);
+
+  const rowSel = el("div", "display:flex;gap:6px;align-items:center;flex:1 1 300px;min-width:240px;flex-wrap:nowrap;");
+  const sel = el("select", "flex:1 1 260px;min-width:200px;height:2em;background:#1e1e1e;color:#ddd;"
+    + "border:1px solid #444;border-radius:4px;padding:0 6px;font-size:1em;font-family:inherit;");
+  rowSel.append(el("span", "color:#aaa;white-space:nowrap;", "已有预设（选中即载入）"), sel);
+  const rowName = el("div", "display:flex;gap:6px;align-items:center;flex:1 1 260px;min-width:220px;flex-wrap:nowrap;");
+  rowName.append(el("span", "color:#aaa;white-space:nowrap;", "预设名称"));
+  const nameInput = el("input", "flex:1;min-width:140px;height:2em;background:#1e1e1e;color:#ddd;"
+    + "border:1px solid #444;border-radius:4px;padding:0 8px;font-size:1em;font-family:inherit;");
+  nameInput.type = "text";
+  nameInput.placeholder = "例如：电影感特写（同名 = 覆盖，新名 = 新建）";
+  rowName.append(nameInput);
+  const firstRow = el("div", "display:flex;gap:10px;align-items:center;flex:0 0 auto;flex-wrap:wrap;");
+  firstRow.append(rowSel, rowName);
+
+  const boxHead = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;flex:0 0 auto;");
+  const boxHeadRight = el("div", "display:flex;gap:8px;align-items:center;flex:0 0 auto;");
+  const charCount = el("span", "color:#8a8a8a;font-variant-numeric:tabular-nums;", "0 字");
+  boxHeadRight.append(charCount);
+  if (cfg.fromPrompt) {
+    boxHeadRight.append(smallBtn("取当前提示词", "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:4px 10px;font-size:12px;",
+      "把节点提示词框的内容复制到编辑框", () => {
+        box.value = xbrPromptText(node);
+        status.style.color = "#aaa";
+        status.textContent = "已取当前提示词，可另存为新预设";
+        fitBox();
+      }));
+  }
+  boxHead.append(el("span", "color:#9fc3e8;font-weight:bold;", cfg.contentLabel), boxHeadRight);
+
+  const box = el("textarea", "width:100%;flex:1 1 auto;min-height:300px;resize:vertical;box-sizing:border-box;"
+    + "background:#1d1d1d;color:#ddd;border:1px solid #444;border-radius:5px;padding:10px 12px;"
+    + "line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-family:inherit;font-size:15px;");
+  box.spellcheck = false;
+  box.placeholder = cfg.placeholder;
+  const fitBox = () => {
+    charCount.textContent = `${box.value.length} 字`;
+    const lines = box.value.split("\n").length;
+    box.style.minHeight = Math.min(560, Math.max(300, lines * 26 + 48)) + "px";
+  };
+  box.addEventListener("input", fitBox);
+  fitBox();
+
+  const hint = el("div", "color:#8a8a8a;font-size:0.88em;word-break:break-all;flex:0 0 auto;",
+    `保存位置：xb_skill/${cfg.nodeName}/${data?.lang || "ZH"}/　　备份：${data?.backup_dir || "output/生图提示词预设"}`);
+  const status = el("div", "min-height:18px;color:#aaa;flex:0 0 auto;");
+
+  const foot = el("div", "display:flex;justify-content:flex-end;gap:6px;flex:0 0 auto;flex-wrap:wrap;");
+  const btnCss = "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:5px 14px;font-size:12px;";
+
+  const fillSelect = (d) => {
+    const cur = sel.value;
+    sel.replaceChildren();
+    const optNew = el("option", "", "＋ 新建预设（在右侧填写名称）");
+    optNew.value = "";
+    sel.append(optNew);
+    for (const label of (Array.isArray(d?.modes) ? d.modes : [])) {
+      const o = el("option", "", label);
+      o.value = label;
+      sel.append(o);
+    }
+    sel.value = (cur && Array.from(sel.options).some((o) => o.value === cur)) ? cur : "";
+  };
+  fillSelect(data);
+
+  const loadInto = (label) => {
+    const txt = libText(label);
+    box.value = txt;
+    nameInput.value = label;
+    status.style.color = "#8bc34a";
+    status.textContent = txt
+      ? `已载入「${label}」（${txt.length} 字），修改后点「保存」即可覆盖`
+      : `「${label}」暂无内容，可直接编写后保存`;
+    fitBox();
+  };
+  sel.addEventListener("change", () => {
+    if (sel.value) { loadInto(sel.value); return; }
+    nameInput.value = "";
+    status.style.color = "#aaa";
+    status.textContent = "新建预设：在右侧填写名称并编写内容";
+    try { nameInput.focus(); } catch (_) {}
+  });
+
+  const saveBtn = smallBtn("保存", btnCss + "border-color:#3f86d0;background:#22456b;color:#eaf4ff;",
+    "把编辑框内容保存成预设文件（同名覆盖 / 新名新建）", async () => {
+      const label = String(nameInput.value || "").trim();
+      if (!label) { status.style.color = "#ff8a80"; status.textContent = "请先填写预设名称"; nameInput.focus(); return; }
+      if (!String(box.value).trim()) { status.style.color = "#ff8a80"; status.textContent = "编辑框是空的，没有可保存的内容"; box.focus(); return; }
+      status.style.color = "#aaa"; status.textContent = "保存中…";
+      try {
+        const r = await api.fetchApi("/xb/presets/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node: cfg.nodeName, label, text: box.value }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) { status.style.color = "#ff8a80"; status.textContent = "保存失败：" + (j.error || r.status); return; }
+        xbrPresetLibMap.set(cfg.nodeName, { at: Date.now(), data: j });
+        if (cfg.nodeName === XBR_PRESET_LIB_NODE) xbrPresetLibCache = j.modes ? j : null;
+        const fresh = await reload();
+        fillSelect(fresh);
+        sel.value = label;
+        status.style.color = "#8bc34a"; status.textContent = `已保存：${label}`;
+        notify(`预设「${label}」已保存`, "success");
+        try { cfg.onSaved?.(label, j); } catch (_) {}
+      } catch (e) { status.style.color = "#ff8a80"; status.textContent = "保存失败：" + ((e && e.message) || e); }
+    });
+  const delBtn = smallBtn("删除", btnCss, "删除选中的预设文件", async () => {
+    const label = sel.value;
+    if (!label) { status.style.color = "#ff8a80"; status.textContent = "请先在上方选中要删除的预设"; return; }
+    try {
+      const r = await api.fetchApi("/xb/presets/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ node: cfg.nodeName, label }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) { status.style.color = "#ff8a80"; status.textContent = "删除失败：" + (j.error || r.status); return; }
+      xbrPresetLibMap.set(cfg.nodeName, { at: Date.now(), data: j });
+      if (cfg.nodeName === XBR_PRESET_LIB_NODE) xbrPresetLibCache = j.modes ? j : null;
+      const fresh = await reload();
+      fillSelect(fresh);
+      box.value = "";
+      fitBox();
+      status.style.color = "#ffc107"; status.textContent = `已删除：${label}`;
+      notify(`预设「${label}」已删除`, "warning");
+      try { cfg.onSaved?.("", j); } catch (_) {}
+    } catch (e) { status.style.color = "#ff8a80"; status.textContent = "删除失败：" + ((e && e.message) || e); }
+  });
+  const backupBtn = smallBtn("一键备份", btnCss, "把所有预设 txt 备份到 ComfyUI/output/生图提示词预设", async () => {
+    status.style.color = "#aaa"; status.textContent = "备份中…";
+    try {
+      const r = await api.fetchApi("/xb/presets/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ node: cfg.nodeName }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) { status.style.color = "#ff8a80"; status.textContent = "备份失败：" + (j.error || r.status); return; }
+      xbrPresetLibMap.delete(cfg.nodeName);
+      if (cfg.nodeName === XBR_PRESET_LIB_NODE) xbrPresetLibCache = null;
+      status.style.color = "#8bc34a";
+      status.textContent = `已备份 ${j.count || 0} 个预设 → ${j.backup_dir || ""}`;
+      notify(`已备份 ${j.count || 0} 个预设到 output/生图提示词预设`, "success");
+    } catch (e) { status.style.color = "#ff8a80"; status.textContent = "备份失败：" + ((e && e.message) || e); }
+  });
+  const closeBtn = smallBtn("关闭", btnCss, "关闭窗口", close);
+  foot.append(delBtn, backupBtn, saveBtn, closeBtn);
+  body.append(firstRow, boxHead, box, hint, status, foot);
+
+  if (!String(box.value || "").trim() && cfg.fromPrompt) { box.value = xbrPromptText(node); fitBox(); }
+  try { box.focus(); } catch (_) {}
+}
+
+/* ── 技能文档（xb_skill/skills/*.txt）：设定词来源 = skill 时整段当系统提示词 ─────────
+ * · 文件位置与预设词同在 xb_skill 下（老位置 xb_skill/skills 由后端自动迁移）；
+ * · 面板提供「编辑 skill / 新增 skill」，保存后立即刷新下拉。 */
+let xbrSkillFiles = null;
+
+async function xbrFetchSkills(force) {
+  if (!force && Array.isArray(xbrSkillFiles)) return xbrSkillFiles;
+  try {
+    const r = await api.fetchApi("/xb_toolbox/skills/list?t=" + Date.now());
+    if (r && r.ok) {
+      const j = await r.json();
+      if (Array.isArray(j.files)) xbrSkillFiles = j.files.slice();
+    }
+  } catch (_) { /* 老后端 / 目录不存在 → 退回 widget 自带的选项 */ }
+  return Array.isArray(xbrSkillFiles) ? xbrSkillFiles : [];
+}
+
+async function xbrReadSkill(name) {
+  try {
+    const r = await api.fetchApi("/xb_toolbox/skills/get?name=" + encodeURIComponent(name));
+    const j = await r.json().catch(() => ({}));
+    return r.ok && j.ok !== false ? String(j.text ?? "") : "";
+  } catch (_) { return ""; }
+}
+
+async function xbrSaveSkill(name, text) {
+  const r = await api.fetchApi("/xb_toolbox/skills/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, text }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) throw new Error(j.error || String(r.status));
+  if (Array.isArray(j.files)) xbrSkillFiles = j.files.slice();
+  return String(j.name || name);
+}
+
+async function xbrDeleteSkill(name) {
+  const r = await api.fetchApi("/xb_toolbox/skills/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) throw new Error(j.error || String(r.status));
+  if (Array.isArray(j.files)) xbrSkillFiles = j.files.slice();
+}
+
+/** 「skill」下拉的选项：后端文件列表 → widget 自带选项（去掉「不使用」占位） */
+function xbrSkillOptions(node) {
+  const fromWidget = xbrWidgetOptions(node, "skill_name").filter((v) => v && v !== SKILL_NONE_VALUE);
+  if (!Array.isArray(xbrSkillFiles) || !xbrSkillFiles.length) return fromWidget;
+  return xbrSkillFiles.slice();
+}
+
+/** 把最新的技能文件列表同步回 widget（保持当前选中值） */
+function xbrSyncSkillWidget(node) {
+  const w = xbrWidget(node, "skill_name");
+  if (!w || !Array.isArray(xbrSkillFiles)) return;
+  const values = [SKILL_NONE_VALUE].concat(xbrSkillFiles);
+  try {
+    if (w.options) {
+      if (Array.isArray(w.options.values)) w.options.values = values;
+      else w.options.values = values;
+    } else if (Array.isArray(w.values)) w.values = values;
+  } catch (_) {}
+}
+
+/** 编辑 / 新增 skill：选择或新建 → 大文本框编写 → 保存 / 删除 */
+async function xbrShowSkillEditor(node, presetName, onChanged) {
+  await xbrFetchSkills(true);
+  const files = xbrSkillOptions(node);
+  const { body, close } = xbrPresetDialog("✏️ 编辑 skill（技能文档整段作为 LLM 的系统提示词）");
+
+  const rowSel = el("div", "display:flex;gap:6px;align-items:center;flex:1 1 300px;min-width:240px;flex-wrap:nowrap;");
+  const sel = el("select", "flex:1 1 260px;min-width:200px;height:2em;background:#1e1e1e;color:#ddd;"
+    + "border:1px solid #444;border-radius:4px;padding:0 6px;font-size:1em;font-family:inherit;");
+  rowSel.append(el("span", "color:#aaa;white-space:nowrap;", "已有 skill（选中即载入）"), sel);
+
+  const rowName = el("div", "display:flex;gap:6px;align-items:center;flex:1 1 260px;min-width:220px;flex-wrap:nowrap;");
+  rowName.append(el("span", "color:#aaa;white-space:nowrap;", "文件名"));
+  const nameInput = el("input", "flex:1;min-width:140px;height:2em;background:#1e1e1e;color:#ddd;"
+    + "border:1px solid #444;border-radius:4px;padding:0 8px;font-size:1em;font-family:inherit;");
+  nameInput.type = "text";
+  nameInput.placeholder = "例如：my_skill.txt（同名 = 覆盖，新名 = 新建）";
+  rowName.append(nameInput);
+  const firstRow = el("div", "display:flex;gap:10px;align-items:center;flex:0 0 auto;flex-wrap:wrap;");
+  firstRow.append(rowSel, rowName);
+
+  const boxHead = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;flex:0 0 auto;");
+  const charCount = el("span", "color:#8a8a8a;font-variant-numeric:tabular-nums;", "0 字");
+  boxHead.append(el("span", "color:#9fc3e8;font-weight:bold;", "skill 全文（整段作为系统提示词）"), charCount);
+
+  const box = el("textarea", "width:100%;flex:1 1 auto;min-height:300px;resize:vertical;box-sizing:border-box;"
+    + "background:#1d1d1d;color:#ddd;border:1px solid #444;border-radius:5px;padding:10px 12px;"
+    + "line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-family:inherit;font-size:15px;");
+  box.spellcheck = false;
+  box.placeholder = "在这里编写技能文档（角色设定 + 输出契约）…";
+  const fitBox = () => {
+    charCount.textContent = `${box.value.length} 字`;
+    const lines = box.value.split("\n").length;
+    box.style.minHeight = Math.min(560, Math.max(300, lines * 26 + 48)) + "px";
+  };
+  box.addEventListener("input", fitBox);
+  fitBox();
+
+  const hint = el("div", "color:#8a8a8a;font-size:0.88em;word-break:break-all;flex:0 0 auto;",
+    "保存位置：xb_skill/skills/　（同一批文件也被「🖼️ Qwen2.1提示词预设」等节点共用）");
+  const status = el("div", "min-height:18px;color:#aaa;flex:0 0 auto;");
+  const foot = el("div", "display:flex;justify-content:flex-end;gap:6px;flex:0 0 auto;flex-wrap:wrap;");
+  const btnCss = "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:5px 14px;font-size:12px;";
+
+  const fillSelect = () => {
+    const cur = sel.value;
+    sel.replaceChildren();
+    const optNew = el("option", "", "＋ 新建 skill（在右侧填写文件名）");
+    optNew.value = "";
+    sel.append(optNew);
+    for (const f of xbrSkillOptions(node)) {
+      const o = el("option", "", f);
+      o.value = f;
+      sel.append(o);
+    }
+    sel.value = (cur && Array.from(sel.options).some((o) => o.value === cur)) ? cur : "";
+  };
+  fillSelect();
+
+  const loadInto = async (name) => {
+    status.style.color = "#aaa"; status.textContent = "读取中…";
+    const txt = await xbrReadSkill(name);
+    box.value = txt;
+    nameInput.value = name;
+    status.style.color = "#8bc34a";
+    status.textContent = txt ? `已载入「${name}」（${txt.length} 字），修改后点「保存」即可覆盖`
+                             : `「${name}」暂无内容，可直接编写后保存`;
+    fitBox();
+  };
+  sel.addEventListener("change", () => {
+    if (sel.value) { loadInto(sel.value); return; }
+    nameInput.value = "";
+    status.style.color = "#aaa";
+    status.textContent = "新建 skill：在右侧填写文件名并编写内容";
+    try { nameInput.focus(); } catch (_) {}
+  });
+
+  const saveBtn = smallBtn("保存", btnCss + "border-color:#3f86d0;background:#22456b;color:#eaf4ff;",
+    "保存技能文件（同名覆盖 / 新名新建）", async () => {
+      const name = String(nameInput.value || "").trim();
+      if (!name) { status.style.color = "#ff8a80"; status.textContent = "请先填写文件名"; nameInput.focus(); return; }
+      if (!String(box.value).trim()) { status.style.color = "#ff8a80"; status.textContent = "内容是空的，没有可保存的内容"; box.focus(); return; }
+      status.style.color = "#aaa"; status.textContent = "保存中…";
+      try {
+        const saved = await xbrSaveSkill(name, box.value);
+        xbrSyncSkillWidget(node);
+        fillSelect();
+        sel.value = saved;
+        nameInput.value = saved;
+        status.style.color = "#8bc34a"; status.textContent = `已保存：${saved}`;
+        notify(`skill「${saved}」已保存`, "success");
+        try { onChanged?.(); } catch (_) {}
+      } catch (e) { status.style.color = "#ff8a80"; status.textContent = "保存失败：" + ((e && e.message) || e); }
+    });
+  const delBtn = smallBtn("删除", btnCss, "删除选中的技能文件", async () => {
+    const name = sel.value;
+    if (!name) { status.style.color = "#ff8a80"; status.textContent = "请先在上方选中要删除的 skill"; return; }
+    try {
+      await xbrDeleteSkill(name);
+      xbrSyncSkillWidget(node);
+      fillSelect();
+      box.value = ""; fitBox();
+      status.style.color = "#ffc107"; status.textContent = `已删除：${name}`;
+      notify(`skill「${name}」已删除`, "warning");
+      try { onChanged?.(); } catch (_) {}
+    } catch (e) { status.style.color = "#ff8a80"; status.textContent = "删除失败：" + ((e && e.message) || e); }
+  });
+  const closeBtn = smallBtn("关闭", btnCss, "关闭窗口", close);
+  foot.append(delBtn, saveBtn, closeBtn);
+  body.append(firstRow, boxHead, box, hint, status, foot);
+
+  if (presetName && files.includes(presetName)) { sel.value = presetName; await loadInto(presetName); }
+  else if (files.length) { sel.value = files[0]; await loadInto(files[0]); }
+  try { box.focus(); } catch (_) {}
+}
+
 /* ── 弹窗内容：✨ 提示词增强预设 ─────────────────────────── */
 function xbrRenderPreset(body, node, draft, ctx) {
-  const s = draft.settings.llm;
+  const btnCss = "border:1px solid #555;background:#2b2b2b;color:#ddd;padding:4px 12px;font-size:12px;";
 
-  body.append(makeSectionTitle("生图预设"));
-  body.append(field("空latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
-  body.append(xbrHint("空latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
-  // ── 模版（文生图 / 图生图）：决定用哪一套设定词（每个预设模式都有两套）──
-  // ⚠️ 模版选择（自动 / 文生图 / 图生图）已按用户要求删除：本节点固定文生图
-  body.append(field("预设模式", selectControl(MODES, draft.mode, (v) => {
-    draft.mode = v;
-    // 换模式 → 立刻取该模式的设定词（用户改过的存档 → 默认）
-    draft.presetTouched = false;
-    draft.presetText = xbrPresetTextFor(node, v, draft.lang, IO_T2I);
-    ctx.rerender();     // 有/无设定词的模式之间切换 → 重画「设定词」区
-  })));
-  // 当前模式提示（Pro 没有图生图档：模版固定文生图）
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.7;margin:2px 0 8px;",
-    (draft.mode === MODE_TP)
-      ? "无预设：不前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
-      : "设定词会作为【参考设定】送给 LLM，并原封不动置顶到最终提示词最顶端（本节点固定文生图，设定词只有一套）。"));
+  // ── 设定词：文本框 + 预设词工具（添加 / 编辑 / 复制）──────────────────────
+  body.append(makeSectionTitle("设定词"));
+  const libRow = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;");
+  libRow.append(
+    smallBtn("＋ 添加预设", btnCss, "列出 xb_skill 里的预设词，点一项填入下面的「设定词」",
+      () => {
+        xbrShowPresetPicker(node, (label, txt) => {
+          draft.presetText = String(txt || "");
+          draft.presetTouched = true;
+          notify(`已把预设「${label}」填入设定词`, "success");
+          ctx.rerender();
+        });
+      }),
+    smallBtn("✏️ 编辑预设", btnCss, "选择 / 新建预设词 → 在大文本框里编辑 → 保存 / 删除 / 一键备份",
+      () => { xbrShowPresetEditor(node); }),
+    smallBtn("📋 复制文本", btnCss, "复制下面「设定词」文本框的全部文字",
+      () => {
+        const text = String(draft.presetText || "");
+        if (!text.trim()) { notify("设定词是空的，没有可复制的内容", "warning"); return; }
+        copyText(text, "设定词");
+      }),
+  );
+  body.append(libRow);
 
-  // ── 设定词（按「模式 × 语言」取；只在弹窗里编辑，节点表面不显示；本节点固定文生图）──
-  //    无预设档：这一栏**照样显示**，只是内容空白（用户可以自己写）
-  const modeDef = presetTextOf(draft.mode, draft.lang, IO_T2I);
-  {
-    body.append(makeSectionTitle("设定词"));
-    draft.presetText = String(draft.presetText || "");
-    if (modeDef && !draft.presetText.trim()) draft.presetText = modeDef;
-    const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
-      "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
-    taP.placeholder = modeDef
-      ? "该模式在当前语言下的设定词；改过的按「模式 + 语言」记进节点，换模式 / 换语言都不丢"
-      : "无预设：本档不前置设定词（保持空白即可；在这里写内容就会作为设定词置顶）";
-    taP.spellcheck = false;
-    body.append(taP);
-    const taRow = el("div", "display:flex;align-items:center;gap:10px;margin:6px 0 4px;");
-    if (modeDef) {
-      taRow.append(smallBtn("♻️ 恢复默认", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
-        "把设定词恢复为该模式 × 该语言的默认文本",
-        () => { draft.presetText = modeDef; draft.presetTouched = false; ctx.rerender(); }));
-    }
-    taRow.append(el("span", "font-size:11px;color:#888;",
-      !modeDef ? (draft.presetText.trim() ? "当前 = 自定义" : "当前 = 空白（不前置设定词）")
-               : (draft.presetText === modeDef ? "当前 = 默认" : "当前 = 自定义")));
-    body.append(taRow);
-    if (modeDef) {
-      body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
-        "· 最终输出时，设定词会原封不动加在增强后提示词的最顶端；\n"
-        + "· LLM 只增强正文，把设定词当作增强参考，不会改写它；\n"
-        + "· 改过的设定词随节点保存，换模式 / 换语言都会取回你改过的那一版。"));
-    } else {
-      body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
-        "· 无预设档：不管接不接参考图，节点都不会自动前置设定词；\n"
-        + "· 如果在这一栏写了内容，它会作为增强参考交给 LLM、并原封不动置于最终提示词最顶端。"));
-    }
-  }
-
-  body.append(makeSectionTitle("增强预设（= 提示词设定 / system prompt）"));
-  const presetOpts = xbrFilterByLang(xbrWidgetOptions(node, "preset"), draft.lang);
-  if (presetOpts.length) body.append(field("增强预设", selectControl(presetOpts, draft.preset, (v) => { draft.preset = v; })));
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
-    `该预设内容即「🧩 提示词设定」输出的正文，同时作为 LLM 反推的系统提示词；只列与输出语言 ${draft.lang} 相符的预设。`));
-
-  body.append(makeSectionTitle("反推预设"));
-  const taskOpts = xbrFilterByLang(xbrWidgetOptions(node, "task_preset"), draft.lang);
-  if (taskOpts.length) body.append(field("反推预设", selectControl(taskOpts, draft.task_preset, (v) => { draft.task_preset = v; })));
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「📝 提示词」填入。"));
-
-  body.append(makeSectionTitle("追加设定（可留空）"));
-  const ta = textareaControl(s.extra_system, (v) => { s.extra_system = v; },
-    "width:100%;box-sizing:border-box;min-height:200px;resize:vertical;");
-  ta.placeholder = "追加在增强预设之后的额外要求，例：只输出一行、不要解释过程…";
-  ta.spellcheck = false;
-  body.append(ta);
-
-  // ── SKILL（系统提示词）：单选下拉 = 不使用 skill ／ 选文档名（三态勾选已按用户要求删除）──
-  body.append(makeSectionTitle("SKILL（系统提示词）"));
-  const skillOptsRaw = xbrWidgetOptions(node, "skill_name");
-  // 显示列：第一项固定为「不使用 skill」（值 = 后端 SKILL_NONE），其余为文档名
-  const skillOpts = [SKILL_NONE_LABEL].concat(skillOptsRaw.filter((v) => v && v !== SKILL_NONE_VALUE));
-  // 旧工作流里可能是「自动 / 手动 / 不用」三态：自动 → 显示它当时实际用的那份文档
-  const autoFile = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "";
-  if (!draft.skillPicked) {
-    const sm = String(draft.skillMode || "");
-    const cur = String(draft.skill || "");
-    if (sm === "自动") draft.skill = skillOpts.includes(autoFile) ? autoFile : SKILL_NONE_LABEL;
-    else if (sm === "不用" || !cur || cur === SKILL_NONE_VALUE) draft.skill = SKILL_NONE_LABEL;
-    else draft.skill = skillOpts.includes(cur) ? cur : SKILL_NONE_LABEL;
-    draft.skillPicked = true;
-  }
-  if (!skillOpts.includes(draft.skill)) draft.skill = SKILL_NONE_LABEL;
-  body.append(field("SKILL", selectControl(skillOpts, draft.skill, (v) => {
-    draft.skill = v;
-    draft.skillPicked = true;
-    ctx.rerender();
-  })));
-  const foxRowP = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;");
-  foxRowP.append(smallBtn("📂 打开 SKILL 文件夹", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
-    "在资源管理器里打开 support_llama/skills，方便新增 / 编辑技能文件",
-    async () => {
-      try {
-        const r = await fetch("/xb_toolbox/skill_folder");
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.ok === false) notify("打开失败：" + (j.info || r.status), "error");
-        else notify("已打开：" + (j.path || "skills"), "success");
-      } catch (e) { notify("打开失败：" + ((e && e.message) || e), "error"); }
-    }));
-  foxRowP.append(el("span", "font-size:11px;color:#8fb;",
-    draft.skill === SKILL_NONE_LABEL ? "当前 = 不使用 skill（LLM 用内置默认系统提示词）" : ("当前 = " + draft.skill)));
-  body.append(foxRowP);
+  draft.presetText = String(draft.presetText || "");
+  const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
+    "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
+  taP.placeholder = "这里写「前置设定词」：只在最终输出时加到提示词最上方，不参与 LLM 增强/反推。\n"
+    + "也可以点上方「＋ 添加预设」从 xb_skill 预设词里选一段填进来。";
+  taP.spellcheck = false;
+  body.append(taP);
   body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
-    "· 不使用 skill = 不把任何技能文档当系统提示词（LLM 用内置默认模板）；\n"
-    + "· 选文档 = 该文档整段作为 LLM 的 system prompt（放在最前面当角色与总规则，**不再叠加**节点的语言提示）；\n"
-    + "· 技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md），新增后刷新页面即可出现在下拉里；\n"
-    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与。"));
+    `· 当前 ${draft.presetText.trim().length} 字${draft.presetText.trim() ? "" : "（留空 = 不前置设定词）"}；\n`
+    + "· 设定词【不参与 LLM】：模型只按 skill / 增强预设+反推预设 增强你写的正文；\n"
+    + "· 它只在最终输出时被原封不动加到（LLM 生成的）提示词最上方；\n"
+    + "· 预设文件位置：xb_skill/XB_ImagePromptPreset/{ZH,EN}，与「🖼️ 生图提示词预设」共用。"));
+
+  // ══════════════════════════════════════════════════════════════
+  //  提示词增强（只有开启「✅ 启用 LLM 反推」时才参与）
+  //  设定词来源二选一：
+  //   · skill    → xb_skill/skills 里的技能文档整段当系统提示词（可编辑 / 新增）
+  //   · 预设词   → 用「增强预设 + 反推预设」两个下拉（= 原「增强 + 反推」二合一）
+  //  关闭 LLM 反推时本段完全不参与，节点行为与「🖼️ 生图提示词预设」一致。
+  // ══════════════════════════════════════════════════════════════
+  body.append(makeSectionTitle("提示词增强"));
+  const rev = (draft.settings.llm.reverse = draft.settings.llm.reverse || { source: "skill", label: "", text: "" });
+  body.append(field("设定词来源", radioRow([
+    { value: "skill", label: "skill（技能文档）" },
+    { value: "preset", label: "预设词" },
+  ], rev.source, (v) => { rev.source = v; ctx.rerender(); })));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.7;margin:2px 0 8px;",
+    "决定开启「✅ 启用 LLM 反推」时系统提示词的来源；关闭 LLM 反推时本段不参与。\n"
+    + "· skill：技能文档整段当系统提示词（自带语言与输出契约，不再叠加下面的增强预设）\n"
+    + "· 预设词：用下面的「增强预设 + 反推预设」组合，与「🖼️ 生图提示词预设」共用同一批预设 txt"));
+
+  if (rev.source === "skill") {
+    // ── skill：下拉（不使用 skill ／ 选文档）+ 打开文件夹 + 编辑 / 新增 ──
+    const skillOpts = [SKILL_NONE_LABEL].concat(xbrSkillOptions(node));
+    // 旧工作流里可能是「自动 / 手动 / 不用」三态：自动 → 显示它当时实际用的那份文档
+    const autoFile = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "";
+    if (!draft.skillPicked) {
+      const sm = String(draft.skillMode || "");
+      const cur = String(draft.skill || "");
+      if (sm === "自动") draft.skill = skillOpts.includes(autoFile) ? autoFile : SKILL_NONE_LABEL;
+      else if (sm === "不用" || !cur || cur === SKILL_NONE_VALUE) draft.skill = SKILL_NONE_LABEL;
+      else draft.skill = skillOpts.includes(cur) ? cur : SKILL_NONE_LABEL;
+      draft.skillPicked = true;
+    }
+    if (!skillOpts.includes(draft.skill)) draft.skill = SKILL_NONE_LABEL;
+    body.append(field("skill", selectControl(skillOpts, draft.skill, (v) => {
+      draft.skill = v;
+      draft.skillPicked = true;
+      ctx.rerender();
+    })));
+    const skillRow = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;");
+    skillRow.append(
+      smallBtn("📂 打开 skill 文件夹", btnCss, "在资源管理器里打开 xb_skill/skills",
+        async () => {
+          try {
+            const r = await fetch("/xb_toolbox/skill_folder");
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || j.ok === false) notify("打开失败：" + (j.info || r.status), "error");
+            else notify("已打开：" + (j.path || "skills"), "success");
+          } catch (e) { notify("打开失败：" + ((e && e.message) || e), "error"); }
+        }),
+      smallBtn("✏️ 编辑 skill", btnCss, "选择已有技能文档 → 在大文本框里编辑 → 保存 / 删除",
+        () => { xbrShowSkillEditor(node, draft.skill && draft.skill !== SKILL_NONE_LABEL ? draft.skill : "", () => ctx.rerender()); }),
+      smallBtn("＋ 新增 skill", btnCss, "新建一份技能文档（写入 xb_skill/skills）",
+        () => { xbrShowSkillEditor(node, "", () => ctx.rerender()); }),
+    );
+    skillRow.append(el("span", "font-size:11px;color:#8fb;",
+      draft.skill === SKILL_NONE_LABEL ? "当前 = 不使用 skill（LLM 用内置默认系统提示词）" : ("当前 = " + draft.skill)));
+    body.append(skillRow);
+    body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
+      "· 不使用 skill = 不把任何技能文档当系统提示词（LLM 用内置默认模板）；\n"
+      + "· 选文档 = 该文档整段作为 LLM 的系统提示词（放在最前面当角色与总规则，**不再叠加**增强预设）；\n"
+      + "· 技能文件放在 XB_ToolBox/xb_skill/skills（.txt / .md），保存后立即出现在下拉里；\n"
+      + "· 「✅ 启用 LLM 反推」关闭时本段不参与。"));
+  } else {
+    // ── 预设词：系统提示词由下面的「增强预设 + 反推预设」决定 ──
+    // 增强预设（= 提示词设定 / system prompt）
+    body.append(makeSectionTitle("增强预设（= 提示词设定 / system prompt）"));
+    const presetOpts = xbrFilterByLang(xbrWidgetOptions(node, "preset"), draft.lang);
+    if (presetOpts.length) {
+      body.append(field("增强预设", selectControl(presetOpts, draft.preset, (v) => { draft.preset = v; })));
+    } else {
+      body.append(el("div", "font-size:11px;color:#ffb74d;", "没有可用的增强预设（检查 LLM 预设模块是否正常加载）"));
+    }
+    body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
+      `该预设内容即「🧩 提示词设定」输出的正文，同时作为 LLM 的系统提示词；只列与输出语言 ${draft.lang} 相符的预设。`));
+    const enhRow = el("div", "display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;");
+    enhRow.append(smallBtn("✏️ 编辑增强预设", btnCss, "编辑增强预设 txt（面板与「设定词 → 编辑预设」完全一致）",
+      () => {
+        xbrShowPresetEditor(node, {
+          nodeName: XBR_ENHANCER_NODE,
+          title: "✏️ 编辑增强预设（选择或新建 → 在下方大文本框里编写 → 保存）",
+          contentLabel: "增强预设全文（= 提示词设定 / system prompt）",
+          placeholder: "在这里编写增强预设（角色设定 + 输出约定）…",
+          fromPrompt: false,
+          fetch: async () => {
+            const lang = String(xbrWidgetVal(node, "output_lang") ?? LANG_ZH);
+            const j = await xbrFetchLlmPresets("enhancer", lang);
+            const L = xbrLibLang(lang);
+            const texts = {};
+            for (const [k, v] of Object.entries(j?.texts || {})) texts[k] = { [L]: v };
+            return { modes: (j && j.labels) || [], texts, lang: j?.lang || "ZH", backup_dir: j?.backup_dir };
+          },
+          onSaved: async () => {
+            await xbrMergeWidgetFileOptions(node, "preset", XBR_ENHANCER_NODE);
+            try { ctx.rerender(); } catch (_) {}
+          },
+        });
+      }));
+    body.append(enhRow);
+
+    // 反推预设（任务模板：标签 / 简洁 / 详细 …）
+    body.append(makeSectionTitle("反推预设"));
+    const taskOpts = xbrFilterByLang(xbrWidgetOptions(node, "task_preset"), draft.lang);
+    if (taskOpts.length) {
+      body.append(field("反推预设", selectControl(taskOpts, draft.task_preset, (v) => { draft.task_preset = v; })));
+    } else {
+      body.append(el("div", "font-size:11px;color:#ffb74d;", "没有可用的反推预设"));
+    }
+    body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
+      "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「📝 提示词」填入。"));
+    const taskRow = el("div", "display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;");
+    taskRow.append(smallBtn("✏️ 编辑反推预设", btnCss, "编辑反推预设 txt（面板与「设定词 → 编辑预设」完全一致）",
+      () => {
+        xbrShowPresetEditor(node, {
+          nodeName: XBR_TASK_NODE,
+          title: "✏️ 编辑反推预设（选择或新建 → 在下方大文本框里编写 → 保存）",
+          contentLabel: "反推预设全文（任务模板，* = 用户提示词占位）",
+          placeholder: "在这里编写反推任务模板，例：请描述这张@。\\n（* 会被用户提示词替换）",
+          fromPrompt: false,
+          fetch: async () => {
+            const lang = String(xbrWidgetVal(node, "output_lang") ?? LANG_ZH);
+            const j = await xbrFetchLlmPresets("task", lang);
+            const L = xbrLibLang(lang);
+            const texts = {};
+            for (const [k, v] of Object.entries(j?.texts || {})) texts[k] = { [L]: v };
+            return { modes: (j && j.labels) || [], texts, lang: j?.lang || "ZH", backup_dir: j?.backup_dir };
+          },
+          onSaved: async () => {
+            await xbrMergeWidgetFileOptions(node, "task_preset", XBR_TASK_NODE);
+            try { ctx.rerender(); } catch (_) {}
+          },
+        });
+      }));
+    body.append(taskRow);
+  }
 }
 
 /* ── 弹窗内容：📖 使用说明 ───────────────────────────────── */
@@ -3726,7 +4358,7 @@ function xbrRenderHelp(body) {
     "  · 第 2 行按钮：🎨 风格 ｜ 📐 视角 ｜ 👤 主体 ｜ 🕺 姿态 ｜ 👗 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景",
     "  · 画幅比例 / 宽度 / 高度 / 生成数量：数值会按当前空latent类型的官方步长自动对齐",
     "  · ✅ 启用 LLM 反推：关 = 只输出拼装好的提示词，不加载模型、不调 API",
-    "  · 提示词框右上角 📋 复制；下面是参数设定显示，实时告诉你当前是什么配置",
+    "  · 提示词框右上角「复制文本」；下面是参数设定显示，实时告诉你当前是什么配置",
     "",
     "【元素面板怎么用】",
     "  · 点选项行 = 加入提示词，再点一下 = 移除",
@@ -3747,10 +4379,10 @@ function xbrRenderHelp(body) {
     "  · 📝 提示词：最终提示词，直接进文本编码器",
     "  · 📊 空latent：第二位，直接进采样器",
     "  · 📋 提示词列表：按行拆分，方便批量处理",
-    "  · 🧩 提示词设定：本次的提示词设定，即增强预设 + 输出语言 + 追加设定 + 设定词",
+    "  · 🧩 提示词设定：本次的提示词设定，即反推预设 + 输出语言 + 设定词",
     "",
     "【空latent 类型】",
-    "  Anima / Boogu / Flux2 / Hunyuan / Krea2 / Qwen-image / SD3 / SDXL / Z-image",
+    "  Anima / Boogu / Flux2 / Flux3 / Hunyuan / Krea2 / Moss-image / Qwen-image / SD3 / SDXL / Z-image",
     "  选你正在用的模型即可：通道数、下采样、尺寸步长、batch 上限会自动切换",
     "",
     "【预设模式】（4 档，每档自带一段设定词，可自由修改）",
@@ -3761,19 +4393,20 @@ function xbrRenderHelp(body) {
     "  · 本节点固定文生图（模版选择已删）：不会出现「以输入图为准」类条款",
     "  · 🖼️ 图像端口只用于 LLM 反推（看图改图 / 看图反推），不会改变设定词",
     "",
-    "【SKILL 技能（系统提示词）】",
-    "  · ✨ 预设参数 → SKILL：support_llama/skills 里的 txt 整段当 LLM 的 system prompt",
-    "    面板里点「📂 打开 SKILL 文件夹」可直接打开，新增后刷新页面即出现在下拉",
-    "  · SKILL（二选一）：",
-    "      ◆ 不使用 skill = 不送任何技能文档（LLM 用内置默认系统提示词）",
-    "      ◆ 选具体文档名 = 该文档整段当 system prompt（不再叠加节点的语言提示）",
-    "  · 选中后系统提示词 = 技能 + 增强预设 + 设定词参考 + 追加设定 + 任务块",
-    "  · 技能自带语言与输出契约 → 选中时不再叠加节点的语言提示（避免互相对打）",
-    "  · 勾选开关关掉 ✅ 启用 LLM 反推时 SKILL 不参与",
+    "【提示词增强】（只有开启 ✅ 启用 LLM 反推 时才参与）",
+    "  · ✨ 预设参数 → 提示词增强 → 设定词来源：二选一",
+    "      ◆ skill（技能文档）= xb_skill/skills 里的文档整段当系统提示词",
+    "        按钮：📂 打开 skill 文件夹 ｜ ✏️ 编辑 skill ｜ ＋ 新增 skill（保存后立即出现在下拉）",
+    "        选「不使用 skill」= 不送技能文档（LLM 用内置默认系统提示词）",
+    "      ◆ 预设词 = 用「增强预设 + 反推预设」两个下拉（= 原「增强 + 反推」二合一）",
+    "        增强预设 = 提示词设定 / system prompt；反推预设 = 任务模板（标签 / 简洁 / 详细 …）",
+    "        「＋ 添加预设 / ✏️ 编辑预设 / 📋 复制文本」与基础节点完全一致",
+    "  · 系统提示词 = 设定词来源 + 设定词参考 + 只输出最终提示词的硬规则 + 任务块",
+    "  · 关闭 ✅ 启用 LLM 反推 时本段完全不参与，节点行为与「🖼️ 生图提示词预设」一致",
     "",
     "【语言只有一处】",
-    "  🤖 LLM设置 → 输出语言，它同时决定：词表与设定词按哪种语言加载、",
-    "  增强预设与反推预设只列哪种语言的选项、最终提示词是中文还是英文",
+    "  🤖 LLM设置 → 输出语言（节点表面也能直接改），它同时决定：词表与设定词按哪种语言加载、",
+    "  预设词与最终提示词用中文还是英文",
     "",
     "【输出为什么总是干净的】",
     "  · 🧠 过滤思考过程 默认开：系统提示词末尾有最高优先级的「只输出最终提示词」硬规则",
@@ -3788,7 +4421,7 @@ function xbrRenderHelp(body) {
     "【常见问题】",
     "  · 报「未选择本地模型」：去 🤖 LLM设置 选一个 .gguf，或者切到在线 API",
     "  · 在线 API 报错：检查服务商 / 模型名 / Base URL / API Key",
-    "  · 想让结果更贴原图：温度调低一点，或换一档更偏描述的增强预设",
+    "  · 想让结果更贴原图：温度调低一点，或换一段更贴原图的预设词 / skill",
     "  · 节点表面参数很少？故意的：选项都收在弹窗里，表面只留最常动的几个",
     "  · 改完参数要重新执行节点才生效",
   ];
@@ -3799,6 +4432,15 @@ const XBR_PANEL_RENDER = { llm: xbrRenderLlm, preset: xbrRenderPreset, help: xbr
 
 async function xbrOpenModal(node, panelId) {
   if (xbrModal) { try { xbrModal.close(); } catch (_) {} }
+  if (panelId === "preset") {
+    // ⚠️ 必须在建 draft 之前取：预设模式的可选范围来自预设 txt（与「添加预设」同一批文件），
+    //    否则老工作流里存的档位会被 xbrPick 判成非法值退回「无预设」。
+    try { await xbrFetchPresetLib(true); } catch (_) {}
+    try { await xbrFetchSkills(true); } catch (_) {}
+    // 增强预设 / 反推预设 也支持文件化编辑 → 把 txt 里的新标签并进 widget 选项
+    try { await xbrMergeWidgetFileOptions(node, "preset", XBR_ENHANCER_NODE); } catch (_) {}
+    try { await xbrMergeWidgetFileOptions(node, "task_preset", XBR_TASK_NODE); } catch (_) {}
+  }
   const meta = XBR_PANEL_BUTTONS.find((b) => b.id === panelId) || XBR_PANEL_BUTTONS[0];
   const cur = xbrCurJson(node);
   const autoSaveRef = { value: cur.auto_save !== false };
@@ -3810,17 +4452,10 @@ async function xbrOpenModal(node, panelId) {
     lang: xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]),
     kind: xbrPick(String(xbrWidgetVal(node, "latent_kind") ?? ""), LATENT_KINDS, LATENT_KINDS[0]),
     mode: xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]),
-    // 设定词（Pro 固定文生图，每个模式只有一套）：弹窗内草稿 + 「用户是否改过」标记
-    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 默认」（无预设 = 空）
-    presetText: (() => {
-      const w = String(xbrWidgetVal(node, "three_view_text") ?? "");
-      const md = xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]);
-      const lg = xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]);
-      if (w.trim() && !isDefaultPresetText(md, w)) return w;
-      return xbrPresetTextFor(node, md, lg, IO_T2I);
-    })(),
+    // 设定词：预设模式下拉已取消 → 直接就是节点里存的那段文本（留空 = 不前置）
+    presetText: String(xbrWidgetVal(node, "three_view_text") ?? ""),
     presetTouched: false,
-    // SKILL 选择（support_llama/skills 里的技能文件 = system prompt）
+    // SKILL 选择（xb_skill/skills 里的技能文件 = system prompt）
     skill: String(xbrWidgetVal(node, "skill_name") ?? ""),
     skillMode: (() => { const v = String(xbrWidgetVal(node, "skill_mode") ?? ""); return XBR_SKILL_MODES.includes(v) ? v : "自动"; })(),
     skillPicked: false,        // 面板上是否已经按「不使用 skill ／ 选文档」映射过一次
@@ -3830,6 +4465,10 @@ async function xbrOpenModal(node, panelId) {
   draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, draft.lang);
 
   let apiSaved = null, providers = [XBR_DEFAULT_PROVIDER];
+  if (panelId === "preset") {
+    // 预设文件列表已在上方取过；把最新的 skill 文件同步回 widget（新增 / 删除后下拉即时更新）
+    try { xbrSyncSkillWidget(node); } catch (_) {}
+  }
   if (panelId === "llm") {
     try {
       const r = await xbrApiGet();
@@ -3849,18 +4488,13 @@ async function xbrOpenModal(node, panelId) {
         node.__xbrProApiInfo = apiSaved;
       } catch (e) { notify("API 配置保存失败：" + ((e && e.message) || e), "error"); }
     }
-    xbrSetWidget(node, "output_lang", draft.lang, true);      // 唯一语言设置
-    xbrSetWidget(node, "latent_kind", draft.kind, true);      // 触发基础面板的步长/上限联动
-    xbrSetWidget(node, "preset_mode", draft.mode, true);      // 触发预设句框显隐
+    xbrSetWidget(node, "output_lang", draft.lang, true);      // 唯一语言设置（节点表面同样可见）
+    xbrSetWidget(node, "preset_mode", MODE_TP, true);         // 预设模式下拉已取消 → 恒为「无预设」
     // SKILL：单选下拉 = 不使用 skill ／ 选文档名 → 落盘成「skill_mode + skill_name」两件套
     xbrSetWidget(node, "skill_name", draft.skill === SKILL_NONE_LABEL ? SKILL_NONE_VALUE : draft.skill);
     xbrSetWidget(node, "skill_mode", draft.skill === SKILL_NONE_LABEL ? "不用" : "手动");
-    // 设定词：写进节点 widget（原样）+ 按「模式|语言」存档 → 换模式 / 换语言都不丢
-    //   ⚠️ 一律写（包含「无预设」时写空串）→ 顺手把 widget 里的遗留默认句清掉
-    try {
-      node.__ippSetPreset?.(draft.presetText);
-      node.__ippWritePreset?.(draft.mode, IO_T2I, draft.lang, draft.presetText);
-    } catch (_) {}
+    // 设定词：直接就是节点里保存的文本（用户手写或从预设词填入；留空 = 不前置）
+    try { node.__ippSetPreset?.(draft.presetText); } catch (_) {}
     xbrSetWidget(node, "backend", draft.backend, true);
     xbrSetWidget(node, "preset", draft.preset, true);
     xbrSetWidget(node, "task_preset", draft.task_preset, true);
@@ -3922,27 +4556,36 @@ function xbrInfoLines(node, promptText) {
   const llm = xbrParseLlm(xbrCurJson(node).llm);
   const useLlm = !!xbrWidgetVal(node, "use_llm");
   const backend = String(xbrWidgetVal(node, "backend") ?? "");
-  const pMode = String(xbrWidgetVal(node, "preset_mode") ?? "");
   const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
-  // 只显示选项名称（预设模式），不再显示设定词 / 模版的状态
-  const line2 = `🎨 预设模式：${xbrClean(pMode)}`;
+  // 设定词（预设模式下拉已取消）：只显示有没有设定词，不再显示档位名
+  const wPreset = String(xbrWidgetVal(node, "three_view_text") ?? "");
+  const line2 = `🎨 设定词：${wPreset.trim() ? wPreset.trim().length + " 字" : "空（不前置）"}`;
   const line3 = `🌐 输出语言：${xbrClean(xbrWidgetVal(node, "output_lang"))}`;
   const line4 = useLlm
     ? (backend === "在线 API"
       ? `🤖 LLM 反推：已启用 ｜ 在线API ｜ ${xbrClean((node.__xbrProApiInfo?.model) || XBR_API_DEFAULTS.model)}`
       : `🤖 LLM 反推：已启用 ｜ 本地模型 ｜ ${xbrClean(llm.model.model) || "未选择模型"}`)
     : "🤖 LLM 反推：未启用";
-  const line5 = `✨ 预设参数：${xbrClean(xbrWidgetVal(node, "preset")) || "-"} ｜ 🎯 反推预设：${xbrClean(xbrWidgetVal(node, "task_preset")) || "-"}`;
+  const rev = llm.reverse || { source: "skill", label: "", text: "" };
+  const skillName = String(xbrWidgetVal(node, "skill_name") ?? "");
+  const skillMode = String(xbrWidgetVal(node, "skill_mode") ?? "");
+  const skillShown = (skillMode === "不用" || !skillName || skillName === SKILL_NONE_VALUE)
+    ? "不使用 skill" : skillName;
+  const line5 = rev.source === "preset"
+    ? `🎯 提示词增强：预设词 ｜ 增强 ${xbrClean(xbrWidgetVal(node, "preset")) || "-"} ｜ 反推 ${xbrClean(xbrWidgetVal(node, "task_preset")) || "-"}`
+    : `🎯 提示词增强：skill ｜ ${xbrClean(skillShown)}`;
   const line6 = `⚙️ 温度 ${llm.params.temperature} · top_k ${llm.params.top_k} · top_p ${llm.params.top_p} · max_tokens ${llm.params.max_tokens} ｜ ${xbrClean(llm.run.inference_mode)} ｜ 种子 ${llm.run.seed}`;
   const line7 = `📝 提示词：${(promptText || "").length} 字`;
   return [line1, line2, line3, line4, line5, line6, line7].join("\n");
 }
 
-/** 提示词框标题行（左标签 + 右复制）+ 参数设定显示；并挂上端口锁定/执行回写/摘要刷新 */
+/** 提示词框标题行（左标签 + 右「复制文本」）+ 参数设定显示；并挂上端口锁定/执行回写/摘要刷新 */
 function xbrBuildPromptHeader(node, promptBox) {
   const head = el("div", "display:flex;align-items:center;gap:8px;flex:0 0 auto;");
   const lab = el("div", "font-size:12px;color:#bbb;", "📝 节点提示词（与面板预览框双向同步）");
-  const copy = smallBtn("📋 复制", "margin-left:auto;", "复制提示词框内容", () => { copyText(promptBox.value || ""); });
+  // 与「🖼️ 生图提示词预设」的提示词框右上角按钮完全同一套尺寸 / 配色
+  const copy = smallBtn("复制文本", "margin-left:auto;font-size:0.92em;line-height:1.35;height:1.9em;padding:0 0.75em;border-radius:4px;border:1px solid #555;background:#2b2b2b;color:#ddd;white-space:nowrap;",
+    "复制提示词框内容", () => { copyText(promptBox.value || ""); });
   head.append(lab, copy);
 
   const infoBox = el("div", "flex:0 0 auto;height:150px;overflow:auto;background:#1c1c1e;border:1px solid #333;border-radius:6px;padding:6px 9px;font-size:11px;line-height:1.65;color:#b9c6d2;white-space:pre-wrap;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;");

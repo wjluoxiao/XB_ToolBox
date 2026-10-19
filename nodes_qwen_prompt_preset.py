@@ -19,7 +19,7 @@ XB-BOX - 🖼️ Qwen2.1提示词预设
      repetition_penalty / presence_penalty / seed / thinking / use_default_template / mtp
    * 入参 prompt = 【参考设定·设定词】+【正文】+【额外要求·追加设定】
    · 出参 = 设定词原封不动置顶 + 生成文本（与「生图提示词预设」的成句规则一致）
-   · SKILL选择 = support_llama/skills 里的 txt，整段作为官方 Generate Text 的 system_prompt 送进模型
+   · SKILL选择 = xb_skill/skills 里的 txt，整段作为官方 Generate Text 的 system_prompt 送进模型
      （与官方同义：use_default_template = 关时 system_prompt 被忽略）
 
 输出：提示词 / 空latent（只有两路；没有 提示词列表 / 提示词设定）
@@ -104,7 +104,7 @@ def mode_needs_image(preset_mode):
 
 
 def mode_skill_hint(preset_mode):
-    """该预设模式推荐搭配的 SKILL 文件（support_llama/skills；仅供面板展示，不自动改用户设置）"""
+    """该预设模式推荐搭配的 SKILL 文件（xb_skill/skills；仅供面板展示，不自动改用户设置）"""
     return "system_prompt_edit.txt" if mode_needs_image(preset_mode) else "system_prompt_t2i.txt"
 
 # ── SKILL 三态：不用 / 手动 / 自动（默认自动）────────────────────────────
@@ -895,7 +895,7 @@ class XB_QwenPromptPreset:
                 }),
                 "skill_name": (skill_list(), {
                     "default": SKILL_NONE,
-                    "tooltip": "SKILL选择：support_llama/skills 里的 txt，整段作为模型自带的系统提示词（官方 Generate Text 的 system_prompt）；"
+                    "tooltip": "SKILL选择：xb_skill/skills 里的 txt，整段作为模型自带的系统提示词（官方 Generate Text 的 system_prompt）；"
                                "仅在「SKILL 模式 = 手动」时生效；「使用内置模板」关闭时也不生效",
                 }),
                 "aspect_ratio": (list(ASPECT_RATIO_OPTIONS), {

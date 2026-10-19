@@ -1032,8 +1032,10 @@ function setupNode(node) {
     } catch (_) {}
     node.setDirtyCanvas?.(true, true);
   };
-  refreshSize();
-  requestAnimationFrame(refreshSize);
+  // ⚠️ 不能在这里同步跑 refreshSize：工作流加载时 configure 还没应用存档尺寸，
+  //    先按默认 widget 算出来的高度会让节点「长高一下」，随后被存档高度拉回 → 刷新瞬间高度闪烁。
+  //    排到本轮任务末尾（configure 已落定）再做下限保护。
+  setTimeout(refreshSize, 0);
   setTimeout(refreshSize, 60);
   setTimeout(refreshSize, 1200);
   node._xbRefreshSize = refreshSize;
