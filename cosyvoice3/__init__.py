@@ -51,8 +51,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 # ASCII art banner
 ascii_art = """
-⡎⠑ ⢀⡀ ⢀⣀ ⡀⢀ ⡇⢸ ⢀⡀ ⠄ ⢀⣀ ⢀⡀ ⢉⡹
-⠣⠔ ⠣⠜ ⠭⠕ ⣑⡺ ⠸⠃ ⠣⠜ ⠇ ⠣⠤ ⠣⠭ ⠤⠜
+
 """
 print(f"\033[35m{ascii_art}\033[0m")
 print("XB CosyVoice3 Custom Nodes Loaded - Version 1.2.1")

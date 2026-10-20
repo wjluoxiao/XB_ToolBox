@@ -7,8 +7,116 @@ import { setWidgetValue } from "./xb_compat.js";
 
 const isZH = navigator.language.startsWith("zh");
 
+// 「时长估算」在 Nodes 2.0 里是 PrimeVue 文本框（padding 8px 16px → 31px 高），
+// 比旁边的数字框高一截；用一段 CSS 压成同样高度、同样的透明背景。
+const PARAMS_CSS = `
+div[node-type="XB_VideoParamsMaster"] input.p-inputtext[readonly] {
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 0 8px !important;
+  background: var(--color-component-node-widget-background, rgb(49, 50, 53)) !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  line-height: 24px !important;
+  color: inherit !important;
+}
+`;
+
+const injectParamsCss = () => {
+    try {
+        if (document.getElementById("xb-params-css")) return;
+        const st = document.createElement("style");
+        st.id = "xb-params-css";
+        st.textContent = PARAMS_CSS;
+        document.head.append(st);
+    } catch (_) { /* ignore */ }
+};
+injectParamsCss();
+
 // 共用「画幅比例 + 步长」联动的图像参数节点
 const IMAGE_PARAMS_NODES = new Set(["XB_ImageParamsMaster", "XB_ImageParamsMasterMini"]);
+const VIDEO_PARAMS_NODE = "XB_VideoParamsMaster";
+
+// 画幅比例：自定义 + 官方 Resolution Selector 的比例（旧值自动迁移）
+const RATIO_ALIAS = {
+    "Free": "自定义",
+    "1:1": "1:1 (Square)",
+    "2:3": "2:3 (Portrait Photo)",
+    "3:2": "3:2 (Photo)",
+    "3:4": "3:4 (Portrait Standard)",
+    "4:3": "4:3 (Standard)",
+    "9:16": "9:16 (Portrait Widescreen)",
+    "16:9": "16:9 (Widescreen)",
+    "21:9": "21:9 (Ultrawide)",
+};
+
+const isCustomRatio = (name) => {
+    const v = String(name ?? "");
+    return !v || v.includes("自定义") || v.includes("Free");
+};
+
+/** "16:9 (Widescreen)" / "16:9 (LTX)" / "16:9" → 16/9 */
+const ratioOf = (name) => {
+    if (isCustomRatio(name)) return null;
+    const m = /^(\d+):(\d+)/.exec(String(name));
+    if (!m) return null;
+    const w = Number(m[1]);
+    const h = Number(m[2]);
+    return h ? w / h : null;
+};
+
+/** 旧存档里的 "Free" / "16:9" / "16:9 (LTX)" 换成新选项名（值不在选项里就修） */
+const migrateRatio = (node, wRatio) => {
+    if (!wRatio) return false;
+    const opts = wRatio.options?.values || [];
+    const val = String(wRatio.value ?? "");
+    if (!opts.length || opts.includes(val)) return false;
+    const fixed = RATIO_ALIAS[val] || (val.includes("(LTX)") ? RATIO_ALIAS[val.split(" ")[0]] : null);
+    if (!fixed) return false;
+    wRatio.value = fixed;
+    xb_dispatch(wRatio, fixed);
+    return true;
+};
+
+/** 「倍数」当前值（缺省 16） */
+const multipleOf = (node) => {
+    const w = node.widgets?.find((x) => x.name === "multiple");
+    const v = Math.round(Number(w?.value));
+    return Number.isFinite(v) && v >= 8 ? v : 16;
+};
+
+/** 把宽高按比例 + 倍数（步长）规整，保证两边都能整除 */
+const fitSize = (ratioName, w, h, step) => {
+    const snap = (v) => Math.max(step, Math.round((Number(v) || step) / step) * step);
+    let wid = snap(w);
+    let hei = snap(h);
+    const r = ratioOf(ratioName);
+    if (r) {
+        if (wid >= hei) hei = snap(wid / r);
+        else wid = snap(hei * r);
+    }
+    return { wid: Math.max(step, wid), hei: Math.max(step, hei) };
+};
+
+/** 步长控件（数字框的上下箭头步长）；min 也设成步长，
+ *  否则 Nodes 2.0 的数字框会按 min + k*step 取整，结果可能不是倍数的整数倍。 */
+const applyStep = (w, step) => {
+    if (!w) return;
+    w.options = w.options || {};
+    w.options.step = step;
+    w.options.step2 = step;
+    w.options.min = step;
+    const el = w.inputEl || w.element;
+    if (el && typeof el.setAttribute === "function") {
+        el.step = step;
+        el.min = step;
+        el.setAttribute("step", String(step));
+        el.setAttribute("min", String(step));
+    }
+};
 
 // 旧版写值函数（仅输入框/回调，Nodes 2.0 下会漏写 widget.value）
 const __xbLegacyDispatch = (w, val) => {
@@ -29,75 +137,87 @@ const xb_dispatch = (w, val) => setWidgetValue(w, val);
 app.registerExtension({
     name: "xiaobai.mediaparams.split",
 
-    // —— nodeCreated：子工作流画幅联动（步长由 Python step=16 负责）——
+    // —— nodeCreated：画幅比例 + 倍数（步长）联动 ——
     async nodeCreated(node) {
         if (IMAGE_PARAMS_NODES.has(node.comfyClass)) {
             const wR = node.widgets?.find(w => w.name === "aspect_ratio");
             const wW = node.widgets?.find(w => w.name === "width");
             const wH = node.widgets?.find(w => w.name === "height");
+            const wM = node.widgets?.find(w => w.name === "multiple");
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
-            const rm = {"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9,"2:3":2/3,"3:2":3/2};
+            migrateRatio(node, wR);
+            applyStep(wW, multipleOf(node));
+            applyStep(wH, multipleOf(node));
 
-            const sW = () => { if(node._xb_syncing||node._xb_from_polling) return;
-                const r=wR.value; if(r.includes("Free")) return; const cr=rm[r]; if(!cr) return;
-                let w=Math.round((parseInt(wW.value,10)||16)/16)*16; w=Math.max(16,w);
-                let h=Math.round((w/cr)/16)*16; h=Math.max(16,h);
-                if(h!==parseInt(wH.value,10)){node._xb_syncing=true;wH.value=h;xb_dispatch(wH,h);node._xb_syncing=false;} };
-            const sH = () => { if(node._xb_syncing||node._xb_from_polling) return;
-                const r=wR.value; if(r.includes("Free")) return; const cr=rm[r]; if(!cr) return;
-                let h=Math.round((parseInt(wH.value,10)||16)/16)*16; h=Math.max(16,h);
-                let w=Math.round((h*cr)/16)*16; w=Math.max(16,w);
-                if(w!==parseInt(wW.value,10)){node._xb_syncing=true;wW.value=w;xb_dispatch(wW,w);node._xb_syncing=false;} };
+            const sync = () => {
+                if (node._xb_syncing || node._xb_from_polling) return;
+                const step = multipleOf(node);
+                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
+                node._xb_syncing = true;
+                if (parseInt(wW.value, 10) !== wid) { wW.value = wid; xb_dispatch(wW, wid); }
+                if (parseInt(wH.value, 10) !== hei) { wH.value = hei; xb_dispatch(wH, hei); }
+                node._xb_syncing = false;
+            };
 
-            const oc=wR.callback; wR.callback=function(v){if(oc)oc.apply(this,arguments);if(node._xb_from_polling)return;sW();};
-            const ow=wW.callback; wW.callback=function(v){if(ow)ow.apply(this,arguments);sW();};
-            const oh=wH.callback; wH.callback=function(v){if(oh)oh.apply(this,arguments);sH();};
+            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync(); };
+            const ow = wW.callback; wW.callback = function (v) { if (ow) ow.apply(this, arguments); sync(); };
+            const oh = wH.callback; wH.callback = function (v) { if (oh) oh.apply(this, arguments); sync(); };
+            const om = wM?.callback; if (wM) wM.callback = function (v) {
+                if (om) om.apply(this, arguments);
+                const step = multipleOf(node);
+                applyStep(wW, step); applyStep(wH, step);
+                sync();
+            };
         }
 
-        if (node.comfyClass === "XB_VideoParamsMaster") {
+        if (node.comfyClass === VIDEO_PARAMS_NODE) {
             const wR = node.widgets?.find(w => w.name === "aspect_ratio");
             const wW = node.widgets?.find(w => w.name === "width");
             const wH = node.widgets?.find(w => w.name === "height");
             const wF = node.widgets?.find(w => w.name === "fps");
             const wFF = node.widgets?.find(w => w.name === "fps_float");
             const wL = node.widgets?.find(w => w.name === "length");
+            const wM = node.widgets?.find(w => w.name === "multiple");
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
-            const rS={"1:1":1,"16:9":16/9,"9:16":9/16,"4:3":4/3,"3:4":3/4,"21:9":21/9,"2:3":2/3,"3:2":3/2};
-            const rL={"16:9 (LTX)":16/9,"9:16 (LTX)":9/16,"4:3 (LTX)":4/3,"3:4 (LTX)":3/4};
+            migrateRatio(node, wR);
+            applyStep(wW, multipleOf(node));
+            applyStep(wH, multipleOf(node));
 
-            const sW = () => { if(node._xb_syncing||node._xb_from_polling) return;
-                const r=wR.value; if(r.includes("Free")) return;
-                const isL=r.includes("(LTX)"); const rm=isL?rL:rS; const cr=rm[r]; if(!cr) return;
-                const s=isL?32:16;
-                let w=Math.round((parseInt(wW.value,10)||s)/s)*s; w=Math.max(s,w);
-                let h=Math.round((w/cr)/s)*s; h=Math.max(s,h);
-                if(h!==parseInt(wH.value,10)){node._xb_syncing=true;wH.value=h;xb_dispatch(wH,h);node._xb_syncing=false;} };
-            const sH = () => { if(node._xb_syncing||node._xb_from_polling) return;
-                const r=wR.value; if(r.includes("Free")) return;
-                const isL=r.includes("(LTX)"); const rm=isL?rL:rS; const cr=rm[r]; if(!cr) return;
-                const s=isL?32:16;
-                let h=Math.round((parseInt(wH.value,10)||s)/s)*s; h=Math.max(s,h);
-                let w=Math.round((h*cr)/s)*s; w=Math.max(s,w);
-                if(w!==parseInt(wW.value,10)){node._xb_syncing=true;wW.value=w;xb_dispatch(wW,w);node._xb_syncing=false;} };
+            const sync = (driveBy) => {
+                if (node._xb_syncing || node._xb_from_polling) return;
+                const step = multipleOf(node);
+                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
+                node._xb_syncing = true;
+                if (parseInt(wW.value, 10) !== wid) { wW.value = wid; xb_dispatch(wW, wid); }
+                if (parseInt(wH.value, 10) !== hei) { wH.value = hei; xb_dispatch(wH, hei); }
+                node._xb_syncing = false;
+            };
 
-            const oc=wR.callback; wR.callback=function(v){if(oc)oc.apply(this,arguments);if(node._xb_from_polling)return;sW();};
-            const ow=wW.callback; wW.callback=function(v){if(ow)ow.apply(this,arguments);sW();};
-            const oh=wH.callback; wH.callback=function(v){if(oh)oh.apply(this,arguments);sH();};
+            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync("w"); };
+            const ow = wW.callback; wW.callback = function (v) { if (ow) ow.apply(this, arguments); sync("w"); };
+            const oh = wH.callback; wH.callback = function (v) { if (oh) oh.apply(this, arguments); sync("h"); };
+            const om = wM?.callback; if (wM) wM.callback = function (v) {
+                if (om) om.apply(this, arguments);
+                const step = multipleOf(node);
+                applyStep(wW, step); applyStep(wH, step);
+                sync("w");
+            };
 
             if(wF&&wFF){const of=wF.callback;wF.callback=function(v){if(of)of.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
                 const val=Math.round(Number(v));if(wFF.value!==val){node._xb_syncing=true;wFF.value=val;xb_dispatch(wFF,val);node._xb_syncing=false;}};
                 const off=wFF.callback;wFF.callback=function(v){if(off)off.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
                 const val=Math.round(Number(v));if(wF.value!==val){node._xb_syncing=true;wF.value=val;xb_dispatch(wF,val);node._xb_syncing=false;}};}
             if(wL){node._xb_last_len=parseInt(wL.value,10)||1;const ol=wL.callback;wL.callback=function(v){if(ol)ol.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
-                const isF=(wR.value||"").includes("Free");const as=isF?1:8;
+                const isF=isCustomRatio(wR.value);const as=isF?1:8;
                 let len=parseInt(v,10)||1;if(!isF&&(len-1)%as!==0){len=len>node._xb_last_len?Math.ceil((len-1)/as)*as+1:Math.floor((len-1)/as)*as+1;len=Math.max(1,len);
                 if(wL.value!==len){node._xb_syncing=true;wL.value=len;xb_dispatch(wL,len);node._xb_syncing=false;}}node._xb_last_len=len;};}
         }
     },
 
     init() {
+        injectParamsCss();
         setInterval(() => {
             if (!app.graph || !app.graph._nodes) return;
 
@@ -133,87 +253,49 @@ app.registerExtension({
                             node._xb_last_height = parseInt(wHeight.value, 10) || 1024;
                             node._xb_last_ratio = wRatio.value;
                             node._xb_last_dur = parseFloat(wDisp.value) || 0;
+                            node._xb_need_normalize = true;   // 载入后先规整一次
                         }
+                        if (migrateRatio(node, wRatio)) node._xb_need_normalize = true;
 
                         let needsUpdate = false;
                         let valRatio = wRatio.value;
-                        let isFree = valRatio.includes("Free");
+                        let isFree = isCustomRatio(valRatio);
                         let rChanged = valRatio !== node._xb_last_ratio;
-                        let isLTX = valRatio.includes("(LTX)");
 
-                        let currentStep = isFree ? 1 : (isLTX ? 32 : 16);
-                        wWidth.options.step = wWidth.options.step2 = currentStep; wHeight.options.step = wHeight.options.step2 = currentStep;
-                        if (wWidth.inputEl) { wWidth.inputEl.step = currentStep; wWidth.inputEl.setAttribute("step", String(currentStep)); }
-                        else if (wWidth.element) { wWidth.element.step = currentStep; wWidth.element.setAttribute("step", String(currentStep)); }
-                        if (wHeight.inputEl) { wHeight.inputEl.step = currentStep; wHeight.inputEl.setAttribute("step", String(currentStep)); }
-                        else if (wHeight.element) { wHeight.element.step = currentStep; wHeight.element.setAttribute("step", String(currentStep)); }
+                        // 步长 = 倍数（宽高必须能被它整除）
+                        let currentStep = multipleOf(node);
+                        applyStep(wWidth, currentStep);
+                        applyStep(wHeight, currentStep);
 
                         let wid = parseInt(wWidth.value, 10) || currentStep;
                         let hei = parseInt(wHeight.value, 10) || currentStep;
                         let wChanged = wid !== node._xb_last_width;
                         let hChanged = hei !== node._xb_last_height;
 
-                        if (wChanged || hChanged || rChanged) {
-                            if (!isFree && !isLTX) {
-                                const ratioMap = {
-                                    "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                    "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
-                                    "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0
-                                };
-                                let currentRatio = ratioMap[valRatio];
-
-                                if (wChanged && wid % currentStep !== 0) {
-                                    wid = wid > node._xb_last_width ? Math.ceil(wid / currentStep) * currentStep : Math.floor(wid / currentStep) * currentStep;
-                                } else { wid = Math.round(wid / currentStep) * currentStep; }
-                                wid = Math.max(currentStep, wid);
-
-                                if (hChanged && hei % currentStep !== 0) {
-                                    hei = hei > node._xb_last_height ? Math.ceil(hei / currentStep) * currentStep : Math.floor(hei / currentStep) * currentStep;
-                                } else { hei = Math.round(hei / currentStep) * currentStep; }
-                                hei = Math.max(currentStep, hei);
-
-                                if (currentRatio) {
-                                    if (rChanged || wChanged) {
-                                        hei = Math.round((wid / currentRatio) / currentStep) * currentStep;
-                                        hei = Math.max(currentStep, hei);
-                                    } else if (hChanged) {
-                                        wid = Math.round((hei * currentRatio) / currentStep) * currentStep;
-                                        wid = Math.max(currentStep, wid);
-                                    }
-                                }
-                            } else if (isLTX) {
-                                const ratioMap = {
-                                    "16:9 (LTX)": 16.0 / 9.0, "9:16 (LTX)": 9.0 / 16.0,
-                                    "4:3 (LTX)": 4.0 / 3.0, "3:4 (LTX)": 3.0 / 4.0
-                                };
-                                let currentRatio = ratioMap[valRatio];
-
-                                if (wChanged && wid % currentStep !== 0) {
-                                    wid = wid > node._xb_last_width ? Math.ceil(wid / currentStep) * currentStep : Math.floor(wid / currentStep) * currentStep;
-                                } else { wid = Math.round(wid / currentStep) * currentStep; }
-                                wid = Math.max(currentStep, wid);
-
-                                if (hChanged && hei % currentStep !== 0) {
-                                    hei = hei > node._xb_last_height ? Math.ceil(hei / currentStep) * currentStep : Math.floor(hei / currentStep) * currentStep;
-                                } else { hei = Math.round(hei / currentStep) * currentStep; }
-                                hei = Math.max(currentStep, hei);
-
-                                if (currentRatio) {
-                                    if (rChanged || wChanged) {
-                                        hei = Math.round((wid / currentRatio) / currentStep) * currentStep;
-                                        hei = Math.max(currentStep, hei);
-                                    } else if (hChanged) {
-                                        wid = Math.round((hei * currentRatio) / currentStep) * currentStep;
-                                        wid = Math.max(currentStep, wid);
-                                    }
+                        if (wChanged || hChanged || rChanged || node._xb_need_normalize) {
+                            node._xb_need_normalize = false;
+                            const snap = (v) => Math.max(currentStep, Math.round(v / currentStep) * currentStep);
+                            let nw = snap(wid);
+                            let nh = snap(hei);
+                            const currentRatio = ratioOf(valRatio);
+                            if (currentRatio) {
+                                const ratioOnly = rChanged && !wChanged && !hChanged;
+                                if (ratioOnly) {
+                                    // ????????????????? Python ????
+                                    if (nw >= nh) nh = snap(nw / currentRatio);
+                                    else nw = snap(nh * currentRatio);
+                                } else if (wChanged || !hChanged) {
+                                    nh = snap(nw / currentRatio);
+                                } else {
+                                    nw = snap(nh * currentRatio);
                                 }
                             }
 
-                            wWidth.value = wid; wHeight.value = hei;
-                            node._xb_last_width = wid; node._xb_last_height = hei;
+                            wWidth.value = nw; wHeight.value = nh;
+                            node._xb_last_width = nw; node._xb_last_height = nh;
                             node._xb_last_ratio = valRatio;
-                            xb_dispatch(wWidth, wid);
-                            xb_dispatch(wHeight, hei);
+                            xb_dispatch(wWidth, nw);
+                            xb_dispatch(wHeight, nh);
                             needsUpdate = true;
                         }
 
@@ -279,58 +361,48 @@ app.registerExtension({
                             node._xb_last_width = parseInt(wWidth.value, 10) || 1024;
                             node._xb_last_height = parseInt(wHeight.value, 10) || 1024;
                             node._xb_last_ratio = wRatio.value;
+                            node._xb_need_normalize = true;   // ????????
                         }
+                        if (migrateRatio(node, wRatio)) node._xb_need_normalize = true;
 
                         let needsUpdate = false;
                         let valRatio = wRatio.value;
-                        let isFree = valRatio.includes("Free");
                         let rChanged = valRatio !== node._xb_last_ratio;
 
-                        let currentStep = isFree ? 1 : 16;
-                        wWidth.options.step = wWidth.options.step2 = currentStep; wHeight.options.step = wHeight.options.step2 = currentStep;
-                        if (wWidth.inputEl) { wWidth.inputEl.step = currentStep; wWidth.inputEl.setAttribute("step", String(currentStep)); }
-                        else if (wWidth.element) { wWidth.element.step = currentStep; wWidth.element.setAttribute("step", String(currentStep)); }
-                        if (wHeight.inputEl) { wHeight.inputEl.step = currentStep; wHeight.inputEl.setAttribute("step", String(currentStep)); }
-                        else if (wHeight.element) { wHeight.element.step = currentStep; wHeight.element.setAttribute("step", String(currentStep)); }
+                        // 步长 = 倍数（宽高必须能被它整除）
+                        let currentStep = multipleOf(node);
+                        applyStep(wWidth, currentStep);
+                        applyStep(wHeight, currentStep);
 
                         let wid = parseInt(wWidth.value, 10) || currentStep;
                         let hei = parseInt(wHeight.value, 10) || currentStep;
                         let wChanged = wid !== node._xb_last_width;
                         let hChanged = hei !== node._xb_last_height;
 
-                        if (wChanged || hChanged || rChanged) {
-                            const ratioMap = {
-                                "1:1": 1.0, "16:9": 16.0 / 9.0, "9:16": 9.0 / 16.0,
-                                "4:3": 4.0 / 3.0, "3:4": 3.0 / 4.0, "21:9": 21.0 / 9.0,
-                                "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0
-                            };
-                            let currentRatio = ratioMap[valRatio];
-
-                            if (wChanged && wid % currentStep !== 0) {
-                                wid = wid > node._xb_last_width ? Math.ceil(wid / currentStep) * currentStep : Math.floor(wid / currentStep) * currentStep;
-                            } else { wid = Math.round(wid / currentStep) * currentStep; }
-                            wid = Math.max(currentStep, wid);
-
-                            if (hChanged && hei % currentStep !== 0) {
-                                hei = hei > node._xb_last_height ? Math.ceil(hei / currentStep) * currentStep : Math.floor(hei / currentStep) * currentStep;
-                            } else { hei = Math.round(hei / currentStep) * currentStep; }
-                            hei = Math.max(currentStep, hei);
-
+                        if (wChanged || hChanged || rChanged || node._xb_need_normalize) {
+                            node._xb_need_normalize = false;
+                            const snap = (v) => Math.max(currentStep, Math.round(v / currentStep) * currentStep);
+                            let nw = snap(wid);
+                            let nh = snap(hei);
+                            const currentRatio = ratioOf(valRatio);
                             if (currentRatio) {
-                                if (rChanged || wChanged) {
-                                    hei = Math.round((wid / currentRatio) / currentStep) * currentStep;
-                                    hei = Math.max(currentStep, hei);
-                                } else if (hChanged) {
-                                    wid = Math.round((hei * currentRatio) / currentStep) * currentStep;
-                                    wid = Math.max(currentStep, wid);
+                                const ratioOnly = rChanged && !wChanged && !hChanged;
+                                if (ratioOnly) {
+                                    // ????????????????? Python ????
+                                    if (nw >= nh) nh = snap(nw / currentRatio);
+                                    else nw = snap(nh * currentRatio);
+                                } else if (wChanged || !hChanged) {
+                                    nh = snap(nw / currentRatio);
+                                } else {
+                                    nw = snap(nh * currentRatio);
                                 }
                             }
 
-                            wWidth.value = wid; wHeight.value = hei;
-                            node._xb_last_width = wid; node._xb_last_height = hei;
+                            wWidth.value = nw; wHeight.value = nh;
+                            node._xb_last_width = nw; node._xb_last_height = nh;
                             node._xb_last_ratio = valRatio;
-                            xb_dispatch(wWidth, wid);
-                            xb_dispatch(wHeight, hei);
+                            xb_dispatch(wWidth, nw);
+                            xb_dispatch(wHeight, nh);
                             needsUpdate = true;
                         }
 

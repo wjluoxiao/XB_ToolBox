@@ -191,21 +191,47 @@
   "XB_LoadVideo": {
     "display_name": "XB-BOX - 🎬 Load Video",
     "inputs": {
-      "file": { "name": "Video File" },
-      "force_rate": { "name": "Force FPS" },
-      "custom_width": { "name": "Output Width" },
-      "custom_height": { "name": "Output Height" },
-      "frame_load_cap": { "name": "Frame Cap" },
-      "skip_first_frames": { "name": "Skip First Frames" },
-      "select_every_nth": { "name": "Select Every Nth" },
-      "autoplay": { "name": "Autoplay" }
+      "file": {
+        "name": "Video File"
+      },
+      "force_rate": {
+        "name": "Force FPS"
+      },
+      "custom_width": {
+        "name": "Output Width"
+      },
+      "custom_height": {
+        "name": "Output Height"
+      },
+      "frame_load_cap": {
+        "name": "Frame Cap"
+      },
+      "skip_first_frames": {
+        "name": "Skip First Frames"
+      },
+      "select_every_nth": {
+        "name": "Select Every Nth"
+      },
+      "autoplay": {
+        "name": "Autoplay"
+      }
     },
     "outputs": {
-      "0": { "name": "images" },
-      "1": { "name": "audio" },
-      "2": { "name": "fps" },
-      "3": { "name": "bit_depth" },
-      "4": { "name": "color_space" }
+      "0": {
+        "name": "images"
+      },
+      "1": {
+        "name": "audio"
+      },
+      "2": {
+        "name": "fps"
+      },
+      "3": {
+        "name": "bit_depth"
+      },
+      "4": {
+        "name": "color_space"
+      }
     }
   },
   "XB_StringMerge": {
@@ -705,6 +731,28 @@
       },
       "1": {
         "name": "📋 Report"
+      }
+    }
+  },
+  "XB_DisableGroups": {
+    "display_name": "XB-BOX - 🚫 Disable Groups",
+    "description": "Inspired by rgthree Fast Groups Muter: no wiring. Right-click the node to pick the groups to control; the node surface only shows a switch list — flip a switch to mute / bypass / restore every node in that group. The right-click menu also holds the disable mode and toggle mode (always keep one on / multi with all off or all on).",
+    "inputs": {},
+    "outputs": {}
+  },
+  "XB_DisableNodes": {
+    "display_name": "XB-BOX - 🚫 Disable Nodes",
+    "description": "Inspired by rgthree Fast Muter: no wiring. Right-click the node to pick the nodes to control (whole groups can be added at once); the node surface only shows a switch list — flip a switch to mute / bypass / restore that node. The right-click menu also holds the disable mode and toggle mode.",
+    "inputs": {},
+    "outputs": {}
+  },
+  "XB_AnySwitch": {
+    "display_name": "XB-BOX - 🔀 Any Switch",
+    "description": "Inspired by rgthree Any Switch: dynamic any-type inputs (2 by default, more added as you connect) with a single any-type output. There is no selector control; it always forwards the first non-empty input.",
+    "inputs": {},
+    "outputs": {
+      "0": {
+        "name": "Output"
       }
     }
   }

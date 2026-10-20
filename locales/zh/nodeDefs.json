@@ -225,6 +225,9 @@
       },
       "fps_float": {
         "name": "帧率(小数)"
+      },
+      "multiple": {
+        "name": "倍数"
       }
     },
     "outputs": {
@@ -268,6 +271,9 @@
       },
       "strength_int": {
         "name": "强度(整数)"
+      },
+      "multiple": {
+        "name": "倍数"
       }
     },
     "outputs": {
@@ -333,6 +339,9 @@
       },
       "batch_size": {
         "name": "生成数量"
+      },
+      "multiple": {
+        "name": "倍数"
       }
     },
     "outputs": {
@@ -5721,6 +5730,28 @@
       },
       "1": {
         "name": "📋 报告"
+      }
+    }
+  },
+  "XB_DisableGroups": {
+    "display_name": "XB-BOX - 🚫 禁用分组",
+    "description": "参考 rgthree 禁用框：不接线，右击节点勾选要控制的分组（可随时增删）；节点表面只有开关列表，点开关即可把该分组内所有节点静音 / 绕过 / 恢复。右击还能改禁用方式、切换模式（多选可全关全开 / 永远保持一个开启）。",
+    "inputs": {},
+    "outputs": {}
+  },
+  "XB_DisableNodes": {
+    "display_name": "XB-BOX - 🚫 禁用节点",
+    "description": "参考 rgthree 禁用节点：不接线，右击节点勾选要控制的节点（可按分组整组加入）；节点表面只有开关列表，点开关即可静音 / 绕过 / 恢复该节点。右击还能改禁用方式、切换模式。",
+    "inputs": {},
+    "outputs": {}
+  },
+  "XB_AnySwitch": {
+    "display_name": "XB-BOX - 🔀 切换任意",
+    "description": "参考 rgthree 任意切换：动态任意类型输入（默认 2 个，连满自动增加）/ 任意类型输出；没有选择控件，永远输出第一个非空输入。",
+    "inputs": {},
+    "outputs": {
+      "0": {
+        "name": "任意类型"
       }
     }
   }

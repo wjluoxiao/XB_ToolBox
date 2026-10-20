@@ -16,6 +16,96 @@ import nodes
 from .xb_av import open_av
 
 # ============================================================
+# 画幅比例 / 倍数 公共逻辑
+#   画幅比例 = 自定义 + 官方 Resolution Selector 的比例；
+#   倍数（multiple）约束宽高：既作为调节步长，也保证宽高能整除。
+# ============================================================
+XB_ASPECT_RATIOS = [
+    ("自定义", None),
+    ("1:1 (Square)", (1, 1)),
+    ("2:3 (Portrait Photo)", (2, 3)),
+    ("3:2 (Photo)", (3, 2)),
+    ("3:4 (Portrait Standard)", (3, 4)),
+    ("4:3 (Standard)", (4, 3)),
+    ("9:16 (Portrait Widescreen)", (9, 16)),
+    ("16:9 (Widescreen)", (16, 9)),
+    ("21:9 (Ultrawide)", (21, 9)),
+]
+XB_ASPECT_VALUES = [name for name, _ in XB_ASPECT_RATIOS]
+XB_ASPECT_MAP = {name: r for name, r in XB_ASPECT_RATIOS if r}
+
+# 旧工作流里的值 → 新值（保证老图照常开）
+XB_ASPECT_LEGACY = {
+    "Free": "自定义",
+    "1:1": "1:1 (Square)",
+    "2:3": "2:3 (Portrait Photo)",
+    "3:2": "3:2 (Photo)",
+    "3:4": "3:4 (Portrait Standard)",
+    "4:3": "4:3 (Standard)",
+    "9:16": "9:16 (Portrait Widescreen)",
+    "16:9": "16:9 (Widescreen)",
+    "21:9": "21:9 (Ultrawide)",
+}
+
+XB_MULTIPLE_DEFAULT = 16
+
+
+def xb_multiple(value, default=XB_MULTIPLE_DEFAULT):
+    """把「倍数」规整成 >= 8 的整数。"""
+    try:
+        m = int(round(float(value)))
+    except Exception:
+        m = default
+    return max(8, m)
+
+
+def xb_snap(value, m):
+    """吸附到 m 的整数倍（并保证 >= m）。"""
+    try:
+        v = int(round(float(value)))
+    except Exception:
+        v = m
+    return max(m, int(round(v / m)) * m)
+
+
+def xb_aspect_ratio(name):
+    """画幅比例 → 宽高比（宽/高）；自定义 / 未知返回 None。"""
+    if name in XB_ASPECT_MAP:
+        w, h = XB_ASPECT_MAP[name]
+        return w / h
+    name = XB_ASPECT_LEGACY.get(name, name)
+    if name in XB_ASPECT_MAP:
+        w, h = XB_ASPECT_MAP[name]
+        return w / h
+    # 兼容 "16:9 (LTX)" 这类旧写法
+    for key, ratio in XB_ASPECT_MAP.items():
+        if name and name.startswith(key.split(" ")[0]):
+            w, h = ratio
+            return w / h
+    return None
+
+
+def xb_fit_size(name, width, height, m):
+    """按比例 + 倍数算出最终宽高（两边都能被 m 整除）。"""
+    w = xb_snap(width, m)
+    h = xb_snap(height, m)
+    ratio = xb_aspect_ratio(name)
+    if ratio:
+        if w >= h:
+            h = xb_snap(w / ratio, m)
+        else:
+            w = xb_snap(h * ratio, m)
+    return max(m, w), max(m, h)
+
+
+def xb_multiple_input():
+    """「倍数」控件定义（放在最下面）。"""
+    return ("INT", {
+        "default": XB_MULTIPLE_DEFAULT, "min": 8, "max": 128, "step": 4,
+        "tooltip": "宽高必须是它的整数倍；调节分辨率时也按这个步长走（默认 16）。",
+    })
+
+# ============================================================
 # XB_ImageParamsMaster — 图像参数主控
 # ============================================================
 class XB_ImageParamsMaster:
@@ -23,12 +113,13 @@ class XB_ImageParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"], {"default": "Free"}),
+                "aspect_ratio": (XB_ASPECT_VALUES, {"default": "自定义"}),
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
                 "strength_float": ("FLOAT", {"default": 1.00, "min": 0.00, "max": 10.00, "step": 0.01}),
                 "strength_int": ("INT", {"default": 1, "min": 0, "max": 1000, "step": 1}),
+                "multiple": xb_multiple_input(),
             }
         }
 
@@ -37,22 +128,9 @@ class XB_ImageParamsMaster:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Image_Params"
 
-    def process(self, aspect_ratio, width, height, batch_size, strength_float, strength_int):
-        if "Free" in aspect_ratio:
-            return (width, height, batch_size, float(strength_float), int(strength_int), max(width, height))
-
-        # 解析宽高比约束，使用 round() 而非 // 避免累积误差
-        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
-        target_ratio = ratio_map.get(aspect_ratio, 1.0)
-        step = 16
-
-        if width >= height:
-            safe_w = max(step, round(width / step) * step)
-            safe_h = max(step, round((safe_w / target_ratio) / step) * step)
-        else:
-            safe_h = max(step, round(height / step) * step)
-            safe_w = max(step, round((safe_h * target_ratio) / step) * step)
-
+    def process(self, aspect_ratio, width, height, batch_size, strength_float, strength_int, multiple=XB_MULTIPLE_DEFAULT):
+        m = xb_multiple(multiple)
+        safe_w, safe_h = xb_fit_size(aspect_ratio, width, height, m)
         return (safe_w, safe_h, batch_size, float(strength_float), int(strength_int), max(safe_w, safe_h))
 
 # ============================================================
@@ -65,10 +143,11 @@ class XB_ImageParamsMasterMini:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"], {"default": "Free"}),
+                "aspect_ratio": (XB_ASPECT_VALUES, {"default": "自定义"}),
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 16}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 1000, "step": 1}),
+                "multiple": xb_multiple_input(),
             }
         }
 
@@ -77,22 +156,9 @@ class XB_ImageParamsMasterMini:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Image_Params"
 
-    def process(self, aspect_ratio, width, height, batch_size):
-        if "Free" in aspect_ratio:
-            return (width, height, batch_size, max(width, height))
-
-        # 解析宽高比约束，使用 round() 而非 // 避免累积误差
-        ratio_map = {"1:1": 1.0, "16:9": 16/9, "9:16": 9/16, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
-        target_ratio = ratio_map.get(aspect_ratio, 1.0)
-        step = 16
-
-        if width >= height:
-            safe_w = max(step, round(width / step) * step)
-            safe_h = max(step, round((safe_w / target_ratio) / step) * step)
-        else:
-            safe_h = max(step, round(height / step) * step)
-            safe_w = max(step, round((safe_h * target_ratio) / step) * step)
-
+    def process(self, aspect_ratio, width, height, batch_size, multiple=XB_MULTIPLE_DEFAULT):
+        m = xb_multiple(multiple)
+        safe_w, safe_h = xb_fit_size(aspect_ratio, width, height, m)
         return (safe_w, safe_h, batch_size, max(safe_w, safe_h))
 
 # ============================================================
@@ -103,13 +169,14 @@ class XB_VideoParamsMaster:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "aspect_ratio": (["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2", "16:9 (LTX)", "9:16 (LTX)", "4:3 (LTX)", "3:4 (LTX)"], {"default": "Free"}),
+                "aspect_ratio": (XB_ASPECT_VALUES, {"default": "自定义"}),
                 "duration_display": ("STRING", {"default": "Video Duration: 0.00 s", "multiline": False}),
                 "width": ("INT", {"default": 480, "min": 64, "max": 8192, "step": 16}),
                 "height": ("INT", {"default": 832, "min": 64, "max": 8192, "step": 16}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 9999, "step": 1}),
                 "fps": ("INT", {"default": 16, "min": 1, "max": 120, "step": 1}),
                 "fps_float": ("FLOAT", {"default": 16.0, "min": 1.0, "max": 120.0, "step": 0.01}),
+                "multiple": xb_multiple_input(),
             }
         }
 
@@ -118,36 +185,17 @@ class XB_VideoParamsMaster:
     FUNCTION = "process"
     CATEGORY = "XB_ToolBox/Image_Params"
 
-    def process(self, aspect_ratio, duration_display, width, height, length, fps, fps_float):
+    def process(self, aspect_ratio, duration_display, width, height, length, fps, fps_float,
+                multiple=XB_MULTIPLE_DEFAULT):
         final_fps = int(round(fps))
+        m = xb_multiple(multiple)
+        safe_w, safe_h = xb_fit_size(aspect_ratio, width, height, m)
 
-        if "Free" in aspect_ratio:
-            return (width, height, length, final_fps, float(final_fps), max(width, height))
-
-        if "LTX" in aspect_ratio:
-            # LTX 模式使用 step=32
-            step = 32
-            ratio_map = {"16:9 (LTX)": 16/9, "9:16 (LTX)": 9/16, "4:3 (LTX)": 4/3, "3:4 (LTX)": 3/4}
-            target_ratio = ratio_map.get(aspect_ratio, 16/9)
-            if width >= height:
-                safe_w = max(step, round(width / step) * step)
-                safe_h = max(step, round((safe_w / target_ratio) / step) * step)
-            else:
-                safe_h = max(step, round(height / step) * step)
-                safe_w = max(step, round((safe_h * target_ratio) / step) * step)
+        is_free = xb_aspect_ratio(aspect_ratio) is None
+        if is_free:
+            safe_len = max(1, int(length))
         else:
-            # 解析宽高比并强制约束，使用 round() 避免累积误差
-            step = 16
-            ratio_map = {"16:9": 16/9, "9:16": 9/16, "1:1": 1.0, "4:3": 4/3, "3:4": 3/4, "21:9": 21/9, "2:3": 2/3, "3:2": 3/2}
-            target_ratio = ratio_map.get(aspect_ratio, 1.0)
-            if width >= height:
-                safe_w = max(step, round(width / step) * step)
-                safe_h = max(step, round((safe_w / target_ratio) / step) * step)
-            else:
-                safe_h = max(step, round(height / step) * step)
-                safe_w = max(step, round((safe_h * target_ratio) / step) * step)
-
-        safe_len = max(1, round((length - 1) / 8) * 8 + 1)
+            safe_len = max(1, round((length - 1) / 8) * 8 + 1)
 
         return (safe_w, safe_h, safe_len, final_fps, float(final_fps), max(safe_w, safe_h))
 

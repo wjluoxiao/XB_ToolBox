@@ -70,6 +70,16 @@ def print_error(msg):
 def print_warning(msg):
     print(f"\033[93m{msg}\033[0m")  
 
+# 启动 banner 上的 JZL 像素字
+XB_LOGO = "\n".join([
+    "     ██╗███████╗██╗",
+    "     ██║╚══███╔╝██║",
+    "     ██║  ███╔╝ ██║",
+    "██   ██║ ███╔╝  ██║",
+    "╚█████╔╝███████╗███████╗",
+    " ╚════╝ ╚══════╝╚══════╝",
+])
+
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "js")
@@ -94,6 +104,7 @@ try:
     from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
     from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
     from .nodes_status_switch import XB_NodeStatusSwitch
+    from .nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch
     from .nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
     from .nodes_image_scale import XB_ImageScale
@@ -285,6 +296,9 @@ try:
         "XB_WanInfiniteTalk_RelayNode_AllInOne": XB_WanInfiniteTalk_RelayNode_AllInOne,
         "XB_LTX23_InfiniteStreamer": XB_LTX23_InfiniteStreamer,
         "XB_NodeStatusSwitch": XB_NodeStatusSwitch,
+        "XB_DisableGroups": XB_DisableGroups,
+        "XB_DisableNodes": XB_DisableNodes,
+        "XB_AnySwitch": XB_AnySwitch,
         "XB_FluxMultiImageEncode": XB_FluxMultiImageEncode,
         "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
         "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
@@ -447,6 +461,9 @@ try:
         "XB_WanInfiniteTalk_RelayNode_AllInOne": "XB-BOX - 🆕 InfiniteTalk 无限接力点 (全能)",
         "XB_LTX23_InfiniteStreamer": "XB-BOX - 🔄 LTX2.3 数字人无限时长对口型",
         "XB_NodeStatusSwitch": "XB-BOX - ⚡ 节点状态开关",
+        "XB_DisableGroups": "XB-BOX - 🚫 禁用分组",
+        "XB_DisableNodes": "XB-BOX - 🚫 禁用节点",
+        "XB_AnySwitch": "XB-BOX - 🔀 切换任意",
         "XB_FluxMultiImageEncode": "XB-BOX - 🖼️ FLUX多图编码",
         "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
         "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",
@@ -551,7 +568,8 @@ try:
             "XB_YuE2Transcription": "XB-BOX - 🎵 YuE2 转谱导入",
         })
 
-    print_success("\n" + "="*50)
+    print_success("\n" + XB_LOGO)
+    print_success("="*50)
     print_success("🚀 [XB-BOX] XB_ToolBox Core Modules Loaded Successfully!")
     print_success("="*50 + "\n")
 
