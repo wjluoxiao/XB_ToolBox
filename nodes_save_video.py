@@ -18,6 +18,8 @@ from comfy.cli_args import args
 from comfy_api.latest import io, ui, InputImpl, Types
 from comfy_extras.nodes_video import CreateVideo, SaveVideo
 
+from .xb_paths import resolve_filename_prefix
+
 
 def _input_map(schema):
     return {getattr(inp, "id", None): inp for inp in schema.inputs}
@@ -138,6 +140,8 @@ class XB_SaveVideo(io.ComfyNode):
                 saved_metadata = metadata
 
         width, height = video.get_dimensions()
+        # 展开 %date:yyyy-MM-dd% 之类的标记，否则会生成非法目录名（Windows: WinError 267）
+        filename_prefix = resolve_filename_prefix(filename_prefix)
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
             filename_prefix,
             folder_paths.get_output_directory(),

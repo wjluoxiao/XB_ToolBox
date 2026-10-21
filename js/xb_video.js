@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { setWidgetValue } from "./xb_compat.js";
+import { setWidgetValue, allNodes, ownerWidgets, syncPromotedValues, pushPromotedValue } from "./xb_compat.js";
 
 // ============================================================
 // XB_VideoParamsMaster / XB_ImageParamsMaster / XB_MasterParameter — 参数主控 UI
@@ -78,6 +78,7 @@ const migrateRatio = (node, wRatio) => {
     if (!fixed) return false;
     wRatio.value = fixed;
     xb_dispatch(wRatio, fixed);
+    pushPromotedValue(node, wRatio.name, fixed);
     return true;
 };
 
@@ -102,19 +103,24 @@ const fitSize = (ratioName, w, h, step) => {
 };
 
 /** 步长控件（数字框的上下箭头步长）；min 也设成步长，
- *  否则 Nodes 2.0 的数字框会按 min + k*step 取整，结果可能不是倍数的整数倍。 */
-const applyStep = (w, step) => {
+ *  否则 Nodes 2.0 的数字框会按 min + k*step 取整，结果可能不是倍数的整数倍。
+ *  传了 node 时，外层子图节点上的同名控件也一起设。 */
+const applyStep = (w, step, node) => {
     if (!w) return;
-    w.options = w.options || {};
-    w.options.step = step;
-    w.options.step2 = step;
-    w.options.min = step;
-    const el = w.inputEl || w.element;
-    if (el && typeof el.setAttribute === "function") {
-        el.step = step;
-        el.min = step;
-        el.setAttribute("step", String(step));
-        el.setAttribute("min", String(step));
+    const targets = node ? [w, ...ownerWidgets(node, w.name)] : [w];
+    for (const t of targets) {
+        // 子图节点上的 widget 是响应式代理，options 只有 getter，不能整体赋值
+        const opts = t.options;
+        if (opts) {
+            try { opts.step = step; opts.step2 = step; opts.min = step; } catch (_) { /* ignore */ }
+        }
+        const el = t.inputEl || t.element;
+        if (el && typeof el.setAttribute === "function") {
+            el.step = step;
+            el.min = step;
+            el.setAttribute("step", String(step));
+            el.setAttribute("min", String(step));
+        }
     }
 };
 
@@ -134,6 +140,13 @@ const __xbLegacyDispatch = (w, val) => {
 // Nodes 2.0：数字/下拉是 Vue 组件（无 inputEl/element），统一走 setWidgetValue（element + value + callback）
 const xb_dispatch = (w, val) => setWidgetValue(w, val);
 
+// 拖进子图后内层算出的值必须同时写回外层子图节点，否则执行时用的还是外层的旧值
+const xb_set = (node, w, val) => {
+    if (w.value !== val) w.value = val;
+    xb_dispatch(w, val);
+    pushPromotedValue(node, w.name, val);
+};
+
 app.registerExtension({
     name: "xiaobai.mediaparams.split",
 
@@ -147,16 +160,16 @@ app.registerExtension({
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
             migrateRatio(node, wR);
-            applyStep(wW, multipleOf(node));
-            applyStep(wH, multipleOf(node));
+            applyStep(wW, multipleOf(node), node);
+            applyStep(wH, multipleOf(node), node);
 
             const sync = () => {
                 if (node._xb_syncing || node._xb_from_polling) return;
                 const step = multipleOf(node);
                 const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
                 node._xb_syncing = true;
-                if (parseInt(wW.value, 10) !== wid) { wW.value = wid; xb_dispatch(wW, wid); }
-                if (parseInt(wH.value, 10) !== hei) { wH.value = hei; xb_dispatch(wH, hei); }
+                if (parseInt(wW.value, 10) !== wid) { xb_set(node, wW, wid); }
+                if (parseInt(wH.value, 10) !== hei) { xb_set(node, wH, hei); }
                 node._xb_syncing = false;
             };
 
@@ -166,7 +179,7 @@ app.registerExtension({
             const om = wM?.callback; if (wM) wM.callback = function (v) {
                 if (om) om.apply(this, arguments);
                 const step = multipleOf(node);
-                applyStep(wW, step); applyStep(wH, step);
+                applyStep(wW, step, node); applyStep(wH, step, node);
                 sync();
             };
         }
@@ -182,16 +195,16 @@ app.registerExtension({
             if (!wR || !wW || !wH) return;
             node._xb_syncing = false;
             migrateRatio(node, wR);
-            applyStep(wW, multipleOf(node));
-            applyStep(wH, multipleOf(node));
+            applyStep(wW, multipleOf(node), node);
+            applyStep(wH, multipleOf(node), node);
 
             const sync = (driveBy) => {
                 if (node._xb_syncing || node._xb_from_polling) return;
                 const step = multipleOf(node);
                 const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
                 node._xb_syncing = true;
-                if (parseInt(wW.value, 10) !== wid) { wW.value = wid; xb_dispatch(wW, wid); }
-                if (parseInt(wH.value, 10) !== hei) { wH.value = hei; xb_dispatch(wH, hei); }
+                if (parseInt(wW.value, 10) !== wid) { xb_set(node, wW, wid); }
+                if (parseInt(wH.value, 10) !== hei) { xb_set(node, wH, hei); }
                 node._xb_syncing = false;
             };
 
@@ -201,27 +214,28 @@ app.registerExtension({
             const om = wM?.callback; if (wM) wM.callback = function (v) {
                 if (om) om.apply(this, arguments);
                 const step = multipleOf(node);
-                applyStep(wW, step); applyStep(wH, step);
+                applyStep(wW, step, node); applyStep(wH, step, node);
                 sync("w");
             };
 
             if(wF&&wFF){const of=wF.callback;wF.callback=function(v){if(of)of.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
-                const val=Math.round(Number(v));if(wFF.value!==val){node._xb_syncing=true;wFF.value=val;xb_dispatch(wFF,val);node._xb_syncing=false;}};
+                const val=Math.round(Number(v));if(wFF.value!==val){node._xb_syncing=true;wFF.value=val;xb_dispatch(wFF,val);pushPromotedValue(node,wFF.name,val);node._xb_syncing=false;}};
                 const off=wFF.callback;wFF.callback=function(v){if(off)off.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
-                const val=Math.round(Number(v));if(wF.value!==val){node._xb_syncing=true;wF.value=val;xb_dispatch(wF,val);node._xb_syncing=false;}};}
+                const val=Math.round(Number(v));if(wF.value!==val){node._xb_syncing=true;wF.value=val;xb_dispatch(wF,val);pushPromotedValue(node,wF.name,val);node._xb_syncing=false;}};}
             if(wL){node._xb_last_len=parseInt(wL.value,10)||1;const ol=wL.callback;wL.callback=function(v){if(ol)ol.apply(this,arguments);if(node._xb_syncing||node._xb_from_polling)return;
                 const isF=isCustomRatio(wR.value);const as=isF?1:8;
                 let len=parseInt(v,10)||1;if(!isF&&(len-1)%as!==0){len=len>node._xb_last_len?Math.ceil((len-1)/as)*as+1:Math.floor((len-1)/as)*as+1;len=Math.max(1,len);
-                if(wL.value!==len){node._xb_syncing=true;wL.value=len;xb_dispatch(wL,len);node._xb_syncing=false;}}node._xb_last_len=len;};}
+                if(wL.value!==len){node._xb_syncing=true;wL.value=len;xb_dispatch(wL,len);pushPromotedValue(node,wL.name,len);node._xb_syncing=false;}}node._xb_last_len=len;};}
         }
     },
 
     init() {
         injectParamsCss();
         setInterval(() => {
-            if (!app.graph || !app.graph._nodes) return;
+            if (!app.graph) return;
 
-            for (const node of app.graph._nodes) {
+            // 根图 + 所有子图里的节点都要处理（打包进子图后节点不在 app.graph._nodes 里）
+            for (const node of allNodes()) {
                 if (node.comfyClass === "XB_VideoParamsMaster" && node.widgets) {
                     const wRatio = node.widgets.find(w => w.name === "aspect_ratio");
                     const wDisp = node.widgets.find(w => w.name === "duration_display");
@@ -233,6 +247,7 @@ app.registerExtension({
 
                     if (wDisp && wLen && wFps && wFpsF && wWidth && wHeight && wRatio) {
                         node._xb_from_polling = true;
+                        syncPromotedValues(node);   // 子图：外层改了先把值拉回内层
                         // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
                         try { if (wDisp.options) wDisp.options.read_only = true; } catch (_) {}
                         let dispEl = wDisp.inputEl || wDisp.element;
@@ -243,7 +258,7 @@ app.registerExtension({
                             dispEl.style.textAlign = "center";
                             dispEl.style.fontWeight = "bold";
                         }
-                        wFpsF.options.precision = 2;
+                        if (wFpsF.options) wFpsF.options.precision = 2;
 
                         if (node._xb_last_fps === undefined) {
                             node._xb_last_fps = wFps.value;
@@ -264,8 +279,13 @@ app.registerExtension({
 
                         // 步长 = 倍数（宽高必须能被它整除）
                         let currentStep = multipleOf(node);
-                        applyStep(wWidth, currentStep);
-                        applyStep(wHeight, currentStep);
+                        applyStep(wWidth, currentStep, node);
+                        applyStep(wHeight, currentStep, node);
+                        // 倍数变了（可能是在子图节点表面改的）→ 宽高要按新步长重新规整
+                        if (node._xb_last_multiple !== currentStep) {
+                            node._xb_last_multiple = currentStep;
+                            node._xb_need_normalize = true;
+                        }
 
                         let wid = parseInt(wWidth.value, 10) || currentStep;
                         let hei = parseInt(wHeight.value, 10) || currentStep;
@@ -281,7 +301,7 @@ app.registerExtension({
                             if (currentRatio) {
                                 const ratioOnly = rChanged && !wChanged && !hChanged;
                                 if (ratioOnly) {
-                                    // ????????????????? Python ????
+                                    // 只改了比例时，以宽度为基准换算（与 Python 保持一致）
                                     if (nw >= nh) nh = snap(nw / currentRatio);
                                     else nw = snap(nh * currentRatio);
                                 } else if (wChanged || !hChanged) {
@@ -294,7 +314,9 @@ app.registerExtension({
                             wWidth.value = nw; wHeight.value = nh;
                             node._xb_last_width = nw; node._xb_last_height = nh;
                             node._xb_last_ratio = valRatio;
+                            pushPromotedValue(node, wWidth.name, nw);
                             xb_dispatch(wWidth, nw);
+                            pushPromotedValue(node, wHeight.name, nh);
                             xb_dispatch(wHeight, nh);
                             needsUpdate = true;
                         }
@@ -302,19 +324,19 @@ app.registerExtension({
                         if (wFps.value !== node._xb_last_fps) {
                             let val = Math.round(Number(wFps.value)); wFps.value = val; wFpsF.value = val;
                             node._xb_last_fps = val; node._xb_last_fps_float = val;
-                            xb_dispatch(wFps, val);
-                            xb_dispatch(wFpsF, val);
+                            xb_set(node, wFps, val);
+                            xb_set(node, wFpsF, val);
                             needsUpdate = true;
                         } else if (wFpsF.value !== node._xb_last_fps_float) {
                             let val = Math.round(Number(wFpsF.value)); wFps.value = val; wFpsF.value = val;
                             node._xb_last_fps = val; node._xb_last_fps_float = val;
-                            xb_dispatch(wFps, val);
-                            xb_dispatch(wFpsF, val);
+                            xb_set(node, wFps, val);
+                            xb_set(node, wFpsF, val);
                             needsUpdate = true;
                         }
 
                         let alignStepLen = isFree ? 1 : 8;
-                        wLen.options.step = wLen.options.step2 = alignStepLen;
+                        if (wLen.options) wLen.options.step = wLen.options.step2 = alignStepLen;
                         if (wLen.inputEl) { wLen.inputEl.step = alignStepLen; wLen.inputEl.setAttribute("step", String(alignStepLen)); }
                         else if (wLen.element) { wLen.element.step = alignStepLen; wLen.element.setAttribute("step", String(alignStepLen)); }
 
@@ -328,6 +350,7 @@ app.registerExtension({
                         safeLen = Math.max(1, safeLen);
                         if (wLen.value !== safeLen) {
                             wLen.value = safeLen;
+                            pushPromotedValue(node, wLen.name, safeLen);
                             xb_dispatch(wLen, safeLen);
                             needsUpdate = true;
                         }
@@ -338,6 +361,7 @@ app.registerExtension({
                         let expectedText = isZH ? `视频时长: ${seconds} 秒` : `Video Duration: ${seconds} s`;
                         if (wDisp.value !== expectedText) {
                             wDisp.value = expectedText;
+                            pushPromotedValue(node, wDisp.name, expectedText);
                             xb_dispatch(wDisp, expectedText);
                             let dEl = wDisp.inputEl || wDisp.element;
                             if (dEl && dEl.style) dEl.style.color = "#00FF00";
@@ -356,12 +380,13 @@ app.registerExtension({
 
                     if (wRatio && wWidth && wHeight) {
                         node._xb_from_polling = true;
+                        syncPromotedValues(node);   // 子图：外层改了先把值拉回内层
 
                         if (node._xb_last_ratio === undefined) {
                             node._xb_last_width = parseInt(wWidth.value, 10) || 1024;
                             node._xb_last_height = parseInt(wHeight.value, 10) || 1024;
                             node._xb_last_ratio = wRatio.value;
-                            node._xb_need_normalize = true;   // ????????
+                            node._xb_need_normalize = true;   // 载入后先规整一次
                         }
                         if (migrateRatio(node, wRatio)) node._xb_need_normalize = true;
 
@@ -371,8 +396,13 @@ app.registerExtension({
 
                         // 步长 = 倍数（宽高必须能被它整除）
                         let currentStep = multipleOf(node);
-                        applyStep(wWidth, currentStep);
-                        applyStep(wHeight, currentStep);
+                        applyStep(wWidth, currentStep, node);
+                        applyStep(wHeight, currentStep, node);
+                        // 倍数变了（可能是在子图节点表面改的）→ 宽高要按新步长重新规整
+                        if (node._xb_last_multiple !== currentStep) {
+                            node._xb_last_multiple = currentStep;
+                            node._xb_need_normalize = true;
+                        }
 
                         let wid = parseInt(wWidth.value, 10) || currentStep;
                         let hei = parseInt(wHeight.value, 10) || currentStep;
@@ -388,7 +418,7 @@ app.registerExtension({
                             if (currentRatio) {
                                 const ratioOnly = rChanged && !wChanged && !hChanged;
                                 if (ratioOnly) {
-                                    // ????????????????? Python ????
+                                    // 只改了比例时，以宽度为基准换算（与 Python 保持一致）
                                     if (nw >= nh) nh = snap(nw / currentRatio);
                                     else nw = snap(nh * currentRatio);
                                 } else if (wChanged || !hChanged) {
@@ -401,7 +431,9 @@ app.registerExtension({
                             wWidth.value = nw; wHeight.value = nh;
                             node._xb_last_width = nw; node._xb_last_height = nh;
                             node._xb_last_ratio = valRatio;
+                            pushPromotedValue(node, wWidth.name, nw);
                             xb_dispatch(wWidth, nw);
+                            pushPromotedValue(node, wHeight.name, nh);
                             xb_dispatch(wHeight, nh);
                             needsUpdate = true;
                         }

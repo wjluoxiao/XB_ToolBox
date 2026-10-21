@@ -14,6 +14,7 @@ from comfy.utils import common_upscale, ProgressBar
 import nodes
 
 from .xb_av import open_av
+from .xb_paths import resolve_filename_prefix
 
 # ============================================================
 # 画幅比例 / 倍数 公共逻辑
@@ -959,6 +960,8 @@ class XB_VideoCombine:
         images = iter(images)
 
         output_dir = folder_paths.get_output_directory() if save_output else folder_paths.get_temp_directory()
+        # 展开 %date:yyyy-MM-dd% 之类的标记，否则会生成非法目录名（Windows: WinError 267）
+        filename_prefix = resolve_filename_prefix(filename_prefix)
         full_output_folder, filename, _, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, output_dir)
         output_files = []
 

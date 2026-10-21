@@ -630,5 +630,107 @@ export function bindNodes2NodeFill(node, box, opts = {}) {
     return uninstall;
 }
 
+/**
+ * 遍历「根图 + 所有子图（含嵌套）」，返回全部节点。
+ * 放在子图里的节点不在 app.graph._nodes 里，轮询时必须用这个。
+ */
+export function allNodes() {
+    const out = [];
+    const seenGraphs = new Set();
+    const seenNodes = new Set();
+    const visit = (g) => {
+        if (!g || seenGraphs.has(g)) return;
+        seenGraphs.add(g);
+        for (const n of g._nodes || []) {
+            if (!seenNodes.has(n)) { seenNodes.add(n); out.push(n); }
+            if (n.subgraph) visit(n.subgraph);
+        }
+    };
+    visit(app?.graph?.rootGraph || app?.graph);
+    return out;
+}
+
+/**
+ * 找外层子图节点上对应同名的 widget。
+ * 节点被打包进子图且该输入被提升为子图输入时，外层子图节点上会有一个同名 widget，
+ * 但内外两边不会自动互相同步（运行时靠连线传值，widget.value 保持旧值）。
+ */
+export function ownerWidgets(node, name) {
+    const inner = node?.graph;
+    const root = inner?.rootGraph || app?.graph?.rootGraph;
+    const out = [];
+    if (!inner || !root || root === inner) return out;
+    const seen = new Set();
+    const visit = (g) => {
+        if (!g || seen.has(g)) return;
+        seen.add(g);
+        for (const n of g._nodes || []) {
+            const sub = n.subgraph;
+            if (!sub) continue;
+            if (sub === inner) {
+                const w = (n.widgets || []).find((x) => x.name === name);
+                if (w) out.push(w);
+            }
+            visit(sub);
+        }
+    };
+    visit(root);
+    return out;
+}
+
+/** 按 widget 类型把值规整一下；不合法返回 null */
+function promoNormalize(w, v) {
+    const vals = w?.options?.values;
+    if (Array.isArray(vals) && vals.length) {
+        if (vals.includes(v)) return v;
+        if (vals.includes(String(v))) return String(v);
+        return null;
+    }
+    const numeric = typeof w?.value === "number" || /INT|FLOAT|number/i.test(String(w?.type || ""));
+    if (numeric) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    }
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return v;
+    return null;
+}
+
+/**
+ * 内外两侧哪个变了就同步到另一边：
+ *   · 用户改了外层子图节点上的 widget → 拉回内层（ComfyUI 不会自动回写）
+ *   · 用户改了内层 widget / 内层联动算出新值 → 推到外层（否则执行时用的还是外层旧值）
+ * 通过记住上一次两边的值来判定方向，避免互相覆盖。
+ */
+export function syncPromotedValues(node) {
+    let pulled = false;
+    for (const w of node?.widgets || []) {
+        const ext = ownerWidgets(node, w.name);
+        if (!ext.length) continue;
+        const ow = ext[0];
+        const st = w.__xbPromo || (w.__xbPromo = { i: w.value, o: ow.value });
+        const innerChanged = st.i !== w.value;
+        const outerChanged = st.o !== ow.value;
+        if (outerChanged && !innerChanged) {
+            const nv = promoNormalize(w, ow.value);
+            if (nv !== null && nv !== w.value) { w.value = nv; pulled = true; }
+        } else if (innerChanged && !outerChanged) {
+            const nv = promoNormalize(ow, w.value);
+            if (nv !== null && nv !== ow.value) ow.value = nv;
+        }
+        w.__xbPromo = { i: w.value, o: ow.value };
+    }
+    return pulled;
+}
+
+/** 把内层 widget 的值推到外层子图节点上（否则执行时用的还是外层的旧值） */
+export function pushPromotedValue(node, name, val) {
+    let changed = false;
+    for (const w of ownerWidgets(node, name)) {
+        if (w.value !== val) { w.value = val; changed = true; }
+    }
+    return changed;
+}
+
 /** 供自动化/排查使用 */
 export const XB_COMPAT = { version: 1 };
