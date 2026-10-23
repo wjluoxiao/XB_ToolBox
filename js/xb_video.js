@@ -89,14 +89,22 @@ const multipleOf = (node) => {
     return Number.isFinite(v) && v >= 8 ? v : 16;
 };
 
-/** 把宽高按比例 + 倍数（步长）规整，保证两边都能整除 */
-const fitSize = (ratioName, w, h, step) => {
+/**
+ * 把宽高按比例 + 倍数（步长）规整，保证两边都能整除。
+ * driveBy 说明「哪一边是用户刚改的」，用它去推另一边：
+ *   "w" = 改了宽度、"h" = 改了高度、其他 = 只改了比例（以较大边为基准，尽量保持画面大小）。
+ * 不能一律用「较大的一边」当基准：1:1 下把宽度从 1024 调小到 1008 时，宽度会小于高度，
+ * 那样又会被算回 1024 —— 表现为只能放大、改不小，手输数值也立刻被还原。
+ */
+const fitSize = (ratioName, w, h, step, driveBy = "r") => {
     const snap = (v) => Math.max(step, Math.round((Number(v) || step) / step) * step);
     let wid = snap(w);
     let hei = snap(h);
     const r = ratioOf(ratioName);
     if (r) {
-        if (wid >= hei) hei = snap(wid / r);
+        if (driveBy === "h") wid = snap(hei * r);
+        else if (driveBy === "w") hei = snap(wid / r);
+        else if (wid >= hei) hei = snap(wid / r);
         else wid = snap(hei * r);
     }
     return { wid: Math.max(step, wid), hei: Math.max(step, hei) };
@@ -163,24 +171,24 @@ app.registerExtension({
             applyStep(wW, multipleOf(node), node);
             applyStep(wH, multipleOf(node), node);
 
-            const sync = () => {
+            const sync = (driveBy) => {
                 if (node._xb_syncing || node._xb_from_polling) return;
                 const step = multipleOf(node);
-                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
+                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step, driveBy);
                 node._xb_syncing = true;
                 if (parseInt(wW.value, 10) !== wid) { xb_set(node, wW, wid); }
                 if (parseInt(wH.value, 10) !== hei) { xb_set(node, wH, hei); }
                 node._xb_syncing = false;
             };
 
-            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync(); };
-            const ow = wW.callback; wW.callback = function (v) { if (ow) ow.apply(this, arguments); sync(); };
-            const oh = wH.callback; wH.callback = function (v) { if (oh) oh.apply(this, arguments); sync(); };
+            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync("r"); };
+            const ow = wW.callback; wW.callback = function (v) { if (ow) ow.apply(this, arguments); sync("w"); };
+            const oh = wH.callback; wH.callback = function (v) { if (oh) oh.apply(this, arguments); sync("h"); };
             const om = wM?.callback; if (wM) wM.callback = function (v) {
                 if (om) om.apply(this, arguments);
                 const step = multipleOf(node);
                 applyStep(wW, step, node); applyStep(wH, step, node);
-                sync();
+                sync("w");
             };
         }
 
@@ -201,14 +209,14 @@ app.registerExtension({
             const sync = (driveBy) => {
                 if (node._xb_syncing || node._xb_from_polling) return;
                 const step = multipleOf(node);
-                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step);
+                const { wid, hei } = fitSize(wR.value, wW.value, wH.value, step, driveBy);
                 node._xb_syncing = true;
                 if (parseInt(wW.value, 10) !== wid) { xb_set(node, wW, wid); }
                 if (parseInt(wH.value, 10) !== hei) { xb_set(node, wH, hei); }
                 node._xb_syncing = false;
             };
 
-            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync("w"); };
+            const oc = wR.callback; wR.callback = function (v) { if (oc) oc.apply(this, arguments); if (node._xb_from_polling) return; sync("r"); };
             const ow = wW.callback; wW.callback = function (v) { if (ow) ow.apply(this, arguments); sync("w"); };
             const oh = wH.callback; wH.callback = function (v) { if (oh) oh.apply(this, arguments); sync("h"); };
             const om = wM?.callback; if (wM) wM.callback = function (v) {
