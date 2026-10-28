@@ -327,6 +327,7 @@ class XB_SamplerCustom:
         return inputs
 
     RETURN_TYPES = _ncs.SamplerCustom.RETURN_TYPES
+    RETURN_NAMES = ("Latent", "降噪Latent")
     FUNCTION = "sample"
     CATEGORY = "XB_ToolBox/原版优化"
 
@@ -346,6 +347,7 @@ class XB_SamplerCustomAdvanced:
         return inputs
 
     RETURN_TYPES = _ncs.SamplerCustomAdvanced.RETURN_TYPES
+    RETURN_NAMES = ("Latent", "降噪Latent")
     FUNCTION = "sample"
     CATEGORY = "XB_ToolBox/原版优化"
 
@@ -528,33 +530,6 @@ class _AliasVAEDecodeTemporal:
             kwargs["temporal_overlap"] = kwargs.pop("t_overlap") if kwargs["t_overlap"] > 0 else 8
         # 向下兼容: 旧版 ComfyUI 不支持时间参数时自动跳过
         result, _ = _safe_call(nodes.VAEDecodeTiled().decode, **kwargs)
-        return result
-
-
-class _AliasVAEEncode:
-    """别名: XB_ROCmVAEEncode — tile→tile_size"""
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "pixels": ("IMAGE",),
-            "vae": ("VAE",),
-            "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64}),
-            "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16}),
-            "temporal_size": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 16}),
-            "temporal_overlap": ("INT", {"default": 0, "min": 0, "max": 64, "step": 4}),
-            "cleanup": (_CLEANUP_OPTIONS, {"default": "不做任何清理"}),
-        }}
-    RETURN_TYPES = ("LATENT",)
-    FUNCTION = "encode"
-    CATEGORY = "XB_ToolBox/原版优化"
-
-    def encode(self, **kwargs):
-        cleanup = kwargs.pop("cleanup", "不做任何清理")
-        _execute_cleanup(cleanup, "VAE编码")
-        if "tile" in kwargs:
-            kwargs["tile_size"] = kwargs.pop("tile") if kwargs["tile"] > 0 else 512
-        # 向下兼容: 旧版 ComfyUI 不支持时间参数时自动跳过
-        result, _ = _safe_call(nodes.VAEEncodeTiled().encode, **kwargs)
         return result
 
 

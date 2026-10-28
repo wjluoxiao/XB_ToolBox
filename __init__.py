@@ -123,7 +123,7 @@ try:
                                           XB_VAEDecodeTiledImage,
                                           XB_VAEEncode, XB_VAEEncodeTiled,
                                           XB_VAEEncodeForInpaint,
-                                          _AliasVAEDecodeTemporal, _AliasVAEEncode)
+                                          _AliasVAEDecodeTemporal)
     from .nodes_string_merge import XB_StringMerge
     from .nodes_clip_text_edit import XB_CLIPTextEdit
     from .nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
@@ -258,7 +258,6 @@ try:
         "XB_StoryboardSlicer": XB_StoryboardSlicer,
         "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
         # ── 借尸还魂：旧 ROCm 节点 ID → 别名类（兼容旧参数名） ──
-        "XB_ROCmVAEEncode": _AliasVAEEncode,
         # ── 新原版优化节点 ──
         "XB_KSampler": XB_KSampler,
         "XB_KSamplerAdvanced": XB_KSamplerAdvanced,
@@ -416,7 +415,6 @@ try:
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
         "XB_SageAttentionAccelerator": "XB-BOX - Acceleration Mode Selector",
         # ── 借尸还魂：旧节点名 + 新的优化版显示名 ──
-        "XB_ROCmVAEEncode": "XB-BOX - VAE编码（原版优化）（旧）",
         # ── 新优化版节点 ──
         "XB_KSampler": "XB-BOX - 采样器（原版优化）",
         "XB_KSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）",

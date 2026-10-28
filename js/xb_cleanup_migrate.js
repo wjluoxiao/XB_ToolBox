@@ -36,6 +36,17 @@ const LEGACY_CONVERT = {
 	},
 	XB_ROCmSamplerCustom: { type: "XB_SamplerCustom" },
 	XB_ROCmSamplerCustomAdvanced: { type: "XB_SamplerCustomAdvanced" },
+	XB_ROCmVAEEncode: {
+		type: "XB_VAEEncodeTiled",
+		slots: [
+			{ zero: 512, min: 64, max: 4096 },
+			{ min: 0, max: 4096 },
+			{ min: 8, max: 4096 },
+			{ min: 4, max: 4096 },
+			null,
+		],
+		renames: { tile: "tile_size" },
+	},
 };
 LEGACY_CONVERT.XB_ROCmLTXVAEDecode = LEGACY_CONVERT.XB_ROCmVAEDecodeTemporal;
 

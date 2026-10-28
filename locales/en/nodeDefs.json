@@ -8,30 +8,6 @@
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 Hardware Monitor (Memory Visualization)"
   },
-  "XB_ROCmKSampler": {
-    "display_name": "XB-BOX - Sampler (Optimized) (Legacy)"
-  },
-  "XB_ROCmKSamplerAdvanced": {
-    "display_name": "XB-BOX - Advanced Sampler (Optimized) (Legacy)"
-  },
-  "XB_ROCmSamplerCustom": {
-    "display_name": "XB-BOX - Custom Sampler (Optimized) (Legacy)"
-  },
-  "XB_ROCmSamplerCustomAdvanced": {
-    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized) (Legacy)"
-  },
-  "XB_ROCmVAEDecode": {
-    "display_name": "XB-BOX - VAE Decode (Optimized) (Legacy)"
-  },
-  "XB_ROCmVAEEncode": {
-    "display_name": "XB-BOX - VAE Encode (Optimized) (Legacy)"
-  },
-  "XB_ROCmVAEDecodeTemporal": {
-    "display_name": "XB-BOX - VAE Tiled Decode (Optimized) (Legacy)"
-  },
-  "XB_ROCmLTXVAEDecode": {
-    "display_name": "XB-BOX - VAE Tiled Decode LTX (Optimized) (Legacy)"
-  },
   "XB_KSampler": {
     "display_name": "XB-BOX - Sampler (Optimized)"
   },
@@ -39,10 +15,26 @@
     "display_name": "XB-BOX - Advanced Sampler (Optimized)"
   },
   "XB_SamplerCustom": {
-    "display_name": "XB-BOX - Custom Sampler (Optimized)"
+    "display_name": "XB-BOX - Custom Sampler (Optimized)",
+    "outputs": {
+      "0": {
+        "name": "Latent"
+      },
+      "1": {
+        "name": "Denoised Latent"
+      }
+    }
   },
   "XB_SamplerCustomAdvanced": {
-    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized)"
+    "display_name": "XB-BOX - Custom Advanced Sampler (Optimized)",
+    "outputs": {
+      "0": {
+        "name": "Latent"
+      },
+      "1": {
+        "name": "Denoised Latent"
+      }
+    }
   },
   "XB_VAEDecode": {
     "display_name": "XB-BOX - VAE Decode (Optimized)"

@@ -30,7 +30,7 @@
 | 分类 | 节点数 | 亮点 |
 |------|:---:|---|
 | 🎛️ 参数与媒体 I/O | 7 | 图片 / 视频参数大全、海螺 H3 参数、视频加载与拼接、万能参数 |
-| 🧊 显存优化 | 25 | 17 个「官方套皮」采样器 / VAE（分级清理）、分块交换、SageAttention、GGUF 加载 V1–V3 |
+| 🧊 显存优化 | 25 | 11 个「官方套皮」采样器 / VAE（分级清理）、分块交换、SageAttention、GGUF 加载 V1–V3 |
 | 🎬 长视频接力流水线 | 19 | InfiniteTalk / SCAIL / Wan Animate 无限接力、LTX-2.3 流式、视频合并、分镜切割、数字人参数 |
 | 🎥 Wan 节点族 | 24 | 图生视频、首尾帧、VACE、Fun、Camera、Phantom、HuMo、SCAIL、Dancer、Sound、InfiniteTalk——全部内置 VAE 分块 |
 | 🎵 音频与语音 | 15 | 音频切片 ×4、CosyVoice3 ×10、播放声音 |
@@ -60,7 +60,7 @@
 
 #### 2. 🧊 显存优化
 
-- **🧊 官方采样器 / VAE 套皮（17 个）**：一字不差地调用 ComfyUI 官方节点（动态 `INPUT_TYPES`、`**kwargs` 透传、不改底层算法），仅在执行前注入分级显存清理（`不做任何清理` / `卸载显存模型`（模型退到内存，显存立即空出）/ `卸载全量模型`（再断开模型强引用并 GC，显存与内存两侧都交还，下次用时重新加载））。覆盖 `KSampler`、`KSamplerAdvanced`、`SamplerCustom(+Advanced)`、`VAEDecode(+Tiled / TiledImage)`、`VAEEncode(+Tiled / ForInpaint)`，并保留给旧工作流用的 `ROCm` 命名别名（其中三个旧 VAE 解码节点已在载入时自动升级为新的 `VAEDecode(+Tiled / TiledImage)`，不再出现在节点菜单）。
+- **🧊 官方采样器 / VAE 套皮（11 个）**：一字不差地调用 ComfyUI 官方节点（动态 `INPUT_TYPES`、`**kwargs` 透传、不改底层算法），仅在执行前注入分级显存清理（`不做任何清理` / `卸载显存模型`（模型退到内存，显存立即空出）/ `卸载全量模型`（再断开模型强引用并 GC，显存与内存两侧都交还，下次用时重新加载））。覆盖 `KSampler`、`KSamplerAdvanced`、`SamplerCustom(+Advanced)`、`VAEDecode(+Tiled / TiledImage)`、`VAEEncode(+Tiled / ForInpaint)`，并保留给旧工作流用的 `ROCm` 命名别名（旧的 4 个采样器 + 3 个 VAE 解码 + 1 个 VAE 编码节点已在载入时自动升级为新节点，不再出现在节点菜单）。
 - **⚡ 分块解码自动直解**：两个分块解码节点在「分块大小 ≥ 整幅图幅」时自动改用官方不分块解码（官方 2D 分块会跑 3 遍再平均，实测 1024² 省 40%~60%）。
 - **✂️ 分块交换 (Block Swap)**：支持 UNet 与 Checkpoint 两种模式，把前 N 个 Transformer 块与 Text/Image 嵌入层强制停放到系统内存（RAM），用时间换空间。
 - **🧠 SageAttention 加速 / Sage + 分块 黄金搭档**：单独挂载注意力加速补丁（自动 / PyTorch SDPA / comfy-kitchen），或与物理分块交换合并为一个节点。
