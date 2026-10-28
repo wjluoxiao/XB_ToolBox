@@ -727,6 +727,12 @@ def text_encoder_list():
         return []
 
 
+def _first_text_encoder():
+    """默认模型：列表里第一个（列表为空则空串，运行时会给出可读报错）"""
+    files = text_encoder_list()
+    return files[0] if files else ""
+
+
 # ═══════════════════════════════════════════════════════════════
 #  配置解析（None / 缺失 / 非法一律安全回落）
 # ═══════════════════════════════════════════════════════════════
@@ -924,14 +930,18 @@ class XB_QwenPromptPreset:
                 }),
 
                 # ══ ③ 官方 Load CLIP（模型选择）══
-                "clip_name": (text_encoder_list(), {
+                #   用 STRING 而不是 COMBO：模型文件被删/改名、或「关闭 LLM 增强」时，
+                #   COMBO 的「值必须在列表里」校验会直接卡住队列（value_not_in_list）。
+                #   下拉列表由前端从官方 CLIPLoader 的 object_info 注入（js/xb_qwen_prompt_preset.js）。
+                "clip_name": ("STRING", {
+                    "default": _first_text_encoder(),
                     "tooltip": "文本编码器（models/text_encoders）。与官方 Load CLIP 同一个列表。",
                 }),
-                "clip_type": (list(CLIP_TYPES), {
+                "clip_type": ("STRING", {
                     "default": DEFAULT_CLIP_TYPE,
                     "tooltip": "类型：与官方 Load CLIP 一致；Qwen-Image 系文本编码器选 qwen_image",
                 }),
-                "device": (list(CLIP_DEVICES), {
+                "device": ("STRING", {
                     "default": DEFAULT_DEVICE,
                     "tooltip": "设备：与官方 Load CLIP 一致；default=自动，cpu=放内存",
                 }),

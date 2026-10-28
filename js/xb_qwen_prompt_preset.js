@@ -2625,6 +2625,53 @@ function importJson(onDone) {
 /* ============================================================
  *  节点挂载
  * ============================================================ */
+/* ?? ?? Load CLIP ???????? ??????????????????????????????
+ * ???????? STRING?COMBO ??????????????????/???
+ * ??? LLM ?????????????????????? CLIPLoader ?
+ * object_info ?????????????????????????? */
+const XBR_CLIP_META = { names: [], types: [], devices: [], loaded: false, loading: null };
+
+function xbrLoadClipMeta() {
+  if (XBR_CLIP_META.loaded) return Promise.resolve(XBR_CLIP_META);
+  if (XBR_CLIP_META.loading) return XBR_CLIP_META.loading;
+  XBR_CLIP_META.loading = (async () => {
+    try {
+      const res = await fetch("/object_info/CLIPLoader");
+      const req = (await res.json())?.CLIPLoader?.input?.required || {};
+      const pick = (k, fb) => (Array.isArray(req[k]?.[0]) ? req[k][0].slice() : fb);
+      XBR_CLIP_META.names = pick("clip_name", []);
+      XBR_CLIP_META.types = pick("type", []);
+      XBR_CLIP_META.devices = pick("device", ["default", "cpu"]);
+      XBR_CLIP_META.loaded = true;
+    } catch (e) {
+      console.warn("[XB-???????] ?? CLIPLoader ????", e);
+    }
+    return XBR_CLIP_META;
+  })();
+  return XBR_CLIP_META.loading;
+}
+
+function xbrApplyClipOptions(node) {
+  const apply = () => {
+    const table = [
+      ["clip_name", XBR_CLIP_META.names],
+      ["clip_type", XBR_CLIP_META.types],
+      ["device", XBR_CLIP_META.devices],
+    ];
+    for (const [name, values] of table) {
+      const w = findWidget(node, name);
+      if (!w || !values.length) continue;
+      w.options = w.options || {};
+      w.options.values = values;
+      // ????????/?? ? ???????????????????
+      if (typeof w.value === "string" && !values.includes(w.value)) w.value = values[0];
+    }
+    node.setDirtyCanvas?.(true, true);
+  };
+  if (XBR_CLIP_META.loaded) apply();
+  else xbrLoadClipMeta().then(() => { try { apply(); } catch (_) {} });
+}
+
 function setupNode(node) {
   const widgetState = new WeakMap();   // 隐藏 widget 前的原样（type/computeSize/hidden），供 showWidget 原样恢复
   const wAR = findWidget(node, "aspect_ratio");
@@ -2637,6 +2684,9 @@ function setupNode(node) {
   const w3v = findWidget(node, "three_view_text");
   const ipWidget = findWidget(node, "internal_prompt");
   if (!wAR || !wW || !wH || !ipWidget) return;
+
+  // ?? Load CLIP ????????????? STRING?????????
+  try { xbrApplyClipOptions(node); } catch (_) {}
 
   // ── 内部字段从节点表面隐藏 ────────────────────────────────────────
   // ⚠️ 实测教训：后端只写 "advanced": True 在本前端版本里**不会**把 V1 widget 从节点表面藏起来，
