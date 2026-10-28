@@ -92,7 +92,7 @@ try:
     from .nodes_blockswap_sage import XB_Sage_BlockSwap
     from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_memory_viz import XB_MemoryVisualization
-    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanVAEDecodeTiled, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
+    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
     from .nodes_batch import XB_BatchFolderLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
     from .nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
@@ -123,10 +123,7 @@ try:
                                           XB_VAEDecodeTiledImage,
                                           XB_VAEEncode, XB_VAEEncodeTiled,
                                           XB_VAEEncodeForInpaint,
-                                          _AliasKSampler, _AliasKSamplerAdvanced,
-                                          _AliasSamplerCustom, _AliasSamplerCustomAdvanced,
-                                          _AliasVAEDecode, _AliasVAEDecodeTemporal,
-                                          _AliasLTXVAEDecode, _AliasVAEEncode)
+                                          _AliasVAEDecodeTemporal, _AliasVAEEncode)
     from .nodes_string_merge import XB_StringMerge
     from .nodes_clip_text_edit import XB_CLIPTextEdit
     from .nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
@@ -241,8 +238,7 @@ try:
         "XB_WanInfiniteTalkToVideo": XB_WanInfiniteTalkToVideo,
         "XB_WanInfiniteTalkToVideo_Single": XB_WanInfiniteTalkToVideo_Single,
         "XB_WanInfiniteTalkToVideo_Dual": XB_WanInfiniteTalkToVideo_Dual,
-        "XB_WanVAEDecodeTiled": XB_WanVAEDecodeTiled,
-        "XB_WanFunInpaintToVideo": XB_WanFunInpaintToVideo,
+                "XB_WanFunInpaintToVideo": XB_WanFunInpaintToVideo,
         "XB_WanCameraImageToVideo": XB_WanCameraImageToVideo,
         "XB_WanPhantomSubjectToVideo": XB_WanPhantomSubjectToVideo,
         "XB_WanHuMoImageToVideo": XB_WanHuMoImageToVideo,
@@ -262,14 +258,7 @@ try:
         "XB_StoryboardSlicer": XB_StoryboardSlicer,
         "XB_SageAttentionAccelerator": XB_SageAttentionAccelerator,
         # ── 借尸还魂：旧 ROCm 节点 ID → 别名类（兼容旧参数名） ──
-        "XB_ROCmKSampler": _AliasKSampler,
-        "XB_ROCmKSamplerAdvanced": _AliasKSamplerAdvanced,
-        "XB_ROCmSamplerCustom": _AliasSamplerCustom,
-        "XB_ROCmSamplerCustomAdvanced": _AliasSamplerCustomAdvanced,
-        "XB_ROCmVAEDecode": _AliasVAEDecode,
         "XB_ROCmVAEEncode": _AliasVAEEncode,
-        "XB_ROCmVAEDecodeTemporal": _AliasVAEDecodeTemporal,
-        "XB_ROCmLTXVAEDecode": _AliasLTXVAEDecode,
         # ── 新原版优化节点 ──
         "XB_KSampler": XB_KSampler,
         "XB_KSamplerAdvanced": XB_KSamplerAdvanced,
@@ -427,14 +416,7 @@ try:
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
         "XB_SageAttentionAccelerator": "XB-BOX - Acceleration Mode Selector",
         # ── 借尸还魂：旧节点名 + 新的优化版显示名 ──
-        "XB_ROCmKSampler": "XB-BOX - 采样器（原版优化）（旧）",
-        "XB_ROCmKSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）（旧）",
-        "XB_ROCmSamplerCustom": "XB-BOX - 自定义采样器（原版优化）（旧）",
-        "XB_ROCmSamplerCustomAdvanced": "XB-BOX - 自定义高级采样器（原版优化）（旧）",
-        "XB_ROCmVAEDecode": "XB-BOX - VAE解码（原版优化）（旧）",
         "XB_ROCmVAEEncode": "XB-BOX - VAE编码（原版优化）（旧）",
-        "XB_ROCmVAEDecodeTemporal": "XB-BOX - VAE分块解码（原版优化）（旧）",
-        "XB_ROCmLTXVAEDecode": "XB-BOX - VAE分块解码 LTX（原版优化）（旧）",
         # ── 新优化版节点 ──
         "XB_KSampler": "XB-BOX - 采样器（原版优化）",
         "XB_KSamplerAdvanced": "XB-BOX - 高级采样器（原版优化）",

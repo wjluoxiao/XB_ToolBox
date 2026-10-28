@@ -64,7 +64,8 @@ The primary goal of **XB_ToolBox** is to help AI beginners new to ComfyUI quickl
 
 #### 2. 🧊 VRAM Optimization
 
-- **🧊 Official Sampler / VAE Wrappers (17)**: call the official ComfyUI nodes verbatim — dynamic `INPUT_TYPES`, `**kwargs` passthrough, zero changes to the underlying algorithm — and inject a tiered cache cleanup (`不做任何清理` / `单次缓存清理` / `双次缓存清理` / `卸载显存模型`) before each run. Covers `KSampler`, `KSamplerAdvanced`, `SamplerCustom(+Advanced)`, `VAEDecode(+Tiled / TiledImage)`, `VAEEncode(+Tiled / ForInpaint)`, plus legacy `ROCm`-named aliases for old workflows.
+- **🧊 Official Sampler / VAE Wrappers (17)**: call the official ComfyUI nodes verbatim — dynamic `INPUT_TYPES`, `**kwargs` passthrough, zero changes to the underlying algorithm — and inject a tiered VRAM cleanup (`不做任何清理` / `卸载显存模型` — offload models to RAM, VRAM freed instantly / `卸载全量模型` — additionally drop model references and GC so both VRAM and RAM are released, models reload on next use) before each run. Covers `KSampler`, `KSamplerAdvanced`, `SamplerCustom(+Advanced)`, `VAEDecode(+Tiled / TiledImage)`, `VAEEncode(+Tiled / ForInpaint)`, plus legacy `ROCm`-named aliases for old workflows (the three legacy VAE decode node IDs are auto-upgraded to the new `VAEDecode(+Tiled / TiledImage)` on load and no longer appear in the node menu).
+- **⚡ Auto un-tiled decode**: when the tile size covers the whole image, the two tiled decoders switch to the official plain `VAEDecode` (the official 2D tiled path runs 3 tiled passes and averages them; measured 40%~60% faster at 1024²).
 - **✂️ Block Swap (UNet / Checkpoint)**: forcibly parks the first N transformer blocks and the text/image embedding layers in system RAM, trading time for space.
 - **🧠 SageAttention Accelerator / Sage + Block Swap Duo**: mount the attention-acceleration patch alone (auto / PyTorch SDPA / comfy-kitchen), or combined with physical block swapping in one node.
 - **📦 GGUF Model Loaders V1 / V2 / V3**: all-in-one loaders stacking GGUF UNet + GGUF CLIP + LoRA (multi-slot) + VAE + Sage + Block Swap. V2 adds high/low-noise UNet pairs, V3 adds dual CLIP and dual VAE.
@@ -87,7 +88,7 @@ A two-minute talking-head clip will OOM in a single pass on almost any GPU. Thes
 
 #### 5. 🎥 Wan Node Family (24)
 
-Re-implementations of the Wan video nodes with **VAE tiling** built in (spatial + temporal chunking to flatten the decode peak): `ImageToVideo`, `FirstLastFrameToVideo`, `VaceToVideo`, `FunControl` / `FunInpaint`, `Camera`, `PhantomSubject`, `HuMo`, `SoundImageToVideo` (+ Extend), `SCAIL` (+ Pro), `Dancer` (+ Dance Switcher and Dancer Combo), `InfiniteTalkToVideo` (single / dual / legacy mode switch), `Wan22ImageToVideoLatent`, `WanVAEDecodeTiled`.
+Re-implementations of the Wan video nodes with **VAE tiling** built in (spatial + temporal chunking to flatten the decode peak): `ImageToVideo`, `FirstLastFrameToVideo`, `VaceToVideo`, `FunControl` / `FunInpaint`, `Camera`, `PhantomSubject`, `HuMo`, `SoundImageToVideo` (+ Extend), `SCAIL` (+ Pro), `Dancer` (+ Dance Switcher and Dancer Combo), `InfiniteTalkToVideo` (single / dual / legacy mode switch), `Wan22ImageToVideoLatent`.
 
 > These are graph members only — the Wan **model / sampler / VAE / text-encode** nodes come from [ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper). `XB_WanAnimateToVideo` and `XB_WanCompileSettings` are fully self-contained.
 

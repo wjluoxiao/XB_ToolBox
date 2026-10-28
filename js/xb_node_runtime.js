@@ -4,10 +4,10 @@
  * 设置：设置 → XB_ToolBox → 节点相关 → 开启节点耗时显示（默认开）
  *
  * 记录每个节点在最近一次执行里的耗时，并显示在节点上：
- *   · 经典模式（画布渲染）：标题栏上方画一个小胶囊，用 onDrawForeground 绘制
- *     （和 comfyui-easy-use 的「节点运行时间显示」同一思路）。
- *   · Nodes 2.0（DOM 渲染）：onDrawForeground 根本不执行，所以改成在节点
- *     底部的信息条（`#2 | XB_ToolBox`）右边追加一个同样式的 DOM 胶囊。
+ *   · 经典模式（画布渲染）：标题栏上方画一个小胶囊（实例级 onDrawForeground）。
+ *   · Nodes 2.0（DOM 渲染）：onDrawForeground 根本不执行，所以改成往节点 DOM 里插胶囊，
+ *     位置与经典模式一致——**节点左上角外侧**。入口不依赖节点自身结构：新版前端只有部分
+ *     节点有「#id | 包名」徽标行（KSampler / VAEDecode 都没有），所以自己画一个同款胶囊。
  *
  * 计时来源是前后端都会发的 `executing` 事件：它表示「某个节点开始执行」，
  * 所以「上一个节点的结束 → 当前节点的开始」就是上一个节点的耗时。
@@ -208,39 +208,57 @@ function domRoot(node) {
     return null;
 }
 
-function footerOf(root) {
-    return root.querySelector("div.mt-auto") || root.lastElementChild || null;
+/**
+ * Nodes 2.0 胶囊样式：统一挂在节点**左上角外侧**，与经典模式（画在标题栏上方）位置一致。
+ * 不依赖节点内部结构：新版前端只有部分节点有「#id | 包名」徽标行，KSampler / VAEDecode 都没有。
+ */
+const CHIP_CSS = [
+    "position:absolute",
+    "left:2px",
+    "bottom:100%",
+    "margin-bottom:3px",
+    "height:16px",
+    "display:flex",
+    "align-items:center",
+    "padding:0 6px",
+    "border-radius:5px",
+    "font-size:11px",
+    "line-height:1",
+    "white-space:nowrap",
+    "color:#e6e6e6",
+    "background:rgba(58,58,58,.95)",
+    "border:1px solid rgba(255,255,255,.12)",
+    "pointer-events:none",
+    "z-index:20",
+].join(";");
+
+function makeChip(text) {
+    const chip = document.createElement("div");
+    chip.setAttribute(CHIP_ATTR, "1");
+    chip.title = "本节点耗时";
+    chip.style.cssText = CHIP_CSS;
+    chip.textContent = text;
+    return chip;
 }
 
 function updateChip2(node) {
     const text = labelFor(node);
     const root = domRoot(node);
     if (!root) return;
-    const footer = footerOf(root);
-    if (!footer) return;
 
-    const existing = footer.querySelector(`[${CHIP_ATTR}]`);
+    // 统一用一个自绘胶囊，固定挂在节点左上角外侧（与经典模式同一位置）。
+    // 不塞进节点内的徽标行：新版前端只有部分节点有那行（KSampler / VAEDecode 都没有），
+    // 塞进去会导致一部分节点在底部徽标行、一部分在别处，位置不统一。
+    const existing = root.querySelector(`[${CHIP_ATTR}]`);
     if (!text) {
         existing?.remove();
         return;
     }
     if (existing) {
-        const inner = existing.firstElementChild;
-        if (inner && inner.textContent !== text) inner.textContent = text;
+        if (existing.textContent !== text) existing.textContent = text;
         return;
     }
-    // 复制「包名」那个胶囊的样式，保证外观和节点自带的标签一致
-    const pill = footer.querySelector("div.flex.h-6.items-center") || footer.firstElementChild;
-    if (!pill) return;
-    const chip = pill.cloneNode(false);
-    chip.setAttribute(CHIP_ATTR, "1");
-    chip.style.pointerEvents = "none";
-    chip.title = "本节点耗时";
-    const innerTpl = pill.querySelector("div");
-    const inner = innerTpl ? innerTpl.cloneNode(false) : document.createElement("div");
-    inner.textContent = text;
-    chip.appendChild(inner);
-    footer.appendChild(chip);
+    root.appendChild(makeChip(text));
 }
 
 // ── 刷新循环 ───────────────────────────────────────────────────────────
@@ -257,13 +275,17 @@ function tick() {
                 const node = nodeById(id);
                 if (node) updateChip2(node);
             }
-            // Vue 重渲染会丢掉追加的胶囊：偶尔整体补一次
-            if (++sweep % 4 === 0) {
-                for (const id of ranIds) {
-                    const node = nodeById(id);
-                    if (!node) continue;
+            // Vue 重渲染会丢掉追加的胶囊：隔几次整体体检一遍
+            // （不能只看 ranIds —— 节点可能被重新创建/换 id，按当前节点实际状态查最稳）
+            if (++sweep % 3 === 0) {
+                for (const node of allNodes()) {
+                    if (!node[SEC_KEY] && !node[CACHED_KEY]) continue;
                     const root = domRoot(node);
-                    if (root && !root.querySelector(`[${CHIP_ATTR}]`)) updateChip2(node);
+                    if (!root) continue;
+                    const chip = root.querySelector(`[${CHIP_ATTR}]`);
+                    const text = labelFor(node);
+                    if (!text) { chip?.remove(); continue; }
+                    if (!chip || chip.textContent !== text) updateChip2(node);
                 }
             }
         } else if (needsRepaint) {

@@ -60,7 +60,8 @@
 
 #### 2. 🧊 显存优化
 
-- **🧊 官方采样器 / VAE 套皮（17 个）**：一字不差地调用 ComfyUI 官方节点（动态 `INPUT_TYPES`、`**kwargs` 透传、不改底层算法），仅在执行前注入分级缓存清理（`不做任何清理` / `单次缓存清理` / `双次缓存清理` / `卸载显存模型`）。覆盖 `KSampler`、`KSamplerAdvanced`、`SamplerCustom(+Advanced)`、`VAEDecode(+Tiled / TiledImage)`、`VAEEncode(+Tiled / ForInpaint)`，并保留给旧工作流用的 `ROCm` 命名别名。
+- **🧊 官方采样器 / VAE 套皮（17 个）**：一字不差地调用 ComfyUI 官方节点（动态 `INPUT_TYPES`、`**kwargs` 透传、不改底层算法），仅在执行前注入分级显存清理（`不做任何清理` / `卸载显存模型`（模型退到内存，显存立即空出）/ `卸载全量模型`（再断开模型强引用并 GC，显存与内存两侧都交还，下次用时重新加载））。覆盖 `KSampler`、`KSamplerAdvanced`、`SamplerCustom(+Advanced)`、`VAEDecode(+Tiled / TiledImage)`、`VAEEncode(+Tiled / ForInpaint)`，并保留给旧工作流用的 `ROCm` 命名别名（其中三个旧 VAE 解码节点已在载入时自动升级为新的 `VAEDecode(+Tiled / TiledImage)`，不再出现在节点菜单）。
+- **⚡ 分块解码自动直解**：两个分块解码节点在「分块大小 ≥ 整幅图幅」时自动改用官方不分块解码（官方 2D 分块会跑 3 遍再平均，实测 1024² 省 40%~60%）。
 - **✂️ 分块交换 (Block Swap)**：支持 UNet 与 Checkpoint 两种模式，把前 N 个 Transformer 块与 Text/Image 嵌入层强制停放到系统内存（RAM），用时间换空间。
 - **🧠 SageAttention 加速 / Sage + 分块 黄金搭档**：单独挂载注意力加速补丁（自动 / PyTorch SDPA / comfy-kitchen），或与物理分块交换合并为一个节点。
 - **📦 GGUF 模型加载大全 V1 / V2 / V3**：把 GGUF UNet + GGUF CLIP + LoRA（多槽）+ VAE + Sage + BlockSwap 叠成一个节点；V2 增加高噪 / 低噪双 UNet，V3 增加双 CLIP、双 VAE。
@@ -83,7 +84,7 @@
 
 #### 5. 🎥 Wan 节点族（24 个）
 
-复刻 Wan 视频节点并**内置 VAE 分块**（空间 + 时间双重分块，削平解码显存峰值）：`ImageToVideo`、`FirstLastFrameToVideo`、`VaceToVideo`、`FunControl` / `FunInpaint`、`Camera`、`PhantomSubject`、`HuMo`、`SoundImageToVideo`（+ Extend）、`SCAIL`（+ Pro）、`Dancer`（+ 舞蹈切换器 / Dancer 综合）、`InfiniteTalkToVideo`（单人 / 双人 / 兼容旧工作流的 mode 切换）、`Wan22ImageToVideoLatent`、`WanVAEDecodeTiled`。
+复刻 Wan 视频节点并**内置 VAE 分块**（空间 + 时间双重分块，削平解码显存峰值）：`ImageToVideo`、`FirstLastFrameToVideo`、`VaceToVideo`、`FunControl` / `FunInpaint`、`Camera`、`PhantomSubject`、`HuMo`、`SoundImageToVideo`（+ Extend）、`SCAIL`（+ Pro）、`Dancer`（+ 舞蹈切换器 / Dancer 综合）、`InfiniteTalkToVideo`（单人 / 双人 / 兼容旧工作流的 mode 切换）、`Wan22ImageToVideoLatent`。
 
 > 它们只是图里的成员节点——Wan 的**模型 / 采样器 / VAE / 文本编码**节点来自 [ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper)。`XB_WanAnimateToVideo` 与 `XB_WanCompileSettings` 完全独立自足。
 

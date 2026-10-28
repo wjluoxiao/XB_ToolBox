@@ -26,7 +26,6 @@ const SIZES = {
     "XB_WanInfiniteTalkToVideo": [360, 200],
     "XB_WanInfiniteTalkToVideo_Single": [360, 200],
     "XB_WanInfiniteTalkToVideo_Dual": [360, 200],
-    "XB_WanVAEDecodeTiled": [360, 200],
     "XB_WanFunInpaintToVideo": [360, 200],
     "XB_WanCameraImageToVideo": [360, 200],
     "XB_WanPhantomSubjectToVideo": [360, 200],

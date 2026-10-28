@@ -8,18 +8,6 @@ import math
 import numpy as np
 import nodes
 
-# ── 跨版本兼容：VAEDecodeTiled 在不同 ComfyUI 版本中位置不同 ──
-_VAEDecodeTiled = None
-if hasattr(nodes, "VAEDecodeTiled"):
-    _VAEDecodeTiled = nodes.VAEDecodeTiled
-if _VAEDecodeTiled is None:
-    try:
-        from comfy_extras import nodes_video as _nv
-        if hasattr(_nv, "VAEDecodeTiled"):
-            _VAEDecodeTiled = _nv.VAEDecodeTiled
-    except ImportError:
-        pass
-
 _SCALE_METHODS = ["lanczos", "bilinear", "bicubic", "nearest-exact", "area"]
 _CROP_MODES = ["center", "disabled"]
 
@@ -1540,74 +1528,6 @@ class XB_WanDancerVideo:
 
         out_latent = {"samples": latent}
         return (positive, negative, out_latent)
-
-# ==============================================================================
-# 8. 🧊 Wan VAE 时空分块解码（独立节点）
-# ==============================================================================
-# 8. 🧊 Wan VAE 时空分块解码（独立节点）
-# ==============================================================================
-# ============================================================
-# XB_WanVAEDecodeTiled — Wan VAE 分块解码
-# ============================================================
-class XB_WanVAEDecodeTiled:
-    """Wan 视频 VAE 分块解码——空间+时间分块，降低显存峰值"""
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "samples": ("LATENT",),
-                "vae": ("VAE",),
-                "tile_size": ("INT", {"default": 256, "min": 64, "max": 2048, "step": 64, "tooltip": "空间分块大小"}),
-                "spatial_overlap": ("INT", {"default": 32, "min": 0, "max": 512, "step": 32, "tooltip": "空间块重叠像素"}),
-                "temporal_chunk": ("INT", {"default": 64, "min": 0, "max": 1024, "step": 4, "tooltip": "时间分块帧数(0=不分块)"}),
-                "temporal_overlap": ("INT", {"default": 8, "min": 0, "max": 256, "step": 4, "tooltip": "时间块重叠帧数"}),
-            }
-        }
-
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
-    FUNCTION = "decode"
-    CATEGORY = "XB_ToolBox/Wan"
-
-    def decode(self, samples, vae, tile_size, spatial_overlap, temporal_chunk, temporal_overlap):
-        # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方解码器 ──
-        if not (torch.cuda.is_available() and hasattr(torch.version, 'hip') and torch.version.hip):
-            if temporal_chunk <= 0 or _VAEDecodeTiled is None:
-                return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return _VAEDecodeTiled().decode(
-                samples=samples, vae=vae,
-                tile_size=tile_size, overlap=spatial_overlap,
-                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
-
-        # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
-        try:
-            # 🛡️ 显存连续性强制对齐 (专治 MIOpen HIP error: invalid argument)
-            lat = samples["samples"] if isinstance(samples, dict) else samples
-            is_nested_tensor = hasattr(lat, 'is_nested') and lat.is_nested
-            if not is_nested_tensor and not lat.is_contiguous():
-                if isinstance(samples, dict):
-                    samples["samples"] = lat.contiguous()
-                else:
-                    samples = lat.contiguous()
-
-            if temporal_chunk <= 0:
-                return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            result = _VAEDecodeTiled().decode(
-                samples=samples, vae=vae,
-                tile_size=tile_size, overlap=spatial_overlap,
-                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
-            return result
-        except Exception as e:
-            print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
-            print(f"[XB_ToolBox 错误信息] {e}")
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            if temporal_chunk <= 0 or _VAEDecodeTiled is None:
-                return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return _VAEDecodeTiled().decode(
-                samples=samples, vae=vae,
-                tile_size=tile_size, overlap=spatial_overlap,
-                temporal_size=temporal_chunk, temporal_overlap=temporal_overlap)
 
 # ============================================================
 # XB_WanDanceSwitcher — Wan 舞蹈切换器

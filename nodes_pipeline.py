@@ -567,7 +567,7 @@ class XB_WanAnimate_ParamBus:
                 "seed": ("INT", {"default": 123456789}),
                 "continue_motion_max_frames": ("INT", {"default": 5, "min": 0, "max": 16}),
                 # --- 显存清理 ---
-                "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "双次缓存清理"}),
+                "cleanup": (["不做任何清理", "卸载显存模型", "卸载全量模型"], {"default": "不做任何清理"}),
                 # --- CLIP视觉 ---
                 "clip_vision": ("CLIP_VISION",),
             },
@@ -859,7 +859,7 @@ class XB_WanInfiniteTalk_ParamBus:
                 "scale_method": (cls._SCALE_METHODS, {"default": "lanczos"}),
                 "crop_mode": (cls._CROP_MODES, {"default": "center"}),
                 # --- 清理 ---
-                "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "双次缓存清理"}),
+                "cleanup": (["不做任何清理", "卸载显存模型", "卸载全量模型"], {"default": "不做任何清理"}),
             },
             "optional": {
                 "start_image": ("IMAGE",),
@@ -1775,7 +1775,7 @@ class XB_WanSCAIL_ParamBus_New:
                 "scheduler": (comfy.samplers.SCHEDULER_NAMES,),
                 "seed": ("INT", {"default": 123456789}),
                 # --- 清理 ---
-                "cleanup": (["不做任何清理", "单次缓存清理", "双次缓存清理", "卸载显存模型"], {"default": "双次缓存清理"}),
+                "cleanup": (["不做任何清理", "卸载显存模型", "卸载全量模型"], {"default": "不做任何清理"}),
             },
             "optional": {
                 "global_ref_image": ("IMAGE",),
