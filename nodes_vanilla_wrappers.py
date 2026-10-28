@@ -275,6 +275,25 @@ def _decode_whole_if_single_tile(vae, samples, tile_size, temporal_size=None):
     return nodes.VAEDecode().decode(vae=vae, samples=samples)
 
 
+def _encode_whole_if_single_tile(vae, pixels, tile_size):
+    """整幅图能装进一块时静默返回官方不分块编码结果；否则返回 None（调用方继续走分块）
+
+    官方 encode_tiled_ 对 2D 图像同样跑 3 遍分块再平均（tile、2x×½y、½x×2y），
+    图幅不超过 tile_size 时这 3 遍结果都等价于整幅编码，纯属白跑。
+    """
+    if vae is None or pixels is None:
+        return None
+    shape = getattr(pixels, "shape", None)
+    if shape is None or len(shape) != 4:
+        return None
+    tile = int(tile_size)
+    if tile <= 0:
+        return None
+    if int(shape[1]) > tile or int(shape[2]) > tile:
+        return None
+    return nodes.VAEEncode().encode(vae=vae, pixels=pixels)
+
+
 # ═══════════════════════════════════════════════════════════════
 # 采样器 Wrapper 节点
 # ═══════════════════════════════════════════════════════════════
@@ -477,6 +496,40 @@ class XB_VAEEncodeTiled:
         return nodes.VAEEncodeTiled().encode(**kwargs)
 
 
+class XB_VAEEncodeTiledImage:
+    """原版 VAEEncodeTiled 图片专用套皮 — 仅空间分块，无时间维度"""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        # 从官方定义派生，官方新增参数能自动接住；时间参数裁掉，调用时用固定值
+        inputs = copy.deepcopy(nodes.VAEEncodeTiled.INPUT_TYPES())
+        required = inputs["required"]
+        required.pop("temporal_size", None)
+        required.pop("temporal_overlap", None)
+        required["tile_size"] = ("INT", {"default": 512, "min": 256, "max": 4096, "step": 64,
+                                         "tooltip": "空间分块大小(像素)"})
+        required["overlap"] = ("INT", {"default": 64, "min": 0, "max": 256, "step": 16,
+                                       "tooltip": "空间块重叠(像素)"})
+        required["cleanup"] = (_CLEANUP_OPTIONS, {"default": "不做任何清理"})
+        return inputs
+
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "encode"
+    CATEGORY = "XB_ToolBox/原版优化"
+
+    def encode(self, **kwargs):
+        cleanup = kwargs.pop("cleanup", "不做任何清理")
+        _execute_cleanup(cleanup, "VAE分块编码(图片)")
+        whole = _encode_whole_if_single_tile(kwargs.get("vae"), kwargs.get("pixels"),
+                                             kwargs.get("tile_size", 512))
+        if whole is not None:
+            return whole
+        # 透传给官方 VAEEncodeTiled（向下兼容：旧版不支持时间参数时自动跳过）
+        result, _ = _safe_call(nodes.VAEEncodeTiled().encode,
+                               temporal_size=64, temporal_overlap=8, **kwargs)
+        return result
+
+
 class XB_VAEEncodeForInpaint:
     """原版 VAEEncodeForInpaint 套皮 — 仅注入清理，参数零改动"""
 
@@ -545,6 +598,7 @@ NODE_CLASS_MAPPINGS = {
     "XB_VAEDecodeTiledImage": XB_VAEDecodeTiledImage,
     "XB_VAEEncode": XB_VAEEncode,
     "XB_VAEEncodeTiled": XB_VAEEncodeTiled,
+    "XB_VAEEncodeTiledImage": XB_VAEEncodeTiledImage,
     "XB_VAEEncodeForInpaint": XB_VAEEncodeForInpaint,
 }
 
@@ -561,6 +615,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_VAEDecodeTiledImage": "XB-VAE解码（原版优化）",
     "XB_VAEEncode": "XB-VAE编码（原版优化）",
     "XB_VAEEncodeTiled": "XB-VAE分块编码（原版优化）",
+    "XB_VAEEncodeTiledImage": "XB-VAE分块编码·图片（原版优化）",
     "XB_VAEEncodeForInpaint": "XB-VAE修补编码（原版优化）",
 }
 if _ncs is not None:

@@ -51,6 +51,9 @@
   "XB_VAEEncodeTiled": {
     "display_name": "XB-BOX - VAE Tiled Encode (Optimized)"
   },
+  "XB_VAEEncodeTiledImage": {
+    "display_name": "XB-BOX - VAE Tiled Encode (Image) (Optimized)"
+  },
   "XB_VAEEncodeForInpaint": {
     "display_name": "XB-BOX - VAE Encode For Inpaint (Optimized)"
   },

@@ -3492,6 +3492,31 @@
       }
     }
   },
+  "XB_VAEEncodeTiledImage": {
+    "display_name": "XB-BOX - VAE分块编码·图片（原版优化）",
+    "inputs": {
+      "pixels": {
+        "name": "图像"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "tile_size": {
+        "name": "分块大小"
+      },
+      "overlap": {
+        "name": "重叠"
+      },
+      "cleanup": {
+        "name": "执行前清理"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "潜空间"
+      }
+    }
+  },
   "XB_VAEEncodeForInpaint": {
     "display_name": "XB-BOX - VAE修补编码（原版优化）",
     "inputs": {

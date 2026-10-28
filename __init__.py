@@ -122,6 +122,7 @@ try:
                                           XB_VAEDecode, XB_VAEDecodeTiled,
                                           XB_VAEDecodeTiledImage,
                                           XB_VAEEncode, XB_VAEEncodeTiled,
+                                          XB_VAEEncodeTiledImage,
                                           XB_VAEEncodeForInpaint,
                                           _AliasVAEDecodeTemporal)
     from .nodes_string_merge import XB_StringMerge
@@ -268,6 +269,7 @@ try:
         "XB_VAEDecodeTiledImage": XB_VAEDecodeTiledImage,
         "XB_VAEEncode": XB_VAEEncode,
         "XB_VAEEncodeTiled": XB_VAEEncodeTiled,
+        "XB_VAEEncodeTiledImage": XB_VAEEncodeTiledImage,
         "XB_VAEEncodeForInpaint": XB_VAEEncodeForInpaint,
         "XB_WanCompileSettings": XB_WanCompileSettings,
         "XB_WanAnimateToVideo": XB_WanAnimateToVideo,
@@ -425,6 +427,7 @@ try:
         "XB_VAEDecodeTiledImage": "XB-BOX - VAE分块解码·图片（原版优化）",
         "XB_VAEEncode": "XB-BOX - VAE编码（原版优化）",
         "XB_VAEEncodeTiled": "XB-BOX - VAE分块编码（原版优化）",
+        "XB_VAEEncodeTiledImage": "XB-BOX - VAE分块编码·图片（原版优化）",
         "XB_VAEEncodeForInpaint": "XB-BOX - VAE修补编码（原版优化）",
         "XB_WanCompileSettings": "XB-BOX - ⚡ Wan 编译设置",
         "XB_WanAnimateToVideo": "XB-BOX - 🎬 Wan 动画转视频",
