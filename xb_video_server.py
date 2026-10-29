@@ -111,21 +111,33 @@ async def xb_video_preview(request):
     width = max(0, int(_num("custom_width")))
     height = max(0, int(_num("custom_height")))
 
-    start_time = skip / base_fps if skip else 0.0
-    out_rate = force_rate if force_rate > 0 else base_fps / nth
+    # 与后端 XB_LoadVideo 完全一致：跳过帧 → 强制帧率重采样 → 每隔 nth 帧取一帧
+    # 输出帧率 = (强制帧率 or 源帧率) / nth
+    target_rate = force_rate if force_rate > 0 else base_fps
+    out_rate = target_rate / nth
 
-    pre_seek, post_seek = [], []
-    if start_time > 0:
-        if start_time > 4:
-            post_seek = ["-ss", "4"]
-            pre_seek = ["-ss", str(start_time - 4)]
-        else:
-            post_seek = ["-ss", str(start_time)]
+    # 跳过帧数用「按帧号裁剪」而不是 -ss：-ss 停在帧边界时会丢/多留一帧，
+    # 后端的 images[skip:] 是按帧号精确切的，这里必须一致
+    start_frame = skip
+    if "start_time" in query:
+        try:
+            start_frame = max(0, int(round(float(query["start_time"]) * base_fps)))
+        except (TypeError, ValueError):
+            start_frame = skip
 
-    args = [_ffmpeg_path, "-v", "error"] + pre_seek + ["-i", filepath] + post_seek
+    args = [_ffmpeg_path, "-v", "error", "-i", filepath]
 
-    if out_rate > 0 and abs(out_rate - base_fps) > 1e-6:
-        args += ["-r", f"{out_rate:.6f}"]
+    rate_filters = []
+    if start_frame > 0:
+        rate_filters.append(f"trim=start_frame={start_frame}")
+        rate_filters.append("setpts=PTS-STARTPTS")
+    if force_rate > 0 and abs(force_rate - base_fps) > 1e-6:
+        rate_filters.append(f"fps={force_rate:.6f}")
+    if nth > 1:
+        rate_filters.append(f"select=not(mod(n\\,{nth}))")
+    if force_rate > 0 or nth > 1:
+        # 重新打时间戳：每帧间隔 1/out_rate，时长与后端输出一致
+        rate_filters.append(f"setpts=N/({out_rate:.6f}*TB)")
 
     def _even(v):
         return max(2, int(v) - int(v) % 2)
@@ -148,7 +160,7 @@ async def xb_video_preview(request):
             ratio = PREVIEW_MAX / max(target_w, target_h)
             target_w, target_h = _even(round(target_w * ratio)), _even(round(target_h * ratio))
 
-    vfilters = []
+    vfilters = list(rate_filters)
     if crop_to_box:
         vfilters.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase")
         vfilters.append(f"crop={target_w}:{target_h}")
@@ -162,6 +174,10 @@ async def xb_video_preview(request):
         # 源尺寸是奇数时 yuv420p 会编码失败，兜一层偶数对齐
         vfilters.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
     args += ["-vf", ",".join(vfilters)]
+
+    if rate_filters:
+        # 帧已由 select/setpts 决定，禁止 ffmpeg 再按原始帧率补帧/丢帧
+        args += ["-fps_mode", "passthrough"]
 
     if cap > 0:
         args += ["-frames:v", str(cap)]

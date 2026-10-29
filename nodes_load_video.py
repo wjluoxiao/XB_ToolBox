@@ -11,6 +11,7 @@ XB-BOX 加载视频
 （由 js/xb_video_preview.js 控制），节点宽高可自由缩放。
 """
 
+import math
 import os
 
 import folder_paths
@@ -27,6 +28,43 @@ def _video_files():
     input_dir = folder_paths.get_input_directory()
     files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
     return sorted(folder_paths.filter_files_content_types(files, ["video"]))
+
+
+def _probe_source(path):
+    """只读容器元数据（不解码）：(帧数, 帧率, 宽, 高)。帧数未知时按时长估算。"""
+    try:
+        import av
+        with av.open(path, mode="r") as container:
+            stream = container.streams.video[0]
+            fps = float(stream.average_rate or stream.guessed_rate or 0) or 0.0
+            frames = int(stream.frames or 0)
+            if frames <= 0:
+                duration = float(container.duration or 0) / av.time_base
+                frames = int(round(duration * fps)) if duration > 0 and fps > 0 else 0
+            return frames, fps, int(stream.codec_context.width or 0), int(stream.codec_context.height or 0)
+    except Exception:
+        return 0, 0.0, 0, 0
+
+
+def _check_peak_memory(frames, width, height, hint):
+    """int 帧解码会整段进内存，超了就是进程级崩溃。这里提前拦住并给出可操作的报错。"""
+    if frames <= 0 or width <= 0 or height <= 0:
+        return
+    # get_components 逐帧解成 float32 RGB（每像素 16 字节），列表转数组时还有一个峰值副本
+    need = frames * width * height * 3 * 4 * 2
+    try:
+        import psutil
+        free = psutil.virtual_memory().available + psutil.swap_memory().free
+    except Exception:
+        return
+    budget = free - (2 ** 27)     # 留 128MB 给系统
+    if need <= budget:
+        return
+    raise RuntimeError(
+        "视频过大，无法一次性解码：约 %d 帧 %dx%d 需要 %.1fGB 内存，当前只有 %.1fGB 可用。\n"
+        "请设置「帧数上限」（只解码需要的帧）或改用更短 / 更低分辨率的视频。%s"
+        % (frames, width, height, need / 1024 ** 3, max(budget, 0) / 1024 ** 3, hint)
+    )
 
 
 def _resize(images, width, height):
@@ -122,7 +160,7 @@ class XB_LoadVideo(io.ComfyNode):
                     max=BIGMAX,
                     step=1,
                     display_name="帧数上限",
-                    tooltip="0 = 不限制，读取全部帧。",
+                    tooltip="0 = 不限制；在「间隔取帧」之后生效，限制最终输出的帧数。",
                 ),
                 io.Int.Input(
                     "skip_first_frames",
@@ -140,7 +178,7 @@ class XB_LoadVideo(io.ComfyNode):
                     max=BIGMAX,
                     step=1,
                     display_name="间隔取帧",
-                    tooltip="每隔 N 帧取一帧，1 = 逐帧读取。",
+                    tooltip="每隔 N 帧取一帧，1 = 逐帧读取；1 时不受影响。在「强制帧率」之后生效。",
                 ),
                 io.Boolean.Input(
                     "autoplay",
@@ -165,35 +203,64 @@ class XB_LoadVideo(io.ComfyNode):
                 frame_load_cap=0, skip_first_frames=0, select_every_nth=1, autoplay=True):
         # autoplay 只给前端播放器用（js/xb_video_preview.js），后端无需处理
         video_path = folder_paths.get_annotated_filepath(file)
+
+        skip = max(0, int(skip_first_frames or 0))
+        nth = max(1, int(select_every_nth or 1))
+        cap = max(0, int(frame_load_cap or 0))
+        rate = float(force_rate or 0.0)
+
+        # 整段解码会把所有帧读进内存。有帧数上限时只解码「够用」的前缀，
+        # 没有上限时先算峰值内存，超了就报错（而不是让整个进程崩掉）
+        src_frames, src_fps, src_w, src_h = _probe_source(video_path)
+        decode_frames = 0
+        if cap and src_frames and src_fps > 0:
+            target_rate = rate if rate > 0 else src_fps
+            need = int(math.ceil(cap * nth * src_fps / target_rate)) + 8
+            decode_frames = min(src_frames, skip + need)
+        _check_peak_memory(decode_frames or src_frames, src_w, src_h,
+                           "（已解码 %d 帧）" % decode_frames if decode_frames else "")
+
         source = InputImpl.VideoFromFile(video_path)
-        components = source.get_components()
+        decode_source = source
+        if decode_frames and src_frames and decode_frames < src_frames:
+            trimmed = source.as_trimmed(0, decode_frames / src_fps, strict_duration=False)
+            if trimmed is not None:
+                decode_source = trimmed
+        components = decode_source.get_components()
 
         images = components.images
         audio = components.audio
         source_rate = float(components.frame_rate) or 1.0
 
-        # 与 XB 视频加载器一致的顺序：跳过帧 → 间隔取帧 → 帧数上限 → 强制帧率
-        skip = max(0, int(skip_first_frames or 0))
-        nth = max(1, int(select_every_nth or 1))
-        cap = max(0, int(frame_load_cap or 0))
-
+        # 顺序与 VHS 加载视频一致：跳过帧 → 强制帧率重采样 → 间隔取帧 → 帧数上限
+        # （间隔取帧必须排在强制帧率之后，否则重采样会把帧数重新拉满，间隔取帧等于没设；
+        #   帧数上限必须排在最后，否则重采样后仍会超上限）
         if skip:
             images = images[skip:]
+        if images.shape[0] < 1:
+            raise RuntimeError(
+                "没有解出任何帧：跳过帧数 %d 已超过视频总帧数 %d。" % (skip, int(src_frames or 0))
+            )
+
+        cur_rate = source_rate
+        if rate > 0:
+            if images.shape[0] > 1 and abs(rate - source_rate) > 1e-6:
+                # 向上取整：与「按时间重采样」一致（预览转码也按同样的帧数出片），
+                # 用 round 会在 .5 上银行家舍入，导致预览比实际输出少一帧
+                count = max(1, int(math.ceil(images.shape[0] * rate / source_rate - 1e-9)))
+                idx = torch.clamp(
+                    (torch.arange(count, dtype=torch.float64) * source_rate / rate).round().long(),
+                    0, images.shape[0] - 1,
+                )
+                images = images[idx]
+            cur_rate = rate
+
         if nth > 1:
             images = images[::nth]
+        out_rate = cur_rate / nth
+
         if cap and images.shape[0] > cap:
             images = images[:cap]
-
-        out_rate = source_rate / nth
-        rate = float(force_rate or 0.0)
-        if rate > 0 and images.shape[0] > 1 and abs(rate - out_rate) > 1e-6:
-            count = max(1, int(round(images.shape[0] * rate / out_rate)))
-            idx = torch.clamp(
-                (torch.arange(count, dtype=torch.float64) * out_rate / rate).round().long(),
-                0, images.shape[0] - 1,
-            )
-            images = images[idx]
-            out_rate = rate
 
         images = _resize(images, int(custom_width or 0), int(custom_height or 0))
         duration = images.shape[0] / out_rate if out_rate > 0 else 0.0
