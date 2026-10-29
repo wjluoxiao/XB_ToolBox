@@ -10,7 +10,7 @@ const isZH = navigator.language.startsWith("zh");
 app.registerExtension({
     name: "XB_ToolBox.FolderPicker",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "XB_BatchFolderLoader") {
+        if (nodeData.name === "XB_BatchFolderLoader" || nodeData.name === "XB_BatchFolderBatchLoader") {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             
             nodeType.prototype.onNodeCreated = function () {

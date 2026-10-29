@@ -35,6 +35,7 @@ const SIZES = {
     "XB_WanSCAILToVideo": [360, 200],
     "XB_WanSCAILToVideoPro": [360, 200],
     "XB_BatchFolderLoader": [360, 200],
+    "XB_BatchFolderBatchLoader": [360, 200],
     "XB_Wan_ParamBus": [360, 200],
     "XB_Wan_RelayNode": [360, 200],
     "XB_Wan_InfiniteRelayNode": [360, 200],

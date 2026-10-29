@@ -6,8 +6,34 @@ from PIL import Image, ImageOps
 import folder_paths
 import datetime 
 
+from .nodes_batch_images import batch_images
+
+VALID_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.jfif'}
+
+
+def _natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+
+
+def _list_image_files(directory):
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"Directory not found: {directory}")
+    files = [f for f in os.listdir(directory) if os.path.splitext(f)[1].lower() in VALID_EXTENSIONS]
+    files.sort(key=_natural_sort_key)
+    return files
+
+
+def _load_image_tensor(file_path):
+    """读取单张图片 → (1, H, W, C) float32 张量。"""
+    img = Image.open(file_path)
+    img = ImageOps.exif_transpose(img)
+    image = img.convert("RGB")
+    image = np.array(image).astype(np.float32) / 255.0
+    return torch.from_numpy(image)[None,]
+
+
 # ============================================================
-# XB_BatchFolderLoader — 批量文件夹加载器
+# XB_BatchFolderLoader — 图片序列加载（单张步进）
 # ============================================================
 class XB_BatchFolderLoader:
     @classmethod
@@ -62,3 +88,41 @@ class XB_BatchFolderLoader:
             mask = torch.zeros((1, image.shape[1], image.shape[2]), dtype=torch.float32)
 
         return (image, mask, formatted_file_name, total_count_display)
+
+
+# ============================================================
+# XB_BatchFolderBatchLoader — 图片批量加载（一次读取多张）
+# ============================================================
+class XB_BatchFolderBatchLoader:
+    """选择文件夹后一次性批量加载多张图片，合并成一个图像批次传给下游（等价于批量图像节点接多张图）。"""
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "directory": ("STRING", {"default": ""}),
+                "count": ("INT", {"default": 4, "min": 1, "max": 500, "step": 1,
+                                  "tooltip": "本次批量加载的图片数量"}),
+                "skip": ("INT", {"default": 0, "min": 0, "max": 999999, "step": 1,
+                                 "tooltip": "跳过前 N 张，便于多次分批处理"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGES",)
+    FUNCTION = "load_batch"
+    CATEGORY = "XB_ToolBox/Batch_Process"
+
+    def load_batch(self, directory, count, skip):
+        files = _list_image_files(directory)
+        if not files:
+            raise Exception(f"No valid images found in directory: {directory}")
+
+        selected = files[skip:skip + count]
+        if not selected:
+            raise Exception(
+                f"No images left: skipped {skip} of {len(files)} images in {directory}"
+            )
+
+        images = [_load_image_tensor(os.path.join(directory, f)) for f in selected]
+        return (batch_images(images),)

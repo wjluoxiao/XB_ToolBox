@@ -93,7 +93,7 @@ try:
     from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
     from .nodes_memory_viz import XB_MemoryVisualization
     from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
-    from .nodes_batch import XB_BatchFolderLoader
+    from .nodes_batch import XB_BatchFolderLoader, XB_BatchFolderBatchLoader
     from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
     from .nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
     from .nodes_sageatt import XB_SageAttentionAccelerator
@@ -252,6 +252,7 @@ try:
         "XB_WanDancerCombo": XB_WanDancerCombo,
         "XB_BerniniConditioning": XB_BerniniConditioning,
         "XB_BatchFolderLoader": XB_BatchFolderLoader,
+        "XB_BatchFolderBatchLoader": XB_BatchFolderBatchLoader,
         "XB_Wan_ParamBus": XB_Wan_ParamBus,
         "XB_Wan_RelayNode": XB_Wan_RelayNode,
         "XB_Wan_InfiniteRelayNode": XB_Wan_InfiniteRelayNode,
@@ -409,7 +410,8 @@ try:
         "XB_MemoryVisualization": "XB 📊 硬件监控面板 (Memory Visualization)",
         "XB_WanImageToVideo": "XB-BOX - Wan Image2Video",
         "XB_WanFirstLastFrameToVideo": "XB-BOX - Wan First/Last Frame2Video",
-        "XB_BatchFolderLoader": "XB-BOX - Batch Folder Loader",
+        "XB_BatchFolderLoader": "XB-BOX - 📂 图片序列加载",
+        "XB_BatchFolderBatchLoader": "XB-BOX - 📂 图片批量加载",
         "XB_Wan_ParamBus": "XB-BOX - Wan Param Bus",
         "XB_Wan_RelayNode": "XB-BOX - Wan Relay Node",
         "XB_Wan_InfiniteRelayNode": "XB-BOX - Wan Infinite Relay Node",

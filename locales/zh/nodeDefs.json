@@ -544,7 +544,7 @@
     }
   },
   "XB_BatchFolderLoader": {
-    "display_name": "XB-BOX - 📂 图片批量加载",
+    "display_name": "XB-BOX - 📂 图片序列加载",
     "inputs": {
       "directory": {
         "name": "文件夹路径"
@@ -565,6 +565,25 @@
       },
       "3": {
         "name": "总数量"
+      }
+    }
+  },
+  "XB_BatchFolderBatchLoader": {
+    "display_name": "XB-BOX - 📂 图片批量加载",
+    "inputs": {
+      "directory": {
+        "name": "文件夹路径"
+      },
+      "count": {
+        "name": "加载数量"
+      },
+      "skip": {
+        "name": "跳过张数"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像"
       }
     }
   },
