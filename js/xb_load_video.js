@@ -118,41 +118,64 @@ function normalize(url) {
     try { return new URL(url, window.location.href).href; } catch (_) { return String(url || ""); }
 }
 
+/** 当前参数快照（预览地址只由这些值决定） */
+function previewParams(node) {
+    return {
+        force_rate: effectiveNum(node, "force_rate"),
+        select_every_nth: Math.max(1, effectiveNum(node, "select_every_nth", 1)),
+        skip_first_frames: effectiveNum(node, "skip_first_frames"),
+        frame_load_cap: effectiveNum(node, "frame_load_cap"),
+        custom_width: effectiveNum(node, "custom_width"),
+        custom_height: effectiveNum(node, "custom_height"),
+    };
+}
+
 /** 按当前参数生成预览地址（只在参数变化时才换新地址，否则会不断重启播放） */
 function makePreviewUrlBuilder(node) {
     let lastKey = null;
     let lastUrl = null;
-    return () => {
-        const file = currentFile(node);
-        if (!file) { lastKey = null; lastUrl = null; return null; }
-        const params = {
-            force_rate: effectiveNum(node, "force_rate"),
-            select_every_nth: Math.max(1, effectiveNum(node, "select_every_nth", 1)),
-            skip_first_frames: effectiveNum(node, "skip_first_frames"),
-            frame_load_cap: effectiveNum(node, "frame_load_cap"),
-            custom_width: effectiveNum(node, "custom_width"),
-            custom_height: effectiveNum(node, "custom_height"),
-        };
-        const key = JSON.stringify([file, params]);
-        if (key !== lastKey) {
-            lastKey = key;
-            const q = new URLSearchParams({
-                filename: file,
-                type: "input",
-                ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
-                v: String(Date.now()),
-            });
-            lastUrl = api.apiURL("/xb/videopreview?" + q.toString());
-        }
-        return lastUrl;
+    const build = (file, params) => {
+        const q = new URLSearchParams({
+            filename: file,
+            type: "input",
+            ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+            v: String(Date.now()),
+        });
+        return api.apiURL("/xb/videopreview?" + q.toString());
+    };
+    return {
+        /** force=true：失败重试时换一个带新 v= 的地址，绕开坏掉的那一份流 */
+        get(force = false) {
+            const file = currentFile(node);
+            if (!file) { lastKey = null; lastUrl = null; return null; }
+            const params = previewParams(node);
+            const key = JSON.stringify([file, params]);
+            if (force || !lastUrl || key !== lastKey) {
+                lastKey = key;
+                lastUrl = build(file, params);
+            }
+            return lastUrl;
+        },
     };
 }
 
-/** 转码预览不可用时的退路：官方原始文件预览 */
-function fallbackUrl(node) {
-    const file = currentFile(node);
-    if (!file) return null;
-    const q = new URLSearchParams({ filename: file, type: "input", rand: String(Math.random()) });
+/** 文件不在下拉列表里（工作流里的文件已被删/改名）时不要劫持预览，交给官方原片预览 */
+function fileIsSelectable(node, file) {
+    const w = (node.widgets || []).find((x) => x && x.name === "file");
+    const values = w?.options?.values;
+    if (!Array.isArray(values) || !values.length) return true;
+    return values.includes(file);
+}
+
+/** 官方原片预览地址（转码预览失败时退回它，保证播放器不变成错误框） */
+function officialUrl(file) {
+    const name = String(file || "");
+    if (!name) return null;
+    const cut = Math.max(name.lastIndexOf("/"), name.lastIndexOf("\\"));
+    const subfolder = cut >= 0 ? name.slice(0, cut) : "";
+    const filename = cut >= 0 ? name.slice(cut + 1) : name;
+    const q = new URLSearchParams({ filename, type: "input", rand: String(Date.now()) });
+    if (subfolder) q.set("subfolder", subfolder);
     return api.apiURL("/view?" + q.toString());
 }
 
@@ -166,22 +189,59 @@ function labelUploadButton(node) {
 
 function setupLoadVideoUi(node) {
     let timer = null;
-    let disabled = false;      // 后端转码不可用时退化为原片预览
     let lastUrl = null;
+    let lastSetAt = 0;         // 上次给播放器换地址的时刻（用来识别「自己打断自己」）
+    let earlyErrors = 0;
+    let failures = 0;          // 连续失败次数 → 退避重试，绝不永久放弃
+    let retryAt = 0;
+    let needFreshUrl = false;  // 失败后重试要换一个带新 v= 的地址
     const previewUrl = makePreviewUrlBuilder(node);
+
+    // 转码预览失败时的退避表（毫秒）：1.5s → 3s → 6s → 12s → 30s 封顶
+    const BACKOFF = [1500, 3000, 6000, 12000, 30000];
+
+    const noteFailure = () => {
+        failures = Math.min(failures + 1, BACKOFF.length);
+        retryAt = Date.now() + BACKOFF[failures - 1];
+        needFreshUrl = true;          // 可能只是这一份流坏了，重试时换新地址
+    };
+    const noteSuccess = () => {
+        failures = 0;
+        retryAt = 0;
+        earlyErrors = 0;
+    };
 
     const setPreviewSrc = (url) => {
         lastUrl = url;
+        lastSetAt = Date.now();
         const target = normalize(url);
         for (const v of collectVideos(node)) {
             if (!v.__xbParamBound) {
                 v.__xbParamBound = true;
+                // 只有「本脚本设置的地址」出错才算失败，官方预览的报错不参与
                 v.addEventListener("error", () => {
-                    // 只有「本脚本设置的地址」出错才退化，避免误判
-                    if (disabled || !lastUrl || normalize(v.src) !== normalize(lastUrl)) return;
-                    disabled = true;
-                    const fb = fallbackUrl(node);
-                    if (fb) { try { v.src = fb; } catch (_) { /* ignore */ } }
+                    if (!lastUrl || normalize(v.currentSrc || v.src) !== normalize(lastUrl)) return;
+                    // 刚换地址就报错，多半是我们自己打断上一份流：换个新地址快速重试一次，先别退回原片
+                    if (Date.now() - lastSetAt < 700 && earlyErrors < 2) {
+                        earlyErrors += 1;
+                        needFreshUrl = true;
+                        retryAt = Date.now() + 500;
+                        return;
+                    }
+                    earlyErrors = 0;
+                    noteFailure();
+                    // 退回原片预览：宁可先看到未抽帧的原片，也不要留一个「视频加载失败」的错误框
+                    const fb = officialUrl(currentFile(node));
+                    if (fb) {
+                        lastUrl = null;
+                        try { v.src = fb; } catch (_) { /* ignore */ }
+                    }
+                });
+                v.addEventListener("loadeddata", () => {
+                    if (lastUrl && normalize(v.currentSrc || v.src) === normalize(lastUrl)) {
+                        earlyErrors = 0;
+                        noteSuccess();
+                    }
                 });
             }
             if (normalize(v.src) !== target) {
@@ -190,16 +250,24 @@ function setupLoadVideoUi(node) {
         }
     };
 
-    // 官方预览会在执行完成 / 重渲染时把 src 换回原片，这里每轮都拉回「按参数转码」的地址
+    // 官方预览会在执行完成 / 重渲染时把 src 换回原片，这里每轮都拉回「按参数转码」的地址。
+    // 参数没变就沿用缓存地址（绝不重新加载，避免播放被打断）；失败后退避期内不打扰。
     const pin = () => {
-        if (disabled || !node.graph) return;
-        const url = previewUrl();
+        if (!node.graph) return;
+        if (Date.now() < retryAt) return;
+        const file = currentFile(node);
+        if (!file || !fileIsSelectable(node, file)) return;   // 文件不见了 → 保留官方预览
+        const fresh = needFreshUrl;
+        needFreshUrl = false;
+        const url = previewUrl.get(fresh);
         if (url) setPreviewSrc(url);
     };
 
+    // 参数一改就重置失败计数：新参数值得立刻试一次（上次失败可能只是那一份流坏了）
     const schedule = () => {
         clearTimeout(timer);
-        timer = setTimeout(pin, DEBOUNCE_MS);
+        noteSuccess();
+        timer = setTimeout(() => pin(), DEBOUNCE_MS);
     };
 
     // 参数是从别的节点连进来时，本节点部件不会触发回调 → 轻量轮询兜住上游变化
@@ -216,10 +284,24 @@ function setupLoadVideoUi(node) {
         };
     }
 
+    // 执行完成后官方预览会重渲染并抢回 src：第一时间拉回按参数转码的版本
+    const onExecuted = () => { noteSuccess(); pin(); };
+    try { api.addEventListener("executed", onExecuted); } catch (_) { /* ignore */ }
+
+    // 载入工作流（onConfigure）时也一样
+    const origConfigure = node.onConfigure;
+    node.onConfigure = function (...args) {
+        const r = origConfigure?.apply?.(this, args);
+        noteSuccess();
+        pin();
+        return r;
+    };
+
     const origRemoved = node.onRemoved;
     node.onRemoved = function (...args) {
         clearTimeout(timer);
         clearInterval(linkedTimer);
+        try { api.removeEventListener("executed", onExecuted); } catch (_) { /* ignore */ }
         return origRemoved?.apply?.(this, args);
     };
 
