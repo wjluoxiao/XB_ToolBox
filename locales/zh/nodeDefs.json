@@ -4936,6 +4936,24 @@
     },
     "outputs": {}
   },
+  "XB_ImageScalePixels": {
+    "display_name": "XB-BOX - 📐 批量缩放图像（像素）",
+    "inputs": {
+      "upscale_method": {
+        "name": "缩放方法"
+      },
+      "megapixels": {
+        "name": "像素数量"
+      },
+      "resolution_step": {
+        "name": "分辨率步长"
+      },
+      "image1": {
+        "name": "图片1"
+      }
+    },
+    "outputs": {}
+  },
   "XB_HailuoH3VideoParams": {
     "display_name": "XB-BOX - 🌊 海螺H3视频参数",
     "inputs": {
@@ -5324,6 +5342,62 @@
       },
       "1": {
         "name": "空latent"
+      }
+    }
+  },
+  "XB_ImagePreset": {
+    "display_name": "XB-BOX - 🖼️ 生图提示词预设（图）",
+    "description": "生图提示词预设的全部能力（空latent类型 + 画幅比例/宽高/数量 + 8 大类元素面板拼词 + 预设文件），外加「🎬 姿态参考图选择 / 👚 穿搭参考图选择」两个按钮：可绑定带素材清单的整套图库（体系/分类/视角/标签筛选 + 姿势分组 + 视角条）或任意普通图片文件夹（按文件名多宫格）。参考图可单独勾选「禁用」：禁用后该输出不做任何输出（等同 mute），下游节点会被跳过。输出：提示词 / 空latent / 姿态图 / 穿搭图。",
+    "inputs": {
+      "latent_kind": {
+        "name": "空latent类型"
+      },
+      "output_lang": {
+        "name": "输出语言"
+      },
+      "preset_mode": {
+        "name": "预设模式"
+      },
+      "three_view_text": {
+        "name": "预设句（右上角按钮管理预设）"
+      },
+      "aspect_ratio": {
+        "name": "画幅比例"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "batch_size": {
+        "name": "生成数量"
+      },
+      "internal_prompt": {
+        "name": "节点内提示词"
+      },
+      "manager_settings": {
+        "name": "节点配置"
+      },
+      "pose_ref": {
+        "name": "姿态参考（内部）"
+      },
+      "outfit_ref": {
+        "name": "穿搭参考（内部）"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "提示词"
+      },
+      "1": {
+        "name": "空latent"
+      },
+      "2": {
+        "name": "姿态图"
+      },
+      "3": {
+        "name": "穿搭图"
       }
     }
   },

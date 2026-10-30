@@ -126,6 +126,77 @@ export function lockWidgets(node, names, locked, opts = {}) {
 }
 
 /**
+ * 灰化（禁用）一组 widget：仍可见但不可操作
+ * Nodes 2.0：widget.disabled = true → Vue 组件拿到 options.disabled 后渲染成 disabled（实测生效）
+ * 经典模式：同步写 options.disabled（部分前端版本不绘制灰态，但不影响数值使用）
+ * @param {object} node 节点
+ * @param {string[]} names widget 名
+ * @param {boolean} disabled 是否禁用
+ * @returns {boolean} 是否有变化
+ */
+export function setWidgetsDisabled(node, names, disabled) {
+    const list = findWidgets(node, names);
+    let changed = false;
+    for (const w of list) {
+        const t = liveWidget(node, w);
+        if (!t) continue;
+        if (!!t.disabled === !!disabled) {
+            if (t.options && !!t.options.disabled !== !!disabled) t.options.disabled = !!disabled;
+            continue;
+        }
+        t.disabled = !!disabled;
+        try { if (t.options) t.options.disabled = !!disabled; } catch (_) { /* ignore */ }
+        changed = true;
+    }
+    if (changed) refreshWidgets(node);
+    return changed;
+}
+
+/** LATENT 输出端口是否已连线（空latent 一组参数是否生效的前提） */
+export function latentOutputLinked(node) {
+    try {
+        const outs = node?.outputs || [];
+        const slot = outs.find((o) => String(o?.type || "").toUpperCase() === "LATENT")
+            || outs.find((o) => o?.name === "空latent");
+        if (!slot) return false;
+        return Array.isArray(slot.links) ? slot.links.length > 0 : slot.link != null;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * 「空latent 未连线 → 相关参数变灰不可操作」的守卫
+ * 生效时把 names 里的 widget 设为 disabled；接上「空latent」输出连线后自动恢复。
+ * @param {object} node 节点
+ * @param {string[]} [names] 默认 latent_kind / aspect_ratio / width / height / batch_size
+ * @returns {Function} 手动刷新函数（工作流加载后调用一次）
+ */
+export function installLatentGuard(node, names) {
+    if (!node) return () => {};
+    const list = names || ["latent_kind", "aspect_ratio", "width", "height", "batch_size"];
+    const apply = () => {
+        if (!node.widgets) return;
+        const locked = !latentOutputLinked(node);
+        setWidgetsDisabled(node, list, locked);
+        try { node.__xbLatentLocked = locked; } catch (_) { /* ignore */ }
+    };
+    node.__xbLatentGuardApply = apply;
+    if (!node.__xbLatentGuardHooked) {
+        node.__xbLatentGuardHooked = true;
+        const prev = node.onConnectionsChange;
+        node.onConnectionsChange = function (...args) {
+            const r = prev?.apply(this, args);
+            setTimeout(apply, 0);
+            return r;
+        };
+    }
+    setTimeout(apply, 0);
+    setTimeout(apply, 350);
+    return apply;
+}
+
+/**
  * DOM widget 尺寸（Nodes 2.0 用 computeLayoutSize/options.getMinHeight，经典模式用 computeSize）
  * @param {number} minH 期望高度（px）
  */

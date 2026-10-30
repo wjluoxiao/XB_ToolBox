@@ -6,9 +6,12 @@
 
 import { app } from "../../scripts/app.js";
 
-const NODE_TYPE = "XB_ImageScale";
+const NODE_TYPES = new Set(["XB_ImageScale", "XB_ImageScalePixels"]);
 const MAX_IMAGES = 9;
-const FIXED_INPUT_NAMES = new Set(["upscale_method", "width", "height", "crop", "image1"]);
+const FIXED_INPUT_NAMES = new Set([
+    "upscale_method", "width", "height", "crop",
+    "megapixels", "resolution_step", "image1",
+]);
 
 function isImageInput(inp) {
     return !FIXED_INPUT_NAMES.has(inp.name) && (inp.type === "IMAGE" || inp.type === "*");
@@ -18,7 +21,7 @@ app.registerExtension({
     name: "XB_ToolBox.ImageScale",
 
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData?.name !== NODE_TYPE) return;
+        if (!NODE_TYPES.has(nodeData?.name)) return;
 
         const orig = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -88,7 +91,7 @@ app.registerExtension({
     },
 
     async loadedGraphNode(node) {
-        if (node.type !== NODE_TYPE) return;
+        if (!NODE_TYPES.has(node.type)) return;
         const hasDyn = (node.inputs || []).some(inp => isImageInput(inp));
         if (!hasDyn) node.addInput("image2", "IMAGE");
         manageOutputs(node);

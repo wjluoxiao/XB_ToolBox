@@ -114,6 +114,9 @@
   "XB_ImageScale": {
     "display_name": "XB-BOX - 📐 Batch Scale Image"
   },
+  "XB_ImageScalePixels": {
+    "display_name": "XB-BOX - 📐 Batch Scale Image (Pixels)"
+  },
   "XB_HailuoH3VideoParams": {
     "display_name": "XB-BOX - 🌊 Hailuo H3 Video Params"
   },
@@ -565,6 +568,62 @@
       },
       "1": {
         "name": "Empty Latent"
+      }
+    }
+  },
+  "XB_ImagePreset": {
+    "display_name": "XB-BOX - 🖼️ Image Prompt Preset (Image)",
+    "description": "Everything in Image Prompt Preset (latent type + aspect ratio / size / batch + 8-element prompt panels + preset files), plus two pickers: Pose Reference and Outfit Reference. Bind a catalogued gallery (filter by system / category / angle / tag, grouped by pose with an angle strip) or any plain image folder (grid by file name). Each reference can be disabled: a disabled output produces nothing (like muting it) and skips downstream nodes. Outputs: prompt / empty latent / pose image / outfit image.",
+    "inputs": {
+      "latent_kind": {
+        "name": "Empty Latent Type"
+      },
+      "output_lang": {
+        "name": "Output Language"
+      },
+      "preset_mode": {
+        "name": "Preset Mode"
+      },
+      "three_view_text": {
+        "name": "Preset Text (manage presets from the buttons above)"
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      },
+      "width": {
+        "name": "Width"
+      },
+      "height": {
+        "name": "Height"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "internal_prompt": {
+        "name": "Internal Prompt"
+      },
+      "manager_settings": {
+        "name": "Node Config"
+      },
+      "pose_ref": {
+        "name": "Pose Reference (internal)"
+      },
+      "outfit_ref": {
+        "name": "Outfit Reference (internal)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Prompt"
+      },
+      "1": {
+        "name": "Empty Latent"
+      },
+      "2": {
+        "name": "Pose Image"
+      },
+      "3": {
+        "name": "Outfit Image"
       }
     }
   },

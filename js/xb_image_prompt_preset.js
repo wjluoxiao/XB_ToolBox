@@ -26,9 +26,17 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { bindNodes2NodeFill } from "./xb_compat.js";
+import { bindNodes2NodeFill, installLatentGuard } from "./xb_compat.js";
+import { openRefPicker } from "./xb_gallery_picker.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
+// 「🖼️ 生图预设」= 本节点 + 姿态/穿搭参考图：UI 全复用，只在 8 个分类按钮**上面**多一行参考图按钮
+const GALLERY_NODE_TYPE = "XB_ImagePreset";
+const NODE_TYPES = new Set([NODE_TYPE, GALLERY_NODE_TYPE]);
+const isGalleryNode = (node) => (node?.type || node?.comfyClass) === GALLERY_NODE_TYPE;
+// 参考图按钮 ↔ 内部字段名（值 = JSON {"path": 库内相对路径, "name": 展示名}）
+const REF_FIELDS = { pose: "pose_ref", costume: "outfit_ref" };
+const REF_LABELS = { pose: "🎬 姿态参考图", costume: "👚 穿搭参考图" };
 
 // ── 枚举（必须与 nodes_image_prompt_preset.py 的常量逐字一致） ─────────
 const LANG_ZH = "中文 [ZH]";
@@ -2774,11 +2782,18 @@ function setupNode(node) {
   const hideInternal = () => {
     hideWidget(findWidget(node, "internal_prompt"));
     hideWidget(findWidget(node, "manager_settings"));
+    if (isGalleryNode(node)) {
+      hideWidget(findWidget(node, "pose_ref"));
+      hideWidget(findWidget(node, "outfit_ref"));
+    }
     refreshNodes2View(node);
     node.setDirtyCanvas?.(true, true);
   };
   hideInternal();
 
+  // ── 「空latent」输出没连线时：空latent类型 / 画幅比例 / 宽度 / 高度 / 生成数量 全部变灰不可操作
+  //    （接了「空latent」输出连线后自动恢复；接不接都只是 UI 层面，后端取值不受影响）
+  const refreshLatentGuard = installLatentGuard(node, ["latent_kind", "aspect_ratio", "width", "height", "batch_size"]);
   // ── 节点表面 DOM：结构照抄「短剧导演台」（js/asset_manager.js）──
   // ① 容器 = 满高 flex 列（width/height:100% + overflow:hidden），高度完全交给前端 overlay 布局；
   //    提示词框 flex:1 1 auto 吃掉剩余高度。全程零 JS 高度计算 → 不可能出现
@@ -2816,6 +2831,85 @@ function setupNode(node) {
       openPanel(ctx, b.panel);
     });
     btnRow.append(btn);
+  }
+
+  // ②' 参考图按钮行（仅「🖼️ 生图预设」）：放在 8 个分类按钮**上面**，2 列
+  //     · 点一下打开图库选择器（首次需手动绑定目录），选好后把库内相对路径写进隐藏字段
+  //     · 按钮文案实时显示已选素材名；未选/已选的边框颜色不同，一眼可辨
+  const refButtons = {};
+  const shortName = (text) => {
+    const s = String(text || "");
+    return s.length > 14 ? s.slice(0, 14) + "…" : s;
+  };
+  const parseRefValue = (raw) => {
+    const text = String(raw ?? "").trim();
+    if (!text) return null;
+    if (text.startsWith("{")) {
+      try {
+        const data = JSON.parse(text);
+        // 兼容「只勾了禁用、没选图」：path 为空但有 disabled 也要认
+        return data && (data.path || data.disabled) ? data : null;
+      } catch (_) { return null; }
+    }
+    return { path: text, name: text.split("/").pop() };
+  };
+  const refreshRefButton = (kind) => {
+    const btn = refButtons[kind];
+    if (!btn) return;
+    const ref = parseRefValue(readWidgetValue(findWidget(node, REF_FIELDS[kind])));
+    const base = REF_LABELS[kind];
+    const off = !!(ref && ref.disabled);
+    if (off) {
+      btn.textContent = `${base}：已禁用`;
+      btn.style.borderColor = "#7a7a7a";
+      btn.style.color = "#9a9a9a";
+      btn.title = `已禁用：本参考图不做任何输出（等同 mute），下游节点会被跳过。\n点击可取消禁用或重新选图`;
+      return;
+    }
+    btn.textContent = ref && ref.path ? `${base}：${shortName(ref.name || ref.path)}` : `${base}选择`;
+    btn.style.borderColor = ref && ref.path ? "#7ed07e" : "#c58a3a";
+    btn.title = ref && ref.path
+      ? `已选：${ref.name || ref.path}\n${ref.path}\n点击可重新选择`
+      : `尚未选择${kind === "pose" ? "姿态" : "穿搭"}参考图，点击打开图库${kind === "pose" ? "（输出端口：姿态图）" : "（输出端口：穿搭图）"}`;
+    btn.style.color = ref && ref.path ? "#d8ffd8" : "#eee";
+  };
+  if (isGalleryNode(node)) {
+    const refRow = el("div", "display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:30px;gap:6px;flex:0 0 auto;");
+    for (const kind of ["pose", "costume"]) {
+      const btn = el("button", "width:100%;height:30px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;"
+        + "border-radius:6px;border:2px solid #c58a3a;background:#3a3a3a;color:#eee;font-size:13px;cursor:pointer;"
+        + "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:inherit;", REF_LABELS[kind] + "选择");
+      btn.addEventListener("mousedown", (e) => e.stopPropagation());
+      btn.addEventListener("mouseenter", () => { btn.style.background = "#4a4a4a"; });
+      btn.addEventListener("mouseleave", () => { btn.style.background = "#3a3a3a"; });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const widgetRef = findWidget(node, REF_FIELDS[kind]);
+        if (!widgetRef) return;
+        openRefPicker({
+          kind,
+          current: String(readWidgetValue(widgetRef) ?? ""),
+          onPick: (sel) => {
+            setWidgetValue(widgetRef, JSON.stringify({
+              path: sel.path || "",
+              name: sel.name || "",
+              disabled: !!sel.disabled,
+            }));
+            refreshRefButton(kind);
+            node.setDirtyCanvas?.(true, true);
+            if (sel.disabled) notify(`${kind === "pose" ? "姿态" : "穿搭"}参考图已禁用（不做任何输出）`);
+            else if (sel.path) notify(`已选${kind === "pose" ? "姿态" : "穿搭"}参考图：${sel.name}`);
+          },
+        }).catch((err) => {
+          console.error("[XB-生图预设] 打开参考图库失败", err);
+          notify("打开参考图库失败：" + (err?.message || err), "error");
+        });
+      });
+      refButtons[kind] = btn;
+      refreshRefButton(kind);
+      refRow.append(btn);
+    }
+    container.appendChild(refRow);
   }
   container.appendChild(btnRow);
 
@@ -3388,7 +3482,8 @@ function setupNode(node) {
   // ── 隐藏字段的幽灵端口清理（V1 没有 socketless，高级字段也可能冒出端口） ──
   const killGhost = () => {
     try {
-      for (const nm of ["internal_prompt", "manager_settings"]) {
+      const hiddenNames = ["internal_prompt", "manager_settings", "pose_ref", "outfit_ref"];
+      for (const nm of hiddenNames) {
         const idx = (node.inputs || []).findIndex((i) => i.name === nm);
         if (idx < 0) continue;
         if (typeof node.removeInput === "function") node.removeInput(idx);
@@ -3422,9 +3517,11 @@ function setupNode(node) {
     } catch (_) {}
   };
   // 高度常量（提前声明：widget 的布局回调可能在后面才被调用，避免 TDZ）
+  // 按钮区行数：8 个分类按钮 = 2 行；「🖼️ 生图预设」另有一行参考图按钮（30 + 6 间距 = 36）
+  const REF_ROW_H = isGalleryNode(node) ? 36 : 0;
   const TEXT_MIN_H = 300;   // 提示词框最小高度（节点再小也不低于它；节点变大则跟随）
-  const DOM_FIXED_H = 116;  // 按钮区 2 行(66) + 标签(17) + 内边距/间距(≈33)
-  const DOM_MIN_H = 411;    // DOM 区最小高度 = 按钮区 66 + 间距 12 + 标签 17 + 输入框 300 + 内边距 16
+  const DOM_FIXED_H = 116 + REF_ROW_H;  // 按钮区(66) + 标签(17) + 内边距/间距(≈33)
+  const DOM_MIN_H = 411 + REF_ROW_H;    // DOM 区最小高度 = 按钮区 66 + 间距 12 + 标签 17 + 输入框 300 + 内边距 16
   if (widget) {
     try { delete widget.computeSize; } catch (_) { widget.computeSize = undefined; }
     widget.options = widget.options || {};
@@ -3590,6 +3687,8 @@ function setupNode(node) {
 
   const boot = () => {
     hideInternal();          // 工作流加载后 widget 可能被重建 → 重新藏
+    if (isGalleryNode(node)) { refreshRefButton("pose"); refreshRefButton("costume"); }
+    refreshLatentGuard();    // 「空latent」未连线 → 空latent类型/画幅/宽高/数量变灰
     migrateLegacyOutput();
     migrateLegacyPreset();
     syncPromptBoxFromWidget();
@@ -3640,7 +3739,7 @@ function setupNode(node) {
 app.registerExtension({
   name: "XB.ImagePromptPreset",
   async beforeRegisterNodeDef(nodeType, nodeData) {
-    if (nodeData?.name !== NODE_TYPE) return;
+    if (!NODE_TYPES.has(nodeData?.name)) return;
     const orig = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       const r = orig?.apply(this, arguments);
@@ -3662,7 +3761,7 @@ app.registerExtension({
       try {
         const nodes = (app.graph && (app.graph._nodes || app.graph.nodes)) || [];
         for (const n of nodes) {
-          if (n && n.type === NODE_TYPE && typeof n.__ippSyncPromptBox === "function") n.__ippSyncPromptBox();
+          if (n && NODE_TYPES.has(n.type) && typeof n.__ippSyncPromptBox === "function") n.__ippSyncPromptBox();
         }
       } catch (_) {}
     }, 1500);

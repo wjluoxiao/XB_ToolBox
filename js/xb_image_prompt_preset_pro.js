@@ -35,7 +35,7 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { bindNodes2NodeFill } from "./xb_compat.js";
+import { bindNodes2NodeFill, installLatentGuard } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ImagePromptPresetPro";
 
@@ -2653,6 +2653,10 @@ function setupNode(node) {
   };
   hideInternal();
 
+  // ── 「空latent」输出没连线时：空latent类型 / 画幅比例 / 宽度 / 高度 / 生成数量 全部变灰不可操作
+  //    （接了「空latent」输出连线后自动恢复；后端取值不受影响）
+  const refreshLatentGuard = installLatentGuard(node, ["latent_kind", "aspect_ratio", "width", "height", "batch_size"]);
+
   // ── 节点表面 DOM：结构照抄「短剧导演台」（js/asset_manager.js）──
   // ① 容器 = 满高 flex 列（width/height:100% + overflow:hidden），高度完全交给前端 overlay 布局；
   //    提示词框 flex:1 1 auto 吃掉剩余高度。全程零 JS 高度计算 → 不可能出现
@@ -3098,6 +3102,7 @@ function setupNode(node) {
   // ── 载入 / 执行后的对齐 ──
   const boot = () => {
     hideInternal();          // 工作流加载后 widget 可能被重建 → 重新藏
+    refreshLatentGuard();    // 「空latent」未连线 → 空latent类型/画幅/宽高/数量变灰
     migrateLegacyOutput();
     syncPromptBoxFromWidget();
     applyKindLimits();       // 按当前空latent类型同步 step / 上下限

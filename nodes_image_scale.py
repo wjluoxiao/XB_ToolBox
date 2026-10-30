@@ -5,6 +5,7 @@ XB-ToolBox 批量缩放图像节点
 N进N出，共享缩放参数，每张独立处理，互不干扰。
 """
 
+import math
 import comfy.utils
 import nodes
 from .nodes_reference_any import FlexibleOptionalInputType
@@ -59,6 +60,55 @@ class XB_ImageScale:
                 results.append(s.movedim(1, -1))
 
         # ── 填充到 MAX_IMAGES 个输出 ──
+        fallback = results[0] if results else image1
+        while len(results) < MAX_IMAGES:
+            results.append(fallback)
+
+        return tuple(results)
+
+
+class XB_ImageScalePixels:
+    """批量缩放图像（像素）— 按总像素数缩放，动态输入/输出，N进N出。"""
+
+    upscale_methods = ["nearest-exact", "bilinear", "area", "bicubic", "lanczos"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "upscale_method": (cls.upscale_methods,),
+                "megapixels": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 16.0, "step": 0.01}),
+                "resolution_step": ("INT", {"default": 1, "min": 1, "max": 1024, "step": 1,
+                                            "tooltip": "宽高对齐到该步长的整数倍"}),
+                "image1": ("IMAGE",),
+            },
+            "optional": FlexibleOptionalInputType("IMAGE"),
+        }
+
+    RETURN_TYPES = ("IMAGE",) * MAX_IMAGES
+    RETURN_NAMES = tuple(f"图像{i+1}" for i in range(MAX_IMAGES))
+    FUNCTION = "upscale"
+    CATEGORY = "XB_ToolBox/Utils"
+
+    def upscale(self, upscale_method, megapixels, resolution_step, image1, **kwargs):
+        images = [image1]
+        for key, value in kwargs.items():
+            if value is not None and hasattr(value, 'movedim'):
+                images.append(value)
+
+        total = int(megapixels * 1024 * 1024)
+        results = []
+        for img in images:
+            samples = img.movedim(-1, 1)
+            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+            w = max(1, round(samples.shape[3] * scale_by))
+            h = max(1, round(samples.shape[2] * scale_by))
+            if resolution_step > 1:
+                w = max(resolution_step, int(round(w / resolution_step)) * resolution_step)
+                h = max(resolution_step, int(round(h / resolution_step)) * resolution_step)
+            s = comfy.utils.common_upscale(samples, w, h, upscale_method, "disabled")
+            results.append(s.movedim(1, -1))
+
         fallback = results[0] if results else image1
         while len(results) < MAX_IMAGES:
             results.append(fallback)

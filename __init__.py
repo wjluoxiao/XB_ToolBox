@@ -107,7 +107,7 @@ try:
     from .nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch
     from .nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
-    from .nodes_image_scale import XB_ImageScale
+    from .nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
     from .nodes_shenbi import XB_ShenBi
     from .nodes_hailuo_video import XB_HailuoH3VideoParams
     from .nodes_list_dispatcher import XB_ListDispatcher
@@ -208,6 +208,16 @@ try:
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
     from .nodes_image_prompt_preset import XB_ImagePromptPreset
 
+    # ── 生图预设（生图提示词预设 + 姿态参考图 / 穿搭参考图）──
+    # 同时 import xb_gallery → 注册 /xb_toolbox/gallery/* 端点（图库绑定、素材清单、图片读取）
+    try:
+        from . import xb_gallery  # noqa: F401
+        from .nodes_image_preset import XB_ImagePreset
+        _IMAGE_PRESET_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 生图预设节点 未加载：{e}")
+        _IMAGE_PRESET_AVAILABLE = False
+
     # ── 播放声音（复刻 pysssss PlaySound，自带音频资源）──
     from .nodes_play_sound import XB_PlaySound
 
@@ -294,6 +304,7 @@ try:
         "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
         "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
         "XB_ImageScale": XB_ImageScale,
+        "XB_ImageScalePixels": XB_ImageScalePixels,
         "XB_HailuoH3VideoParams": XB_HailuoH3VideoParams,
         "XB_ListDispatcher": XB_ListDispatcher,
         "XB_BatchImages": XB_BatchImages,
@@ -332,6 +343,12 @@ try:
         "XB_CosyVoice3_SpeakerClone": XB_CosyVoice3_SpeakerClone,
         "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
     }
+
+    # ── 🖼️ 生图预设（生图提示词预设 + 姿态/穿搭参考图）──
+    if _IMAGE_PRESET_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_ImagePreset": XB_ImagePreset,
+        })
 
     # ── 🎬 保存视频 ──
     if _SAVE_VIDEO_AVAILABLE:
@@ -398,6 +415,7 @@ try:
         "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
         "XB_ShenBi": "XB-BOX - 🖌️ ShenBi Brush",
         "XB_ImagePromptPreset": "XB-BOX - Image Prompt Preset",
+        "XB_ImagePreset": "XB-BOX - 🖼️ 生图提示词预设（图）",
         "XB_PlaySound": "XB-BOX - 🔊 播放声音",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
         "XB_VideoLoader": "XB-BOX - 🎬 视频加载器（修复预览BUG）",
@@ -453,6 +471,7 @@ try:
         "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
         "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",
         "XB_ImageScale": "XB-BOX - 📐 批量缩放图像",
+        "XB_ImageScalePixels": "XB-BOX - 📐 批量缩放图像（像素）",
         "XB_HailuoH3VideoParams": "XB-BOX - 🌊 海螺H3视频参数",
         "XB_ListDispatcher": "XB-BOX - 📋 列表分发",
         "XB_BatchImages": "XB-BOX - 🖼️ 批量图像",
