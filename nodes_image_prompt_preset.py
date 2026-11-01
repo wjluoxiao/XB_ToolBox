@@ -869,6 +869,24 @@ class XB_ImagePromptPreset:
                    "输出：①提示词 ②空latent。")
 
     @classmethod
+    def VALIDATE_INPUTS(cls, preset_mode=None):
+        """放行历史档位名（如 0.10.x 的「常规文生图」「📱 图文版面」…），避免老工作流被拒。
+
+        ⚠️ 为什么必须声明：preset_mode 是下拉（combo），ComfyUI 排队前会拿工作流里存的值
+        去比对**当前**选项列表，老值不在列表里就直接 ``value_not_in_list`` → 整个 prompt 被丢弃
+        （日志：Failed to validate prompt / Output will be ignored）。
+        声明本方法后 ComfyUI 会跳过 preset_mode 的默认列表校验
+        （execution.py：``if x not in validate_function_inputs and not validate_has_kwargs``），
+        真正执行时再由 normalize_mode() 把旧名归一为当前档位。
+        """
+        if preset_mode is None:
+            return True
+        value = _as_str(preset_mode).strip()
+        if not value or normalize_mode(value) in PRESET_MODES:
+            return True
+        return f"未知的预设模式：{value}"
+
+    @classmethod
     def IS_CHANGED(cls, manager_settings="", **kwargs):
         """任一表面参数/提示词/配置变化都让缓存失效（保证改参数即重跑）。"""
         keys = ("output_lang", "preset_mode", "latent_kind", "three_view_text",

@@ -3668,19 +3668,29 @@ function setupNode(node) {
     try {
       if (node.__ippPresetMigrated) return;
       node.__ippPresetMigrated = true;
-      const mode = modeValueOf(readWidgetValue(wMode));
+      const rawMode = readWidgetValue(wMode);
+      const mode = modeValueOf(rawMode);
       let extra = String(readWidgetValue(w3v) ?? "").trim();
       if (!extra && mode && mode !== MODE_TP) {
         extra = String(presetTextOf(mode, surfaceOf().lang, IO_T2I) || "").trim();
       }
-      if (!extra) { if (String(readWidgetValue(w3v) ?? "").trim()) setWidgetValue(w3v, ""); return; }
+      // ⚠️ 无论有没有设定词，都要把「旧档位名」写回成 MODE_TP：
+      //    老值（如 0.10.x 的「常规文生图」）不在当前下拉选项里，留着会让后端排队校验
+      //    直接 value_not_in_list 丢掉整个 prompt。这里顺手清干净，工作流下次保存就正常了。
+      const needsModeReset = !!mode && mode !== MODE_TP
+        || (typeof rawMode === "string" && rawMode.trim() && rawMode.trim() !== MODE_TP);
+      if (!extra) {
+        if (String(readWidgetValue(w3v) ?? "").trim()) setWidgetValue(w3v, "");
+        if (needsModeReset) setWidgetValue(wMode, MODE_TP);
+        return;
+      }
       const body = String(readWidgetValue(ipWidget) ?? "");
       if (!body.includes(extra)) {
         const merged = body.trim() ? extra + "\n" + body : extra;
         setPromptBody(merged);
       }
       setWidgetValue(w3v, "");
-      if (mode && mode !== MODE_TP) setWidgetValue(wMode, MODE_TP);
+      if (needsModeReset) setWidgetValue(wMode, MODE_TP);
       notify("已把旧版「预设句 / 预设模式」的内容并入提示词文本框", "success");
     } catch (_) { /* ignore */ }
   };

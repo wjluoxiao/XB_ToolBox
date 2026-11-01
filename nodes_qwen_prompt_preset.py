@@ -1034,6 +1034,21 @@ class XB_QwenPromptPreset:
                    "输出：提示词 / 空latent。")
 
     @classmethod
+    def VALIDATE_INPUTS(cls, preset_mode=None):
+        """放行历史档位名（「常规文生图」「📱 图文版面」…），避免老工作流在排队校验被拒。
+
+        preset_mode 是下拉，ComfyUI 会拿工作流里存的值比对当前选项列表，老值不在列表里
+        就 ``value_not_in_list`` 直接丢弃 prompt。声明本方法后该校验被跳过，
+        执行时由 normalize_mode() 归一为当前档位。
+        """
+        if preset_mode is None:
+            return True
+        value = _as_str(preset_mode).strip()
+        if not value or normalize_mode(value) in PRESET_MODES:
+            return True
+        return f"未知的预设模式：{value}"
+
+    @classmethod
     def IS_CHANGED(cls, clip_name="", skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO,
                    preset_mode="", **kwargs):
         sig = {k: kwargs.get(k) for k in _SETTING_KEYS}

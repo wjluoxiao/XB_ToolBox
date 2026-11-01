@@ -792,6 +792,21 @@ class XB_ImagePromptPresetPro:
                    "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。")
 
     @classmethod
+    def VALIDATE_INPUTS(cls, preset_mode=None):
+        """放行历史档位名（「常规文生图」「📱 图文版面」…），避免老工作流在排队校验被拒。
+
+        preset_mode 是下拉，ComfyUI 会拿工作流里存的值比对当前选项列表，老值不在列表里
+        就 ``value_not_in_list`` 直接丢弃 prompt。声明本方法后该校验被跳过，
+        执行时由 normalize_mode() 归一为当前档位。
+        """
+        if preset_mode is None:
+            return True
+        value = _as_str(preset_mode).strip()
+        if not value or normalize_mode(value) in PRESET_MODES:
+            return True
+        return f"未知的预设模式：{value}"
+
+    @classmethod
     def IS_CHANGED(cls, manager_settings="", skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO,
                    preset_mode="", **kwargs):
         keys = ("latent_kind", "output_lang", "preset_mode", "three_view_text", "aspect_ratio",
