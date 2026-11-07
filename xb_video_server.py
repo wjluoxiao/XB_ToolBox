@@ -30,6 +30,7 @@ else:
 
 ENCODE_ARGS = ("utf-8", "backslashreplace")
 PREVIEW_MAX = 960      # 预览转码的长边上限（只影响预览，不影响真实输出）
+MIN_DIM = 16           # 宽高低于它就当「没填」（拦截小数/脏值被当成分辨率）
 
 
 async def _stream_media(request, args, filename, content_type="video/webm"):
@@ -110,6 +111,12 @@ async def xb_video_preview(request):
     cap = max(0, int(_num("frame_load_cap")))
     width = max(0, int(_num("custom_width")))
     height = max(0, int(_num("custom_height")))
+    # 小于 MIN_DIM 的宽高一律当「没填」：上游若是把小数（如 megapixels 0.9）误连进来，
+    # 会在下面的 _even() 里变成 2px，预览就成了拉伸的畸形长条
+    if width < MIN_DIM:
+        width = 0
+    if height < MIN_DIM:
+        height = 0
 
     # 与后端 XB_LoadVideo 完全一致：跳过帧 → 强制帧率重采样 → 每隔 nth 帧取一帧
     # 输出帧率 = (强制帧率 or 源帧率) / nth

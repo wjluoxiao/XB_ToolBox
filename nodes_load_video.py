@@ -22,6 +22,7 @@ from comfy_extras.nodes_video import preview_input_video
 
 DIMMAX = 8192
 BIGMAX = (2**53) - 1
+MIN_DIM = 16          # 宽高低于它就当「没填」（拦截小数/脏值被当成分辨率）
 
 
 def _video_files():
@@ -69,6 +70,13 @@ def _check_peak_memory(frames, width, height, hint):
 
 def _resize(images, width, height):
     """0 表示按原始比例；两个都给则强制拉伸到指定尺寸。"""
+    width = int(width or 0)
+    height = int(height or 0)
+    # 小于 MIN_DIM 的宽高当「没填」：上游若误连了小数（如 megapixels 0.9）会变成 1px 高的畸形输出
+    if width < MIN_DIM:
+        width = 0
+    if height < MIN_DIM:
+        height = 0
     if images.shape[0] == 0 or not width and not height:
         return images
     src_h, src_w = int(images.shape[1]), int(images.shape[2])

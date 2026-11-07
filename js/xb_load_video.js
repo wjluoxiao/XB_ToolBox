@@ -38,6 +38,51 @@ const OUTPUT_ALIASES = {
 
 const normKey = (s) => String(s || "").toLowerCase().replace(/[\s_\-]/g, "");
 
+// ── 分辨率参数节点（输出 Width/Height，但节点上**没有**名叫 width/height 的部件）──
+// 这类节点必须用与后端完全相同的公式现场算。
+// 否则会掉进下面的兜底逻辑，把 megapixels 当成宽高：0.9MP → int(0.9)=0（碰巧当没填），
+// 1.0MP → 1 → 2×2 的预览（畸形）。这就是「超过 0.9MP 预览就坏」的原因。
+const RESOLUTION_NODE_TYPES = new Set([
+    "JZL_HailuoH3VideoParams",
+    "JZL_HailuoH3VideoParamsPro",
+    "XB_HailuoH3VideoParams",
+]);
+
+/** Python round() 是「四舍六入五取偶」，JS Math.round 是五入 —— 必须一致，否则预览与实际输出差一档 */
+function roundHalfEven(x) {
+    const f = Math.floor(x);
+    const diff = x - f;
+    if (diff > 0.5) return f + 1;
+    if (diff < 0.5) return f;
+    return f % 2 === 0 ? f : f + 1;
+}
+
+function aspectRatioText(node) {
+    const w = (node.widgets || []).find((x) => x && x.name === "aspect_ratio");
+    return String((w && w.value) || "16:9 (Widescreen)");
+}
+
+function ratioOf(text) {
+    const m = String(text || "").match(/(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)/);
+    if (!m) return [16, 9];
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    return a > 0 && b > 0 ? [a, b] : [16, 9];
+}
+
+/** 与节点 process() 完全一致：MP×1024² → 按比例开方 → 对齐 multiple */
+function computeResolution(node) {
+    const [wr, hr] = ratioOf(aspectRatioText(node));
+    const mp = widgetNum(node, "megapixels", 1.0) || 1.0;
+    const mult = Math.max(1, Math.round(widgetNum(node, "multiple", 32) || 32));
+    const total = mp * 1024 * 1024;
+    const scale = Math.sqrt(total / (wr * hr));
+    return {
+        width: Math.max(mult, roundHalfEven((wr * scale) / mult) * mult),
+        height: Math.max(mult, roundHalfEven((hr * scale) / mult) * mult),
+    };
+}
+
 /** 按「输出名 / 别名」去找上游对应的部件（名字或中文标签都算） */
 function matchWidgetByOutput(ws, outName, ok, raw) {
     if (!outName) return null;
@@ -57,16 +102,41 @@ function matchWidgetByOutput(ws, outName, ok, raw) {
 /** 从上游节点里挑出「能代表该输出的值」（兼容各种整数/Primitive/参数面板节点） */
 function pickUpstreamValue(src, slot, outName, numeric) {
     const ws = src.widgets || [];
+    const key = normKey(outName);
+    const isDim = key === "width" || key === "height" || key === "宽度" || key === "高度";
     const raw = (w) => (w && w.value != null && w.value !== "" ? w.value : null);
     const ok = (v) => {
         if (v == null || v === "") return false;
         if (!numeric) return true;
-        return Number.isFinite(Number(v));
+        const n = Number(v);
+        if (!Number.isFinite(n)) return false;
+        // 分辨率不可能小于 16：拦住 megapixels / scale_factor 这类小数被误当成宽高
+        if (isDim && n < 16) return false;
+        return true;
     };
+
+    // 0) 分辨率参数节点：节点上没有 width/height 部件，只能按公式现场算
+    if (isDim && RESOLUTION_NODE_TYPES.has(src.type)) {
+        const r = computeResolution(src);
+        return key === "width" || key === "宽度" ? r.width : r.height;
+    }
 
     // 1) 输出名 / 别名 对应的部件（名称或中文标签）
     const byName = matchWidgetByOutput(ws, outName, ok, raw);
     if (byName) return raw(byName);
+    // 宽高：到这里还认不出「哪个部件是宽 / 高」就不能再往下猜了。
+    // 按槽位/存档值猜会把 megapixels(1.0)、multiple(32) 之类的参数当成分辨率 →
+    // 预览变成 2×2 / 32×32 的畸形条。返回 null 只会退回「保持源尺寸」，永远不会错得离谱。
+    // 只有「槽位与部件一一对应」时才敢按槽位取值：单部件节点（Primitive / rgthree 数值）
+    // 或输出数与部件数相同的节点。
+    if (isDim) {
+        const aligned = ws.length === 1
+            || (Array.isArray(src.outputs) && src.outputs.length === ws.length);
+        if (!aligned) return null;
+        const dimW = ws[slot] || ws[0];
+        return ok(raw(dimW)) ? raw(dimW) : null;
+    }
+
     // 2) 名字像数值的部件（rgthree「数量多功能工具」的 value#1 / 中文「数值」等）
     const numericName = /value|val$|数值|值|number|num|int|float|count/i;
     for (const w of ws) {
