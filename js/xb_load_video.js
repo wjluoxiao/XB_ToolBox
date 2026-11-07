@@ -38,11 +38,12 @@ const OUTPUT_ALIASES = {
 
 const normKey = (s) => String(s || "").toLowerCase().replace(/[\s_\-]/g, "");
 
-// ── 分辨率参数节点（输出 Width/Height，但节点上**没有**名叫 width/height 的部件）──
-// 这类节点必须用与后端完全相同的公式现场算。
-// 否则会掉进下面的兜底逻辑，把 megapixels 当成宽高：0.9MP → int(0.9)=0（碰巧当没填），
-// 1.0MP → 1 → 2×2 的预览（畸形）。这就是「超过 0.9MP 预览就坏」的原因。
-const RESOLUTION_NODE_TYPES = new Set([
+// ── 海螺系列参数节点（同时输出 Width / Height / Frames）──
+// 这类节点上**没有** width / height / frames 部件，只有 aspect_ratio / megapixels / duration…
+// 必须用与后端 process() 完全相同的公式现场算，否则会掉进下面的兜底逻辑按槽位瞎猜：
+//   · Height(槽位1) 撞上 megapixels → 1.0 → 2×2 的畸形预览
+//   · Frames(槽位2) 撞上 multiple   → 永远 32 帧 → 帧数上限「不受控制」
+const PARAM_NODE_TYPES = new Set([
     "JZL_HailuoH3VideoParams",
     "JZL_HailuoH3VideoParamsPro",
     "XB_HailuoH3VideoParams",
@@ -83,6 +84,14 @@ function computeResolution(node) {
     };
 }
 
+/** 与节点 process() 完全一致：时长(秒) × 24fps → 吸附 17k+5 网格 */
+function computeFrameCount(node) {
+    const dur = widgetNum(node, "duration", 8) || 8;
+    const base = Math.max(5, roundHalfEven(dur * 24));
+    // JS 的 % 会保留负号（Python 不会），必须再归一化成正数
+    return base + (((5 - (base % 17)) % 17) + 17) % 17;
+}
+
 /** 按「输出名 / 别名」去找上游对应的部件（名字或中文标签都算） */
 function matchWidgetByOutput(ws, outName, ok, raw) {
     if (!outName) return null;
@@ -104,6 +113,8 @@ function pickUpstreamValue(src, slot, outName, numeric) {
     const ws = src.widgets || [];
     const key = normKey(outName);
     const isDim = key === "width" || key === "height" || key === "宽度" || key === "高度";
+    const isFrames = key === "frames" || key === "framecount" || key === "numframes"
+        || key === "帧数" || key === "总帧数";
     const raw = (w) => (w && w.value != null && w.value !== "" ? w.value : null);
     const ok = (v) => {
         if (v == null || v === "") return false;
@@ -115,26 +126,33 @@ function pickUpstreamValue(src, slot, outName, numeric) {
         return true;
     };
 
-    // 0) 分辨率参数节点：节点上没有 width/height 部件，只能按公式现场算
-    if (isDim && RESOLUTION_NODE_TYPES.has(src.type)) {
-        const r = computeResolution(src);
-        return key === "width" || key === "宽度" ? r.width : r.height;
+    // 0) 海螺参数节点：节点上没有 width / height / frames 部件，只能按公式现场算
+    if (PARAM_NODE_TYPES.has(src.type)) {
+        if (isDim) {
+            const r = computeResolution(src);
+            return key === "width" || key === "宽度" ? r.width : r.height;
+        }
+        if (isFrames) return computeFrameCount(src);
     }
 
     // 1) 输出名 / 别名 对应的部件（名称或中文标签）
     const byName = matchWidgetByOutput(ws, outName, ok, raw);
     if (byName) return raw(byName);
-    // 宽高：到这里还认不出「哪个部件是宽 / 高」就不能再往下猜了。
-    // 按槽位/存档值猜会把 megapixels(1.0)、multiple(32) 之类的参数当成分辨率 →
-    // 预览变成 2×2 / 32×32 的畸形条。返回 null 只会退回「保持源尺寸」，永远不会错得离谱。
-    // 只有「槽位与部件一一对应」时才敢按槽位取值：单部件节点（Primitive / rgthree 数值）
-    // 或输出数与部件数相同的节点。
+
+    // 2) 宽高：部件名/标签以 width|height|宽度|高度 结尾也算（如 image_width、出图宽度）
     if (isDim) {
-        const aligned = ws.length === 1
-            || (Array.isArray(src.outputs) && src.outputs.length === ws.length);
-        if (!aligned) return null;
-        const dimW = ws[slot] || ws[0];
-        return ok(raw(dimW)) ? raw(dimW) : null;
+        const tails = (key === "width" || key === "宽度") ? ["width", "宽度"] : ["height", "高度"];
+        for (const w of ws) {
+            const nk = normKey(w && w.name);
+            const lk = normKey(w && w.label);
+            if ((tails.some((t) => nk.endsWith(t)) || tails.some((t) => lk.endsWith(t)))
+                && ok(raw(w))) return raw(w);
+        }
+        // 单部件节点（Primitive / rgthree 数值）直接按它取值
+        if (ws.length === 1 && ok(raw(ws[0]))) return raw(ws[0]);
+        // 再往下猜就会把 megapixels(1.0)、multiple(32) 当成分辨率 → 预览变成 2×2 畸形条。
+        // 返回 null 只退回「保持源尺寸」，永远不会错得离谱。
+        return null;
     }
 
     // 2) 名字像数值的部件（rgthree「数量多功能工具」的 value#1 / 中文「数值」等）
