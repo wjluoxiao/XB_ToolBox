@@ -20,12 +20,7 @@ The primary goal of **XB_ToolBox** is to help AI beginners new to ComfyUI quickl
 
 ![界面截图](docs/01.png)
 ![界面截图](docs/02.png)
-![界面截图](docs/03.png)
-![界面截图](docs/04.png)
 
-![界面截图](docs/05.png)
-![界面截图](docs/06.png)
-![界面截图](docs/04.png)
 
 ---
 
