@@ -366,9 +366,20 @@ class WorkflowModal {
         const text = strings();
         this.sideList.innerHTML = "";
 
-        const makeItem = (label, value) => {
-            const item = el("button", "xb-wf-side-item", label);
+        const counts = new Map();
+        for (const item of this.items) {
+            const key = item.subcategory || item.category;
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+
+        const makeItem = (label, value, count) => {
+            const item = el("button", "xb-wf-side-item");
             item.type = "button";
+            item.title = `${label} (${count})`;
+            item.append(
+                el("span", "xb-wf-side-label", label),
+                el("span", "xb-wf-side-count", String(count)),
+            );
             item.classList.toggle("is-active", this.subcategory === value);
             item.addEventListener("click", () => {
                 this.subcategory = value;
@@ -378,8 +389,10 @@ class WorkflowModal {
             return item;
         };
 
-        this.sideList.append(makeItem(text.all, ""));
-        for (const name of subcategoriesOf(this.items)) this.sideList.append(makeItem(name, name));
+        this.sideList.append(makeItem(text.all, "", this.items.length));
+        for (const name of subcategoriesOf(this.items)) {
+            this.sideList.append(makeItem(name, name, counts.get(name) || 0));
+        }
     }
 
     renderGrid() {
@@ -503,9 +516,21 @@ class WorkflowPanel {
     renderCategories() {
         const text = strings();
         this.catBar.innerHTML = "";
-        const makeChip = (label, value) => {
-            const chip = el("button", "xb-wf-chip", label);
+
+        const counts = new Map();
+        for (const item of this.items) {
+            const key = item.subcategory || item.category;
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+
+        const makeChip = (label, value, count) => {
+            const chip = el("button", "xb-wf-chip");
             chip.type = "button";
+            chip.title = `${label} (${count})`;
+            chip.append(
+                el("span", "xb-wf-chip-label", label),
+                el("span", "xb-wf-chip-count", String(count)),
+            );
             chip.classList.toggle("is-active", this.subcategory === value);
             chip.addEventListener("click", () => {
                 this.subcategory = value;
@@ -514,8 +539,10 @@ class WorkflowPanel {
             });
             return chip;
         };
-        this.catBar.append(makeChip(text.all, ""));
-        for (const name of subcategoriesOf(this.items)) this.catBar.append(makeChip(name, name));
+        this.catBar.append(makeChip(text.all, "", this.items.length));
+        for (const name of subcategoriesOf(this.items)) {
+            this.catBar.append(makeChip(name, name, counts.get(name) || 0));
+        }
         this.catBar.classList.toggle("is-hidden", this.items.length === 0);
     }
 
