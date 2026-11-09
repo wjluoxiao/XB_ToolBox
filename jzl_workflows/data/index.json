@@ -7,48 +7,817 @@
     "type": "image",
     "templates": [
       {
-        "name": "anima_t2i_basic",
-        "title": "Anima Text to Image (Basic)",
-        "description": "Anima basic text-to-image: prompt preset + model loader + sampling/decoding in one graph.",
-        "tags": ["Anima", "Text to Image"],
-        "thumbnail": ["anima_t2i_basic-1.webp"],
-        "date": "2026-11-09",
-        "username": "JZL",
+        "name": "anima_01",
+        "date": "2026-11-10",
         "openSource": true,
-        "minComfyUIVersion": "0.0.0"
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "anima_01-1.webp"
+        ],
+        "tags": [
+          "Anima"
+        ],
+        "title": "Anima - Text to Image",
+        "description": "Anima - Text to Image",
+        "username": "JZL"
       },
       {
-        "name": "anima_inpaint_basic",
-        "title": "Anima Inpainting (Basic)",
-        "description": "Anima inpainting: basic masked-region repaint flow.",
-        "tags": ["Anima", "Inpainting"],
-        "thumbnail": ["anima_inpaint_basic-1.webp"],
-        "date": "2026-11-09",
-        "username": "JZL",
+        "name": "anima_02",
+        "date": "2026-11-10",
         "openSource": true,
-        "minComfyUIVersion": "0.0.0"
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "anima_02-1.webp"
+        ],
+        "tags": [
+          "Anima"
+        ],
+        "title": "Anima - Text to Image with Upscale",
+        "description": "Anima - Text to Image with Upscale",
+        "username": "JZL"
       },
       {
-        "name": "anima_t2i_upscale",
-        "title": "Anima Text to Image + Upscale",
-        "description": "Anima text-to-image followed by an upscale pass.",
-        "tags": ["Anima", "Text to Image", "Upscale"],
-        "thumbnail": ["anima_t2i_upscale-1.webp"],
-        "date": "2026-11-09",
-        "username": "JZL",
+        "name": "anima_03",
+        "date": "2026-11-10",
         "openSource": true,
-        "minComfyUIVersion": "0.0.0"
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "anima_03-1.webp"
+        ],
+        "tags": [
+          "Anima"
+        ],
+        "title": "Anima - Inpainting",
+        "description": "Anima - Inpainting",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Flux 2",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "flux2_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_01-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein Text to Image",
+        "description": "Flux 2 - Klein Text to Image",
+        "username": "JZL"
       },
       {
-        "name": "anima_control_t2i",
-        "title": "Anima Control to Image (Basic)",
-        "description": "Anima control-guided generation: basic flow with control conditions.",
-        "tags": ["Anima", "Control"],
-        "thumbnail": ["anima_control_t2i-1.webp"],
-        "date": "2026-11-09",
-        "username": "JZL",
+        "name": "flux2_02",
+        "date": "2026-11-10",
         "openSource": true,
-        "minComfyUIVersion": "0.0.0"
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_02-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Base Text to Image",
+        "description": "Flux 2 - Base Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "flux2_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_03-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein Single Image Edit",
+        "description": "Flux 2 - Klein Single Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "flux2_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_04-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein 2-Image Edit",
+        "description": "Flux 2 - Klein 2-Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "flux2_05",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_05-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein 3-Image Edit",
+        "description": "Flux 2 - Klein 3-Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "flux2_06",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_06-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein Inpainting",
+        "description": "Flux 2 - Klein Inpainting",
+        "username": "JZL"
+      },
+      {
+        "name": "flux2_07",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_07-1.webp"
+        ],
+        "tags": [
+          "Flux 2"
+        ],
+        "title": "Flux 2 - Klein Outpainting",
+        "description": "Flux 2 - Klein Outpainting",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Flux 3",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "flux3_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux3_01-1.webp"
+        ],
+        "tags": [
+          "Flux 3"
+        ],
+        "title": "Flux 3 Text to Image",
+        "description": "Flux 3 Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "flux3_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux3_02-1.webp"
+        ],
+        "tags": [
+          "Flux 3"
+        ],
+        "title": "Flux 3 Single Image Edit",
+        "description": "Flux 3 Single Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "flux3_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux3_03-1.webp"
+        ],
+        "tags": [
+          "Flux 3"
+        ],
+        "title": "Flux 3 - Klein 96-View Switch",
+        "description": "Flux 3 - Klein 96-View Switch",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Krea 2",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "krea2_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_01-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 Text to Image",
+        "description": "Krea 2 Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_02-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 Text to Image Advanced",
+        "description": "Krea 2 Text to Image Advanced",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_03-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 10-Style LoRA",
+        "description": "Krea 2 10-Style LoRA",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_04-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 Character Multi-View",
+        "description": "Krea 2 Character Multi-View",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_1139",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_1139-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 Style Clone LoRA-free Text to Image",
+        "description": "Krea 2 Style Clone LoRA-free Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_1140",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_1140-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Krea 2 Style Clone Character Turnaround",
+        "description": "Krea 2 Style Clone Character Turnaround",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_07",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_07-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Qwen Image 2511 Character Turnaround",
+        "description": "Qwen Image 2511 Character Turnaround",
+        "username": "JZL"
+      },
+      {
+        "name": "krea2_08",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "krea2_08-1.webp"
+        ],
+        "tags": [
+          "Krea 2"
+        ],
+        "title": "Turnaround - Flux 2",
+        "description": "Turnaround - Flux 2",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Qwen Image 2.1",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "qwen21_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_01-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Text to Image",
+        "description": "Qwen Image 2.1 Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_02-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Text to Image Advanced",
+        "description": "Qwen Image 2.1 Text to Image Advanced",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_03-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Single Image Edit",
+        "description": "Qwen Image 2.1 Single Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_04-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Multi-Image Edit",
+        "description": "Qwen Image 2.1 Multi-Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_05",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_05-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Multi-Image Edit Advanced",
+        "description": "Qwen Image 2.1 Multi-Image Edit Advanced",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_06",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_06-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2.1"
+        ],
+        "title": "Qwen Image 2.1 Sketch to Image",
+        "description": "Qwen Image 2.1 Sketch to Image",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Qwen Image 2511",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "qwen2511_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_01-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Image Edit",
+        "description": "Qwen Image 2511 Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_02-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Image Edit - GGUF",
+        "description": "Qwen Image 2511 Image Edit - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_03-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Multi-Image Edit",
+        "description": "Qwen Image 2511 Multi-Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_04-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Multi-Image Edit - GGUF",
+        "description": "Qwen Image 2511 Multi-Image Edit - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_05",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_05-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Multi-LoRA Switch",
+        "description": "Qwen Image 2511 Multi-LoRA Switch",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_06",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_06-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Multi-LoRA Switch - GGUF",
+        "description": "Qwen Image 2511 Multi-LoRA Switch - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_07",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_07-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Single-View Switch",
+        "description": "Qwen Image 2511 Single-View Switch",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_08",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_08-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 Single-View Switch - GGUF",
+        "description": "Qwen Image 2511 Single-View Switch - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_09",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_09-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 96-View Gen",
+        "description": "Qwen Image 2511 96-View Gen",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2511_10",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_10-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2511"
+        ],
+        "title": "Qwen Image 2511 96-View Gen - GGUF",
+        "description": "Qwen Image 2511 96-View Gen - GGUF",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Qwen Image 2512",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "qwen2512_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_01-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Text to Image",
+        "description": "Qwen Image 2512 Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2512_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_02-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Text to Image - GGUF",
+        "description": "Qwen Image 2512 Text to Image - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2512_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_03-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Controlled Text to Image",
+        "description": "Qwen Image 2512 Controlled Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2512_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_04-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Controlled Text to Image - GGUF",
+        "description": "Qwen Image 2512 Controlled Text to Image - GGUF",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2512_05",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_05-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Panorama Text to Image",
+        "description": "Qwen Image 2512 Panorama Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen2512_06",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2512_06-1.webp"
+        ],
+        "tags": [
+          "Qwen Image 2512"
+        ],
+        "title": "Qwen Image 2512 Panorama Text to Image - GGUF",
+        "description": "Qwen Image 2512 Panorama Text to Image - GGUF",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Z-Image",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "zimage_01",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_01-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Turbo - Text to Image",
+        "description": "Z-Image Turbo - Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_02",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_02-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Turbo - Text to Image #2",
+        "description": "Z-Image Turbo - Text to Image #2",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_03",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_03-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Base - Text to Image",
+        "description": "Z-Image Base - Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_04",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_04-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Turbo - Image to Image",
+        "description": "Z-Image Turbo - Image to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_05",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_05-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Base Pose Control",
+        "description": "Z-Image Base Pose Control",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_06",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_06-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Turbo - Multimodal Control to Image",
+        "description": "Z-Image Turbo - Multimodal Control to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "zimage_10",
+        "date": "2026-11-10",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "zimage_10-1.webp"
+        ],
+        "tags": [
+          "Z-Image"
+        ],
+        "title": "Z-Image Turbo - 18-Style Switch Text to Image",
+        "description": "Z-Image Turbo - 18-Style Switch Text to Image",
+        "username": "JZL"
       }
     ]
   }
