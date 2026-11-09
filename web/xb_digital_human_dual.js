@@ -73,7 +73,7 @@ app.registerExtension({
             [w.mutes1_data, w.mutes2_data].forEach(wd => { hideWidget(node, wd); });
             if (w.total_display) {
                 if (w.total_display.options) w.total_display.options.read_only = true;  // Nodes 2.0
-                setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
+                setTimeout(() => { const el = w.total_display.inputEl || w.total_display.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:var(--xb-bg);color:#00E676;text-align:center;font-weight:bold;font-size:14px;border:none;"; } }, 200);
             }
 
             // ── 轨道状态机（来自 xb_audio_slicer_v3.js）──

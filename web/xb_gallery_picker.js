@@ -10,7 +10,7 @@
  * · 普通图片文件夹（无清单）：按文件名多宫格 + 搜索 + 排序 + 加载更多；
  * · 单选（一个端口一张图）→ 回填节点内部字段 pose_ref / outfit_ref。
  *
- * 视觉沿用本包弹窗风格（#1c1c1e / 880px / 圆角 8px）。
+ * 视觉沿用本包弹窗风格（var(--xb-bg) / 880px / 圆角 8px）。
  */
 
 import { api } from "../../scripts/api.js";
@@ -164,25 +164,25 @@ function shell(title) {
   const mask = el("div", "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.78);"
     + "display:flex;overflow:auto;box-sizing:border-box;");
   const card = el("div", "margin:auto;flex:0 0 auto;display:flex;flex-direction:column;"
-    + "background:#1c1c1e;border:1px solid #333;border-radius:8px;color:#ddd;"
+    + "background:var(--xb-bg);border:1px solid var(--xb-border);border-radius:8px;color:var(--xb-text);"
     + "font-family:system-ui,sans-serif;line-height:1.65;box-shadow:0 20px 40px rgba(0,0,0,.6);overflow:hidden;");
-  const head = el("div", "padding:14px 18px 12px;background:#232326;border-bottom:1px solid #3a3a3a;"
+  const head = el("div", "padding:14px 18px 12px;background:var(--xb-bg-soft);border-bottom:1px solid var(--xb-border);"
     + "display:flex;align-items:center;gap:12px;flex-wrap:wrap;");
-  head.append(el("span", "flex:1 1 320px;min-width:200px;font-size:1.2em;font-weight:700;color:#eee;", title));
+  head.append(el("span", "flex:1 1 320px;min-width:200px;font-size:1.2em;font-weight:700;color:var(--xb-text);", title));
 
   // 顶部常驻条（放「禁用」勾选框等，切换视图时不会被清空）
-  const top = el("div", "padding:8px 18px;background:#202024;border-bottom:1px solid #333;"
+  const top = el("div", "padding:8px 18px;background:var(--xb-bg);border-bottom:1px solid var(--xb-border);"
     + "display:flex;align-items:center;gap:12px;flex-wrap:wrap;");
   top.hidden = true;
 
   const body = el("div", "padding:14px 18px 16px;display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0;");
-  const foot = el("div", "padding:10px 18px;border-top:1px solid #3a3a3a;background:#18181a;"
+  const foot = el("div", "padding:10px 18px;border-top:1px solid var(--xb-border);background:var(--xb-bg-soft);"
     + "display:flex;align-items:center;gap:10px;flex-wrap:wrap;");
 
   // 顶部工具条：字号 A−/A+ ｜ 界面 −/%/+ ｜ ✕
   const tools = el("span", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:normal;");
-  const fontVal = el("span", "min-width:26px;text-align:center;color:#e8a87c;font-variant-numeric:tabular-nums;", String(fontGet()));
-  const zoomVal = el("span", "min-width:46px;text-align:center;color:#ffd98a;font-variant-numeric:tabular-nums;",
+  const fontVal = el("span", "min-width:26px;text-align:center;color:var(--xb-orange);font-variant-numeric:tabular-nums;", String(fontGet()));
+  const zoomVal = el("span", "min-width:46px;text-align:center;color:var(--xb-warn);font-variant-numeric:tabular-nums;",
     Math.round(zoomGet() * 100) + "%");
   const refreshVals = () => {
     fontVal.textContent = String(fontGet());
@@ -193,30 +193,30 @@ function shell(title) {
     applyScale(card);
     try { card.dispatchEvent(new Event("xb-scale")); } catch (_) {}
   };
-  const fontMinus = mkBtn("A−", "border:1px solid #5b9bd5;background:#2a4a6a;color:#cfe3f7;height:1.9em;padding:0 .55em;", () => {
+  const fontMinus = mkBtn("A−", "border:1px solid #5b9bd5;background:var(--xb-tint-info);color:var(--xb-info);height:1.9em;padding:0 .55em;", () => {
     fontSet(fontGet() - 1);
     scaleNow();
     refreshVals();
   });
-  const fontPlus = mkBtn("A+", "border:1px solid #5b9bd5;background:#2a4a6a;color:#cfe3f7;height:1.9em;padding:0 .55em;", () => {
+  const fontPlus = mkBtn("A+", "border:1px solid #5b9bd5;background:var(--xb-tint-info);color:var(--xb-info);height:1.9em;padding:0 .55em;", () => {
     fontSet(fontGet() + 1);
     scaleNow();
     refreshVals();
   });
-  const zoomMinus = mkBtn("−", "border:1px solid #8a6d3b;background:#5a4a2a;color:#ffd98a;height:1.9em;padding:0 .6em;", () => {
+  const zoomMinus = mkBtn("−", "border:1px solid #8a6d3b;background:var(--xb-tint-warn);color:var(--xb-warn);height:1.9em;padding:0 .6em;", () => {
     zoomSet(zoomGet() - ZOOM_STEP);
     scaleNow();
     refreshVals();
   });
-  const zoomPlus = mkBtn("+", "border:1px solid #8a6d3b;background:#5a4a2a;color:#ffd98a;height:1.9em;padding:0 .6em;", () => {
+  const zoomPlus = mkBtn("+", "border:1px solid #8a6d3b;background:var(--xb-tint-warn);color:var(--xb-warn);height:1.9em;padding:0 .6em;", () => {
     zoomSet(zoomGet() + ZOOM_STEP);
     scaleNow();
     refreshVals();
   });
   tools.append(
-    el("span", "color:#8a8a8a;font-size:.9em;", "字号"), fontMinus, fontVal, fontPlus,
+    el("span", "color:var(--xb-text-dim);font-size:.9em;", "字号"), fontMinus, fontVal, fontPlus,
     el("span", "color:#5a5a5a;", "|"),
-    el("span", "color:#8a8a8a;font-size:.9em;", "界面"), zoomMinus, zoomVal, zoomPlus,
+    el("span", "color:var(--xb-text-dim);font-size:.9em;", "界面"), zoomMinus, zoomVal, zoomPlus,
   );
   head.append(tools);
 
@@ -235,7 +235,7 @@ function shell(title) {
     scaleNow();
     refreshVals();
   };
-  tools.append(mkBtn("✕", "border:1px solid #555;background:#2b2b2b;color:#ddd;height:1.9em;padding:0 .7em;", close));
+  tools.append(mkBtn("✕", "border:1px solid var(--xb-border);background:var(--xb-bg-raise);color:var(--xb-text);height:1.9em;padding:0 .7em;", close));
 
   card.append(head, top, body, foot);
   mask.append(card);
@@ -290,23 +290,23 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
   disableBox.type = "checkbox";
   disableBox.checked = disabled;
   disableBox.id = `xb-ref-disable-${kind}`;
-  const disableText = el("span", "color:#ddd;cursor:pointer;user-select:none;", `🚫 禁用此参考图（不做任何输出）`);
+  const disableText = el("span", "color:var(--xb-text);cursor:pointer;user-select:none;", `🚫 禁用此参考图（不做任何输出）`);
   const disableWrap = el("label", "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;");
   disableWrap.append(disableBox, disableText);
   const HINT_OFF = "勾选后本参考图不做任何输出（等同 mute）：接在它下游的节点会被直接跳过，不执行也不报错。";
   const HINT_ON = `已禁用：${kindName}图不做任何输出，下游节点会被跳过。取消勾选即恢复。`;
-  const disableHint = el("span", "color:#8a8a8a;font-size:.88em;", HINT_OFF);
+  const disableHint = el("span", "color:var(--xb-text-dim);font-size:.88em;", HINT_OFF);
   ui.top.append(disableWrap, disableHint);
   ui.top.hidden = false;
   disableBox.addEventListener("change", () => {
     disabled = disableBox.checked;
-    disableText.style.color = disabled ? "#ffb74d" : "#ddd";
-    disableHint.style.color = disabled ? "#d9a441" : "#8a8a8a";
+    disableText.style.color = disabled ? "#ffb74d" : "var(--xb-text)";
+    disableHint.style.color = disabled ? "#d9a441" : "var(--xb-text-dim)";
     disableHint.textContent = disabled ? HINT_ON : HINT_OFF;
     emit(null, false);   // 立即写回节点（不关窗，方便接着选图）
   });
   disableHint.textContent = disabled ? HINT_ON : HINT_OFF;
-  disableText.style.color = disabled ? "#ffb74d" : "#ddd";
+  disableText.style.color = disabled ? "#ffb74d" : "var(--xb-text)";
 
   // ── ① 绑定界面（未绑定 / 未确认时强制先绑定） ──────────────────
   async function showBinding(settings, message = "") {
@@ -314,22 +314,22 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     ui.foot.replaceChildren();
     const cfg = (settings && settings[kind]) || {};
 
-    ui.body.append(el("div", "color:#ffb74d;line-height:1.75;white-space:pre-wrap;",
+    ui.body.append(el("div", "color:var(--xb-warn);line-height:1.75;white-space:pre-wrap;",
       `⚠️ 首次使用需手动绑定${kind === "pose" ? "姿态" : "穿搭"}参考图库目录。\n`
       + "· 整套图库：选择包含 data / img / thumbs 的目录"
       + "（目录里有 data/*.json 素材清单即可自动识别）\n"
       + "· 普通文件夹：任意装图片的目录即可（按文件名多宫格显示）\n"
       + "· 本节点不内置、不分发任何图库素材；请自行确认素材的合法来源与使用授权。"));
 
-    const pathInput = el("input", "flex:1 1 320px;min-width:220px;height:2em;background:#1e1e1e;color:#ddd;"
-      + "border:1px solid #444;border-radius:4px;padding:0 8px;font-size:1em;box-sizing:border-box;");
+    const pathInput = el("input", "flex:1 1 320px;min-width:220px;height:2em;background:var(--xb-bg);color:var(--xb-text);"
+      + "border:1px solid var(--xb-border);border-radius:4px;padding:0 8px;font-size:1em;box-sizing:border-box;");
     pathInput.type = "text";
     pathInput.value = cfg.directory || "";
     pathInput.placeholder = "填写 ComfyUI 所在电脑上的绝对路径";
 
     const status = el("div", "color:#e07070;min-height:1.4em;white-space:pre-wrap;", message);
 
-    const browse = mkBtn("📂 浏览本机目录", "border:1px solid #555;background:#2b2b2b;color:#ddd;height:2.2em;padding:0 12px;", async () => {
+    const browse = mkBtn("📂 浏览本机目录", "border:1px solid var(--xb-border);background:var(--xb-bg-raise);color:var(--xb-text);height:2.2em;padding:0 12px;", async () => {
       try {
         const resp = await api.fetchApi("/xb_toolbox/choose_folder", { method: "POST" });
         const data = await resp.json();
@@ -357,7 +357,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     agreeRow.append(agree, el("span", "",
       "我已确认合法获得该图库的使用权，并自行承担素材使用与合规责任（本插件只读取本机文件，不上传、不分发）。"));
 
-    const save = mkBtn("✅ 检查并绑定", "background:#2d5a88;color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", async () => {
+    const save = mkBtn("✅ 检查并绑定", "background:var(--xb-btn-primary);color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", async () => {
       save.disabled = true;
       status.style.color = "#bbb";
       status.textContent = "正在检查目录…";
@@ -381,12 +381,12 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     });
 
     ui.body.append(row, agreeRow, status);
-    ui.foot.append(el("span", "flex:1 1 auto;color:#8a8a8a;", "绑定信息只保存在本机 ComfyUI 用户目录，不写进工作流。"), save);
+    ui.foot.append(el("span", "flex:1 1 auto;color:var(--xb-text-dim);", "绑定信息只保存在本机 ComfyUI 用户目录，不写进工作流。"), save);
   }
 
   // ── ② 图库界面 ────────────────────────────────────────────────
   async function showGallery(settings, message = "") {
-    ui.body.replaceChildren(el("div", "color:#bbb;", "正在读取图库…"));
+    ui.body.replaceChildren(el("div", "color:var(--xb-text-dim);", "正在读取图库…"));
     ui.foot.replaceChildren();
 
     let cat;
@@ -406,19 +406,19 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
 
     // ── 筛选栏 ──
     const bar = el("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
-    const search = el("input", "flex:1 1 240px;min-width:160px;height:2em;background:#1e1e1e;color:#ddd;"
-      + "border:1px solid #444;border-radius:4px;padding:0 8px;font-size:1em;box-sizing:border-box;");
+    const search = el("input", "flex:1 1 240px;min-width:160px;height:2em;background:var(--xb-bg);color:var(--xb-text);"
+      + "border:1px solid var(--xb-border);border-radius:4px;padding:0 8px;font-size:1em;box-sizing:border-box;");
     search.type = "search";
     search.placeholder = kind === "pose" ? "搜索姿势、编号、体系、分类、角度…" : "搜索款式、颜色、关键词、编号…";
     bar.append(search);
 
     const makeSelect = (caption, values, allLabel, onChange) => {
-      const select = el("select", "height:2em;background:#1e1e1e;color:#ddd;border:1px solid #444;"
+      const select = el("select", "height:2em;background:var(--xb-bg);color:var(--xb-text);border:1px solid var(--xb-border);"
         + "border-radius:4px;padding:0 6px;font-size:1em;");
       select.add(new Option(allLabel, ""));
       for (const value of values) select.add(new Option(value, value));
       select.addEventListener("change", () => onChange(select.value));
-      const wrap = el("label", "display:flex;gap:6px;align-items:center;color:#aaa;white-space:nowrap;");
+      const wrap = el("label", "display:flex;gap:6px;align-items:center;color:var(--xb-text-dim);white-space:nowrap;");
       wrap.append(el("span", "", caption), select);
       return { wrap, select };
     };
@@ -451,7 +451,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
       if ((facets.tag || []).length) bar.append(tagSel.wrap);
     } else {
       bar.append(catSel.wrap);
-      const sortSel = el("select", "height:2em;background:#1e1e1e;color:#ddd;border:1px solid #444;"
+      const sortSel = el("select", "height:2em;background:var(--xb-bg);color:var(--xb-text);border:1px solid var(--xb-border);"
         + "border-radius:4px;padding:0 6px;font-size:1em;");
       sortSel.add(new Option("文件名 ↑", "name"));
       sortSel.add(new Option("文件名 ↓", "name-desc"));
@@ -459,7 +459,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
       bar.append(sortSel);
     }
 
-    bar.append(mkBtn("重置筛选", "border:1px solid #555;background:transparent;color:#ccc;height:2em;padding:0 10px;", () => {
+    bar.append(mkBtn("重置筛选", "border:1px solid var(--xb-border);background:transparent;color:var(--xb-text);height:2em;padding:0 10px;", () => {
       Object.assign(state, { query: "", system: "", category: "", angle: "", tag: "", collection: "all" });
       search.value = "";
       sysSel.select.value = "";
@@ -474,7 +474,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     const tabButtons = [];
     if (isLibrary) {
       for (const [key, text] of [["all", "全部"], ["favorites", "♡ 收藏"], ["recent", "最近使用"]]) {
-        const btn = mkBtn(text, "border:1px solid #555;background:#242424;color:#ccc;height:2em;padding:0 10px;", () => {
+        const btn = mkBtn(text, "border:1px solid var(--xb-border);background:var(--xb-bg-raise);color:var(--xb-text);height:2em;padding:0 10px;", () => {
           state.collection = key;
           render();
         });
@@ -483,7 +483,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
         tabs.append(btn);
       }
       if (canGroup) {
-        tabs.append(mkBtn("切换分组 / 逐张", "border:1px solid #555;background:transparent;color:#bbb;height:2em;padding:0 10px;", () => {
+        tabs.append(mkBtn("切换分组 / 逐张", "border:1px solid var(--xb-border);background:transparent;color:var(--xb-text-dim);height:2em;padding:0 10px;", () => {
           state.grouped = !state.grouped;
           render();
         }));
@@ -492,11 +492,11 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     // 不能分组的库（没有姿势编号）不显示「切换分组」按钮，state.grouped 一并置 false
     if (!canGroup) state.grouped = false;
 
-    const summary = el("div", "color:#9fc3e8;font-size:.95em;");
+    const summary = el("div", "color:var(--xb-info);font-size:.95em;");
     const notice = el("div", "color:#e07070;min-height:1.2em;");
     notice.textContent = message || "";
     const grid = el("div", "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start;");
-    const more = mkBtn("加载更多", "border:1px dashed #555;background:transparent;color:#bbb;height:2.2em;grid-column:1/-1;", () => {
+    const more = mkBtn("加载更多", "border:1px dashed var(--xb-border);background:transparent;color:var(--xb-text-dim);height:2.2em;grid-column:1/-1;", () => {
       state.shown += PAGE;
       render(false);
     });
@@ -514,10 +514,10 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
 
     // ── 卡片 ──
     function makeCard(item, groupItems) {
-      const card = el("div", "position:relative;border:2px solid " + (selected?.id === item.id ? "#5b9bd5" : "#333")
-        + ";border-radius:6px;overflow:hidden;background:#222;display:flex;flex-direction:column;");
+      const card = el("div", "position:relative;border:2px solid " + (selected?.id === item.id ? "#5b9bd5" : "var(--xb-border)")
+        + ";border-radius:6px;overflow:hidden;background:var(--xb-inset);display:flex;flex-direction:column;");
       // 缩略图用 contain：姿势/服装都要看全，绝不裁切；背景压深色让留白不刺眼
-      const img = el("img", "width:100%;height:9.6em;object-fit:contain;display:block;background:#101012;cursor:zoom-in;");
+      const img = el("img", "width:100%;height:9.6em;object-fit:contain;display:block;background:var(--xb-bg);cursor:zoom-in;");
       img.loading = "lazy";
       img.decoding = "async";
       img.alt = item.name;
@@ -537,9 +537,9 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
       }
 
       const meta = el("div", "padding:6px 8px;font-size:.86em;line-height:1.5;overflow:hidden;");
-      meta.append(el("div", "color:#8fd3ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", item.name));
+      meta.append(el("div", "color:var(--xb-info);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", item.name));
       const sub = [item.system, item.category, item.angle].filter(Boolean).join(" · ");
-      if (sub) meta.append(el("div", "color:#8a8a8a;font-size:.92em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", sub));
+      if (sub) meta.append(el("div", "color:var(--xb-text-dim);font-size:.92em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", sub));
 
       const actions = el("div", "display:flex;gap:5px;padding:0 8px 7px;");
       const pick = mkBtn(selected?.id === item.id ? "✓ 已选" : "选择",
@@ -549,7 +549,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
           render(false);
         });
       const fav = mkBtn(favorites().includes(item.id) ? "♥" : "♡",
-        "flex:0 0 auto;border:1px solid #555;background:transparent;color:#e89;height:1.9em;font-size:.8em;padding:0 8px;", () => {
+        "flex:0 0 auto;border:1px solid var(--xb-border);background:transparent;color:#e89;height:1.9em;font-size:.8em;padding:0 8px;", () => {
           const list = favorites();
           writeLocal(`favorites.${kind}`, list.includes(item.id)
             ? list.filter((id) => id !== item.id)
@@ -567,9 +567,9 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
           // 视角条只用单字（正/斜/侧/俯/仰）+ 悬停全名：卡片变窄或字号放大时也绝不换行挤压
           const angleBtn = mkBtn(angle.slice(0, 1), "flex:1 1 0;min-width:0;font-size:.78em;line-height:1.5;height:1.9em;padding:0;"
             + "white-space:nowrap;overflow:hidden;"
-            + "border:1px solid " + (isCurrent ? "#5b9bd5" : "#444") + ";"
-            + "background:" + (target ? (isCurrent ? "#2d5a88" : "#2a2a2a") : "transparent") + ";"
-            + "color:" + (target ? "#ddd" : "#555") + ";", () => {
+            + "border:1px solid " + (isCurrent ? "#5b9bd5" : "var(--xb-border)") + ";"
+            + "background:" + (target ? (isCurrent ? "#2d5a88" : "var(--xb-bg-raise)") : "transparent") + ";"
+            + "color:" + (target ? "var(--xb-text)" : "var(--xb-border)") + ";", () => {
             if (target) preview(target, groupItems);
           });
           angleBtn.title = target ? `${angle} · 点击打开大图` : `${angle} 暂无素材`;
@@ -583,7 +583,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     // ── 大图预览 ──
     function preview(item, groupItems) {
       const view = shell(`预览 · ${item.name}`);
-      const stage = el("div", "display:flex;justify-content:center;align-items:center;background:#111;"
+      const stage = el("div", "display:flex;justify-content:center;align-items:center;background:var(--xb-inset);"
         + "border-radius:6px;overflow:hidden;padding:4px;box-sizing:border-box;");
       // ⚠️ 只给 max-width / max-height + object-fit:contain：浏览器会按原图比例缩放，
       //    永远显示完整画面、不会被拉伸变形；两处上限都用**布局像素**（视口高度 ÷ 界面缩放），
@@ -614,7 +614,7 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
         [value.system, value.category, value.angle].filter(Boolean).join(" · "),
         `ID：${value.id}`,
       ].filter(Boolean).join("\n");
-      const info = el("div", "color:#bbb;white-space:pre-wrap;font-size:.95em;line-height:1.6;");
+      const info = el("div", "color:var(--xb-text-dim);white-space:pre-wrap;font-size:.95em;line-height:1.6;");
       info.textContent = previewLines(item);
 
       let currentItem = item;
@@ -624,8 +624,8 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
         if (!isLibrary || !Array.isArray(groupItems) || groupItems.length < 2) return;
         for (const angle of ANGLE_ORDER) {
           const target = groupItems.find((value) => value.angle === angle);
-          const btn = mkBtn(angle, "border:1px solid " + (target && target.id === currentItem.id ? "#5b9bd5" : "#444")
-            + ";background:" + (target ? "#2a2a2a" : "transparent") + ";color:" + (target ? "#ddd" : "#555")
+          const btn = mkBtn(angle, "border:1px solid " + (target && target.id === currentItem.id ? "#5b9bd5" : "var(--xb-border)")
+            + ";background:" + (target ? "var(--xb-bg-raise)" : "transparent") + ";color:" + (target ? "var(--xb-text)" : "var(--xb-border)")
             + ";height:1.9em;padding:0 10px;white-space:nowrap;", () => {
             if (!target) return;
             currentItem = target;
@@ -640,13 +640,13 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
       paintAngles();
 
       view.body.append(stage, info, angles);
-      const use = mkBtn("使用此图", "background:#2d5a88;color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", () => {
+      const use = mkBtn("使用此图", "background:var(--xb-btn-primary);color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", () => {
         selected = currentItem;
         currentPick = currentItem;
         view.close();
         render(false);
       });
-      view.foot.append(el("span", "flex:1 1 auto;color:#8a8a8a;", "Esc 关闭"), use);
+      view.foot.append(el("span", "flex:1 1 auto;color:var(--xb-text-dim);", "Esc 关闭"), use);
     }
 
     // ── 渲染 ──
@@ -686,9 +686,9 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
 
       for (const btn of tabButtons) {
         const active = btn.dataset.collection === state.collection;
-        btn.style.background = active ? "#2d5a88" : "#242424";
-        btn.style.color = active ? "#fff" : "#ccc";
-        btn.style.borderColor = active ? "#5b9bd5" : "#555";
+        btn.style.background = active ? "#2d5a88" : "var(--xb-bg-raise)";
+        btn.style.color = active ? "#fff" : "var(--xb-text)";
+        btn.style.borderColor = active ? "#5b9bd5" : "var(--xb-border)";
       }
       paintFooter();
     }
@@ -697,24 +697,24 @@ export async function openRefPicker({ kind, current = "", onPick } = {}) {
     function paintFooter() {
       ui.foot.replaceChildren();
       if (selected) {
-        const thumb = el("img", "width:46px;height:46px;object-fit:contain;border-radius:4px;border:1px solid #444;background:#101012;flex:0 0 auto;");
+        const thumb = el("img", "width:46px;height:46px;object-fit:contain;border-radius:4px;border:1px solid var(--xb-border);background:var(--xb-bg);flex:0 0 auto;");
         thumb.src = imageUrl(kind, selected, true);
         const label = (selected.group ? `[${selected.group}] ` : "") + selected.name;
-        const text = el("span", "flex:1 1 auto;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", label);
+        const text = el("span", "flex:1 1 auto;color:var(--xb-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", label);
         text.title = label;
         ui.foot.append(thumb, text);
       } else {
-        ui.foot.append(el("span", "flex:1 1 auto;color:#8a8a8a;", "点卡片上的「选择」或大图里的「使用此图」"));
+        ui.foot.append(el("span", "flex:1 1 auto;color:var(--xb-text-dim);", "点卡片上的「选择」或大图里的「使用此图」"));
       }
       const use = mkBtn(disabled ? "✅ 保存（当前已禁用）" : (selected ? "✅ 使用此图" : "请先选一张"),
-        "background:#2d5a88;color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", () => {
+        "background:var(--xb-btn-primary);color:#fff;border:none;height:2.2em;padding:0 18px;font-weight:600;", () => {
           if (!selected) return;
           const list = recent();
           writeLocal(`recent.${kind}`, [selected.id, ...list.filter((id) => id !== selected.id)].slice(0, 80));
           emit(selected, true);
         });
       use.disabled = !selected;
-      const rebind = mkBtn("🔧 更换图库目录", "border:1px solid #555;background:transparent;color:#bbb;height:2.2em;padding:0 10px;", () => {
+      const rebind = mkBtn("🔧 更换图库目录", "border:1px solid var(--xb-border);background:transparent;color:var(--xb-text-dim);height:2.2em;padding:0 10px;", () => {
         req("/settings")
           .then((data) => showBinding(data.settings))
           .catch((err) => { notice.textContent = err?.message || String(err); });

@@ -130,12 +130,12 @@ function mkBtn(text, tip, onClick, css) {
   b.textContent = text;
   if (tip) b.title = tip;
   b.style.cssText = "font-size:11px;line-height:1.2;height:22px;padding:0 8px;border-radius:5px;"
-    + "border:1px solid #555;background:#2b2b2b;color:#ddd;cursor:pointer;white-space:nowrap;font-family:inherit;"
+    + "border:1px solid var(--xb-border);background:var(--xb-bg-raise);color:var(--xb-text);cursor:pointer;white-space:nowrap;font-family:inherit;"
     + (css || "");
   b.addEventListener("pointerdown", (e) => e.stopPropagation());
   b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); onClick?.(e); });
-  b.addEventListener("mouseenter", () => { b.style.background = "#3a3a3a"; });
-  b.addEventListener("mouseleave", () => { b.style.background = "#2b2b2b"; });
+  b.addEventListener("mouseenter", () => { b.style.background = "var(--xb-border)"; });
+  b.addEventListener("mouseleave", () => { b.style.background = "var(--xb-bg-raise)"; });
   return b;
 }
 
@@ -250,14 +250,14 @@ function openPicker(node, kind) {
     + "display:flex;overflow:auto;";
   const panel = document.createElement("div");
   panel.style.cssText = "width:660px;max-width:94vw;max-height:86vh;margin:auto;flex:0 0 auto;display:flex;flex-direction:column;"
-    + "background:#1c1c1e;border:1px solid #333;border-radius:8px;color:#ddd;font:13px/1.55 system-ui,sans-serif;"
+    + "background:var(--xb-bg);border:1px solid var(--xb-border);border-radius:8px;color:var(--xb-text);font:13px/1.55 system-ui,sans-serif;"
     + "box-shadow:0 20px 40px rgba(0,0,0,.6);overflow:hidden;";
 
   const head = document.createElement("div");
-  head.style.cssText = "padding:12px 16px;background:#232326;border-bottom:1px solid #3a3a3a;display:flex;align-items:center;gap:10px;";
+  head.style.cssText = "padding:12px 16px;background:var(--xb-bg-soft);border-bottom:1px solid var(--xb-border);display:flex;align-items:center;gap:10px;";
   const hTitle = document.createElement("div");
   hTitle.textContent = isGroups ? "⚙️ 选择要控制的分组" : "⚙️ 选择要控制的节点";
-  hTitle.style.cssText = "flex:1 1 auto;font-size:15px;font-weight:700;color:#eee;";
+  hTitle.style.cssText = "flex:1 1 auto;font-size:15px;font-weight:700;color:var(--xb-text);";
   const hClose = mkBtn("✕", "关闭", () => close());
   head.append(hTitle, hClose);
 
@@ -266,10 +266,10 @@ function openPicker(node, kind) {
   const search = document.createElement("input");
   search.type = "text";
   search.placeholder = isGroups ? "搜索分组…" : "搜索节点名 / 类型…";
-  search.style.cssText = "flex:1 1 220px;min-width:160px;height:26px;background:#1e1e1e;color:#ddd;"
-    + "border:1px solid #444;border-radius:5px;padding:0 8px;font-size:12px;font-family:inherit;";
+  search.style.cssText = "flex:1 1 220px;min-width:160px;height:26px;background:var(--xb-bg);color:var(--xb-text);"
+    + "border:1px solid var(--xb-border);border-radius:5px;padding:0 8px;font-size:12px;font-family:inherit;";
   const countEl = document.createElement("span");
-  countEl.style.cssText = "color:#8a8a8a;font-size:12px;font-variant-numeric:tabular-nums;";
+  countEl.style.cssText = "color:var(--xb-text-dim);font-size:12px;font-variant-numeric:tabular-nums;";
   const hintEl = document.createElement("span");
   hintEl.textContent = "⠿ 拖拽可调整顺序";
   hintEl.style.cssText = "color:#6f7883;font-size:11px;";
@@ -279,7 +279,7 @@ function openPicker(node, kind) {
   list.style.cssText = "flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:3px;";
 
   const foot = document.createElement("div");
-  foot.style.cssText = "padding:10px 16px;border-top:1px solid #3a3a3a;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;background:#18181a;";
+  foot.style.cssText = "padding:10px 16px;border-top:1px solid var(--xb-border);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;background:var(--xb-bg-soft);";
 
   const close = () => { try { overlay.remove(); } catch (_) { /* ignore */ } };
 
@@ -319,7 +319,7 @@ function openPicker(node, kind) {
       ghost.setAttribute("data-xb-ghost", "1");
       ghost.style.cssText += `;position:fixed;left:${srcRect.left}px;top:${srcRect.top}px;width:${srcRect.width}px;`
         + "box-sizing:border-box;z-index:10360;pointer-events:none;margin:0;"
-        + "background:#33343a;border:1px solid #f59e0b;border-radius:6px;"
+        + "background:var(--xb-bg-raise);border:1px solid #f59e0b;border-radius:6px;"
         + "box-shadow:0 14px 30px rgba(0,0,0,.65),0 0 0 1px rgba(245,158,11,.25);"
         + "transform:scale(1.02);opacity:.98;";
       document.body.append(ghost);
@@ -348,7 +348,7 @@ function openPicker(node, kind) {
       panel.style.height = "";
       src.style.opacity = "1";
       src.style.borderStyle = "solid";
-      src.style.borderColor = "#333";
+      src.style.borderColor = "var(--xb-border)";
     };
     const onMove = (e) => {
       if (!dragKey) return;
@@ -411,7 +411,7 @@ function openPicker(node, kind) {
       shown++;
       const row = document.createElement("label");
       row.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;"
-        + "background:#242424;border:1px solid #333;";
+        + "background:var(--xb-bg-raise);border:1px solid var(--xb-border);";
       row.dataset.xbRow = it.key;
       const grip = document.createElement("span");
       grip.textContent = "⠿";
@@ -444,7 +444,7 @@ function openPicker(node, kind) {
     if (!shown) {
       const empty = document.createElement("div");
       empty.textContent = isGroups ? "当前画布上没有分组" : "没有匹配的节点";
-      empty.style.cssText = "padding:16px;color:#8a8a8a;text-align:center;";
+      empty.style.cssText = "padding:16px;color:var(--xb-text-dim);text-align:center;";
       list.append(empty);
     }
     syncCount();
@@ -481,7 +481,7 @@ function openPicker(node, kind) {
   };
 
   const cancel = mkBtn("取消", "放弃修改", close);
-  const ok = mkBtn("确定", "保存选择", confirm, "border-color:#3f86d0;background:#22456b;color:#eaf4ff;font-weight:600;");
+  const ok = mkBtn("确定", "保存选择", confirm, "border-color:#3f86d0;background:#22456b;color:var(--xb-on-accent);font-weight:600;");
   foot.append(
     mkBtn("全选", "选中当前筛选结果里的全部条目", () => selectAll(true)),
     mkBtn("清空", "取消全部选择", () => selectAll(false)),
@@ -502,7 +502,7 @@ function buildPanel(node, kind) {
   const isGroups = kind === "groups";
   const container = document.createElement("div");
   container.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;"
-    + `gap:4px;padding:${PANEL_PAD / 2}px;overflow:visible;background:#2b2b2b;border-radius:6px;`;
+    + `gap:4px;padding:${PANEL_PAD / 2}px;overflow:visible;background:var(--xb-bg-raise);border-radius:6px;`;
 
   // 节点表面只留「开关列表」——选择 / 禁用方式 / 切换模式 全部收进右键菜单
   const list = document.createElement("div");
@@ -615,7 +615,7 @@ function toggleRow(node, index) {
 function buildSwitch(enabled, disabled) {
   const box = document.createElement("span");
   box.style.cssText = "flex:0 0 auto;position:relative;width:34px;height:18px;border-radius:9px;"
-    + `background:${disabled ? "#3a3a3a" : enabled ? "#3f86d0" : "#4a4a4a"};`
+    + `background:${disabled ? "var(--xb-border)" : enabled ? "#3f86d0" : "var(--xb-border)"};`
     + "transition:background .15s;";
   const knob = document.createElement("span");
   knob.style.cssText = "position:absolute;top:2px;width:14px;height:14px;border-radius:7px;background:#fff;"
@@ -676,7 +676,7 @@ function refreshRows(node) {
       ? "还没有选择分组 —— "
       : "还没有选择节点 —— ")
       + "右击本节点 →「" + (node.type === TYPE_GROUPS ? "选择分组" : "选择节点") + "…」勾选。";
-    tip.style.cssText = "padding:10px;color:#8a8a8a;font-size:11px;line-height:1.6;";
+    tip.style.cssText = "padding:10px;color:var(--xb-text-dim);font-size:11px;line-height:1.6;";
     list.append(tip);
     applyPanelHeight(node, true);
     return;
@@ -689,7 +689,7 @@ function refreshRows(node) {
     const el = document.createElement("div");
     el.style.cssText = "display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:5px;"
       + `background:${enabled ? "#22456b" : "#1f1f1f"};`
-      + `border:1px solid ${enabled ? "#3f86d0" : "#3a3a3a"};`
+      + `border:1px solid ${enabled ? "#3f86d0" : "var(--xb-border)"};`
       + "cursor:pointer;";
 
     const name = document.createElement("span");
@@ -707,7 +707,7 @@ function refreshRows(node) {
       if (!ok) {
         // 永远保持一个开启：拒绝全关 → 闪一下提示
         el.style.borderColor = "#e05555";
-        setTimeout(() => { try { el.style.borderColor = enabled ? "#3f86d0" : "#3a3a3a"; } catch (_) { /* ignore */ } }, 450);
+        setTimeout(() => { try { el.style.borderColor = enabled ? "#3f86d0" : "var(--xb-border)"; } catch (_) { /* ignore */ } }, 450);
       }
     });
     el.addEventListener("mouseenter", () => { el.style.filter = "brightness(1.18)"; });

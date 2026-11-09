@@ -51,10 +51,10 @@ function setupDynamicOutputs(node) {
             const dw = res.widget;
             if (dw.inputEl) {
                 dw.inputEl.readOnly = true;
-                dw.inputEl.style.backgroundColor = "#2a2a2a";
+                dw.inputEl.style.backgroundColor = "var(--xb-bg-raise)";
                 dw.inputEl.style.color = "#bbbbbb";
                 dw.inputEl.style.fontSize = "12px";
-                dw.inputEl.style.border = "1px solid #444";
+                dw.inputEl.style.border = "1px solid var(--xb-border)";
             }
             // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
             try { if (dw.options) dw.options.read_only = true; } catch (_) {}

@@ -270,7 +270,7 @@ export function ensureBanner(node, name, text, minH = 30) {
     el.dataset.xbBanner = "1";
     el.textContent = text;
     el.style.cssText =
-        "padding:6px 8px;border-radius:6px;background:#2b3138;color:#cfd6dd;" +
+        "padding:6px 8px;border-radius:6px;background:var(--xb-bg-raise);color:var(--xb-text);" +
         "font-size:12px;line-height:1.4;text-align:center;user-select:none;";
     w = node.addDOMWidget(name, name, el, { serialize: false, hideOnZoom: false, getMinHeight: () => minH });
     sizeDomWidget(node, w, minH);

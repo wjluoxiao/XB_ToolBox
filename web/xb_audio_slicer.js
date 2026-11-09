@@ -32,7 +32,7 @@ app.registerExtension({
                     const el = wDur.inputEl || wDur.element;
                     if (el) {
                         el.readOnly = true;
-                        el.style.backgroundColor = "#1a1a1a";
+                        el.style.backgroundColor = "var(--xb-bg)";
                         el.style.color = "#00E676";
                         el.style.textAlign = "center";
                         el.style.fontWeight = "bold";

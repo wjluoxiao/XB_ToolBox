@@ -30,7 +30,7 @@ app.registerExtension({
 
             // Nodes 2.0：显示型字段走 options.read_only（Vue 部件没有 element 可改）
             if (wTot && wTot.options) wTot.options.read_only = true;
-            if (wTot) setTimeout(() => { const el = wTot.inputEl || wTot.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:14px;min-width:120px;white-space:nowrap;overflow:hidden;"; } }, 100);
+            if (wTot) setTimeout(() => { const el = wTot.inputEl || wTot.element; if (el) { el.readOnly = true; el.style.cssText = "background-color:var(--xb-bg);color:#00E676;text-align:center;font-weight:bold;font-size:14px;min-width:120px;white-space:nowrap;overflow:hidden;"; } }, 100);
 
             const audioEl1 = document.createElement("audio"); audioEl1.controls = true; audioEl1.style.cssText = "width:100%;height:30px;outline:none;";
             const audioEl2 = document.createElement("audio"); audioEl2.controls = true; audioEl2.style.cssText = "width:100%;height:30px;outline:none;";
@@ -39,7 +39,7 @@ app.registerExtension({
             let drags = { 1: null, 2: null }; // 存储双轨的拖动状态
 
             const ctr = document.createElement("div");
-            Object.assign(ctr.style, { display:"flex", flexDirection:"column", gap:"4px", width:"100%", padding:"6px", boxSizing:"border-box", background:"#161616", borderRadius:"6px", color:"#ccc", fontFamily:"sans-serif", marginTop:"4px" });
+            Object.assign(ctr.style, { display:"flex", flexDirection:"column", gap:"4px", width:"100%", padding:"6px", boxSizing:"border-box", background:"#161616", borderRadius:"6px", color:"var(--xb-text)", fontFamily:"sans-serif", marginTop:"4px" });
 
             const mkUpload = (w, label) => {
                 const fi = document.createElement("input"); fi.type = "file"; fi.accept = "audio/*,video/*"; fi.style.display = "none";
@@ -59,12 +59,12 @@ app.registerExtension({
             const dpr = window.devicePixelRatio || 1;
             const label1 = document.createElement("div"); label1.textContent = "🎵 音频1"; label1.style.cssText = "font-size:11px;color:#4FC3F7;font-weight:bold;";
             ctr.appendChild(label1); ctr.appendChild(audioEl1);
-            const canvas1 = document.createElement("canvas"); canvas1.style.cssText = "width:100%;height:36px;border-radius:3px;background:#111;cursor:pointer;display:block;";
+            const canvas1 = document.createElement("canvas"); canvas1.style.cssText = "width:100%;height:36px;border-radius:3px;background:var(--xb-inset);cursor:pointer;display:block;";
             canvas1.width = 1200 * dpr; canvas1.height = 72 * dpr; ctr.appendChild(canvas1);
 
             const label2 = document.createElement("div"); label2.textContent = "🎵 音频2"; label2.style.cssText = "font-size:11px;color:#F44336;font-weight:bold;";
             ctr.appendChild(label2); ctr.appendChild(audioEl2);
-            const canvas2 = document.createElement("canvas"); canvas2.style.cssText = "width:100%;height:36px;border-radius:3px;background:#111;cursor:pointer;display:block;";
+            const canvas2 = document.createElement("canvas"); canvas2.style.cssText = "width:100%;height:36px;border-radius:3px;background:var(--xb-inset);cursor:pointer;display:block;";
             canvas2.width = 1200 * dpr; canvas2.height = 72 * dpr; ctr.appendChild(canvas2);
 
             const domWidget = node.addDOMWidget("xb3_ui", "custom", ctr);

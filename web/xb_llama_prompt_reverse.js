@@ -7,7 +7,7 @@
  *   ② 手写提示词编辑框（右上角「📋 复制」按钮；「📝 提示词」端口接线后自动锁定）
  *   ③ 参数设定显示（只读摘要 4 行：LLM后端/语言/模型 ｜ 增强预设 ｜ 反推预设 ｜ 温度等采样参数）
  *
- * 弹窗（导演台同款）：居中 overlay + `#1c1c1e` 面板 + header（标题/副标题）+ 内容 + 底部「取消 / 💾 保存」
+ * 弹窗（导演台同款）：居中 overlay + `var(--xb-bg)` 面板 + header（标题/副标题）+ 内容 + 底部「取消 / 💾 保存」
  *   · 🤖 大语言模型配置 = 复刻导演台「大语言模型配置」面板（去掉「开关」「故事扩写设置」两组）
  *   · ✨ 提示词增强预设 = 增强预设 / 反推预设 / 追加设定
  *   · 📖 使用说明
@@ -89,11 +89,11 @@ function ensureStyle() {
   const st = el("style", "");
   st.id = "xbr-style";
   st.textContent = [
-    ".xbr-input{box-sizing:border-box;background:var(--comfy-input-bg,#2a2a2a);color:var(--fg-color,#ddd);" +
-      "border:1px solid var(--border-color,#444);border-radius:4px;padding:6px 10px;font-size:13px;outline:none;font-family:inherit;}",
-    ".xbr-input:hover{background:var(--comfy-input-bg-hover,#3a3a3a);}",
+    ".xbr-input{box-sizing:border-box;background:var(--comfy-input-bg,var(--xb-bg-raise));color:var(--fg-color,var(--xb-text));" +
+      "border:1px solid var(--border-color,var(--xb-border));border-radius:4px;padding:6px 10px;font-size:13px;outline:none;font-family:inherit;}",
+    ".xbr-input:hover{background:var(--comfy-input-bg-hover,var(--xb-border));}",
     ".xbr-input:focus{border-color:#5b9bd5;}",
-    ".xbr-input option{background:var(--comfy-menu-bg,#2a2a2a);}",
+    ".xbr-input option{background:var(--comfy-menu-bg,var(--xb-bg-raise));}",
     ".xbr-modal input[type='checkbox']{width:18px;height:18px;accent-color:#f59e0b;cursor:pointer;}",
     ".xbr-modal textarea{line-height:1.5;}",
   ].join("\n");
@@ -174,7 +174,7 @@ function numberControl(value, opts, onChange) {
   return i;
 }
 function checkboxControl(value, labelText, onChange) {
-  const w = el("label", "display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--fg-color,#ddd);margin-bottom:8px;");
+  const w = el("label", "display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--fg-color,var(--xb-text));margin-bottom:8px;");
   const c = el("input", "width:18px;height:18px;accent-color:#f59e0b;cursor:pointer;");
   c.type = "checkbox";
   c.checked = !!value;
@@ -216,8 +216,8 @@ function textareaControl(value, placeholder, rows, onChange) {
   return t;
 }
 function smallBtn(text, css, title) {
-  const b = el("button", "border:1px solid var(--border-color,#555);background:var(--comfy-button-bg,#333);" +
-    "color:var(--fg-color,#eee);border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;" + (css || ""), text);
+  const b = el("button", "border:1px solid var(--border-color,var(--xb-border));background:var(--comfy-button-bg,var(--xb-border));" +
+    "color:var(--fg-color,var(--xb-text));border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;" + (css || ""), text);
   b.type = "button";
   if (title) b.title = title;
   return b;
@@ -301,12 +301,12 @@ function buildUIRow(target) {
   const row = el("span", "display:inline-flex;align-items:center;gap:4px;user-select:none;");
   row.append(el("span", "font-size:11px;color:#888;white-space:nowrap;", "界面"));
   const mk = (t, d) => {
-    const b = smallBtn(t, "width:22px;height:22px;padding:0;line-height:1;font-size:13px;border:1px solid #8a6d3b;background:#5a4a2a;color:#ffd98a;", d > 0 ? "放大整个界面（不缩放网页/画布）" : "缩小整个界面（不缩放网页/画布）");
+    const b = smallBtn(t, "width:22px;height:22px;padding:0;line-height:1;font-size:13px;border:1px solid #8a6d3b;background:var(--xb-tint-warn);color:var(--xb-warn);", d > 0 ? "放大整个界面（不缩放网页/画布）" : "缩小整个界面（不缩放网页/画布）");
     b.addEventListener("mousedown", (e) => e.stopPropagation());
     b.addEventListener("click", (e) => { e.stopPropagation(); uiZoomStep(d); uiZoomApply(target); uiZoomSyncLabels(target); });
     return b;
   };
-  const val = el("span", "min-width:40px;text-align:center;font-size:12px;color:#ffd98a;font-variant-numeric:tabular-nums;", Math.round(uiZoomGet() * 100) + "%");
+  const val = el("span", "min-width:40px;text-align:center;font-size:12px;color:var(--xb-warn);font-variant-numeric:tabular-nums;", Math.round(uiZoomGet() * 100) + "%");
   val.classList.add("xbr-ui-zoom-val");
   row.append(mk("−", -1), val, mk("+", 1));
   return row;
@@ -479,15 +479,15 @@ function buildDialog({ label, title, subtitle, width = 820, footerExtraFactory =
   ensureStyle();
   const overlay = el("div", "position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:flex;" +
     "align-items:center;justify-content:center;overflow:auto;");
-  const dialog = el("section", `background:#1c1c1e;border:1px solid #333;border-radius:8px;width:${width}px;max-width:94vw;` +
+  const dialog = el("section", `background:var(--xb-bg);border:1px solid var(--xb-border);border-radius:8px;width:${width}px;max-width:94vw;` +
     "max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,0.6);flex:0 0 auto;");
   dialog.className = "xbr-modal";
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");
   dialog.setAttribute("aria-label", label);
 
-  const header = el("div", "padding:18px 20px;border-bottom:1px solid var(--border-color,#444);");
-  header.append(el("div", "font-size:17px;font-weight:700;color:var(--fg-color,#eee);", title));
+  const header = el("div", "padding:18px 20px;border-bottom:1px solid var(--border-color,var(--xb-border));");
+  header.append(el("div", "font-size:17px;font-weight:700;color:var(--fg-color,var(--xb-text));", title));
   if (subtitle) header.append(el("div", "font-size:12px;color:var(--descrip-text,#999);margin-top:5px;line-height:1.6;", subtitle));
   dialog.append(header);
 
@@ -495,8 +495,8 @@ function buildDialog({ label, title, subtitle, width = 820, footerExtraFactory =
   dialog.append(body);
 
   const error = el("div", "color:#e55;font-size:12px;margin:0 20px;min-height:14px;");
-  const footer = el("div", "padding:14px 20px;border-top:1px solid var(--border-color,#444);display:flex;" +
-    "justify-content:flex-end;gap:10px;align-items:center;background:#18181a;border-bottom-left-radius:8px;border-bottom-right-radius:8px;");
+  const footer = el("div", "padding:14px 20px;border-top:1px solid var(--border-color,var(--xb-border));display:flex;" +
+    "justify-content:flex-end;gap:10px;align-items:center;background:var(--xb-bg-soft);border-bottom-left-radius:8px;border-bottom-right-radius:8px;");
   if (footerExtraFactory) {
     // 导演台同款：底部左侧放「自动保存 + 界面缩放」，与右侧「取消/保存」同行
     const left = el("div", "display:flex;align-items:center;gap:16px;margin-right:auto;flex-wrap:wrap;");
@@ -507,7 +507,7 @@ function buildDialog({ label, title, subtitle, width = 820, footerExtraFactory =
   footer.append(cancelBtn);
   let saveBtn = null;
   if (onSave) {
-    saveBtn = smallBtn(saveLabel, "padding:8px 20px;font-size:14px;font-weight:600;background:#2d5a88;border:none;color:#fff;");
+    saveBtn = smallBtn(saveLabel, "padding:8px 20px;font-size:14px;font-weight:600;background:var(--xb-btn-primary);border:none;color:#fff;");
     footer.append(saveBtn);
   }
   dialog.append(error, footer);
@@ -713,7 +713,7 @@ function renderHelpPanel(body) {
     "  · 界面缩放作用于整个弹窗（不缩放网页/画布），Ctrl/⌘ + 滚轮 也可调，记忆在浏览器本地",
     "  · 「取消」丢弃未保存改动；配置随工作流保存；在线 API 的 Key 存在 ComfyUI user 目录，不进工作流",
   ];
-  body.append(el("div", "font-size:12px;color:#bbb;line-height:1.9;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;", lines.join("\n")));
+  body.append(el("div", "font-size:12px;color:var(--xb-text-dim);line-height:1.9;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;", lines.join("\n")));
 }
 
 const PANEL_RENDER = { llm: renderLlmPanel, preset: renderPresetPanel, help: renderHelpPanel };
@@ -884,7 +884,7 @@ function setupNode(node) {
     const b = el("button", [
       "width:100%", `height:${BTN_H}px`, "box-sizing:border-box",
       "display:flex", "align-items:center", "justify-content:center",
-      "border-radius:6px", "border:2px solid #5b9bd5", "background:#3a3a3a", "color:#eee",
+      "border-radius:6px", "border:2px solid #5b9bd5", "background:var(--xb-border)", "color:var(--xb-text)",
       "font-size:14px", "cursor:pointer", "white-space:nowrap", "overflow:hidden", "text-overflow:ellipsis",
       "padding:0 6px", "font-family:inherit",
     ].join(";"));
@@ -893,8 +893,8 @@ function setupNode(node) {
     b.title = `打开「${p.title}」弹窗`;
     b.dataset.xbrPanelBtn = p.id;
     b.addEventListener("mousedown", (e) => e.stopPropagation());
-    b.addEventListener("mouseenter", () => { b.style.background = "#4a4a4a"; });
-    b.addEventListener("mouseleave", () => { b.style.background = "#3a3a3a"; });
+    b.addEventListener("mouseenter", () => { b.style.background = "var(--xb-border)"; });
+    b.addEventListener("mouseleave", () => { b.style.background = "var(--xb-border)"; });
     b.addEventListener("click", () => openPanelModal(node, p.id));
     btnGrid.append(b);
   }
@@ -919,7 +919,7 @@ function setupNode(node) {
   promptWrap.append(promptHead);
 
   const promptBox = el("textarea", "flex:1 1 auto;min-height:60px;width:100%;box-sizing:border-box;resize:none;line-height:1.5;" +
-    "font-family:inherit;background:#1c1c1e;color:var(--fg-color,#ddd);border:1px solid var(--border-color,#444);" +
+    "font-family:inherit;background:var(--xb-bg);color:var(--fg-color,var(--xb-text));border:1px solid var(--border-color,var(--xb-border));" +
     "border-radius:6px;padding:8px 10px;font-size:13px;outline:none;");
   promptBox.value = String(readWidgetValue(wCustom) ?? "");
   promptBox.placeholder = "在这里写提示词 / 或带 * 预设的占位符内容（如 BBox 检测的目标名称）";
@@ -931,7 +931,7 @@ function setupNode(node) {
     promptTimer = setTimeout(() => { setWidgetValue(wCustom, promptBox.value); node.setDirtyCanvas?.(true, true); }, 250);
   });
   promptBox.addEventListener("focus", () => { if (!promptBox.readOnly) promptBox.style.borderColor = "#5b9bd5"; });
-  promptBox.addEventListener("blur", () => { promptBox.style.borderColor = "var(--border-color,#444)"; });
+  promptBox.addEventListener("blur", () => { promptBox.style.borderColor = "var(--border-color,var(--xb-border))"; });
   promptWrap.append(promptBox);
   container.append(promptWrap);
 
@@ -941,9 +941,9 @@ function setupNode(node) {
     try {
       const linked = !!textInput() && textInput().link != null;
       promptBox.readOnly = linked;
-      promptBox.style.background = linked ? "#141416" : "#1c1c1e";
-      promptBox.style.color = linked ? "#8a8a8a" : "var(--fg-color,#ddd)";
-      promptBox.style.borderColor = linked ? "#5a5a5a" : "var(--border-color,#444)";
+      promptBox.style.background = linked ? "#141416" : "var(--xb-bg)";
+      promptBox.style.color = linked ? "var(--xb-text-dim)" : "var(--fg-color,var(--xb-text))";
+      promptBox.style.borderColor = linked ? "#5a5a5a" : "var(--border-color,var(--xb-border))";
       promptBox.title = linked ? "已由「📝 提示词」端口控制，断开连线后恢复编辑" : "";
       lockHint.textContent = linked
         ? "🔒 手写提示词已锁定（由「📝 提示词」端口控制）"
@@ -954,7 +954,7 @@ function setupNode(node) {
   node.__xbrUpdateLock = updateLock;
 
   // ⑦ 参数设定显示（只读摘要）
-  const infoBox = el("div", `flex:0 0 auto;height:${MIN_INFO_H}px;overflow:auto;background:#1c1c1e;border:1px solid #333;` +
+  const infoBox = el("div", `flex:0 0 auto;height:${MIN_INFO_H}px;overflow:auto;background:var(--xb-bg);border:1px solid var(--xb-border);` +
     "border-radius:6px;padding:6px 9px;font-size:11px;line-height:1.65;color:#b9c6d2;white-space:pre-wrap;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;");
   infoBox.dataset.captureWheel = "true";
   container.append(infoBox);

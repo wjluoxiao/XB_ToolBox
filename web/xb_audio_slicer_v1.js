@@ -31,7 +31,7 @@ app.registerExtension({
                     const el = wDur.inputEl || wDur.element;
                     if (el) {
                         el.readOnly = true;
-                        el.style.cssText = "background-color:#1a1a1a;color:#00E676;text-align:center;font-weight:bold;font-size:15px;min-width:120px;white-space:nowrap;overflow:hidden;";
+                        el.style.cssText = "background-color:var(--xb-bg);color:#00E676;text-align:center;font-weight:bold;font-size:15px;min-width:120px;white-space:nowrap;overflow:hidden;";
                     }
                 }, 100);
             }
@@ -56,14 +56,14 @@ app.registerExtension({
             }
 
             const ctr = document.createElement("div");
-            Object.assign(ctr.style, { display:"flex", flexDirection:"column", gap:"6px", width:"100%", padding:"6px", boxSizing:"border-box", background:"#161616", borderRadius:"6px", color:"#ccc", fontFamily:"sans-serif", marginTop:"4px" });
+            Object.assign(ctr.style, { display:"flex", flexDirection:"column", gap:"6px", width:"100%", padding:"6px", boxSizing:"border-box", background:"#161616", borderRadius:"6px", color:"var(--xb-text)", fontFamily:"sans-serif", marginTop:"4px" });
 
             const audioEl = document.createElement("audio");
             audioEl.controls = true; audioEl.style.cssText = "width:100%;height:34px;outline:none;";
             ctr.appendChild(audioEl);
 
             const canvas = document.createElement("canvas");
-            canvas.style.cssText = "width:100%;height:40px;border-radius:4px;background:#111;cursor:pointer;display:block;";
+            canvas.style.cssText = "width:100%;height:40px;border-radius:4px;background:var(--xb-inset);cursor:pointer;display:block;";
             const dpr = window.devicePixelRatio || 1;
             canvas.width = 1200 * dpr; canvas.height = 80 * dpr;
             ctr.appendChild(canvas);

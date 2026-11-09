@@ -164,7 +164,7 @@ function makeButton(node, w, item) {
     const button = document.createElement("button");
     button.textContent = label;
     if (tip) button.title = tip;
-    button.style.cssText = "padding:7px 6px;border:1px solid #555;border-radius:6px;background:#2a2a2e;color:#eee;cursor:pointer;font-size:12px;line-height:1.25;text-align:left;";
+    button.style.cssText = "padding:7px 6px;border:1px solid var(--xb-border);border-radius:6px;background:#2a2a2e;color:var(--xb-text);cursor:pointer;font-size:12px;line-height:1.25;text-align:left;";
     button.addEventListener("mouseenter", () => { button.style.background = "#3a3a40"; });
     button.addEventListener("mouseleave", () => { button.style.background = "#2a2a2e"; });
     button.addEventListener("click", () => {
@@ -202,10 +202,10 @@ function addCustomTagRow(panel, node, w) {
     const input = document.createElement("input");
     input.type = "text";
     input.placeholder = "例如 Rap / 高潮 / 吟唱";
-    input.style.cssText = "flex:1;padding:7px 8px;border:1px solid #555;border-radius:6px;background:#2a2a2e;color:#eee;font-size:12px;";
+    input.style.cssText = "flex:1;padding:7px 8px;border:1px solid var(--xb-border);border-radius:6px;background:#2a2a2e;color:var(--xb-text);font-size:12px;";
     const button = document.createElement("button");
     button.textContent = "插入标签";
-    button.style.cssText = "padding:7px 12px;border:1px solid #555;border-radius:6px;background:#2a2a2e;color:#eee;cursor:pointer;font-size:12px;";
+    button.style.cssText = "padding:7px 12px;border:1px solid var(--xb-border);border-radius:6px;background:#2a2a2e;color:var(--xb-text);cursor:pointer;font-size:12px;";
     const commit = () => {
         const raw = input.value.trim().replace(/^\[|\]$/g, "").trim();
         if (!raw) return;
@@ -228,13 +228,13 @@ function showTagPicker(node, w) {
     overlay.addEventListener("mousedown", (event) => { if (event.target === overlay) closeTagPicker(); });
 
     const panel = document.createElement("div");
-    panel.style.cssText = "background:#1b1b1f;border:1px solid #444;border-radius:10px;padding:14px;max-width:700px;width:92%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.6);";
+    panel.style.cssText = "background:#1b1b1f;border:1px solid var(--xb-border);border-radius:10px;padding:14px;max-width:700px;width:92%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.6);";
 
     const title = document.createElement("div");
     title.textContent = "添加元素";
     title.title = "点击标签插入到光标处。段落标签会独占一行并自动换行；"
         + "行级角色标注直接插在光标处，接着写歌词即可。";
-    title.style.cssText = "color:#eee;font-size:14px;font-weight:600;margin-bottom:8px;cursor:help;";
+    title.style.cssText = "color:var(--xb-text);font-size:14px;font-weight:600;margin-bottom:8px;cursor:help;";
     panel.appendChild(title);
 
     addGroup(panel, "① 官方段落词表（8 个）", GROUP_TIPS.OFFICIAL,
