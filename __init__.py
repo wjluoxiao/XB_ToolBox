@@ -28,8 +28,8 @@ async def choose_folder(request):
         return web.json_response({"path": "", "error": f"弹窗调用失败: {str(e)}"})
 
 
-from .nodes_audio_slicer import handle_audio_waveform
-from .nodes_model_loader_v1 import _filter_by_keyword
+from .nodes.audio.nodes_audio_slicer import handle_audio_waveform
+from .nodes.llm.nodes_model_loader_v1 import _filter_by_keyword
 
 @PromptServer.instance.routes.post("/xb_toolbox/audio_waveform")
 async def get_audio_waveform(request):
@@ -39,7 +39,7 @@ async def get_audio_waveform(request):
 @PromptServer.instance.routes.get("/xb_toolbox/yue2_recipes")
 async def yue2_recipes(request):
     """YuE2 风格配方表：前端「YuE2 风格提示」节点联动用，与 yue2_styles.RECIPES 同一数据源"""
-    from .yue2_styles import GENRES, RECIPES
+    from .libs.yue2_styles import GENRES, RECIPES
     return web.json_response({"recipes": RECIPES, "genres": GENRES})
 
 
@@ -59,6 +59,14 @@ async def get_model_list(request):
         "vaes": _filter_by_keyword("vae", keyword),
         "loras": _filter_by_keyword("loras", keyword),
     })
+
+
+# ── 「机智罗的工作流」模板数据服务（清单 + 工作流 + 预览图 + 图标样式）──
+try:
+    from .jzl_workflows import register_routes as _register_jzl_workflow_routes
+    _register_jzl_workflow_routes()
+except Exception as _xb_tpl_err:
+    print(f"[XB_ToolBox] 工作流模板服务注册失败: {_xb_tpl_err}")
 
 
 def print_success(msg):
@@ -82,42 +90,42 @@ XB_LOGO = "\n".join([
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "js")
+WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 
 try:
-    from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
-    from .nodes_vram import XTX_Data_Radar
-    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_ImageParamsMasterMini, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
-    from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
-    from .nodes_blockswap_sage import XB_Sage_BlockSwap
-    from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
-    from .nodes_memory_viz import XB_MemoryVisualization
-    from .nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
-    from .nodes_batch import XB_BatchFolderLoader, XB_BatchFolderBatchLoader
-    from .nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
-    from .nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
-    from .nodes_sageatt import XB_SageAttentionAccelerator
-    from .nodes_wan import XB_WanCompileSettings, XB_WanAnimateToVideo
+    from .nodes.hardware.nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
+    from .nodes.hardware.nodes_vram import XTX_Data_Radar
+    from .nodes.video.nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_ImageParamsMasterMini, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
+    from .nodes.core.nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
+    from .nodes.core.nodes_blockswap_sage import XB_Sage_BlockSwap
+    from .nodes.core.nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
+    from .nodes.hardware.nodes_memory_viz import XB_MemoryVisualization
+    from .nodes.video.nodes_wan_vae import (XB_WanImageToVideo, XB_WanFirstLastFrameToVideo, XB_WanSoundImageToVideo, XB_WanFunControlToVideo, XB_WanVaceToVideo, XB_Wan22FunControlToVideo, XB_WanInfiniteTalkToVideo, XB_WanInfiniteTalkToVideo_Single, XB_WanInfiniteTalkToVideo_Dual, XB_WanFunInpaintToVideo, XB_WanCameraImageToVideo, XB_WanPhantomSubjectToVideo, XB_WanHuMoImageToVideo, XB_Wan22ImageToVideoLatent, XB_WanSoundImageToVideoExtend, XB_WanSCAILToVideo, XB_WanSCAILToVideoPro, XB_WanDancerVideo, XB_WanDanceSwitcher, XB_WanDancerCombo, XB_BerniniConditioning)
+    from .nodes.core.nodes_batch import XB_BatchFolderLoader, XB_BatchFolderBatchLoader
+    from .nodes.video.nodes_pipeline import XB_Wan_ParamBus, XB_Wan_RelayNode, XB_Wan_InfiniteRelayNode, XB_Video_Merger, XB_StoryboardSlicer,XB_WanAnimate_ParamBus,XB_WanAnimate_RelayNode, XB_WanInfiniteTalk_ParamBus, XB_WanInfiniteTalk_RelayNode, XB_Wan_InfiniteRelayNode_New, XB_WanAnimate_RelayNode_New, XB_WanInfiniteTalk_RelayNode_New, XB_WanSCAIL_ParamBus_New, XB_WanSCAIL_RelayNode_New, XB_WanInfiniteTalk_RelayNode_MultiRef, XB_WanInfiniteTalk_RelayNode_AllInOne
+    from .nodes.video.nodes_ltx_streamer import XB_LTX23_InfiniteStreamer
+    from .nodes.core.nodes_sageatt import XB_SageAttentionAccelerator
+    from .nodes.video.nodes_wan import XB_WanCompileSettings, XB_WanAnimateToVideo
 
-    from .nodes_label import XB_CanvasLabel
-    from .nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
-    from .nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
-    from .nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
-    from .nodes_status_switch import XB_NodeStatusSwitch
-    from .nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch
-    from .nodes_flux_encode import XB_FluxMultiImageEncode
-    from .nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
-    from .nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
-    from .nodes_shenbi import XB_ShenBi
-    from .nodes_hailuo_video import XB_HailuoH3VideoParams
-    from .nodes_list_dispatcher import XB_ListDispatcher
-    from .nodes_batch_images import XB_BatchImages
-    from .nodes_reference_any import XB_ReferenceAny
-    from .nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
+    from .nodes.core.nodes_label import XB_CanvasLabel
+    from .nodes.audio.nodes_audio_slicer import XB_AudioSlicer, XB_AudioSlicerV1, XB_AudioSlicerV2, XB_AudioSlicerV3
+    from .nodes.video.nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
+    from .nodes.llm.nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
+    from .nodes.core.nodes_status_switch import XB_NodeStatusSwitch
+    from .nodes.core.nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch
+    from .nodes.image.nodes_flux_encode import XB_FluxMultiImageEncode
+    from .nodes.image.nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
+    from .nodes.image.nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
+    from .nodes.image.nodes_shenbi import XB_ShenBi
+    from .nodes.video.nodes_hailuo_video import XB_HailuoH3VideoParams
+    from .nodes.core.nodes_list_dispatcher import XB_ListDispatcher
+    from .nodes.core.nodes_batch_images import XB_BatchImages
+    from .nodes.core.nodes_reference_any import XB_ReferenceAny
+    from .nodes.image.nodes_segmentation import XB_HumanSegModelLoader, XB_HumanSegmentation
 
     # 注册视频转码端点（预览窗口实时缩放依赖）
-    from . import xb_video_server
-    from .nodes_vanilla_wrappers import (XB_KSampler, XB_KSamplerAdvanced,
+    from .libs import xb_video_server
+    from .nodes.core.nodes_vanilla_wrappers import (XB_KSampler, XB_KSamplerAdvanced,
                                           XB_SamplerCustom, XB_SamplerCustomAdvanced,
                                           XB_VAEDecode, XB_VAEDecodeTiled,
                                           XB_VAEDecodeTiledImage,
@@ -125,16 +133,16 @@ try:
                                           XB_VAEEncodeTiledImage,
                                           XB_VAEEncodeForInpaint,
                                           _AliasVAEDecodeTemporal)
-    from .nodes_string_merge import XB_StringMerge
-    from .nodes_clip_text_edit import XB_CLIPTextEdit
-    from .nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
-    from .nodes_msr import XB_MSR
-    from .nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
-    from .nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
+    from .nodes.core.nodes_string_merge import XB_StringMerge
+    from .nodes.core.nodes_clip_text_edit import XB_CLIPTextEdit
+    from .nodes.core.nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
+    from .nodes.core.nodes_msr import XB_MSR
+    from .nodes.image.nodes_comic import XB_ComicPromptParser, XB_ComicTextRenderer, XB_AutoBubbleTextRenderer
+    from .nodes.core.nodes_super import XB_BerniniPromptRouter, XB_K2StyleRouter
 
     # ── Llama 节点 (LLM/VLM) ──
     try:
-        from .nodes_llama import (
+        from .nodes.llm.nodes_llama import (
             XB_llamaModelLoader, XB_llamaModelLoaderPro, XB_llamaInstruct, XB_llamaParameters,
             XB_llamaUnloadModel, XB_llamaCleanStates,
             XB_llamaBBoxes2BBox, XB_llamaUnpackCodeBlock, XB_llamaPromptEnhancer,
@@ -144,7 +152,7 @@ try:
             XB_RoleSceneDispatcher,
         )
         # ── 提示词增强反推（模型加载器 + 指令推理 + 提示词增强预设 + 推理参数 + LLM-API 设置 五合一）──
-        from .nodes_llama_prompt_reverse import XB_llamaPromptReverse
+        from .nodes.llm.nodes_llama_prompt_reverse import XB_llamaPromptReverse
         _LLAMA_AVAILABLE = True
     except ImportError as e:
         print_warning(f"[XB-llama] llama-cpp-python 未安装, Llama/MiniMax 节点不可用: {e}")
@@ -152,7 +160,7 @@ try:
 
     # ── 🖼️ 生图提示词预设Pro（生图提示词预设 + 提示词增强反推 融合）──
     try:
-        from .nodes_image_prompt_preset_pro import XB_ImagePromptPresetPro
+        from .nodes.image.nodes_image_prompt_preset_pro import XB_ImagePromptPresetPro
         _PRO_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] 生图提示词预设Pro 未加载：{e}")
@@ -160,7 +168,7 @@ try:
 
     # ── 🖼️ Qwen2.1提示词预设（生图提示词预设 + 官方 Load CLIP + 官方 Generate Text）──
     try:
-        from .nodes_qwen_prompt_preset import XB_QwenPromptPreset
+        from .nodes.image.nodes_qwen_prompt_preset import XB_QwenPromptPreset
         _QWEN_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] Qwen2.1提示词预设 未加载：{e}")
@@ -168,30 +176,30 @@ try:
 
     # ── 🎵 YuE2 音乐节点（风格提示 / 歌词 / 乐谱工作台 / 翻唱准备 / 转谱导入）──
     try:
-        from .nodes_yue2_style import XB_YuE2StylePrompt
-        from .nodes_yue2_lyrics import XB_YuE2Lyrics
-        from .nodes_yue2_score import XB_YuE2ScoreWorkbench, XB_YuE2CoverPrep
-        from .nodes_yue2_transcription import XB_YuE2Transcription
+        from .nodes.audio.nodes_yue2_style import XB_YuE2StylePrompt
+        from .nodes.audio.nodes_yue2_lyrics import XB_YuE2Lyrics
+        from .nodes.audio.nodes_yue2_score import XB_YuE2ScoreWorkbench, XB_YuE2CoverPrep
+        from .nodes.audio.nodes_yue2_transcription import XB_YuE2Transcription
         _YUE2_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] YuE2 音乐节点 未加载：{e}")
         _YUE2_AVAILABLE = False
 
     # ── CosyVoice3 音频节点 ──
-    from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
-    from .cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
-    from .cosyvoice3.nodes.cross_lingual import XB_CosyVoice3_CrossLingual
-    from .cosyvoice3.nodes.voice_conversion import XB_CosyVoice3_VoiceConversion
-    from .cosyvoice3.nodes.audio_crop import XB_CosyVoice3_AudioCrop
-    from .cosyvoice3.nodes.dialog import XB_CosyVoice3_Dialog
-    from .cosyvoice3.nodes.instruct2 import XB_CosyVoice3_Instruct2
-    from .cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
-    from .cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
-    from .cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
+    from .nodes.cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
+    from .nodes.cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
+    from .nodes.cosyvoice3.nodes.cross_lingual import XB_CosyVoice3_CrossLingual
+    from .nodes.cosyvoice3.nodes.voice_conversion import XB_CosyVoice3_VoiceConversion
+    from .nodes.cosyvoice3.nodes.audio_crop import XB_CosyVoice3_AudioCrop
+    from .nodes.cosyvoice3.nodes.dialog import XB_CosyVoice3_Dialog
+    from .nodes.cosyvoice3.nodes.instruct2 import XB_CosyVoice3_Instruct2
+    from .nodes.cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
+    from .nodes.cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
+    from .nodes.cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
 
     # ── 🎬 保存视频（Create Video + Save Video 二合一，依赖新版 V3 API）──
     try:
-        from .nodes_save_video import XB_SaveVideo
+        from .nodes.video.nodes_save_video import XB_SaveVideo
         _SAVE_VIDEO_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] 保存视频节点 未加载：{e}")
@@ -199,27 +207,27 @@ try:
 
     # ── 🎬 加载视频（Load Video + Get Video Components 二合一，依赖新版 V3 API）──
     try:
-        from .nodes_load_video import XB_LoadVideo
+        from .nodes.video.nodes_load_video import XB_LoadVideo
         _LOAD_VIDEO_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] 加载视频节点 未加载：{e}")
         _LOAD_VIDEO_AVAILABLE = False
 
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
-    from .nodes_image_prompt_preset import XB_ImagePromptPreset
+    from .nodes.image.nodes_image_prompt_preset import XB_ImagePromptPreset
 
     # ── 生图预设（生图提示词预设 + 姿态参考图 / 穿搭参考图）──
     # 同时 import xb_gallery → 注册 /xb_toolbox/gallery/* 端点（图库绑定、素材清单、图片读取）
     try:
-        from . import xb_gallery  # noqa: F401
-        from .nodes_image_preset import XB_ImagePreset
+        from .libs import xb_gallery  # noqa: F401
+        from .nodes.image.nodes_image_preset import XB_ImagePreset
         _IMAGE_PRESET_AVAILABLE = True
     except Exception as e:
         print_warning(f"[XB-BOX] 生图预设节点 未加载：{e}")
         _IMAGE_PRESET_AVAILABLE = False
 
     # ── 播放声音（复刻 pysssss PlaySound，自带音频资源）──
-    from .nodes_play_sound import XB_PlaySound
+    from .nodes.audio.nodes_play_sound import XB_PlaySound
 
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,

@@ -1,0 +1,55 @@
+[
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
+    "title": "Anima",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "anima_t2i_basic",
+        "title": "Anima Text to Image (Basic)",
+        "description": "Anima basic text-to-image: prompt preset + model loader + sampling/decoding in one graph.",
+        "tags": ["Anima", "Text to Image"],
+        "thumbnail": ["anima_t2i_basic-1.webp"],
+        "date": "2026-11-09",
+        "username": "JZL",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_inpaint_basic",
+        "title": "Anima Inpainting (Basic)",
+        "description": "Anima inpainting: basic masked-region repaint flow.",
+        "tags": ["Anima", "Inpainting"],
+        "thumbnail": ["anima_inpaint_basic-1.webp"],
+        "date": "2026-11-09",
+        "username": "JZL",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_t2i_upscale",
+        "title": "Anima Text to Image + Upscale",
+        "description": "Anima text-to-image followed by an upscale pass.",
+        "tags": ["Anima", "Text to Image", "Upscale"],
+        "thumbnail": ["anima_t2i_upscale-1.webp"],
+        "date": "2026-11-09",
+        "username": "JZL",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_control_t2i",
+        "title": "Anima Control to Image (Basic)",
+        "description": "Anima control-guided generation: basic flow with control conditions.",
+        "tags": ["Anima", "Control"],
+        "thumbnail": ["anima_control_t2i-1.webp"],
+        "date": "2026-11-09",
+        "username": "JZL",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      }
+    ]
+  }
+]

@@ -17,7 +17,7 @@ import torch
 
 def load_audio_function():
     # Avoid importing unrelated ComfyUI/custom-node dependencies during CPU tests.
-    source = Path(__file__).resolve().parents[1] / 'nodes_video.py'
+    source = Path(__file__).resolve().parents[1] / 'nodes' / 'video' / 'nodes_video.py'
     tree = ast.parse(source.read_text(encoding='utf-8'))
     function = next(n for n in tree.body
                     if isinstance(n, ast.FunctionDef) and n.name == '_lazy_get_audio')

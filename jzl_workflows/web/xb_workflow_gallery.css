@@ -1,0 +1,404 @@
+/* XB_ToolBox — 「机智罗的工作流」侧栏面板样式
+ * 全部走 ComfyUI 的 CSS 变量，跟随明/暗主题。 */
+
+.xb-wf-root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--input-text, #ddd);
+    background: var(--comfy-menu-bg, #1e1e1e);
+}
+
+.xb-wf-root.is-busy {
+    cursor: progress;
+}
+
+.xb-wf-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.xb-wf-logo {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+.xb-wf-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xb-wf-icon-btn {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.xb-wf-icon-btn:hover:not(:disabled) {
+    background: var(--comfy-input-bg, rgba(255, 255, 255, 0.08));
+}
+
+.xb-wf-icon-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.xb-wf-search {
+    flex: 0 0 auto;
+}
+
+.xb-wf-search input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    background: var(--comfy-input-bg, #2a2a2a);
+    color: var(--input-text, #ddd);
+    font-size: 12px;
+    outline: none;
+}
+
+.xb-wf-search input:focus {
+    border-color: var(--p-primary-color, #4a9eff);
+}
+
+.xb-wf-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.xb-wf-cats.is-hidden {
+    display: none;
+}
+
+.xb-wf-chip {
+    padding: 3px 9px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.xb-wf-chip:hover {
+    background: var(--comfy-input-bg, rgba(255, 255, 255, 0.08));
+}
+
+.xb-wf-chip.is-active {
+    border-color: var(--p-primary-color, #4a9eff);
+    background: var(--p-primary-color, #4a9eff);
+    color: #fff;
+}
+
+.xb-wf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    flex: 1 1 auto;
+    align-content: start;
+}
+
+.xb-wf-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 6px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    background: var(--comfy-input-bg, #252525);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.xb-wf-card:hover {
+    border-color: var(--p-primary-color, #4a9eff);
+    transform: translateY(-1px);
+}
+
+.xb-wf-card:focus-visible {
+    outline: 2px solid var(--p-primary-color, #4a9eff);
+    outline-offset: 1px;
+}
+
+.xb-wf-root.is-busy .xb-wf-card {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.xb-wf-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 5px;
+    background: var(--comfy-menu-bg, #1a1a1a);
+}
+
+.xb-wf-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.xb-wf-thumb.is-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    box-sizing: border-box;
+    background: linear-gradient(135deg, rgba(74, 158, 255, 0.22), rgba(180, 74, 255, 0.22));
+}
+
+.xb-wf-thumb-text {
+    font-size: 11px;
+    line-height: 1.3;
+    text-align: center;
+    color: var(--input-text, #ddd);
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.xb-wf-name {
+    font-size: 12px;
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.xb-wf-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.xb-wf-tag {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(128, 128, 128, 0.2);
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+.xb-wf-empty {
+    grid-column: 1 / -1;
+    padding: 24px 12px;
+    text-align: center;
+    opacity: 0.6;
+    font-size: 12px;
+}
+
+.xb-wf-status {
+    flex: 0 0 auto;
+    min-height: 0;
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+.xb-wf-status:empty {
+    display: none;
+}
+
+.xb-wf-status.is-error {
+    opacity: 1;
+    color: var(--error-text, #ff6b6b);
+}
+
+/* ── 居中大弹窗（与官方「模板」一致的布局）────────────────────────── */
+
+.xb-wf-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh 3vw;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+.xb-wf-backdrop.is-busy {
+    cursor: progress;
+}
+
+.xb-wf-modal {
+    display: flex;
+    width: min(1240px, 100%);
+    height: min(840px, 100%);
+    overflow: hidden;
+    border: 1px solid var(--border-color, #3a3a3a);
+    border-radius: 12px;
+    background: var(--comfy-menu-bg, #202020);
+    color: var(--input-text, #ddd);
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.xb-wf-side {
+    flex: 0 0 208px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 10px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-color, #333);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.xb-wf-side-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 10px;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.xb-wf-side-title {
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xb-wf-side-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.xb-wf-side-item {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.xb-wf-side-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    opacity: 1;
+}
+
+.xb-wf-side-item.is-active {
+    background: var(--p-primary-color, #4a9eff);
+    color: #fff;
+    opacity: 1;
+}
+
+.xb-wf-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.xb-wf-main-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.xb-wf-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    background: var(--comfy-input-bg, #2a2a2a);
+    color: var(--input-text, #ddd);
+    font-size: 13px;
+    outline: none;
+}
+
+.xb-wf-search-input:focus {
+    border-color: var(--p-primary-color, #4a9eff);
+}
+
+.xb-wf-modal .xb-wf-icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+}
+
+.xb-wf-modal .xb-wf-grid {
+    gap: 12px;
+    padding: 14px;
+    overflow-y: auto;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.xb-wf-modal .xb-wf-card {
+    padding: 8px;
+    gap: 6px;
+}
+
+.xb-wf-modal .xb-wf-name {
+    font-size: 13px;
+}
+
+.xb-wf-modal .xb-wf-status {
+    padding: 0 14px 10px;
+}
+
+.xb-wf-backdrop.is-busy .xb-wf-card {
+    pointer-events: none;
+    opacity: 0.7;
+}
+

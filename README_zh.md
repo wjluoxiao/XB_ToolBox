@@ -210,6 +210,65 @@ pip install -r requirements.txt
 
 ---
 
+### 🗃️ 目录结构
+
+按「一个功能一个目录」组织，根目录只留装配入口：
+
+```text
+XB_ToolBox/
+├─ __init__.py               节点注册 + 路由装配
+├─ prestartup_script.py      ComfyUI 启动清理（约定：必须留在根）
+├─ nodes/                    节点实现
+│  ├─ core/                  参数总线 / 接力 / 标签 / 字符串 / 开关 / 加速
+│  ├─ image/                 提示词预设 / 编码 / 缩放 / 分割 / 漫画 / 神笔
+│  ├─ video/                 Wan / LTX / Hailuo / 数字人 / 视频读写
+│  ├─ audio/                 音频切片 / YuE2 / 播放声音
+│  ├─ llm/                   XB-llama / GGUF 加载
+│  ├─ hardware/              显存与内存监控
+│  └─ cosyvoice3/            CosyVoice3 节点包
+├─ libs/                     无节点的纯逻辑（xb_paths / xb_presets / xb_gallery / xb_skills / yue2_* …）
+├─ jzl_workflows/            「机智罗的工作流」（数据 + 路由 + 图标样式）
+├─ web/                      前端资源（原 js/）
+├─ locales/ docs/ tests/     国际化 / 文档 / 测试
+├─ tools/                    开发用一次性脚本（不参与运行）
+├─ support_llama/ xb_skill/ video_formats/    数据目录
+└─ LibreHardwareMonitorLib.dll
+```
+
+---
+
+### 🗂️ 机智罗的工作流（侧栏入口）
+
+装上 XB_ToolBox 后，ComfyUI 左侧栏会多出一个 **「机智罗」** 入口（紧贴官方 **「模板」** 上方），
+点一下就会像官方「模板」那样在**屏幕正中弹出大面板**：左侧分类、顶部搜索、缩略图卡片网格，
+点卡片直接在工作流新标签页打开，`Esc` / 点遮罩 / 右上角 ✕ 收起。
+不需要改任何 ComfyUI 前端文件，升级 ComfyUI 也不会失效。
+
+工作流数据都在 **`jzl_workflows/`** 一个目录里，方便单独管理：
+
+```text
+XB_ToolBox/
+  jzl_workflows/
+    __init__.py        注册入口（根 __init__.py 只调用它）
+    routes.py          后端路由：清单 / 工作流 / 预览图 / 图标样式
+    data/
+      index.json       英文清单
+      index.zh.json    中文清单（结构同官方 comfyui-workflow-templates）
+      anima_t2i_basic.json      工作流本身
+      anima_t2i_basic-1.webp    同名预览图，缺省时显示占位卡片
+    web/
+      xb_workflow_gallery.css
+      xb_icon_dark.png / xb_icon_light.png
+  web/jzl_workflows/
+    xb_workflow_gallery.js       面板脚本（必须在 web/ 下 ComfyUI 才会加载）
+```
+
+新增工作流只要两步：把工作流 JSON 放进 `jzl_workflows/data/`（文件名用 ASCII），
+再在 `data/index.json`、`data/index.zh.json` 里各加一条条目（`name` 与 JSON 文件名一致）。
+预览图放同目录，命名 `<name>-1.webp`。
+
+---
+
 ### 🙏 致谢
 
 XB_ToolBox 站在 ComfyUI 生态的肩膀上，部分节点为移植 / 套壳 / 改编，感谢原作者：

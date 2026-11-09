@@ -1,0 +1,55 @@
+[
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
+    "title": "Anima",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "anima_t2i_basic",
+        "title": "Anima 文生图基础工作流",
+        "description": "Anima 基础文生图：提示词预设 + 模型加载 + 采样解码一体化。",
+        "tags": ["Anima", "文生图"],
+        "thumbnail": ["anima_t2i_basic-1.webp"],
+        "date": "2026-11-09",
+        "username": "机智罗",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_inpaint_basic",
+        "title": "Anima 局部重绘基础工作流",
+        "description": "Anima 局部重绘：遮罩区域重绘的基础流程。",
+        "tags": ["Anima", "局部重绘"],
+        "thumbnail": ["anima_inpaint_basic-1.webp"],
+        "date": "2026-11-09",
+        "username": "机智罗",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_t2i_upscale",
+        "title": "Anima 文生图基础+放大工作流",
+        "description": "Anima 文生图后接放大流程。",
+        "tags": ["Anima", "文生图", "放大"],
+        "thumbnail": ["anima_t2i_upscale-1.webp"],
+        "date": "2026-11-09",
+        "username": "机智罗",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      },
+      {
+        "name": "anima_control_t2i",
+        "title": "Anima 控制生图基础工作流",
+        "description": "Anima 控制生图：带控制条件的基础流程。",
+        "tags": ["Anima", "控制生图"],
+        "thumbnail": ["anima_control_t2i-1.webp"],
+        "date": "2026-11-09",
+        "username": "机智罗",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0"
+      }
+    ]
+  }
+]

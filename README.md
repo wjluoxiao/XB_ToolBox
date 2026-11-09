@@ -211,6 +211,66 @@ Nodes that are fully self-contained say so in their own docstring.
 
 ---
 
+### 🗃️ Repository layout
+
+One feature per folder; the root only keeps the assembly entry points:
+
+```text
+XB_ToolBox/
+├─ __init__.py               node registration + route wiring
+├─ prestartup_script.py     startup cleanup (ComfyUI convention: must stay at root)
+├─ nodes/                    node implementations
+│  ├─ core/                 parameter bus / relay / label / string / switch / accel
+│  ├─ image/                prompt presets / encoders / scale / segmentation / comic
+│  ├─ video/                Wan / LTX / Hailuo / digital human / video I-O
+│  ├─ audio/                audio slicer / YuE2 / play sound
+│  ├─ llm/                  XB-llama / GGUF loaders
+│  ├─ hardware/             VRAM & memory monitoring
+│  └─ cosyvoice3/           CosyVoice3 node package
+├─ libs/                    node-free logic (xb_paths / xb_presets / xb_gallery / xb_skills / yue2_* …)
+├─ jzl_workflows/           "JZL Workflows" (data + routes + icon/style)
+├─ web/                     frontend assets (formerly js/)
+├─ locales/ docs/ tests/    i18n / docs / tests
+├─ tools/                   one-off dev scripts (not used at runtime)
+├─ support_llama/ xb_skill/ video_formats/    data folders
+└─ LibreHardwareMonitorLib.dll
+```
+
+---
+
+### 🗂️ JZL Workflows (sidebar entry)
+
+Once XB_ToolBox is installed, ComfyUI's sidebar gains a **"机智罗 / JZL Workflows"** entry,
+sitting right above the built-in **Templates** tab. Clicking it opens a **centered dialog** just
+like the official Templates browser — category list on the left, search on top, thumbnail cards,
+and a card click opens the workflow in a new workflow tab (`Esc` / backdrop click / ✕ closes it).
+No ComfyUI frontend files are patched, so frontend upgrades won't break it.
+
+Everything for this feature lives in **`jzl_workflows/`**:
+
+```text
+XB_ToolBox/
+  jzl_workflows/
+    __init__.py        registration entry (root __init__.py calls it)
+    routes.py          routes: index / workflow / preview / icon+css assets
+    data/
+      index.json       English index
+      index.zh.json    Chinese index (same shape as comfyui-workflow-templates)
+      anima_t2i_basic.json      the workflow itself
+      anima_t2i_basic-1.webp    preview image; a placeholder card is shown if missing
+    web/
+      xb_workflow_gallery.css
+      xb_icon_dark.png / xb_icon_light.png
+  web/jzl_workflows/
+    xb_workflow_gallery.js       panel script (must stay under web/ to be loaded)
+```
+
+To add a workflow: drop the JSON into `jzl_workflows/data/` (ASCII file name), add an entry to
+both index files (`name` must match the file name), and put the preview next to it as
+`<name>-1.webp`.
+
+---
+
 ### 🙏 Credits
 
 XB_ToolBox stands on the shoulders of the ComfyUI ecosystem. Several nodes are ports, wrappers or adaptations — thanks to their authors:
