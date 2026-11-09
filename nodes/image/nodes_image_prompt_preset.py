@@ -352,6 +352,30 @@ def _pick(options, value, default):
     return v if v in options else default
 
 
+def _norm_combo(value, options, default):
+    """下拉值归一（容忍老工作流里的历史值 / 错位值 / 非字符串）。
+
+    · 命中当前选项 → 原样返回；
+    · 未命中但能通过 MODE_ALIASES 归一落到某个选项 → 用归一后的；
+    · 其它（空、数字、布尔、整段正文…）→ 用默认值，绝不抛错。
+    """
+    if value is None or isinstance(value, bool):
+        return default
+    text = value if isinstance(value, str) else str(value)
+    text = text.strip()
+    if not text:
+        return default
+    if text in options:
+        return text
+    try:
+        mapped = MODE_ALIASES.get(text)
+    except NameError:
+        mapped = None
+    if mapped and mapped in options:
+        return mapped
+    return default
+
+
 def _parse_settings(raw):
     """manager_settings(JSON 字符串) → 完整配置；任何异常都退回默认，绝不让节点崩。"""
     cfg = _default_settings()
@@ -869,22 +893,17 @@ class XB_ImagePromptPreset:
                    "输出：①提示词 ②空latent。")
 
     @classmethod
-    def VALIDATE_INPUTS(cls, preset_mode=None):
-        """放行历史档位名（如 0.10.x 的「常规文生图」「📱 图文版面」…），避免老工作流被拒。
+    def VALIDATE_INPUTS(cls, latent_kind=None, output_lang=None, preset_mode=None, aspect_ratio=None):
+        """放行**下拉参数**的历史值 / 错位值，避免老工作流在排队校验被整条丢弃。
 
-        ⚠️ 为什么必须声明：preset_mode 是下拉（combo），ComfyUI 排队前会拿工作流里存的值
-        去比对**当前**选项列表，老值不在列表里就直接 ``value_not_in_list`` → 整个 prompt 被丢弃
+        ⚠️ 为什么必须声明：这些参数都是下拉（combo），ComfyUI 排队前会拿工作流里存的值
+        比對**当前**选项列表，老值不在列表里就直接 ``value_not_in_list`` → 整个 prompt 被丢弃
         （日志：Failed to validate prompt / Output will be ignored）。
-        声明本方法后 ComfyUI 会跳过 preset_mode 的默认列表校验
+        声明本方法后 ComfyUI 会跳过这些参数的默认列表校验
         （execution.py：``if x not in validate_function_inputs and not validate_has_kwargs``），
-        真正执行时再由 normalize_mode() 把旧名归一为当前档位。
+        真正执行时再由 normalize_mode() / latent_kind_spec() / _pick() 归一到合法值。
         """
-        if preset_mode is None:
-            return True
-        value = _as_str(preset_mode).strip()
-        if not value or normalize_mode(value) in PRESET_MODES:
-            return True
-        return f"未知的预设模式：{value}"
+        return True
 
     @classmethod
     def IS_CHANGED(cls, manager_settings="", **kwargs):
@@ -896,6 +915,12 @@ class XB_ImagePromptPreset:
 
     def generate(self, output_lang, preset_mode, latent_kind, three_view_text, aspect_ratio,
                  width, height, batch_size, internal_prompt="", manager_settings=""):
+        # ⓪ 下拉值归一：老工作流 / 错位值 → 合法值（配合 VALIDATE_INPUTS，永不因下拉值报错）
+        latent_kind = _norm_combo(latent_kind, LATENT_KINDS, DEFAULT_LATENT_KIND)
+        output_lang = _norm_combo(output_lang, OUTPUT_LANGS, LANG_ZH)
+        preset_mode = _norm_combo(preset_mode, PRESET_MODES, MODE_TEXT2IMG)
+        aspect_ratio = _norm_combo(aspect_ratio, ASPECT_RATIO_OPTIONS, "Free")
+
         # ① 画幅归一：步长/上下限按当前空 latent 类型（官方各节点并不一致）
         spec = latent_kind_spec(latent_kind)
         w, h = normalize_size(aspect_ratio, width, height,

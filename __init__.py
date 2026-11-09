@@ -112,7 +112,7 @@ try:
     from .nodes.video.nodes_digital_human import XB_DigitalHumanParams_Single, XB_DigitalHumanParams_Dual
     from .nodes.llm.nodes_model_loader_gguf import XB_ModelLoaderV1_GGUF, XB_ModelLoaderV2_GGUF, XB_ModelLoaderV3_GGUF
     from .nodes.core.nodes_status_switch import XB_NodeStatusSwitch
-    from .nodes.core.nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch
+    from .nodes.core.nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch, XB_AnyIndexSwitch
     from .nodes.image.nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes.image.nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
     from .nodes.image.nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
@@ -308,6 +308,7 @@ try:
         "XB_DisableGroups": XB_DisableGroups,
         "XB_DisableNodes": XB_DisableNodes,
         "XB_AnySwitch": XB_AnySwitch,
+        "XB_AnyIndexSwitch": XB_AnyIndexSwitch,
         "XB_FluxMultiImageEncode": XB_FluxMultiImageEncode,
         "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
         "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
@@ -475,6 +476,7 @@ try:
         "XB_DisableGroups": "XB-BOX - 🚫 禁用分组",
         "XB_DisableNodes": "XB-BOX - 🚫 禁用节点",
         "XB_AnySwitch": "XB-BOX - 🔀 切换任意",
+        "XB_AnyIndexSwitch": "XB-BOX - 🔢 切换编号",
         "XB_FluxMultiImageEncode": "XB-BOX - 🖼️ FLUX多图编码",
         "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
         "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",

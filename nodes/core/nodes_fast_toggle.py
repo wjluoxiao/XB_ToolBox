@@ -144,14 +144,59 @@ class XB_AnySwitch:
         return (None,)
 
 
+MAX_INDEX_INPUTS = 20
+
+
+class XB_AnyIndexSwitch:
+    """切换编号（参考 ComfyUI-Easy-Use 的 Any Index Switch）。
+
+    任意类型的编号输入 value0…value19（可选、懒加载），按 index 选中的那一路输出；
+    未被选中的输入不会被求值（lazy），所以可以放心接重负载分支。
+    """
+
+    DESCRIPTION = (
+        "切换编号（参考 Easy-Use 编号切换）：把不同来源接到任意类型的编号输入端口，"
+        "端口会随连线自动增加；用「编号」控件选择要输出的那一路（0 开始），只有被选中的输入会被执行。"
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {}
+        for i in range(MAX_INDEX_INPUTS):
+            optional[f"value{i}"] = (any_type, {"lazy": True})
+        return {
+            "required": {
+                "index": ("INT", {"default": 0, "min": 0, "max": MAX_INDEX_INPUTS - 1, "step": 1}),
+            },
+            "optional": optional,
+        }
+
+    RETURN_TYPES = (any_type,)
+    RETURN_NAMES = ("value",)
+    FUNCTION = "switch"
+    CATEGORY = "XB_ToolBox/Utils"
+    OUTPUT_NODE = False
+
+    @classmethod
+    def check_lazy_status(cls, index, **kwargs):
+        key = f"value{index}"
+        if kwargs.get(key) is None:
+            return [key]
+
+    def switch(self, index, **kwargs):
+        return (kwargs.get(f"value{index}"),)
+
+
 NODE_CLASS_MAPPINGS = {
     "XB_DisableGroups": XB_DisableGroups,
     "XB_DisableNodes": XB_DisableNodes,
     "XB_AnySwitch": XB_AnySwitch,
+    "XB_AnyIndexSwitch": XB_AnyIndexSwitch,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "XB_DisableGroups": "XB-BOX - 🚫 禁用分组",
     "XB_DisableNodes": "XB-BOX - 🚫 禁用节点",
     "XB_AnySwitch": "XB-BOX - 🔀 切换任意",
+    "XB_AnyIndexSwitch": "XB-BOX - 🔢 切换编号",
 }

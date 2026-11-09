@@ -285,6 +285,27 @@ def _pick(options, value, default):
     return v if v in options else default
 
 
+def _norm_combo(value, options, default):
+    """下拉值归一（容忍老工作流里的历史值 / 错位值 / 非字符串）。
+
+    · 命中当前选项 → 原样返回；
+    · 未命中但能通过别名/归一逻辑落到某个选项 → 用归一后的；
+    · 其它（空、数字、布尔、整段正文…）→ 用默认值，绝不抛错。
+    """
+    if value is None or isinstance(value, bool):
+        return default
+    text = value if isinstance(value, str) else str(value)
+    text = text.strip()
+    if not text:
+        return default
+    if text in options:
+        return text
+    mapped = MODE_ALIASES.get(text)
+    if mapped and mapped in options:
+        return mapped
+    return default
+
+
 # ============================================================================
 # 画幅比例 + 步长联动（与 XB_ImageParamsMaster.process 逐行等价）
 # ============================================================================
@@ -498,6 +519,21 @@ def _next_seed(seed, mode):
     if mode == "decrement":
         return (seed - 1) & _SEED_MAX
     return None
+
+
+def _llm_ready(backend, llm):
+    """LLM 配置是否可用（只做判定，不加载模型、不抛错）。
+
+    · 本地模型：manager_settings.llm.model.model 非空
+    · 在线 API：读到的 api_key 非空（provider/model/base_url 都有内置默认值，不需要额外检查）
+    """
+    try:
+        if backend == "在线 API":
+            return bool(str(build_api_config().get("api_key") or "").strip())
+        model = (llm or {}).get("model") or {}
+        return bool(str(model.get("model") or "").strip())
+    except Exception:
+        return False
 
 
 # ── 增强预设 / 反推预设 的文件化编辑 ────────────────────────────────────────
@@ -792,19 +828,23 @@ class XB_ImagePromptPresetPro:
                    "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。")
 
     @classmethod
-    def VALIDATE_INPUTS(cls, preset_mode=None):
-        """放行历史档位名（「常规文生图」「📱 图文版面」…），避免老工作流在排队校验被拒。
+    def VALIDATE_INPUTS(cls, latent_kind=None, output_lang=None, preset_mode=None, aspect_ratio=None,
+                        skill_mode=None, skill_name=None, backend=None, preset=None, task_preset=None):
+        """放行**下拉参数**的历史值 / 错位值，避免老工作流在排队校验被整条丢弃。
 
-        preset_mode 是下拉，ComfyUI 会拿工作流里存的值比对当前选项列表，老值不在列表里
-        就 ``value_not_in_list`` 直接丢弃 prompt。声明本方法后该校验被跳过，
-        执行时由 normalize_mode() 归一为当前档位。
+        ⚠️ 为什么需要：这些参数都是 combo（下拉）。ComfyUI 在**排队前**会拿工作流里存的值
+        比对当前选项列表，对不上就 ``value_not_in_list`` → 整个 prompt 被丢弃
+        （日志：Failed to validate prompt / Output will be ignored）。
+        老工作流（选项增删、widget 顺序变化）非常容易出现这种对不上：
+        实测见过 backend 里存着「Normal - 描述 [ZH]」、task_preset 里存着整段正文等错位值。
+        声明本方法后 ComfyUI 会跳过这些参数的默认列表校验
+        （execution.py：``if x not in validate_function_inputs and not validate_has_kwargs``），
+        真正执行时再由 generate() 里的 _norm_* 归一到合法值（不合法 → 用默认值，绝不报错）。
+
+        ⚠️ 刻意**不写 **kwargs**：那样会连 width/height 的 min/max 校验一起跳过。
+        只放行下拉，其它输入保持原有的严格校验。
         """
-        if preset_mode is None:
-            return True
-        value = _as_str(preset_mode).strip()
-        if not value or normalize_mode(value) in PRESET_MODES:
-            return True
-        return f"未知的预设模式：{value}"
+        return True
 
     @classmethod
     def IS_CHANGED(cls, manager_settings="", skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO,
@@ -826,6 +866,22 @@ class XB_ImagePromptPresetPro:
                  width, height, batch_size, use_llm, backend, preset, task_preset, open_api_settings,
                  internal_prompt="", manager_settings="", text="", images=None, unique_id=None,
                  skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO):
+        # ⓪ 下拉值归一：老工作流 / 错位值 → 合法值（配合 VALIDATE_INPUTS，永不因下拉值报错）
+        latent_kind = _norm_combo(latent_kind, LATENT_KINDS, DEFAULT_LATENT_KIND)
+        output_lang = _norm_combo(output_lang, OUTPUT_LANGS, DEFAULT_LANG)
+        preset_mode = _norm_combo(preset_mode, PRESET_MODES, MODE_TEXT2IMG)
+        aspect_ratio = _norm_combo(aspect_ratio, ASPECT_RATIO_OPTIONS, "Free")
+        skill_mode = _norm_combo(skill_mode, SKILL_MODES, SKILL_MODE_AUTO)
+        skill_name = _norm_combo(skill_name, skill_list(), SKILL_NONE)
+        backend = _norm_combo(backend, ["本地模型", "在线 API"], "本地模型")
+        preset = _norm_combo(preset, enhancer_options(),
+                            "Z-Image Turbo [ZH]" if "Z-Image Turbo [ZH]" in enhancer_options()
+                            else (enhancer_options()[0] if enhancer_options() else ""))
+        task_preset = _norm_combo(task_preset, task_options(),
+                                 "Normal - 描述 [ZH]" if "Normal - 描述 [ZH]" in task_options()
+                                 else (task_options()[0] if task_options() else ""))
+        use_llm = bool(use_llm)
+
         # ① 画幅归一 + 空 latent（与「🖼️ 生图提示词预设」逐行一致）
         spec = latent_kind_spec(latent_kind)
         w, h = normalize_size(aspect_ratio, width, height, spec["step"], spec["min"], spec["max"])
@@ -866,6 +922,13 @@ class XB_ImagePromptPresetPro:
         next_seed = _next_seed(seed, run["seed_control"])
 
         prompt_list = []
+        if use_llm and not _llm_ready(backend, llm):
+            # LLM 没配置好：不抛长报错（以前会甩一整段 ValueError，用户反馈「报错太离谱」），
+            # 只打一行警告并退回「不启用 LLM」的正常输出。
+            safe_print("[XB-生图预设Pro] ⚠️ 警告：LLM模型尚未配置正确！已跳过 LLM 反推，只输出拼装好的提示词。"
+                       "（需要反推请点「🤖 大语言模型配置」选好模型/填好 API，或关闭「启用 LLM 反推」）")
+            use_llm = False
+
         if use_llm:
             # ④ 后端选择（与「✨ 提示词增强反推」一致）
             if backend == "在线 API":
@@ -874,11 +937,6 @@ class XB_ImagePromptPresetPro:
                 model_or_api = json.dumps(api_cfg, ensure_ascii=False)
             else:
                 md = llm["model"]
-                if not md["model"]:
-                    raise ValueError(
-                        "[XB-生图预设Pro] 未选择本地模型\n"
-                        "请点节点上的「🤖 大语言模型配置」→ 选好「模型」后保存（或在「LLM 后端」里切到在线API）"
-                    )
                 local_cfg = {
                     "model": md["model"], "mmproj": md["mmproj"], "chat_handler": md["chat_handler"],
                     "n_ctx": md["n_ctx"], "vram_limit": md["vram_limit"],

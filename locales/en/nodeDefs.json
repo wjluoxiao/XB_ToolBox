@@ -809,5 +809,25 @@
         "name": "Output"
       }
     }
+  },
+  "XB_AnyIndexSwitch": {
+    "display_name": "XB-BOX - 🔢 Index Switch",
+    "description": "Inspired by Easy-Use Any Index Switch: any-type inputs value0…value19 (more added as you connect); the index control picks which one is forwarded (0-based) and unselected inputs are never evaluated.",
+    "inputs": {
+      "index": {
+        "name": "Index"
+      },
+      "value0": {
+        "name": "Value 0"
+      },
+      "value1": {
+        "name": "Value 1"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Value"
+      }
+    }
   }
 }

@@ -5557,5 +5557,25 @@
         "name": "任意类型"
       }
     }
+  },
+  "XB_AnyIndexSwitch": {
+    "display_name": "XB-BOX - 🔢 切换编号",
+    "description": "参考 Easy-Use 编号切换：任意类型输入 value0…value19（连满自动增加），用「编号」选择要输出的那一路（从 0 开始），未被选中的输入不会被执行。",
+    "inputs": {
+      "index": {
+        "name": "编号"
+      },
+      "value0": {
+        "name": "值0"
+      },
+      "value1": {
+        "name": "值1"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "值"
+      }
+    }
   }
 }

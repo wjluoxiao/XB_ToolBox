@@ -7,6 +7,9 @@
  *   XB_AnySwitch（切换任意）
  *     —— 动态任意类型输入（默认 any_01 / any_02，连满自动追加）；没有选择控件，
  *        与 rgthree 一致：永远输出第一个非空的输入。
+ *   XB_AnyIndexSwitch（切换编号）
+ *     —— 动态任意类型输入（默认 value0，连满自动追加，最多 20 路）；
+ *        用「编号」控件选择要输出的那一路，未选中的输入不参与执行。
  *
  * 两个「禁用」节点是**纯前端控制节点**（Python 端无输入无输出，不参与执行）：
  *   面板用 DOM widget 画（经典 + Nodes 2.0 都能点），选择结果存 node.properties。
@@ -20,6 +23,7 @@ import { bindNodes2NodeFill, isNodes2 } from "./xb_compat.js";
 const TYPE_GROUPS = "XB_DisableGroups";
 const TYPE_NODES = "XB_DisableNodes";
 const TYPE_SWITCH = "XB_AnySwitch";
+const TYPE_INDEX_SWITCH = "XB_AnyIndexSwitch";
 
 const MODE_ALWAYS = 0;    // 正常
 const MODE_NEVER = 2;     // 静音（mute）
@@ -1092,13 +1096,119 @@ function setupAnySwitch(node) {
   };
 }
 
+/* ── 切换编号：动态任意类型输入（value0…value19） ─────────────────────── */
+function setupIndexSwitch(node) {
+  if (node.__xbIndexReady) return;
+  node.__xbIndexReady = true;
+  node.min_width = 220;
+  node.minWidth = 220;
+
+  const MIN_SLOTS = 1;
+  const MAX_SLOTS = 20;
+  const nameOf = (i) => `value${i}`;
+  const dataInputs = () => (node.inputs || []).filter((i) => i && !i.widget);
+  const dataIdx = () => (node.inputs || []).map((inp, i) => (inp && !inp.widget ? i : -1)).filter((i) => i >= 0);
+
+  const stabilize = () => {
+    if (node.__xbBusy || !node.inputs) return;
+    node.__xbBusy = true;
+    let changed = false;
+    try {
+      // ① 只留末尾一个空槽：中间的空槽收掉
+      let idxs = dataIdx();
+      for (let k = idxs.length - 2; k >= 0; k--) {
+        const inp = node.inputs[idxs[k]];
+        if (inp && inp.link == null) { node.removeInput(idxs[k]); changed = true; }
+      }
+      // ② 不足 MIN_SLOTS 时补齐
+      idxs = dataIdx();
+      for (let i = idxs.length; i < MIN_SLOTS; i++) {
+        node.addInput(nameOf(i), "*");
+        changed = true;
+      }
+      // ③ 末尾端口已接线且未到上限 → 再加一个空端口
+      idxs = dataIdx();
+      if (idxs.length && idxs.length < MAX_SLOTS && node.inputs[idxs[idxs.length - 1]].link != null) {
+        node.addInput(nameOf(idxs.length), "*");
+        changed = true;
+      }
+      // ④ 统一命名为 value0…（后端按编号取值）+ 端口显示上游节点名
+      dataInputs().forEach((inp, i) => {
+        const nm = nameOf(i);
+        if (inp.name !== nm) { inp.name = nm; changed = true; }
+        const up = inputUpstream(node, inp);
+        const label = up ? (up.title || up.type || "") : "";
+        if ((inp.label || "") !== label) { inp.label = label; changed = true; }
+      });
+      // ⑤ 输出端口标签跟随选中那一路的类型
+      const out = node.outputs?.[0];
+      if (out) {
+        const index = Number(node.widgets?.find((w) => w.name === "index")?.value || 0);
+        const inp = dataInputs()[index];
+        let t = "*";
+        if (inp && inp.link != null) {
+          try { t = node.graph?.links?.[inp.link]?.type || "*"; } catch (_) { t = "*"; }
+        }
+        if ((out.label || "") !== t) { out.label = t; changed = true; }
+      }
+    } catch (_) { /* ignore */ } finally {
+      node.__xbBusy = false;
+    }
+    if (changed) {
+      markDirty(node.graph);
+      try { node.setSize?.([node.size?.[0] || 240, node.computeSize?.()[1] || node.size?.[1] || 100]); } catch (_) { /* ignore */ }
+    }
+  };
+  node.__xbStabilize = stabilize;
+
+  const prevConn = node.onConnectionsChange;
+  node.onConnectionsChange = function (...args) {
+    const r = prevConn?.apply(this, args);
+    setTimeout(stabilize, 0);
+    return r;
+  };
+  const prevConfigure = node.onConfigure;
+  node.onConfigure = function (...args) {
+    const r = prevConfigure?.apply(this, args);
+    setTimeout(stabilize, 60);
+    return r;
+  };
+
+  // 编号控件变动时刷新输出类型标签
+  const idxWidget = node.widgets?.find((w) => w.name === "index");
+  if (idxWidget) {
+    const prevCb = idxWidget.callback;
+    idxWidget.callback = function (...args) {
+      const r = prevCb?.apply(this, args);
+      setTimeout(stabilize, 0);
+      return r;
+    };
+  }
+
+  if (!dataInputs().length) node.addInput(nameOf(0), "*");
+  setTimeout(stabilize, 0);
+  setTimeout(stabilize, 200);
+
+  let lastSig = "";
+  const timer = setInterval(() => {
+    if (!node.graph) return;
+    const sig = dataInputs().map((i) => `${i.name}:${i.link}`).join(",");
+    if (sig !== lastSig) { lastSig = sig; stabilize(); }
+  }, 700);
+  const prevRemoved = node.onRemoved;
+  node.onRemoved = function (...args) {
+    try { clearInterval(timer); } catch (_) { /* ignore */ }
+    return prevRemoved?.apply(this, args);
+  };
+}
+
 /* ── 扩展注册 ─────────────────────────────────────────────────────────── */
 app.registerExtension({
   name: "XB_ToolBox.FastToggle",
 
   async beforeRegisterNodeDef(nodeType, nodeData) {
     const name = nodeData?.name;
-    if (name !== TYPE_GROUPS && name !== TYPE_NODES && name !== TYPE_SWITCH) return;
+    if (name !== TYPE_GROUPS && name !== TYPE_NODES && name !== TYPE_SWITCH && name !== TYPE_INDEX_SWITCH) return;
 
     const prevCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
@@ -1106,6 +1216,7 @@ app.registerExtension({
       const self = this;
       setTimeout(() => {
         if (name === TYPE_SWITCH) setupAnySwitch(self);
+        else if (name === TYPE_INDEX_SWITCH) setupIndexSwitch(self);
         else setupToggleNode(self);
       }, 0);
       return r;
@@ -1117,7 +1228,7 @@ app.registerExtension({
         prevMenu?.apply(this, arguments);
         try { addMenu(this, options); } catch (_) { /* ignore */ }
       };
-    } else if (name === TYPE_SWITCH) {
+    } else if (name === TYPE_SWITCH || name === TYPE_INDEX_SWITCH) {
       const prevMenu = nodeType.prototype.getExtraMenuOptions;
       nodeType.prototype.getExtraMenuOptions = function (_, options) {
         prevMenu?.apply(this, arguments);
@@ -1132,6 +1243,7 @@ app.registerExtension({
 
   async loadedGraphNode(node) {
     if (node?.type === TYPE_SWITCH) setTimeout(() => setupAnySwitch(node), 120);
+    else if (node?.type === TYPE_INDEX_SWITCH) setTimeout(() => setupIndexSwitch(node), 120);
     else if (node?.type === TYPE_GROUPS || node?.type === TYPE_NODES) setTimeout(() => setupToggleNode(node), 120);
   },
 });

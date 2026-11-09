@@ -294,6 +294,25 @@ def _pick(options, value, default):
     return v if v in options else default
 
 
+def _norm_combo(value, options, default):
+    """下拉值归一（容忍老工作流里的历史值 / 错位值 / 非字符串）。"""
+    if value is None or isinstance(value, bool):
+        return default
+    text = value if isinstance(value, str) else str(value)
+    text = text.strip()
+    if not text:
+        return default
+    if text in options:
+        return text
+    try:
+        mapped = MODE_ALIASES.get(text)
+    except NameError:
+        mapped = None
+    if mapped and mapped in options:
+        return mapped
+    return default
+
+
 # ============================================================================
 # 画幅比例 + 步长联动（与 XB_ImageParamsMaster.process 逐行等价）
 # ============================================================================
@@ -1034,19 +1053,18 @@ class XB_QwenPromptPreset:
                    "输出：提示词 / 空latent。")
 
     @classmethod
-    def VALIDATE_INPUTS(cls, preset_mode=None):
-        """放行历史档位名（「常规文生图」「📱 图文版面」…），避免老工作流在排队校验被拒。
+    def VALIDATE_INPUTS(cls, latent_kind=None, output_lang=None, io_mode=None, preset_mode=None,
+                        aspect_ratio=None, skill_mode=None, skill_name=None,
+                        sampling_mode=None, mtp=None):
+        """放行**下拉参数**的历史值 / 错位值，避免老工作流在排队校验被整条丢弃。
 
-        preset_mode 是下拉，ComfyUI 会拿工作流里存的值比对当前选项列表，老值不在列表里
-        就 ``value_not_in_list`` 直接丢弃 prompt。声明本方法后该校验被跳过，
-        执行时由 normalize_mode() 归一为当前档位。
+        这些参数都是 combo（下拉），ComfyUI 排队前会拿工作流里存的值比对当前选项列表，
+        对不上就 ``value_not_in_list`` → 整个 prompt 被丢弃。
+        声明本方法后 ComfyUI 会跳过这些参数的默认列表校验，
+        执行时再由 generate() 里的 _norm_combo() 归一到合法值（不合法 → 用默认值，绝不报错）。
+        刻意不写 **kwargs，避免连 width/height 的 min/max 校验一起跳过。
         """
-        if preset_mode is None:
-            return True
-        value = _as_str(preset_mode).strip()
-        if not value or normalize_mode(value) in PRESET_MODES:
-            return True
-        return f"未知的预设模式：{value}"
+        return True
 
     @classmethod
     def IS_CHANGED(cls, clip_name="", skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO,
@@ -1063,6 +1081,17 @@ class XB_QwenPromptPreset:
                  llm_enable=True,   # LLM 增强总开关（默认启用；关闭 = 不加载文本编码器、不生成文本）
                  internal_prompt="", manager_settings="", text="", images=None, unique_id=None,
                  skill_name=SKILL_NONE, skill_mode=SKILL_MODE_AUTO, io_mode=IO_MODE_AUTO):
+        # ⓪ 下拉值归一：老工作流 / 错位值 → 合法值（配合 VALIDATE_INPUTS，永不因下拉值报错）
+        latent_kind = _norm_combo(latent_kind, LATENT_KINDS, DEFAULT_LATENT_KIND)
+        output_lang = _norm_combo(output_lang, OUTPUT_LANGS, DEFAULT_LANG)
+        preset_mode = _norm_combo(preset_mode, PRESET_MODES, MODE_TEXT2IMG)
+        aspect_ratio = _norm_combo(aspect_ratio, ASPECT_RATIO_OPTIONS, "Free")
+        io_mode = _norm_combo(io_mode, IO_MODES, IO_MODE_AUTO)
+        skill_mode = _norm_combo(skill_mode, SKILL_MODES, SKILL_MODE_AUTO)
+        skill_name = _norm_combo(skill_name, skill_list(), SKILL_NONE)
+        sampling_mode = _norm_combo(sampling_mode, SAMPLING_MODES, "on")
+        mtp = _norm_combo(mtp, MTP_MODES, "auto")
+
         # ① 画幅归一 + 空 latent（与「🖼️ 生图提示词预设」逐行一致）
         spec = latent_kind_spec(latent_kind)
         w, h = normalize_size(aspect_ratio, width, height, spec["step"], spec["min"], spec["max"])

@@ -3099,9 +3099,44 @@ function setupNode(node) {
     } catch (_) {}
   };
 
-  // ── 载入 / 执行后的对齐 ──
+  // ── 修复「下拉值不在选项里」（老工作流/错位值）────────────────────────
+  // 后端已用 VALIDATE_INPUTS + _norm_combo 兜底（不再报错、按默认值执行），
+  // 这里再把工作流里存的坏值**改回默认值**：界面上选项能正常高亮、下次保存就干净了。
+  const comboChoices = (w) => {
+    try {
+      const v = w?.options?.values;
+      if (Array.isArray(v)) return v;
+      if (typeof v === "function") { const r = v(w); return Array.isArray(r) ? r : []; }
+    } catch (_) { /* ignore */ }
+    return [];
+  };
+  const repairComboWidgets = () => {
+    const targets = ["latent_kind", "output_lang", "preset_mode", "aspect_ratio",
+                     "skill_mode", "skill_name", "backend", "preset", "task_preset"];
+    const fixed = [];
+    for (const name of targets) {
+      const w = findWidget(node, name);
+      if (!w) continue;
+      const choices = comboChoices(w);
+      if (!choices.length) continue;
+      const cur = readWidgetValue(w);
+      if (typeof cur === "string" && choices.includes(cur)) continue;
+      const def = w.options?.default;
+      const next = (typeof def === "string" && choices.includes(def)) ? def : choices[0];
+      try {
+        setWidgetValue(w, next);
+        fixed.push(`${name}→${next}`);
+      } catch (_) { /* ignore */ }
+    }
+    if (fixed.length) {
+      notify(`已修正 ${fixed.length} 个失效的下拉选项（老工作流残留值）：${fixed.join("、")}`, "success");
+    }
+    return fixed.length;
+  };
+
   const boot = () => {
     hideInternal();          // 工作流加载后 widget 可能被重建 → 重新藏
+    repairComboWidgets();    // 老工作流残留的下拉坏值 → 改回默认（后端也不再报错）
     refreshLatentGuard();    // 「空latent」未连线 → 空latent类型/画幅/宽高/数量变灰
     migrateLegacyOutput();
     syncPromptBoxFromWidget();
