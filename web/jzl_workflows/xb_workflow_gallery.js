@@ -178,20 +178,16 @@ function subcategoriesOf(items) {
 }
 
 /**
- * 新建空白工作流标签页。
- * 无 workflow 标签页机制的老版本会退化为清空当前画布，因此这里只做「尝试」。
+ * 标签页名字会直接变成用户数据里的文件名（workflows/<name>.json），
+ * 所以必须去掉路径分隔符等非法字符，避免拼出越界路径。
  */
-async function tryNewBlankWorkflow() {
-    try {
-        const command = app.extensionManager?.command;
-        if (command?.execute) {
-            await command.execute("Comfy.NewBlankWorkflow");
-            return true;
-        }
-    } catch (error) {
-        console.warn("[XB_ToolBox] 新建空白工作流失败，回退为替换当前画布", error);
-    }
-    return false;
+function workflowTabName(item) {
+    const cleaned = String(item.title || item.name || "")
+        .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80);
+    return cleaned || "JZL Workflow";
 }
 
 /** 打开清单里的一个工作流；返回是否新建了标签页 */
@@ -202,18 +198,22 @@ async function openWorkflowItem(item) {
 
     const workflowStore = app.extensionManager?.workflow;
     const before = new Set(workflowStore?.openWorkflows?.map((wf) => wf.path) ?? []);
+    const tabName = workflowTabName(item);
 
-    // 工作流自带 id 时 loadGraphData 会直接开新标签页；否则先补一个空白标签页，
-    // 避免顶掉用户当前画布。
-    if (!graph?.id && !graph?.path) await tryNewBlankWorkflow();
+    // 第 4 个参数是「工作流名字」，前端会据此新建一个临时工作流标签页，
+    // 标签页标题即该名字。传成路径（或省略）会让标签页拿到非法路径，
+    // 之后自动保存时 userdata 接口会 403。
+    await app.loadGraphData(graph, true, true, tabName);
 
-    await app.loadGraphData(graph);
-
-    // 模板不是用户保存过的文件，新标签页默认叫 “Unsaved Workflow (n)”，改成可读标题
     const created = workflowStore?.openWorkflows?.find((wf) => !before.has(wf.path));
-    if (created && workflowStore.renameWorkflow) {
+    if (created && /^workflows\/Unsaved Workflow/.test(created.path) && workflowStore.renameWorkflow) {
+        // 老版本前端会忽略第 4 个参数，标签页仍是 “Unsaved Workflow”；
+        // 此时补一次重命名（第二个参数是路径而不是标题）
+        const target = `workflows/${tabName}.json`;
         try {
-            await workflowStore.renameWorkflow(created, item.title);
+            if (!workflowStore.getWorkflowByPath?.(target)) {
+                await workflowStore.renameWorkflow(created, target);
+            }
         } catch (error) {
             console.warn("[XB_ToolBox] 重命名新标签页失败", error);
         }
