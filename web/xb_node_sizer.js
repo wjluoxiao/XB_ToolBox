@@ -73,6 +73,7 @@ const SIZES = {
     "XB_FluxMultiImageEncode": [360, 200],
     "XB_ReferenceAny": [360, 200],
     "XB_StringMerge": [360, 200],
+    "XB_PromptLine": [420, 260],
     "XB_MSR": [360, 200],
 };
 

@@ -134,6 +134,7 @@ try:
                                           XB_VAEEncodeForInpaint,
                                           _AliasVAEDecodeTemporal)
     from .nodes.core.nodes_string_merge import XB_StringMerge
+    from .nodes.core.nodes_prompt_line import XB_PromptLine
     from .nodes.core.nodes_clip_text_edit import XB_CLIPTextEdit
     from .nodes.core.nodes_lora_loader import XB_TripleLoraLoader, XB_TripleLoraLoaderModelOnly
     from .nodes.core.nodes_msr import XB_MSR
@@ -331,6 +332,7 @@ try:
         "XB_ModelLoaderV2_GGUF": XB_ModelLoaderV2_GGUF,
         "XB_ModelLoaderV3_GGUF": XB_ModelLoaderV3_GGUF,
         "XB_StringMerge": XB_StringMerge,
+        "XB_PromptLine": XB_PromptLine,
         "XB_CLIPTextEdit": XB_CLIPTextEdit,
         "XB_TripleLoraLoader": XB_TripleLoraLoader,
         "XB_TripleLoraLoaderModelOnly": XB_TripleLoraLoaderModelOnly,
@@ -503,6 +505,7 @@ try:
         "XB_WanInfiniteTalkToVideo_Single": "XB-BOX - 🎵 语音转视频分块（单人）",
         "XB_WanInfiniteTalkToVideo_Dual": "XB-BOX - 🎵 语音转视频分块（双人）",
         "XB_StringMerge": "XB-BOX - 📝 字符串合并",
+        "XB_PromptLine": "XB-BOX - 📝 提示词多行",
         "XB_CLIPTextEdit": "XB-BOX - 📝 CLIP 文本编辑",
         "XB_TripleLoraLoader": "XB-BOX - 🔗 三连 LoRA 加载",
         "XB_TripleLoraLoaderModelOnly": "XB-BOX - 🔗 三连 LoRA 加载（仅模型）",

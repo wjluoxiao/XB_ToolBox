@@ -2794,6 +2794,32 @@
       }
     }
   },
+  "XB_PromptLine": {
+    "display_name": "XB-BOX - 📝 提示词多行",
+    "description": "参考 Easy-Use 提示词行：多行文本按行切成列表输出（每行一项），可设起始行、最大行数与去除空行；「字符串」为 STRING 列表，「COMBO」为任意类型列表，可把下拉选项逐项喂给下游节点。",
+    "inputs": {
+      "prompt": {
+        "name": "提示词"
+      },
+      "start_index": {
+        "name": "起始行"
+      },
+      "max_rows": {
+        "name": "最大行数"
+      },
+      "remove_empty_lines": {
+        "name": "去除空行"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "字符串"
+      },
+      "1": {
+        "name": "COMBO"
+      }
+    }
+  },
   "XB_MSR": {
     "display_name": "XB-BOX - 🎞️ MSR 多图合成帧序列",
     "inputs": {

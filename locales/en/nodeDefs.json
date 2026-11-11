@@ -235,6 +235,32 @@
   "XB_StringMerge": {
     "display_name": "XB-BOX - 📝 String Merge"
   },
+  "XB_PromptLine": {
+    "display_name": "XB-BOX - 📝 Prompt Lines",
+    "description": "Inspired by Easy-Use PromptLine: split multiline text into a per-line list output, with start row, max rows and empty-line removal. 'STRING' is a string list, 'COMBO' is an any-type list for feeding combo options downstream.",
+    "inputs": {
+      "prompt": {
+        "name": "Prompt"
+      },
+      "start_index": {
+        "name": "Start Row"
+      },
+      "max_rows": {
+        "name": "Max Rows"
+      },
+      "remove_empty_lines": {
+        "name": "Remove Empty Lines"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "String"
+      },
+      "1": {
+        "name": "COMBO"
+      }
+    }
+  },
   "XB_MSR": {
     "display_name": "XB-BOX - 🎞️ MSR Multi-Image Frame Sequence"
   },
