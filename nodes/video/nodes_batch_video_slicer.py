@@ -147,13 +147,20 @@ def _probe_length(value, fallback_fps: float):
 
 
 def _decode_range(value, start_seconds: float, duration_seconds: float):
-    """只解码 [start, start+duration) 这一段，返回 (帧张量, 音频, 帧率)；失败返回 None。"""
+    """只解码 [start, start+duration) 这一段，返回 (帧张量, 音频, 帧率)；失败返回 None。
+
+    注意：官方 VideoFromFile.as_trimmed 默认 strict_duration=True，剩余时长不足请求时长时
+    直接返回 None —— 这会把「最后一段不足整段」的那段整段丢掉。所以这里必须显式关掉它。
+    """
     try:
+        trimmed = value.as_trimmed(start_seconds, duration_seconds, strict_duration=False)
+    except TypeError:
         trimmed = value.as_trimmed(start_seconds, duration_seconds)
     except Exception as e:
-        print(f"[视频批量切片] 按段裁剪失败，回退整段解码：{e}")
+        print(f"[视频批量切片] 按段裁剪失败：{e}")
         return None
     if trimmed is None:
+        print(f"[视频批量切片] 该段裁剪为空（起始 {start_seconds:.3f}s / 时长 {duration_seconds:.3f}s），已跳过")
         return None
     try:
         components = trimmed.get_components()
