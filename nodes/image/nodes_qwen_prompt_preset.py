@@ -5,7 +5,7 @@ XB-BOX - 🖼️ Qwen2.1提示词预设
 把「LLM 反推」换成 **官方 Load CLIP + 官方 Generate Text** 这套纯本地文本生成链路。
 
 ① 生图预设
-   · 空latent类型（9 种主流模型，逐字段对齐官方 latent_format）
+   · latent类型（9 种主流模型，逐字段对齐官方 latent_format）
    · 输出语言 / 预设模式 / 设定词（三视图·四视图·五视图·背景纯透明）
    · 画幅比例 / 宽度 / 高度 / 生成数量
    · 元素面板提示词拼装（8 大类词表，前端 js/xb_qwen_prompt_preset.js）
@@ -48,7 +48,7 @@ import comfy.sd
 ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"]
 ASPECT_RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16,
                     "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2}
-SIZE_STEP = 16            # 宽高步长的兜底值（实际以「空latent类型」的官方最小步长为准：8/16/32）
+SIZE_STEP = 16            # 宽高步长的兜底值（实际以「latent类型」的官方最小步长为准：8/16/32）
 SIZE_MIN = 16
 BATCH_MAX = 4096          # 官方 EmptyLatentImage / EmptySD3LatentImage 的 batch 上限
 MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
@@ -679,7 +679,7 @@ from ...libs.xb_skills import skill_sig as _skill_signer
 from ...libs.xb_skills import skill_text as _read_skill_text
 
 DEFAULT_LANG = OUTPUT_LANGS[0]
-# 用户要求：本节点的空latent类型默认 Qwen-image（与节点定位一致）
+# 用户要求：本节点的latent类型默认 Qwen-image（与节点定位一致）
 DEFAULT_LATENT = "Qwen-image" if "Qwen-image" in LATENT_KINDS else DEFAULT_LATENT_KIND
 
 # ══════════════════════════════════════════════════════════════
@@ -894,7 +894,7 @@ class XB_QwenPromptPreset:
                 # ══ ① 生图预设（与「🖼️ 生图提示词预设」一致）══
                 "latent_kind": (list(LATENT_KINDS), {
                     "default": DEFAULT_LATENT,
-                    "tooltip": "空latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）",
+                    "tooltip": "latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）",
                 }),
                 "output_lang": (list(OUTPUT_LANGS), {
                     "default": DEFAULT_LANG,
@@ -929,11 +929,11 @@ class XB_QwenPromptPreset:
                 }),
                 "width": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片宽度（步长按「空latent类型」的官方最小步长 8/16/32）",
+                    "tooltip": "图片宽度（步长按「latent类型」的官方最小步长 8/16/32）",
                 }),
                 "height": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片高度（步长按「空latent类型」的官方最小步长 8/16/32）",
+                    "tooltip": "图片高度（步长按「latent类型」的官方最小步长 8/16/32）",
                 }),
                 "batch_size": ("INT", {
                     "default": 1, "min": 1, "max": BATCH_MAX,
@@ -1047,7 +1047,7 @@ class XB_QwenPromptPreset:
     OUTPUT_IS_LIST = (False, False)
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("Qwen2.1提示词预设：生图预设（空latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板拼装）"
+    DESCRIPTION = ("Qwen2.1提示词预设：生图预设（latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板拼装）"
                    "＋ 官方 Load CLIP 与官方 Generate Text（纯本地文本生成）。"
                    "「启用 / 关闭 LLM 增强」在弹窗「🤖 LLM设置」顶部（默认启用；关闭 = 只输出拼装好的提示词）。"
                    "输出：提示词 / 空latent。")

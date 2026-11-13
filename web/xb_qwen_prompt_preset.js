@@ -10,7 +10,7 @@
  * XB-BOX - 🖼️ 生图提示词预设 — 前端面板
  * ============================================================
  * 节点：XB_ImagePromptPreset（后端 nodes_image_prompt_preset.py，V1 经典 API）
- * 表面：空latent类型 / 输出语言 / 预设模式 / （三视图/四视图/五视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
+ * 表面：latent类型 / 输出语言 / 预设模式 / （三视图/四视图/五视图预设句）/ 画幅比例 / 宽度 / 高度 / 生成数量
  *       ＋ 节点提示词框 ＋ 8 个分类按钮（4 列 × 2 行）：🏷️ 风格 ｜ 🎥 视角 ｜ 👤 主体 ｜ 🎬 姿态 ｜ 👚 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景
  *       每个按钮一个面板，面板顶部「分类签」切子类；选项行整行可点（加入 → 变蓝 ✔ / 再点移除）
  *       道具类点行会先弹「与主体的关系」多宫格标签窗（30 个关系词）
@@ -29,7 +29,7 @@
  */
 
 import { app } from "../../scripts/app.js";
-import { bindNodes2NodeFill } from "./xb_compat.js";
+import { installStableNodeHeight } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_QwenPromptPreset";
 
@@ -104,7 +104,7 @@ function modeHasImage(node) {
 
 
 const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2 };
-const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
+const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「latent类型」的官方最小步长为准）
 const SIZE_MIN = 16;
 const SIZE_MAX = 16384;
 const BATCH_MAX = 4096;
@@ -1607,7 +1607,7 @@ function bindWheelZoom(root) {
  *  配置读写
  * ============================================================ */
 function defaultSettings() {
-  // ⚠️ 自 0.9.x 起：输出语言 / 预设模式 / 预设句 / 空latent类型 已上提为**节点表面参数**，
+  // ⚠️ 自 0.9.x 起：输出语言 / 预设模式 / 预设句 / latent类型 已上提为**节点表面参数**，
   //    不再存在这份 JSON 里；JSON 只留元素面板配置 + 自动保存开关。
   return {
     auto_save: true,
@@ -1768,7 +1768,7 @@ function pickOpt(options, value, def) {
   const v = (value == null) ? "" : String(value).trim();
   return options.includes(v) ? v : def;
 }
-/** 步长锁定（与后端 _round_step 一致：floor(v/step + 0.5)；step/min/max 由空latent类型决定） */
+/** 步长锁定（与后端 _round_step 一致：floor(v/step + 0.5)；step/min/max 由latent类型决定） */
 function roundStep(v, step = SIZE_STEP, minSize = SIZE_MIN, maxSize = SIZE_MAX) {
   const n = Math.floor((Number(v) || 0) / step + 0.5) * step;
   return Math.max(minSize, Math.min(maxSize, n));
@@ -2863,7 +2863,7 @@ function setupNode(node) {
     kind: pickOpt(LATENT_KINDS, readWidgetValue(wKind), DEFAULT_LATENT_KIND),
     presetText: String(readWidgetValue(w3v) ?? ""),
   });
-  /** 当前空latent类型对应的步长/上下限（后端按同一张表算，保证所见即所得） */
+  /** 当前latent类型对应的步长/上下限（后端按同一张表算，保证所见即所得） */
   const sizeOpt = () => {
     const sp = latentSpec(surfaceOf().kind);
     return { step: sp.step, min: sp.min, max: sp.max };
@@ -2977,19 +2977,19 @@ function setupNode(node) {
     node.setDirtyCanvas?.(true, true);
   };
 
-  // 空latent类型 → 同步 width/height/batch 的原生 step & 上下限（箭头/拖动按官方步长走）
+  // latent类型 → 同步 width/height/batch 的原生 step & 上下限（箭头/拖动按官方步长走）
   const applyKindLimits = () => {
     const sp = latentSpec(surfaceOf().kind);
     for (const w of [wW, wH]) {
       if (w && w.options) { w.options.step = w.options.step2 = sp.step; w.options.min = sp.min; w.options.max = sp.max; }
     }
     if (wB && wB.options) wB.options.max = sp.batchMax;
-    if (wKind && wKind.options) wKind.options.tooltip = `空latent类型（${sp.desc}）\n尺寸步长 ${sp.step}，batch 上限 ${sp.batchMax}。\n选你正在用的模型即可，形状/下采样/步长会自动适配。`;
+    if (wKind && wKind.options) wKind.options.tooltip = `latent类型（${sp.desc}）\n尺寸步长 ${sp.step}，batch 上限 ${sp.batchMax}。\n选你正在用的模型即可，形状/下采样/步长会自动适配。`;
     const b = parseInt(readWidgetValue(wB), 10) || 1;
     if (b > sp.batchMax) setWidgetValue(wB, sp.batchMax);
   };
 
-  // ── 画幅比例 + 步长联动（语义对齐 js/xb_video.js；步长按当前空latent类型） ──
+  // ── 画幅比例 + 步长联动（语义对齐 js/xb_video.js；步长按当前latent类型） ──
   let syncing = false;
   const snapByWidth = () => {
     if (syncing) return;
@@ -3113,79 +3113,45 @@ function setupNode(node) {
   node._xbDomWidget = widget;
   node._xbSyncWidth = syncDomWidth;   // 供 canvas.onDrawForeground 每帧调用
 
-  // 尺寸刷新 —— 照抄短剧导演台 `refreshSize`：
-  //   ① 用 LiteGraph 自己的 computeSize() 算高度（不读任何 DOM 尺寸 → 无反馈环）
-  //   ② 只做「下限保护」：未设置 / 小于下限时才 setSize，绝不覆盖用户拖拽出来的高度
-  //   ③ 只在「初始化(3 次) + 工作流加载(configure)」调用，打字 / 面板保存 / onResize 一律不调
-  // ⚠️ 这就是「整个界面卡顿」的隔离带：一旦在打字或 onResize 里调它，
-  //    setSize → onResize → setSize 会形成抖动环，每帧整画布重绘 → 全界面卡。
-  // 下限 = 标题 + 各可见 widget 实际高度（多行 STRING 会更高）+ DOM 固定行 + 提示词框最小高度。
-  // 这样 4 个或 8 个表面参数（三视图预设句框显/隐）都自适应，不用手写魔数。
-  const widgetRowH = (w) => {
-    try {
-      const s = w && w.computeSize ? w.computeSize(node.size?.[0] || 420) : null;
-      if (Array.isArray(s) && Number.isFinite(s[1]) && s[1] > 0) return s[1];
-    } catch (_) {}
-    return (w && (w.type === "hidden" || w.hidden)) ? 0 : 26;
-  };
-  const minNodeHeight = () => {
-    let h = 30;   // 节点标题
-    for (const w of (node.widgets || [])) h += widgetRowH(w);
-    return Math.max(420, Math.round(h + DOM_FIXED_H + TEXT_MIN_H));
-  };
-  refreshSize = () => {
-    try {
-      lockMinWidth();
-      syncDomWidth();
-      const size = node.computeSize?.();
-      const computed = (Array.isArray(size) && Number.isFinite(size[1])) ? size[1] : 0;
-      const need = Math.max(computed, minNodeHeight());   // 取「原生计算」与「DOM 需求」的较大值
-      if (!node.size || !Number.isFinite(node.size[1]) || node.size[1] < need) {
-        node.setSize?.([node.size?.[0] || MIN_W, need]);
-      }
-    } catch (_) {}
-    node.setDirtyCanvas?.(true, true);
-  };
-  // ⚠️ 不能在这里同步跑 refreshSize：工作流加载时 configure 还没应用存档尺寸，
-  //    先按默认 widget 算出来的高度会让节点「长高一下」，随后被存档高度拉回 → 刷新瞬间高度闪烁。
-  //    排到本轮任务末尾（configure 已落定）再做下限保护。
-  setTimeout(refreshSize, 0);
-  setTimeout(refreshSize, 60);
-  setTimeout(refreshSize, 1200);   // 兜底：加载工作流后 widget 才铺完时再校正一次（只增不减）
+  // 尺寸刷新 —— 用「常量 + 白名单行数」计算，绝不读 widget 运行时状态
+  //   ⚠️ 历史坑（已由 installStableNodeHeight 彻底修好）：以前用 node.computeSize() +
+  //      遍历 node.widgets 求和，工作流加载/切图时 widget 被重建、hidden 标记短暂丢失，
+  //      会把「全部 widget 可见」的巨大高度一次固化下来（且只增不减）→ 节点偶发自动变高。
+  const SURFACE_ROWS = 4;   // 表面可见参数：画幅比例/宽度/高度/生成数量（其余全在弹窗里）
+  const stableH = installStableNodeHeight(node, {
+    minWidth: MIN_W,
+    rows: SURFACE_ROWS,
+    domFixedH: DOM_FIXED_H,
+    textMinH: TEXT_MIN_H,
+    getDomWidget: () => widget,
+  });
+  const minNodeHeight = () => stableH.measure();
+  refreshSize = () => { stableH.align(); syncDomWidth(); };
   node._xbRefreshSize = refreshSize;
   node._xbEl = container;   // 调试/自动化定位用
 
-  // Nodes 2.0：面板里的提示词框不会自己长高（节点高度由 DOM 内容主导，flex:1 停在 min-height）
-  //   → 默认 300px；用户拖节点尺寸手柄时按指针位移实时跟随（两个方向都跟手）；
-  //   切回经典模式自动还原原样，交回原有 flex 布局。
-  // ⚠️ 不能只把「提示词框」钉成固定 px：节点拖高后容器高度仍由内容决定 ⇒ 框下方留一片空白
-  //    （用户报障）。这里改钉**容器**：高度 = `--node-height`（前端自带的 CSS 变量）− 实测 chrome，
-  //    容器内的 flex 链（标签 + 提示词框 flex:1）自然把框撑到节点下边缘。
-  try {
-    node._xbUninstallNodeFill = bindNodes2NodeFill(node, container, { min: DOM_MIN_H });
-  } catch (e) { console.warn("[XB-生图提示词预设] 2.0 高度跟随安装失败", e); }
+  // ⚠️ 不再使用 bindNodes2NodeFill：它会按 `calc(--node-height - 实测 top - PAD)` 写死容器高度，
+  //    实测 top 一旦偏小，容器就会被算得比可用空间大 ⇒ DOM 撑破节点 ⇒ 视觉底边失控 / 拖拽弹跳。
+  //    容器自身的 `height:100%` + 内部 flex 链已经能把提示词框撑到节点下边缘，无需额外干预。
 
-  // 节点 resize：立即同步 overlay 宽度 + 重绘；防抖后只校正「最小宽度 / 最小高度」。
-  // ⚠️ 高度下限是硬约束（输入框永远 ≥500px）：拖小节点时一次性拉回，
-  //    拉回后尺寸已等于下限 → 不会再次触发 setSize，不会形成抖动环。
+  // 节点 resize：只同步 overlay 宽度 + 重绘。
+  //   高度下限/用户高度由 installStableNodeHeight 内部处理（区分「用户拖拽」与「程序写入」），
+  //   这里不再调 setSize，避免与之打架形成抖动环。
   let _xbResizeTimer = null;
-  let _xbClamping = false;
   const prevOnResize = node.onResize;
   node.onResize = function (...args) {
     const rr = prevOnResize?.apply(this, args);
     try {
       syncDomWidth();
-      if (!_xbClamping) {
-        const need = minNodeHeight();
-        const cur = Number.isFinite(node.size?.[1]) ? node.size[1] : 0;
-        if (cur < need) {
-          _xbClamping = true;
-          try { node.setSize?.([node.size?.[0] || MIN_W, need]); } finally { _xbClamping = false; }
-        }
-      }
       node.setDirtyCanvas?.(true, true);
       clearTimeout(_xbResizeTimer);
-      _xbResizeTimer = setTimeout(() => { lockMinWidth(); syncDomWidth(); node.setDirtyCanvas?.(true, true); }, 200);
+      _xbResizeTimer = setTimeout(() => {
+        lockMinWidth();
+        syncDomWidth();
+        // 松手后补一次网格对齐：原生拖拽按网格步进 size，但视觉底边还要加 chrome 才压线
+        try { stableH.align(); } catch (_) {}
+        node.setDirtyCanvas?.(true, true);
+      }, 200);
     } catch (_) {}
     return rr;
   };
@@ -3227,7 +3193,7 @@ function setupNode(node) {
         if (MODES.includes(out.preset_mode)) setWidgetValue(wMode, out.preset_mode);
         if (typeof out.three_view_text === "string" && out.three_view_text.trim()) setWidgetValue(w3v, out.three_view_text);
         if (String(out.latent_channels || "").startsWith("16")) setWidgetValue(wKind, LATENT_KINDS[1]);
-        notify("已把旧版「输出设置」里的语言/模式/预设句/空latent类型迁到节点表面参数", "success");
+        notify("已把旧版「输出设置」里的语言/模式/预设句/latent类型迁到节点表面参数", "success");
       }
       if (out !== undefined) {
         delete data.output;
@@ -3239,9 +3205,12 @@ function setupNode(node) {
   // ── 载入 / 执行后的对齐 ──
   const boot = () => {
     hideInternal();          // 工作流加载后 widget 可能被重建 → 重新藏
+      // ⚠️ 关键时序：必须先 hideInternal()（内部字段全部藏好）再 markReady()，
+      //    否则「隐藏还没打上」的那一拍会把全可见高度固化下来（旧的偶发变高就是这样产生的）。
+      try { stableH.markReady(); } catch (_) {}
     migrateLegacyOutput();
     syncPromptBoxFromWidget();
-    applyKindLimits();       // 按当前空latent类型同步 step / 上下限
+    applyKindLimits();       // 按当前latent类型同步 step / 上下限
     applyPresetTextVisibility();
     // 设定词：以「用户存档 → 当前模版默认」为准
     //   · 空 → 当前模版默认（无预设 → 默认就是空 → 保持空）；
@@ -3319,7 +3288,7 @@ const XBR_MTP_MODES = ["auto", "off", "2", "3", "4", "5"];
 const XBR_LLM_MODES = ["启用LLM增强", "关闭LLM增强"];
 const XBR_PANEL_BUTTONS = [
   { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "顶部 = LLM 增强总开关（默认启用）；模型选择 = 官方 Load CLIP；参数设置 = 官方 Generate Text 全量参数。" },
-  { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "输出语言 / 空latent类型 / 预设模式 / 设定词 / SKILL。提示词正文在节点上的提示词框里编辑。" },
+  { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "输出语言 / latent类型 / 预设模式 / 设定词 / SKILL。提示词正文在节点上的提示词框里编辑。" },
 ];
 /** 全部收进弹窗的节点 widget（节点表面只留画幅参数 / 生成数量） */
 const XBR_QWEN_WIDGETS = [
@@ -3615,8 +3584,8 @@ function xbrRenderPreset(body, node, draft, ctx) {
     ctx.rerender();
   })));
   body.append(xbrHint("输出语言决定：词表与设定词按哪种语言加载、生成文本是中文还是英文。"));
-  body.append(field("空latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
-  body.append(xbrHint("空latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
+  body.append(field("latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
+  body.append(xbrHint("latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
   // ── 模版（文生图 / 图生图）：决定用哪一套设定词（每个预设模式都有两套）──
   body.append(field("模版", radioRow(XBR_IO_MODES, draft.ioMode, (v) => {
     draft.ioMode = v;
@@ -3737,11 +3706,11 @@ function xbrRenderHelp(body) {
     "  2. 送模型 = 【参考设定·本档设定词】+【正文】",
     "     （选中 SKILL 时，SKILL 全文另作为系统提示词送到最前面）",
     "  3. 输出提示词 = 本档设定词原封不动置顶 + 模型生成的正文",
-    "  4. 输出空latent = 按空latent类型/画幅参数生成的空 latent",
+    "  4. 输出空latent = 按latent类型/画幅参数生成的空 latent",
     "",
     "【三步上手 · 文生图】",
     "  1. 🤖 LLM设置 选模型（类型 qwen_image，设备 default）",
-    "  2. ✨ 预设参数 选输出语言 + 空latent类型 + 预设模式",
+    "  2. ✨ 预设参数 选输出语言 + latent类型 + 预设模式",
     "     （文生图组）+ SKILL 模式（保持自动即可）",
     "  3. 📊 空latent 接采样器、📝 提示词 接文本编码器，点运行",
     "",
@@ -3757,7 +3726,7 @@ function xbrRenderHelp(body) {
     "【节点表面】",
     "  · 第 1 行按钮：🤖 LLM设置 ｜ ✨ 预设参数",
     "  · 第 2 行按钮：🎨 风格 ｜ 📐 视角 ｜ 👤 主体 ｜ 🕺 姿态 ｜ 👗 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景",
-    "  · 画幅比例 / 宽度 / 高度 / 生成数量：按空latent类型的官方步长自动对齐",
+    "  · 画幅比例 / 宽度 / 高度 / 生成数量：按latent类型的官方步长自动对齐",
     "  · 提示词框右上角 📋 复制；下面是参数设定显示，实时告诉你当前配置",
     "  · 开关：🤖 LLM设置 顶部「启用LLM增强 / 关闭LLM增强」（默认启用）；",
     "    关闭后执行节点只用拼装好的提示词，不加载文本编码器、不生成文本",
@@ -3795,7 +3764,7 @@ function xbrRenderHelp(body) {
     "  · 这两个技能要求输出单行 JSON：正常，见【常见问题】",
     "",
     "【✨ 预设参数】",
-    "  · 生图预设：输出语言 / 空latent类型 / 预设模式 / 设定词",
+    "  · 生图预设：输出语言 / latent类型 / 预设模式 / 设定词",
     "  · SKILL 模式（自动 / 手动 / 不用）：见上",
     "  · 设定词：见上（无预设档则不前置）",
     "",

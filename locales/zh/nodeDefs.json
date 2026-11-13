@@ -5263,10 +5263,10 @@
   },
   "XB_ImagePromptPresetPro": {
     "display_name": "XB-BOX - 🖼️ 生图提示词预设Pro",
-    "description": "生图提示词预设 + 提示词增强反推 融合：空latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 空latent / 提示词列表 / 提示词设定。",
+    "description": "生图提示词预设 + 提示词增强反推 融合：latent类型/画幅参数 + 8 大类元素面板拼装提示词；可选 LLM 反推（本地模型或在线 API，增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。输出：提示词 / 空latent / 提示词列表 / 提示词设定。",
     "inputs": {
       "latent_kind": {
-        "name": "空latent类型"
+        "name": "latent类型"
       },
       "output_lang": {
         "name": "输出语言"
@@ -5299,7 +5299,7 @@
         "name": "生成数量"
       },
       "use_llm": {
-        "name": "✅ 启用 LLM 反推"
+        "name": "启用LLM"
       },
       "backend": {
         "name": "LLM 后端"
@@ -5334,10 +5334,10 @@
   },
   "XB_QwenPromptPreset": {
     "display_name": "XB-BOX - 🖼️ Qwen2.1提示词预设",
-    "description": "生图提示词预设 + 官方 Load CLIP + 官方 Generate Text：空latent类型 / 画幅参数 + 8 大类元素面板拼装提示词，再用文本编码器把正文生成成完整提示词。输出：提示词 / 空latent。",
+    "description": "生图提示词预设 + 官方 Load CLIP + 官方 Generate Text：latent类型 / 画幅参数 + 8 大类元素面板拼装提示词，再用文本编码器把正文生成成完整提示词。输出：提示词 / 空latent。",
     "inputs": {
       "latent_kind": {
-        "name": "空latent类型"
+        "name": "latent类型"
       },
       "output_lang": {
         "name": "输出语言"
@@ -5443,7 +5443,7 @@
         "name": "预设模式"
       },
       "latent_kind": {
-        "name": "空latent类型"
+        "name": "latent类型"
       },
       "three_view_text": {
         "name": "预设句（右上角按钮管理预设）"
@@ -5478,10 +5478,10 @@
   },
   "XB_ImagePreset": {
     "display_name": "XB-BOX - 🖼️ 生图提示词预设（图）",
-    "description": "生图提示词预设的全部能力（空latent类型 + 画幅比例/宽高/数量 + 8 大类元素面板拼词 + 预设文件），外加「🎬 姿态参考图选择 / 👚 穿搭参考图选择」两个按钮：可绑定带素材清单的整套图库（体系/分类/视角/标签筛选 + 姿势分组 + 视角条）或任意普通图片文件夹（按文件名多宫格）。参考图可单独勾选「禁用」：禁用后该输出不做任何输出（等同 mute），下游节点会被跳过。输出：提示词 / 空latent / 姿态图 / 穿搭图。",
+    "description": "生图提示词预设的全部能力（latent类型 + 画幅比例/宽高/数量 + 8 大类元素面板拼词 + 预设文件），外加「🎬 姿态参考图选择 / 👚 穿搭参考图选择」两个按钮：可绑定带素材清单的整套图库（体系/分类/视角/标签筛选 + 姿势分组 + 视角条）或任意普通图片文件夹（按文件名多宫格）。参考图可单独勾选「禁用」：禁用后该输出不做任何输出（等同 mute），下游节点会被跳过。输出：提示词 / 空latent / 姿态图 / 穿搭图。",
     "inputs": {
       "latent_kind": {
-        "name": "空latent类型"
+        "name": "latent类型"
       },
       "output_lang": {
         "name": "输出语言"

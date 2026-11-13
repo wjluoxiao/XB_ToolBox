@@ -4,7 +4,7 @@ XB-BOX - 🖼️ 生图提示词预设Pro
 融合「XB-BOX - 🖼️ 生图提示词预设」与「XB-llama - ✨ 提示词增强反推」两个节点：
 
 ① 生图预设（原节点全部能力）
-   · 空latent类型（9 种主流模型，逐字段对齐官方 latent_format）
+   · latent类型（9 种主流模型，逐字段对齐官方 latent_format）
    · 输出语言 / 预设模式 / 设定词（三视图·四视图·五视图·背景纯透明）
        - 设定词既作为 LLM 的**增强参考**，也（启用 LLM 时）被**原封不动**加在最终提示词最顶端；
        - 用户改过的设定词按「模式 + 语言」存在本节点里，换模式 / 换语言都不会丢。
@@ -69,7 +69,7 @@ from ...libs.xb_skills import SKILL_NONE, skill_list, skill_sig, skill_text
 ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"]
 ASPECT_RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16,
                     "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2}
-SIZE_STEP = 16            # 宽高步长的兜底值（实际以「空latent类型」的官方最小步长为准：8/16/32）
+SIZE_STEP = 16            # 宽高步长的兜底值（实际以「latent类型」的官方最小步长为准：8/16/32）
 SIZE_MIN = 16
 BATCH_MAX = 4096          # 官方 EmptyLatentImage / EmptySD3LatentImage 的 batch 上限
 MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
@@ -725,7 +725,7 @@ class XB_ImagePromptPresetPro:
                 # ══ ① 生图预设（顺序与「🖼️ 生图提示词预设」保持一致）══
                 "latent_kind": (list(LATENT_KINDS), {
                     "default": DEFAULT_LATENT_KIND,
-                    "tooltip": "空latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）",
+                    "tooltip": "latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）",
                 }),
                 "output_lang": (list(OUTPUT_LANGS), {
                     "default": DEFAULT_LANG,
@@ -758,11 +758,11 @@ class XB_ImagePromptPresetPro:
                 }),
                 "width": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片宽度（步长按「空latent类型」的官方最小步长 8/16/32）",
+                    "tooltip": "图片宽度（步长按「latent类型」的官方最小步长 8/16/32）",
                 }),
                 "height": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片高度（步长按「空latent类型」的官方最小步长 8/16/32）",
+                    "tooltip": "图片高度（步长按「latent类型」的官方最小步长 8/16/32）",
                 }),
                 "batch_size": ("INT", {
                     "default": 1, "min": 1, "max": BATCH_MAX,
@@ -823,7 +823,7 @@ class XB_ImagePromptPresetPro:
     OUTPUT_IS_LIST = (False, False, True, False)
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("生图提示词预设Pro：生图预设（空latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板提示词拼装）"
+    DESCRIPTION = ("生图提示词预设Pro：生图预设（latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板提示词拼装）"
                    "＋ LLM 提示词增强反推（本地模型或在线 API、增强预设、反推预设、追加设定、采样参数、生成后控制）。"
                    "「启用 LLM 反推」关 = 原预设行为；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。")
 

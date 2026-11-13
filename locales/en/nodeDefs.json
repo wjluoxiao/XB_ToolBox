@@ -489,10 +489,10 @@
   },
   "XB_ImagePromptPresetPro": {
     "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro",
-    "description": "Image Prompt Preset + Prompt Enhance/Reverse fused: empty latent type + aspect params + 8-category element panel; optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Outputs: prompt / prompt list / prompt settings / empty latent.",
+    "description": "Image Prompt Preset + Prompt Enhance/Reverse fused: latent type + aspect params + 8-category element panel; optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Outputs: prompt / prompt list / prompt settings / empty latent.",
     "inputs": {
       "latent_kind": {
-        "name": "Empty Latent Type"
+        "name": "Latent Type"
       },
       "output_lang": {
         "name": "Output Language"
@@ -525,7 +525,7 @@
         "name": "Batch Size"
       },
       "use_llm": {
-        "name": "✅ Enable LLM Enhance"
+        "name": "Enable LLM"
       },
       "backend": {
         "name": "LLM Backend"
@@ -560,10 +560,10 @@
   },
   "XB_QwenPromptPreset": {
     "display_name": "XB-BOX - 🖼️ Qwen2.1 Prompt Preset",
-    "description": "Image prompt preset + official Load CLIP + official Generate Text: empty latent type / aspect params + 8-category element panel, then the text encoder turns the body into a full prompt. Outputs: prompt / empty latent.",
+    "description": "Image prompt preset + official Load CLIP + official Generate Text: latent type / aspect params + 8-category element panel, then the text encoder turns the body into a full prompt. Outputs: prompt / empty latent.",
     "inputs": {
       "latent_kind": {
-        "name": "Empty Latent Type"
+        "name": "Latent Type"
       },
       "output_lang": {
         "name": "Output Language"
@@ -669,7 +669,7 @@
         "name": "Preset Mode"
       },
       "latent_kind": {
-        "name": "Empty Latent Type"
+        "name": "Latent Type"
       },
       "three_view_text": {
         "name": "Preset Text (manage presets from the buttons above)"
@@ -707,7 +707,7 @@
     "description": "Everything in Image Prompt Preset (latent type + aspect ratio / size / batch + 8-element prompt panels + preset files), plus two pickers: Pose Reference and Outfit Reference. Bind a catalogued gallery (filter by system / category / angle / tag, grouped by pose with an angle strip) or any plain image folder (grid by file name). Each reference can be disabled: a disabled output produces nothing (like muting it) and skips downstream nodes. Outputs: prompt / empty latent / pose image / outfit image.",
     "inputs": {
       "latent_kind": {
-        "name": "Empty Latent Type"
+        "name": "Latent Type"
       },
       "output_lang": {
         "name": "Output Language"

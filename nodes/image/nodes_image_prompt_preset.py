@@ -3,7 +3,7 @@
 一个节点顶替「提示词输入框 + 画幅比例节点 + 官方空 latent」三件套：
 
 · 表面参数（顺序 = 节点上从上到下的显示顺序）：
-    空latent类型 / 输出语言 / 预设模式 / 画幅比例 / 宽度 / 高度 / 生成数量
+    latent类型 / 输出语言 / 预设模式 / 画幅比例 / 宽度 / 高度 / 生成数量
   —— 画幅比例 + 步长锁定 + 比例联动 100% 复刻本包「XB-BOX - 🖼️ 图片参数大全」
      （去掉强度(小数)/强度(整数)/缩放尺寸三项）
   —— 预设句不再是表面参数（节点上没有文本显示框）：选哪个预设模式，就用该模式预设 txt 的内容
@@ -33,7 +33,7 @@
 · `manager_settings`（内部字段，由前端面板隐藏，表面不显示）只存**元素面板配置 JSON**
   （已选词条 / 自建槽位 / 补充描述 / 自动保存），随工作流保存、节点间互不影响；
 · `internal_prompt`（内部字段，同上前端隐藏）存提示词正文；
-· 空latent类型 / 输出语言 / 预设模式 / 预设句 都是**节点表面参数**（随工作流保存）。
+· latent类型 / 输出语言 / 预设模式 / 预设句 都是**节点表面参数**（随工作流保存）。
 
 预设模式 = 预设 txt 文件（见 xb_presets.py）：
 · 目录 `xb_skill/XB_ImagePromptPreset/ZH` 与 `.../EN`，**一个 txt = 一个选项**；
@@ -56,7 +56,7 @@ from ...libs import xb_presets
 ASPECT_RATIO_OPTIONS = ["Free", "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "2:3", "3:2"]
 ASPECT_RATIO_MAP = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16,
                     "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9, "2:3": 2 / 3, "3:2": 3 / 2}
-SIZE_STEP = 16            # 宽高步长的兜底值（实际以「空latent类型」的官方最小步长为准：8/16/32）
+SIZE_STEP = 16            # 宽高步长的兜底值（实际以「latent类型」的官方最小步长为准：8/16/32）
 SIZE_MIN = 16
 BATCH_MAX = 4096          # 官方 EmptyLatentImage / EmptySD3LatentImage 的 batch 上限
 MAX_RESOLUTION = int(getattr(nodes, "MAX_RESOLUTION", 16384) or 16384)
@@ -321,7 +321,7 @@ ELEMENT_CATEGORIES = ("prefix", "angle", "subject", "action", "clothes", "props"
 def _default_settings():
     """节点默认配置（与前端 js/xb_image_prompt_preset.js 的 defaultSettings() 一一对应）。
 
-    ⚠️ 自 0.9.x 起：输出语言 / 预设模式 / 预设句 / 空latent类型 已上提为**节点表面参数**，
+    ⚠️ 自 0.9.x 起：输出语言 / 预设模式 / 预设句 / latent类型 已上提为**节点表面参数**，
     不再存在这份 JSON 里（JSON 只留元素面板配置 + 自动保存开关）。
     """
     return {
@@ -812,7 +812,7 @@ def build_prompt(lang, preset_mode, three_view_text, body, has_image=None, io_mo
 class XB_ImagePromptPreset:
     """XB-BOX - 🖼️ 生图提示词预设：画幅参数 + 提示词拼装 + 官方空 latent 一体化。
 
-    · 表面参数顺序 = 空latent类型 / 输出语言 / 预设句（带「添加预设 / 编辑预设 / 复制文本」三个小按钮）
+    · 表面参数顺序 = latent类型 / 输出语言 / 预设句（带「添加预设 / 编辑预设 / 复制文本」三个小按钮）
       / 画幅比例 / 宽度 / 高度 / 生成数量（「预设模式」下拉已取消，字段仅作老工作流兼容保留）；
     · 「提示词」输出 = 预设句 + 节点提示词框正文；
     · 「空latent」输出 = 官方空 latent（见 LATENT_KINDS，共 11 种，逐字段对齐，选项按首字母排列）。
@@ -826,7 +826,7 @@ class XB_ImagePromptPreset:
                 # ── 空latent 类型放最顶（用户要求）──
                 "latent_kind": (list(LATENT_KINDS), {
                     "default": DEFAULT_LATENT_KIND,
-                    "tooltip": "空latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）。\n"
+                    "tooltip": "latent类型：选你正在用的模型即可（自动适配形状/下采样/步长）。\n"
                                "Z-image 16ch·/8·16　Flux2 128ch·/16·16　Flux3 128ch·/16·16（同 Flux2）\n"
                                "Moss-image 128ch·/16·16（同 Flux2）　Qwen-image 16ch·/8·32\n"
                                "Krea2 16ch·/8·16　Anima 16ch·/8·8　Boogu 16ch·/8·8\n"
@@ -855,12 +855,12 @@ class XB_ImagePromptPreset:
                 }),
                 "width": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片宽度（像素）。固定比例下改宽度会按比例重算高度；步长按「空latent类型」的官方最小步长"
+                    "tooltip": "图片宽度（像素）。固定比例下改宽度会按比例重算高度；步长按「latent类型」的官方最小步长"
                                "（SDXL/Anima/Boogu=8，Flux2/Flux3/Krea2/SD3/Z-image=16，Qwen-image/Hunyuan=32）",
                 }),
                 "height": ("INT", {
                     "default": 1024, "min": SIZE_MIN, "max": MAX_RESOLUTION, "step": SIZE_STEP,
-                    "tooltip": "图片高度（像素）。固定比例下改高度会按比例重算宽度；步长按「空latent类型」的官方最小步长（8/16/32）",
+                    "tooltip": "图片高度（像素）。固定比例下改高度会按比例重算宽度；步长按「latent类型」的官方最小步长（8/16/32）",
                 }),
                 "batch_size": ("INT", {
                     "default": 1, "min": 1, "max": BATCH_MAX,
@@ -886,7 +886,7 @@ class XB_ImagePromptPreset:
     RETURN_NAMES = ("提示词", "空latent")
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("生图提示词预设：空latent类型（主流模型一键适配 Z-image/Flux2/Flux3/Moss-image/Qwen-image/Krea2/"
+    DESCRIPTION = ("生图提示词预设：latent类型（主流模型一键适配 Z-image/Flux2/Flux3/Moss-image/Qwen-image/Krea2/"
                    "Anima/Boogu/SDXL/SD3/Hunyuan）+ 输出语言/预设模式 + 画幅比例/宽度/高度/生成数量"
                    "（步长按各模型官方最小步长 8/16/32 + 比例联动）＋ 提示词拼装（8 大类：风格/视角/主体/姿态/穿搭/道具/光影/背景）。"
                    "预设模式的选项与设定词来自 xb_skill/XB_ImagePromptPreset 下的 ZH / EN 预设 txt（按系统语言自动选择）。"

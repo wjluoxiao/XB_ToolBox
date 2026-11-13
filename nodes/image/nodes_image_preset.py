@@ -32,7 +32,7 @@ class XB_ImagePreset(XB_ImagePromptPreset):
     RETURN_NAMES = ("提示词", "空latent", "姿态图", "穿搭图")
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("生图预设：在「生图提示词预设」的全部能力（空latent类型 + 画幅比例/宽高/数量 + 8 大类元素面板拼词 + "
+    DESCRIPTION = ("生图预设：在「生图提示词预设」的全部能力（latent类型 + 画幅比例/宽高/数量 + 8 大类元素面板拼词 + "
                    "预设文件）之上，新增「🎬 姿态参考图选择 / 👚 穿搭参考图选择」两个按钮：可绑定带素材清单的整套图库"
                    "（按体系/分类/视角/标签筛选，按姿势编号分组并带视角条）或任意普通图片文件夹（按文件名多宫格）。"
                    "参考图可单独勾选「禁用」：禁用后该输出不做任何输出（等同 mute），下游节点会被跳过。"
