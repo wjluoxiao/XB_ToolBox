@@ -2682,6 +2682,102 @@
       }
     }
   },
+  "XB_BatchVideoSlice": {
+    "display_name": "XB-BOX - 🎬 视频批量切片",
+    "description": "参考官方 Trim Video 的批量版：把长视频（或图像帧）按起始时间、每段时长、段落数量切片，以列表逐段输出给下游批量处理，避免一次性处理整段导致 OOM。输入支持 VIDEO / IMAGE，输出每段既是 IMAGE 也是 VIDEO。",
+    "inputs": {
+      "video": {
+        "name": "视频"
+      },
+      "start_time": {
+        "name": "起始时间"
+      },
+      "duration": {
+        "name": "每段时长"
+      },
+      "count": {
+        "name": "段落数量"
+      },
+      "fps": {
+        "name": "图像输入帧率"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "批量视频"
+      }
+    }
+  },
+  "XB_BatchSaveVideo": {
+    "display_name": "XB-BOX - 🎬 视频批量保存",
+    "description": "参考官方 Create Video / Save Video 的批量版：逐段 解码→组帧→编码→写盘→释放，峰值内存只占 1 段，专治长视频批量放大的 OOM。接 vae + 潜变量列表 + 低清参考帧时自动做 VSR/VAE 解码；只接图像/视频列表时直接编码存盘。",
+    "inputs": {
+      "samples": {
+        "name": "潜变量"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "images": {
+        "name": "图像"
+      },
+      "audio": {
+        "name": "音频"
+      },
+      "fps": {
+        "name": "帧率"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      },
+      "detail": {
+        "name": "细节强度"
+      },
+      "bit_depth": {
+        "name": "位深"
+      },
+      "color_space": {
+        "name": "色彩空间"
+      },
+      "chroma_subsampling": {
+        "name": "色度子采样"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "已保存文件"
+      },
+      "1": {
+        "name": "批量视频"
+      }
+    }
+  },
+  "XB_BatchVideoMerge": {
+    "display_name": "XB-BOX - 🎬 视频批量拼接",
+    "description": "接「🎬 视频批量保存」的批量视频输出：把所有分段无损拼接成一个完整视频（stream copy，不重新解码/编码），可选择性删除分段文件，并预览每段与合成结果。",
+    "inputs": {
+      "videos": {
+        "name": "批量视频"
+      },
+      "merge": {
+        "name": "拼接保存"
+      },
+      "keep_segments": {
+        "name": "保留分段"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "完整视频"
+      },
+      "1": {
+        "name": "已保存文件"
+      }
+    }
+  },
   "XB_TripleLoraLoaderModelOnly": {
     "display_name": "XB-BOX - 🔗 三连 LoRA 加载（仅模型）",
     "inputs": {

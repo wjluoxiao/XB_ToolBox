@@ -1,7 +1,9 @@
 /**
- * XB-BOX 节点耗时显示
- * =====================
- * 设置：设置 → XB_ToolBox → 节点相关 → 开启节点耗时显示（默认开）
+ * XB-BOX 节点耗时显示 / 节点编号显示
+ * ===================================
+ * 设置：设置 → XB_ToolBox → 节点相关
+ *   · 开启节点耗时显示（默认开）
+ *   · 开启节点编号显示（默认开）—— 在节点右上角画出节点编号（#id）
  *
  * 记录每个节点在最近一次执行里的耗时，并显示在节点上：
  *   · 经典模式（画布渲染）：标题栏上方画一个小胶囊（实例级 onDrawForeground）。
@@ -19,12 +21,16 @@ import { api } from "../../scripts/api.js";
 import { allNodes, isNodes2 } from "./xb_compat.js";
 
 const SETTING_ID = "xb_toolbox.node_runtime.enabled";
+const ID_SETTING_ID = "xb_toolbox.node_id.enabled";
 const SEC_KEY = "__xbRuntimeSec";     // 节点上累计的秒数
 const CACHED_KEY = "__xbRuntimeCached"; // 本轮直接命中缓存（没真正执行）
 const CHIP_ATTR = "data-xb-runtime";  // Nodes 2.0 里那个 DOM 胶囊的标记
+const ID_CHIP_ATTR = "data-xb-nodeid"; // Nodes 2.0 里「编号」胶囊的标记
 const CACHED_TEXT = "缓存";
 
 let enabled = true;
+let showId = true;         // 是否在节点上显示编号
+
 let currentId = null;      // 正在执行的节点执行 id（字符串，如 "3:1"）
 let currentStart = 0;      // 开始时刻（performance.now）
 let currentLeaf = null;    // 正在执行的那个节点对象
@@ -194,6 +200,45 @@ function drawClassicBadge(ctx, node) {
     ctx.restore();
 }
 
+// ── 节点编号（#id）────────────────────────────────────────────────────
+
+// 这些节点本身是「纯显示」用途（画布文字标签等），画编号会很难看 → 不显示编号
+const ID_HIDDEN_TYPES = new Set(["XB_CanvasLabel"]);
+
+function nodeTypeName(node) {
+    return String(node?.type || node?.comfyClass || node?.constructor?.comfyClass || "");
+}
+
+/** 节点上要显示的编号文字（空字符串 = 不显示） */
+function idLabelFor(node) {
+    if (!showId || !node || node.id == null) return "";
+    if (ID_HIDDEN_TYPES.has(nodeTypeName(node))) return "";
+    return `#${node.id}`;
+}
+
+/** 经典模式：画在标题栏上方右侧，与左侧耗时胶囊错开 */
+function drawIdBadge(ctx, node) {
+    const text = idLabelFor(node);
+    if (!text || !ctx) return;
+    const th = (typeof LiteGraph !== "undefined" && LiteGraph.NODE_TITLE_HEIGHT) || 30;
+    ctx.save();
+    ctx.font = "12px Inter, system-ui, segoe-ui, sans-serif";
+    const w = ctx.measureText(text).width + 12;
+    const h = Math.max(14, th - 14);
+    const x = Math.max(0, (node.size?.[0] || 0) - w - 2);
+    const y = -th - h - 5;
+    roundRect(ctx, x, y, w, h, 4);
+    ctx.fillStyle = "rgba(58, 58, 58, 0.95)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = "#9ad7ff";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + 6, y + h / 2 + 0.5);
+    ctx.restore();
+}
+
 // ── Nodes 2.0：节点底部信息条里的胶囊 ──────────────────────────────────
 
 function domRoot(node) {
@@ -232,24 +277,15 @@ const CHIP_CSS = [
     "z-index:20",
 ].join(";");
 
-function makeChip(text) {
-    const chip = document.createElement("div");
-    chip.setAttribute(CHIP_ATTR, "1");
-    chip.title = "本节点耗时";
-    chip.style.cssText = CHIP_CSS;
-    chip.textContent = text;
-    return chip;
-}
+const ID_CHIP_CSS = CHIP_CSS.replace("left:2px", "right:2px");
 
-function updateChip2(node) {
-    const text = labelFor(node);
-    const root = domRoot(node);
-    if (!root) return;
 
-    // 统一用一个自绘胶囊，固定挂在节点左上角外侧（与经典模式同一位置）。
-    // 不塞进节点内的徽标行：新版前端只有部分节点有那行（KSampler / VAEDecode 都没有），
-    // 塞进去会导致一部分节点在底部徽标行、一部分在别处，位置不统一。
-    const existing = root.querySelector(`[${CHIP_ATTR}]`);
+/**
+ * 统一维护一个胶囊：text 为空就移除，有就补上并同步文字。
+ * 耗时胶囊（左）与编号胶囊（右）都走这里，互不干扰。
+ */
+function syncChip(root, attr, side, text, title, color, node) {
+    const existing = root.querySelector(`[${attr}]`);
     if (!text) {
         existing?.remove();
         return;
@@ -258,34 +294,56 @@ function updateChip2(node) {
         if (existing.textContent !== text) existing.textContent = text;
         return;
     }
-    root.appendChild(makeChip(text));
+    const chip = document.createElement("div");
+    chip.setAttribute(attr, "1");
+    if (node?.id != null) chip.setAttribute("data-node-id", String(node.id));
+    chip.title = title;
+    chip.style.cssText = side === "right" ? ID_CHIP_CSS : CHIP_CSS;
+    chip.style.color = color;
+    chip.textContent = text;
+    root.appendChild(chip);
+}
+
+/** Nodes 2.0：一次同步「耗时（左上）」和「编号（右上）」两个胶囊 */
+function updateBadges(node) {
+    const root = domRoot(node);
+    if (!root) return;
+    try {
+        syncChip(root, CHIP_ATTR, "left",
+            enabled ? labelFor(node) : "", "本节点耗时", "#e6e6e6", node);
+    } catch (_) { /* ignore */ }
+    try {
+        syncChip(root, ID_CHIP_ATTR, "right",
+            idLabelFor(node), "节点编号", "#9ad7ff", node);
+    } catch (_) { /* ignore */ }
+}
+
+/** 兼容旧调用点 */
+function updateChip2(node) { updateBadges(node); }
+
+function removeAllIdChips() {
+    for (const el of document.querySelectorAll(`[${ID_CHIP_ATTR}]`)) el.remove();
 }
 
 // ── 刷新循环 ───────────────────────────────────────────────────────────
 
 let needsRepaint = false;
-let sweep = 0;
+let idSweep = 0;
 
 function tick() {
     const nodes2 = isNodes2();
+    readSetting();                 // 每轮读一次设置，避免缓存值让某个开关"失效"
     try {
         if (!nodes2) hookAllNodes();   // 经典模式：补上新出现的节点（含子图节点）
-        if (enabled && nodes2) {
-            for (const id of dirty) {
-                const node = nodeById(id);
-                if (node) updateChip2(node);
-            }
-            // Vue 重渲染会丢掉追加的胶囊：隔几次整体体检一遍
-            // （不能只看 ranIds —— 节点可能被重新创建/换 id，按当前节点实际状态查最稳）
-            if (++sweep % 3 === 0) {
-                for (const node of allNodes()) {
-                    if (!node[SEC_KEY] && !node[CACHED_KEY]) continue;
-                    const root = domRoot(node);
-                    if (!root) continue;
-                    const chip = root.querySelector(`[${CHIP_ATTR}]`);
-                    const text = labelFor(node);
-                    if (!text) { chip?.remove(); continue; }
-                    if (!chip || chip.textContent !== text) updateChip2(node);
+        if (nodes2) {
+            // 两个胶囊（耗时 / 编号）一起维护：Vue 重渲染会整块丢掉 DOM，每轮补一次最稳
+            for (const node of allNodes()) updateBadges(node);
+            if (++idSweep % 4 === 0) {
+                // 节点被删除后 DOM 没了但胶囊可能残留：清理孤儿
+                const live = new Set(allNodes().map((n) => String(n.id)));
+                for (const el of document.querySelectorAll(`[${CHIP_ATTR}],[${ID_CHIP_ATTR}]`)) {
+                    const nid = el.getAttribute("data-node-id");
+                    if (nid == null || !live.has(nid)) el.remove();
                 }
             }
         } else if (needsRepaint) {
@@ -359,6 +417,10 @@ function readSetting() {
         const v = app.ui?.settings?.getSettingValue?.(SETTING_ID);
         if (v !== undefined) enabled = v !== false;
     } catch (_) { /* 设置系统还没就绪时保持默认 */ }
+    try {
+        const v2 = app.ui?.settings?.getSettingValue?.(ID_SETTING_ID);
+        if (v2 !== undefined) showId = v2 !== false;
+    } catch (_) { /* 同上 */ }
 }
 
 // ── 经典模式绘制入口 ───────────────────────────────────────────────────
@@ -379,6 +441,9 @@ function ensureNodeDrawHook(node) {
                 if ((Number(this[SEC_KEY]) || 0) > 0 || this[CACHED_KEY]) drawClassicBadge(ctx, this);
             } catch (_) { /* ignore */ }
         }
+        if (showId && ctx && !isNodes2()) {
+            try { drawIdBadge(ctx, this); } catch (_) { /* ignore */ }
+        }
         return r;
     };
 }
@@ -389,27 +454,65 @@ function hookAllNodes() {
     } catch (_) { /* ignore */ }
 }
 
+/** 注册一个开关；任何一个失败都不影响另一个（避免两个设置互相拖累）
+ *
+ * ⚠️ 前端设置面板用「category 路径」建树，**同一路径下只会显示最后注册的一个**。
+ * 所以同一个分组里的多个开关必须带上不同的第三段（第三段只做唯一键，标题仍显示第二段）。
+ */
+function addToggleSetting(id, name, tooltip, defaultValue, category, sortOrder, onChange) {
+    try {
+        app.ui.settings.addSetting({
+            id,
+            name,
+            tooltip,
+            type: "boolean",
+            defaultValue,
+            category,
+            sortOrder,
+            onChange,
+        });
+        return true;
+    } catch (e) {
+        console.warn(`[XB 节点显示] 设置「${name}」注册失败：`, e);
+        return false;
+    }
+}
+
 app.registerExtension({
     name: "XB_ToolBox.NodeRuntime",
 
     async setup() {
         if (app.ui?.settings?.addSetting) {
-            app.ui.settings.addSetting({
-                id: SETTING_ID,
-                name: "开启节点耗时显示",
-                tooltip: "在节点上显示该节点最近一次执行的耗时（Nodes 2.0 下显示在节点底部信息条右侧）",
-                type: "boolean",
-                defaultValue: true,
-                category: ["XB_ToolBox", "节点相关"],
-                onChange: (value) => {
+            addToggleSetting(SETTING_ID, "开启节点耗时显示",
+                "在节点上显示该节点最近一次执行的耗时（Nodes 2.0 下显示在节点左上角）",
+                true, ["XB_ToolBox", "节点相关", "耗时"], 2, (value) => {
                     enabled = value !== false;
                     if (!enabled) clearAll();
-                    app.graph?.setDirtyCanvas?.(true, true);
-                },
-            });
+                    refreshSoon();
+                });
+            addToggleSetting(ID_SETTING_ID, "开启节点编号显示",
+                "在节点右上角显示节点编号（#id）；文字标签等纯显示节点不显示",
+                true, ["XB_ToolBox", "节点相关", "编号"], 1, (value) => {
+                    showId = value !== false;
+                    if (!showId) removeAllIdChips();
+                    refreshSoon();
+                });
         }
         readSetting();
         wireEvents();
         tick();
     },
 });
+
+/** 设置变化后尽快重建胶囊并重绘画布 */
+let refreshTimer = null;
+function refreshSoon() {
+    if (refreshTimer) return;
+    refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        try {
+            for (const node of allNodes()) updateBadges(node);
+        } catch (_) { /* ignore */ }
+        app.graph?.setDirtyCanvas?.(true, true);
+    }, 30);
+}

@@ -232,6 +232,102 @@
       }
     }
   },
+  "XB_BatchVideoSlice": {
+    "display_name": "XB-BOX - 🎬 Batch Video Slicer",
+    "description": "Batch version of the official Trim Video node: slice a long video (or image frames) by start time, segment duration and segment count, then feed the segments downstream one at a time to avoid OOM. Accepts VIDEO or IMAGE; every segment works as both IMAGE and VIDEO.",
+    "inputs": {
+      "video": {
+        "name": "video"
+      },
+      "start_time": {
+        "name": "Start Time"
+      },
+      "duration": {
+        "name": "Segment Duration"
+      },
+      "count": {
+        "name": "Segment Count"
+      },
+      "fps": {
+        "name": "Image Input FPS"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Batch Videos"
+      }
+    }
+  },
+  "XB_BatchSaveVideo": {
+    "display_name": "XB-BOX - 🎬 Batch Video Saver",
+    "description": "Batch version of the official Create Video / Save Video pair: per-segment decode -> encode -> write -> free, so peak memory is one segment only. With vae + latent list + low-quality reference frames it decodes internally (VSR/VAE); with only image/video lists it encodes directly.",
+    "inputs": {
+      "samples": {
+        "name": "Latents"
+      },
+      "vae": {
+        "name": "VAE"
+      },
+      "images": {
+        "name": "Images"
+      },
+      "audio": {
+        "name": "Audio"
+      },
+      "fps": {
+        "name": "FPS"
+      },
+      "filename_prefix": {
+        "name": "Filename Prefix"
+      },
+      "detail": {
+        "name": "Detail"
+      },
+      "bit_depth": {
+        "name": "Bit Depth"
+      },
+      "color_space": {
+        "name": "Color Space"
+      },
+      "chroma_subsampling": {
+        "name": "Chroma Subsampling"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Saved Files"
+      },
+      "1": {
+        "name": "Batch Videos"
+      }
+    }
+  },
+  "XB_BatchVideoMerge": {
+    "display_name": "XB-BOX - 🎬 Batch Video Merge",
+    "description": "Take the Batch Videos output of Batch Video Saver: losslessly concatenate all segments into one video (stream copy, no re-encode), optionally delete the segment files, and preview every segment plus the merged result.",
+    "inputs": {
+      "videos": {
+        "name": "Batch Videos"
+      },
+      "merge": {
+        "name": "Merge & Save"
+      },
+      "keep_segments": {
+        "name": "Keep Segments"
+      },
+      "filename_prefix": {
+        "name": "Filename Prefix"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Merged Video"
+      },
+      "1": {
+        "name": "Saved File"
+      }
+    }
+  },
   "XB_StringMerge": {
     "display_name": "XB-BOX - 📝 String Merge"
   },

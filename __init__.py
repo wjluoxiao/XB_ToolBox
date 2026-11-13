@@ -214,6 +214,30 @@ try:
         print_warning(f"[XB-BOX] 加载视频节点 未加载：{e}")
         _LOAD_VIDEO_AVAILABLE = False
 
+    # ── 🎬 视频批量切片（Trim Video 的批量版，依赖新版 V3 API）──
+    try:
+        from .nodes.video.nodes_batch_video_slicer import XB_BatchVideoSlice
+        _BATCH_VIDEO_SLICE_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 视频批量切片节点 未加载：{e}")
+        _BATCH_VIDEO_SLICE_AVAILABLE = False
+
+    # ── 🎬 视频批量保存（逐段解码 + 编码 + 存盘，防 OOM，依赖新版 V3 API）──
+    try:
+        from .nodes.video.nodes_batch_save_video import XB_BatchSaveVideo
+        _BATCH_SAVE_VIDEO_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 视频批量保存节点 未加载：{e}")
+        _BATCH_SAVE_VIDEO_AVAILABLE = False
+
+    # ── 🎬 视频批量拼接（无损拼接分段视频，依赖新版 V3 API）──
+    try:
+        from .nodes.video.nodes_batch_video_merge import XB_BatchVideoMerge
+        _BATCH_VIDEO_MERGE_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 视频批量拼接节点 未加载：{e}")
+        _BATCH_VIDEO_MERGE_AVAILABLE = False
+
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
     from .nodes.image.nodes_image_prompt_preset import XB_ImagePromptPreset
 
@@ -371,6 +395,24 @@ try:
     if _LOAD_VIDEO_AVAILABLE:
         NODE_CLASS_MAPPINGS.update({
             "XB_LoadVideo": XB_LoadVideo,
+        })
+
+    # ── 🎬 视频批量切片 ──
+    if _BATCH_VIDEO_SLICE_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_BatchVideoSlice": XB_BatchVideoSlice,
+        })
+
+    # ── 🎬 视频批量保存 ──
+    if _BATCH_SAVE_VIDEO_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_BatchSaveVideo": XB_BatchSaveVideo,
+        })
+
+    # ── 🎬 视频批量拼接 ──
+    if _BATCH_VIDEO_MERGE_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_BatchVideoMerge": XB_BatchVideoMerge,
         })
 
     # ── 条件注册 Llama 节点 ──
@@ -539,6 +581,24 @@ try:
     if _LOAD_VIDEO_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
             "XB_LoadVideo": "XB-BOX - 🎬 加载视频",
+        })
+
+    # ── 🎬 视频批量切片 显示名 ──
+    if _BATCH_VIDEO_SLICE_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_BatchVideoSlice": "XB-BOX - 🎬 视频批量切片",
+        })
+
+    # ── 🎬 视频批量保存 显示名 ──
+    if _BATCH_SAVE_VIDEO_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_BatchSaveVideo": "XB-BOX - 🎬 视频批量保存",
+        })
+
+    # ── 🎬 视频批量拼接 显示名 ──
+    if _BATCH_VIDEO_MERGE_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_BatchVideoMerge": "XB-BOX - 🎬 视频批量拼接",
         })
 
     # ── 条件注册 Llama 显示名 ──
