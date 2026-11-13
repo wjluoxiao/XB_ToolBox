@@ -2684,7 +2684,7 @@
   },
   "XB_BatchVideoSlice": {
     "display_name": "XB-BOX - 🎬 视频批量切片",
-    "description": "参考官方 Trim Video 的批量版：把长视频（或图像帧）按起始时间、每段时长、段落数量切片，以列表逐段输出给下游批量处理，避免一次性处理整段导致 OOM。输入支持 VIDEO / IMAGE，输出每段既是 IMAGE 也是 VIDEO。",
+    "description": "参考官方 Trim Video 的批量版：把长视频（或图像帧）按起始时间、每段时长、段落数量切片，以列表逐段输出给下游批量处理，避免一次性处理整段导致 OOM。输入支持 VIDEO / IMAGE，接 VIDEO 时按段流式解码（只解当前段，不再整片读入），并额外输出图像/音频/帧率列表，下游无需再解一次码；输出每段既是 IMAGE 也是 VIDEO。",
     "inputs": {
       "video": {
         "name": "视频"
@@ -2705,6 +2705,15 @@
     "outputs": {
       "0": {
         "name": "批量视频"
+      },
+      "1": {
+        "name": "图像列表"
+      },
+      "2": {
+        "name": "音频列表"
+      },
+      "3": {
+        "name": "帧率列表"
       }
     }
   },
@@ -5697,6 +5706,74 @@
     "outputs": {
       "0": {
         "name": "值"
+      }
+    }
+  },
+  "XB_LongVideoVSRUpscale": {
+    "display_name": "XB-BOX - 🎬 长视频逐段放大保存（RelayVSR）",
+    "description": "把「切片→条件→采样→VSR解码→保存」整条链塞进一个节点内部的逐段循环：解码一段、放大一段、存一段、释放一段，任何时刻内存里只有当前这一段，所以视频多长、段数多少，内存占用基本恒定。内部直接调用官方 RelayVSRConditioning / KSampler / VSRDecode。",
+    "inputs": {
+      "video": {
+        "name": "视频"
+      },
+      "unet_name": {
+        "name": "主模型"
+      },
+      "unet_weight_dtype": {
+        "name": "模型精度"
+      },
+      "vae_name": {
+        "name": "VAE"
+      },
+      "start_time": {
+        "name": "起始时间"
+      },
+      "duration": {
+        "name": "每段时长"
+      },
+      "count": {
+        "name": "段落数量"
+      },
+      "steps": {
+        "name": "步数"
+      },
+      "cfg": {
+        "name": "CFG"
+      },
+      "sampler_name": {
+        "name": "采样器"
+      },
+      "scheduler": {
+        "name": "调度器"
+      },
+      "seed": {
+        "name": "种子"
+      },
+      "seed_increment": {
+        "name": "每段递增种子"
+      },
+      "detail": {
+        "name": "细节强度"
+      },
+      "filename_prefix": {
+        "name": "文件名前缀"
+      },
+      "bit_depth": {
+        "name": "位深"
+      },
+      "color_space": {
+        "name": "色彩空间"
+      },
+      "chroma_subsampling": {
+        "name": "色度子采样"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "批量视频"
+      },
+      "1": {
+        "name": "已保存文件"
       }
     }
   }

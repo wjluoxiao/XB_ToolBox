@@ -234,7 +234,7 @@
   },
   "XB_BatchVideoSlice": {
     "display_name": "XB-BOX - 🎬 Batch Video Slicer",
-    "description": "Batch version of the official Trim Video node: slice a long video (or image frames) by start time, segment duration and segment count, then feed the segments downstream one at a time to avoid OOM. Accepts VIDEO or IMAGE; every segment works as both IMAGE and VIDEO.",
+    "description": "Batch version of the official Trim Video node: slice a long video (or image frames) by start time, segment duration and segment count, then feed the segments downstream one at a time to avoid OOM. With a VIDEO input each segment is decoded on demand (only that segment), and image/audio/fps lists are exported so downstream does not decode twice. Accepts VIDEO or IMAGE; every segment works as both IMAGE and VIDEO.",
     "inputs": {
       "video": {
         "name": "video"
@@ -255,6 +255,15 @@
     "outputs": {
       "0": {
         "name": "Batch Videos"
+      },
+      "1": {
+        "name": "Image List"
+      },
+      "2": {
+        "name": "Audio List"
+      },
+      "3": {
+        "name": "FPS List"
       }
     }
   },
@@ -949,6 +958,74 @@
     "outputs": {
       "0": {
         "name": "Value"
+      }
+    }
+  },
+  "XB_LongVideoVSRUpscale": {
+    "display_name": "XB-BOX - 🎬 Long Video Segment Upscale (RelayVSR)",
+    "description": "Runs slice -> conditioning -> sampling -> VSR decode -> save inside one node's per-segment loop: decode one segment, upscale it, save it, free it. Only the current segment is ever in memory, so usage stays flat no matter how long the video is. Uses the official RelayVSRConditioning / KSampler / VSRDecode internally.",
+    "inputs": {
+      "video": {
+        "name": "Video"
+      },
+      "unet_name": {
+        "name": "Model"
+      },
+      "unet_weight_dtype": {
+        "name": "Weight Dtype"
+      },
+      "vae_name": {
+        "name": "VAE"
+      },
+      "start_time": {
+        "name": "Start Time"
+      },
+      "duration": {
+        "name": "Segment Duration"
+      },
+      "count": {
+        "name": "Segment Count"
+      },
+      "steps": {
+        "name": "Steps"
+      },
+      "cfg": {
+        "name": "CFG"
+      },
+      "sampler_name": {
+        "name": "Sampler"
+      },
+      "scheduler": {
+        "name": "Scheduler"
+      },
+      "seed": {
+        "name": "Seed"
+      },
+      "seed_increment": {
+        "name": "Increment Seed"
+      },
+      "detail": {
+        "name": "Detail"
+      },
+      "filename_prefix": {
+        "name": "Filename Prefix"
+      },
+      "bit_depth": {
+        "name": "Bit Depth"
+      },
+      "color_space": {
+        "name": "Color Space"
+      },
+      "chroma_subsampling": {
+        "name": "Chroma Subsampling"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Batch Videos"
+      },
+      "1": {
+        "name": "Saved Files"
       }
     }
   }

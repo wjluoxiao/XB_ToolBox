@@ -238,6 +238,14 @@ try:
         print_warning(f"[XB-BOX] 视频批量拼接节点 未加载：{e}")
         _BATCH_VIDEO_MERGE_AVAILABLE = False
 
+    # ── 🎬 长视频逐段放大保存（单节点内循环，内存只占 1 段）──
+    try:
+        from .nodes.video.nodes_long_video_vsr import XB_LongVideoVSRUpscale
+        _LONG_VIDEO_VSR_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 长视频逐段放大保存节点 未加载：{e}")
+        _LONG_VIDEO_VSR_AVAILABLE = False
+
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
     from .nodes.image.nodes_image_prompt_preset import XB_ImagePromptPreset
 
@@ -413,6 +421,12 @@ try:
     if _BATCH_VIDEO_MERGE_AVAILABLE:
         NODE_CLASS_MAPPINGS.update({
             "XB_BatchVideoMerge": XB_BatchVideoMerge,
+        })
+
+    # ── 🎬 长视频逐段放大保存 ──
+    if _LONG_VIDEO_VSR_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_LongVideoVSRUpscale": XB_LongVideoVSRUpscale,
         })
 
     # ── 条件注册 Llama 节点 ──
@@ -599,6 +613,12 @@ try:
     if _BATCH_VIDEO_MERGE_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
             "XB_BatchVideoMerge": "XB-BOX - 🎬 视频批量拼接",
+        })
+
+    # ── 🎬 长视频逐段放大保存 显示名 ──
+    if _LONG_VIDEO_VSR_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_LongVideoVSRUpscale": "XB-BOX - 🎬 长视频逐段放大保存（RelayVSR）",
         })
 
     # ── 条件注册 Llama 显示名 ──

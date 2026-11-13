@@ -39,6 +39,7 @@ const SIZES = {
     "XB_BatchVideoSlice": [360, 200],
     "XB_BatchSaveVideo": [380, 200],
     "XB_BatchVideoMerge": [380, 200],
+    "XB_LongVideoVSRUpscale": [420, 320],
     "XB_Wan_ParamBus": [360, 200],
     "XB_Wan_RelayNode": [360, 200],
     "XB_Wan_InfiniteRelayNode": [360, 200],

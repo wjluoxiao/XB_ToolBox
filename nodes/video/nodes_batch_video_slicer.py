@@ -132,6 +132,39 @@ def _unpack(value, fallback_fps: float):
     raise TypeError(f"不支持的输入类型：{type(value).__name__}（需要 VIDEO 或 IMAGE）")
 
 
+def _probe_length(value, fallback_fps: float):
+    """只读元数据拿 (帧率, 总帧数)，不解码画面。拿不到就返回 (0.0, 0)。"""
+    if not hasattr(value, "get_frame_rate") or not hasattr(value, "get_frame_count"):
+        return 0.0, 0
+    try:
+        rate = float(value.get_frame_rate() or 0)
+        frames = int(value.get_frame_count() or 0)
+    except Exception:
+        return 0.0, 0
+    if rate <= 0 or frames <= 0:
+        return 0.0, 0
+    return rate, frames
+
+
+def _decode_range(value, start_seconds: float, duration_seconds: float):
+    """只解码 [start, start+duration) 这一段，返回 (帧张量, 音频, 帧率)；失败返回 None。"""
+    try:
+        trimmed = value.as_trimmed(start_seconds, duration_seconds)
+    except Exception as e:
+        print(f"[视频批量切片] 按段裁剪失败，回退整段解码：{e}")
+        return None
+    if trimmed is None:
+        return None
+    try:
+        components = trimmed.get_components()
+    except Exception as e:
+        print(f"[视频批量切片] 该段解码失败，已跳过：{e}")
+        return None
+    if components.images is None or components.images.shape[0] == 0:
+        return None
+    return components.images, components.audio, float(components.frame_rate or 0)
+
+
 # ============================================================
 # XB_BatchVideoSlice — 视频批量切片
 # ============================================================
@@ -200,40 +233,77 @@ class XB_BatchVideoSlice(io.ComfyNode):
                     is_output_list=True,
                     tooltip="每段一个输出（列表），既可接图像节点也可接视频节点。",
                 ),
+                io.Image.Output(
+                    "图像列表",
+                    is_output_list=True,
+                    tooltip="每段的图像帧（列表，与「批量视频」同一份数据，不额外占内存）；"
+                            "接图像节点时可省掉「获取视频组件」的二次解码。",
+                ),
+                io.Audio.Output(
+                    "音频列表",
+                    is_output_list=True,
+                    tooltip="每段对应的音轨（列表）；源文件没有音轨时为空。",
+                ),
+                io.Float.Output(
+                    "帧率列表",
+                    is_output_list=True,
+                    tooltip="每段的帧率（列表），可直接接需要帧率的节点。",
+                ),
             ],
         )
 
     @classmethod
     def execute(cls, video, start_time=0.0, duration=3.0, count=4, fps=DEFAULT_FPS):
-        images, rate, audio = _unpack(video, fps or DEFAULT_FPS)
-        if images is None or images.shape[0] == 0:
-            return io.NodeOutput([])
-        if rate <= 0:
-            rate = DEFAULT_FPS
+        rate, total_frames = _probe_length(video, fps or DEFAULT_FPS)
+        frame_rate = Fraction(rate).limit_denominator(1000000) if rate > 0 else Fraction(int(DEFAULT_FPS))
+        seg_frames = max(1, int(round(float(duration) * rate))) if rate > 0 else int(DEFAULT_FPS)
+        start_frame = max(0, min(total_frames, int(round(float(start_time) * rate)))) if rate > 0 else 0
 
-        total_frames = int(images.shape[0])
-        frame_rate = Fraction(rate).limit_denominator(1000000)
-        seg_frames = max(1, int(round(float(duration) * rate)))
-        start_frame = max(0, min(total_frames, int(round(float(start_time) * rate))))
+        segments, images_out, audio_out, fps_out = [], [], [], []
 
-        segments = []
-        for i in range(int(count)):
-            begin = start_frame + i * seg_frames
-            if begin >= total_frames:
-                break
-            end = min(begin + seg_frames, total_frames)
-            begin_seconds = begin / rate
-            chunk_seconds = (end - begin) / rate
-            segments.append(
-                XB_VideoSliceSegment.wrap(
-                    images[begin:end],
-                    frame_rate,
-                    _slice_audio(audio, begin_seconds, chunk_seconds),
-                )
-            )
+        if total_frames > 0 and hasattr(video, "as_trimmed"):
+            # ── 按段流式解码：只解当前这一段，不再把整段视频读进内存 ──
+            for i in range(int(count)):
+                begin = start_frame + i * seg_frames
+                if begin >= total_frames:
+                    break
+                end = min(begin + seg_frames, total_frames)
+                comp = _decode_range(video, begin / rate, (end - begin) / rate)
+                if comp is None:
+                    continue
+                frames, sound, seg_rate = comp
+                seg_frame_rate = Fraction(seg_rate).limit_denominator(1000000) if seg_rate else frame_rate
+                segments.append(XB_VideoSliceSegment.wrap(frames, seg_frame_rate, sound))
+                images_out.append(frames)
+                audio_out.append(sound)
+                fps_out.append(float(seg_frame_rate))
+            mode = "流式解码"
+        else:
+            # ── 兜底（图像输入 / 拿不到时长元数据）：整段读入后按帧切 ──
+            images, rate, audio = _unpack(video, fps or DEFAULT_FPS)
+            if images is None or images.shape[0] == 0:
+                return io.NodeOutput([], [], [], [])
+            if rate <= 0:
+                rate = DEFAULT_FPS
+            frame_rate = Fraction(rate).limit_denominator(1000000)
+            total_frames = int(images.shape[0])
+            seg_frames = max(1, int(round(float(duration) * rate)))
+            start_frame = max(0, min(total_frames, int(round(float(start_time) * rate))))
+            for i in range(int(count)):
+                begin = start_frame + i * seg_frames
+                if begin >= total_frames:
+                    break
+                end = min(begin + seg_frames, total_frames)
+                chunk = images[begin:end]
+                sound = _slice_audio(audio, begin / rate, (end - begin) / rate)
+                segments.append(XB_VideoSliceSegment.wrap(chunk, frame_rate, sound))
+                images_out.append(chunk)
+                audio_out.append(sound)
+                fps_out.append(float(frame_rate))
+            mode = "整段切片"
 
         print(
-            f"[视频批量切片] 共 {total_frames} 帧 @ {float(frame_rate):.3f}fps → "
+            f"[视频批量切片] {mode}：共 {total_frames} 帧 @ {float(frame_rate):.3f}fps → "
             f"起始 {start_frame} 帧，每段 {seg_frames} 帧，输出 {len(segments)} 段"
         )
-        return io.NodeOutput(segments)
+        return io.NodeOutput(segments, images_out, audio_out, fps_out)
