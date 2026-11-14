@@ -7,6 +7,7 @@ import ctypes
 import os
 import platform
 import subprocess
+import threading
 import time
 import torch
 import server
@@ -160,11 +161,20 @@ def _query_lhm():
         return None, None, None
 
 def _lhm_get_shared_memory():
-    """通过 LHM 读取 GPU 共享显存使用情况 (D3D Shared Memory)"""
+    """通过 LHM 读取 GPU 共享显存使用情况 (D3D Shared Memory)
+
+    hw.Update() 会走 ADL/D3D，采样进行中可能被驱动锁拖到几十~上百毫秒，
+    因此和 util/temp 一样缓存 2 秒，避免每次轮询都往驱动里钻。
+    """
+    now = time.time()
+    if now - _amd_state.get("shared_cache_time", 0) < 2:
+        return _amd_state.get("shared_cache", (None, None))
+
     computer = _lhm_state.get("computer")
     if computer is None:
         return None, None
     
+    result = (None, None)
     try:
         for hw in computer.Hardware:
             hw.Update()
@@ -194,14 +204,17 @@ def _lhm_get_shared_memory():
             
             if shared_used is not None and shared_total is not None:
                 # LHM 返回的是 MB，转换为字节
-                return shared_used * 1024 * 1024, shared_total * 1024 * 1024
+                result = (shared_used * 1024 * 1024, shared_total * 1024 * 1024)
+                break
             elif shared_used is not None:
-                return shared_used * 1024 * 1024, None
-        
-        return None, None
+                result = (shared_used * 1024 * 1024, None)
+                break
     except Exception as e:
         log.debug("aimdo-viz: LHM 共享显存查询失败: %s", e)
-        return None, None
+
+    _amd_state["shared_cache"] = result
+    _amd_state["shared_cache_time"] = time.time()
+    return result
 
 def _detect_amd_gpu():
     """检测是否为 AMD GPU 并初始化监控后端"""
@@ -721,11 +734,51 @@ def _detect_model_type(model_obj):
     return None
 routes = server.PromptServer.instance.routes
 
+# /aimdo/vram 的性能护栏：
+#  · 整个采集过程都是同步阻塞的（CUDA/ROCm 查询、LHM 走 ADL、psutil、ctypes），
+#    绝不能在 aiohttp 事件循环里跑 —— 一旦某一次卡住（如驱动锁、慢盘、rocm-smi），
+#    整个 HTTP/WebSocket 服务会一起失去响应，表现就是「ComfyUI 假死」。
+#  · 多开浏览器标签时会同时轮询，这里只允许一个线程真正读硬件，其余复用最近结果。
+_VRAM_MIN_AGE = 0.3          # 相同参数的请求在这个窗口内直接复用上次结果
+_VRAM_REUSE_MAX = 2.0        # 来不及加锁时，最多复用这么久之前的结果
+_vram_cache = {"lock": threading.Lock(), "key": None, "time": 0.0, "payload": None}
+
+
+def _build_vram_payload_cached(key, query):
+    cache = _vram_cache
+    now = time.monotonic()
+    if cache["payload"] is not None and cache["key"] == key and now - cache["time"] < _VRAM_MIN_AGE:
+        return cache["payload"]
+    if not cache["lock"].acquire(timeout=1.5):
+        if cache["payload"] is not None and now - cache["time"] < _VRAM_REUSE_MAX:
+            return cache["payload"]
+        return _build_vram_payload(query)
+    try:
+        now = time.monotonic()
+        if cache["payload"] is not None and cache["key"] == key and now - cache["time"] < _VRAM_MIN_AGE:
+            return cache["payload"]
+        payload = _build_vram_payload(query)
+        cache["key"] = key
+        cache["time"] = time.monotonic()
+        cache["payload"] = payload
+        return payload
+    finally:
+        cache["lock"].release()
+
+
 @routes.get("/aimdo/vram")
 async def aimdo_vram_status(request):
+    # 查询串先快照，采集放到工作线程，事件循环全程不被阻塞
+    query = {k: v for k, v in request.query.items()}
+    key = tuple(sorted(query.items()))
+    payload = await asyncio.to_thread(_build_vram_payload_cached, key, query)
+    return web.json_response(payload)
+
+
+def _build_vram_payload(query):
     device = comfy.model_management.get_torch_device()
     if not torch.cuda.is_available() or device.type != "cuda":
-        return web.json_response({"enabled": False})
+        return {"enabled": False}
 
     aimdo_active = getattr(comfy.memory_management, 'aimdo_enabled', False) and comfy_aimdo is not None
 
@@ -883,15 +936,15 @@ async def aimdo_vram_status(request):
 
     process_ram = proc.memory_info().rss
     swap_total = swap_used = 0
-    if request.query.get("pagefile") == "1":
+    if query.get("pagefile") == "1":
         swap_total, swap_used = _pagefile_usage()
 
     hard_faults = None
-    if request.query.get("faults") == "1":
+    if query.get("faults") == "1":
         hard_faults = _hard_fault_count()
 
     disk_read = disk_write = None
-    if request.query.get("disk") == "1":
+    if query.get("disk") == "1":
         try:
             d = psutil.disk_io_counters()
             if d is not None:
@@ -901,7 +954,7 @@ async def aimdo_vram_status(request):
 
     # client opts in by sending list_disks=1; backend skips entirely when absent.
     disks_list = None
-    if request.query.get("list_disks") == "1":
+    if query.get("list_disks") == "1":
         disks_list = []
         for p in _get_disk_partitions():
             entry = {"mountpoint": p["mountpoint"], "label": p["label"], "total": None, "free": None}
@@ -922,7 +975,7 @@ async def aimdo_vram_status(request):
     if _lhm_state.get("available"):
         shared_mem_used, shared_mem_total = _lhm_get_shared_memory()
 
-    return web.json_response({
+    return {
         "enabled": True,
         "aimdo_active": aimdo_active,
         "total_vram": total_vram,
@@ -951,7 +1004,7 @@ async def aimdo_vram_status(request):
         "shared_mem_used": shared_mem_used,
         "shared_mem_total": shared_mem_total,
         "models": models,
-    })
+    }
 
 @routes.post("/aimdo/unload_all")
 async def aimdo_unload_all(request):
