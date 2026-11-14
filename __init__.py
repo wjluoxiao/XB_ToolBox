@@ -186,17 +186,22 @@ try:
         print_warning(f"[XB-BOX] YuE2 音乐节点 未加载：{e}")
         _YUE2_AVAILABLE = False
 
-    # ── CosyVoice3 音频节点 ──
-    from .nodes.cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
-    from .nodes.cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
-    from .nodes.cosyvoice3.nodes.cross_lingual import XB_CosyVoice3_CrossLingual
-    from .nodes.cosyvoice3.nodes.voice_conversion import XB_CosyVoice3_VoiceConversion
-    from .nodes.cosyvoice3.nodes.audio_crop import XB_CosyVoice3_AudioCrop
-    from .nodes.cosyvoice3.nodes.dialog import XB_CosyVoice3_Dialog
-    from .nodes.cosyvoice3.nodes.instruct2 import XB_CosyVoice3_Instruct2
-    from .nodes.cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
-    from .nodes.cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
-    from .nodes.cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
+    # ── CosyVoice3 音频节点（依赖较重，缺失时优雅降级，不阻断整个插件）──
+    try:
+        from .nodes.cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
+        from .nodes.cosyvoice3.nodes.zero_shot import XB_CosyVoice3_ZeroShot
+        from .nodes.cosyvoice3.nodes.cross_lingual import XB_CosyVoice3_CrossLingual
+        from .nodes.cosyvoice3.nodes.voice_conversion import XB_CosyVoice3_VoiceConversion
+        from .nodes.cosyvoice3.nodes.audio_crop import XB_CosyVoice3_AudioCrop
+        from .nodes.cosyvoice3.nodes.dialog import XB_CosyVoice3_Dialog
+        from .nodes.cosyvoice3.nodes.instruct2 import XB_CosyVoice3_Instruct2
+        from .nodes.cosyvoice3.nodes.save_speaker import XB_CosyVoice3_SaveSpeaker
+        from .nodes.cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
+        from .nodes.cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
+        _COSYVOICE_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] CosyVoice3 音频节点 未加载（缺依赖不影响其他节点）：{e}")
+        _COSYVOICE_AVAILABLE = False
 
     # ── 🎬 保存视频（Create Video + Save Video 二合一，依赖新版 V3 API）──
     try:
@@ -374,18 +379,22 @@ try:
         "XB_AutoBubbleTextRenderer": XB_AutoBubbleTextRenderer,
         "XB_BerniniPromptRouter": XB_BerniniPromptRouter,
         "XB_K2StyleRouter": XB_K2StyleRouter,
-        # ── CosyVoice3 音频节点 ──
-        "XB_CosyVoice3_ModelLoader": XB_CosyVoice3_ModelLoader,
-        "XB_CosyVoice3_ZeroShot": XB_CosyVoice3_ZeroShot,
-        "XB_CosyVoice3_CrossLingual": XB_CosyVoice3_CrossLingual,
-        "XB_CosyVoice3_VoiceConversion": XB_CosyVoice3_VoiceConversion,
-        "XB_CosyVoice3_AudioCrop": XB_CosyVoice3_AudioCrop,
-        "XB_CosyVoice3_Dialog": XB_CosyVoice3_Dialog,
-        "XB_CosyVoice3_Instruct2": XB_CosyVoice3_Instruct2,
-        "XB_CosyVoice3_SaveSpeaker": XB_CosyVoice3_SaveSpeaker,
-        "XB_CosyVoice3_SpeakerClone": XB_CosyVoice3_SpeakerClone,
-        "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
     }
+
+    # ── CosyVoice3 音频节点（依赖齐全时才注册）──
+    if _COSYVOICE_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_CosyVoice3_ModelLoader": XB_CosyVoice3_ModelLoader,
+            "XB_CosyVoice3_ZeroShot": XB_CosyVoice3_ZeroShot,
+            "XB_CosyVoice3_CrossLingual": XB_CosyVoice3_CrossLingual,
+            "XB_CosyVoice3_VoiceConversion": XB_CosyVoice3_VoiceConversion,
+            "XB_CosyVoice3_AudioCrop": XB_CosyVoice3_AudioCrop,
+            "XB_CosyVoice3_Dialog": XB_CosyVoice3_Dialog,
+            "XB_CosyVoice3_Instruct2": XB_CosyVoice3_Instruct2,
+            "XB_CosyVoice3_SaveSpeaker": XB_CosyVoice3_SaveSpeaker,
+            "XB_CosyVoice3_SpeakerClone": XB_CosyVoice3_SpeakerClone,
+            "XB_CosyVoice3_SpeakerInstruct2": XB_CosyVoice3_SpeakerInstruct2,
+        })
 
     # ── 🖼️ 生图预设（生图提示词预设 + 姿态/穿搭参考图）──
     if _IMAGE_PRESET_AVAILABLE:
