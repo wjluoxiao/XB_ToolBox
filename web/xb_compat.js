@@ -760,13 +760,15 @@ export function bindNodes2NodeFill(node, box, opts = {}) {
 export function bindDomWidgetFill(node, el, opts = {}) {
     if (!node || !el) return () => {};
     const minH = Number(opts.minHeight) || 0;
-    const PROBE = 3000;
-    const cache = { K: 0 };
+    const TITLE_H = 30;   // Vue 节点标题栏（实测恒定：DOM 高 = size + 30）
     const rootEl = () => (el.closest ? el.closest(".lg-node") : null);
     const orig = { max: el.style.maxHeight, min: el.style.minHeight, flex: el.style.flex, h: el.style.height };
     let applied = false;
-    let tries = 0;
     let timer = null;
+    let ro = null;
+    let lastMinKey = "";   // 「内容自然高度」的缓存键（宽度或 K 变了才重量）
+    let lastMinAt = 0;
+    let fixingH = false;
 
     const restore = () => {
         if (!applied) return;
@@ -779,69 +781,145 @@ export function bindDomWidgetFill(node, el, opts = {}) {
         } catch (_) { /* ignore */ }
     };
 
-    /** chrome = 节点根 clientHeight − 容器 clientHeight（与内容无关） */
-    const calibrate = () => {
-        const root = rootEl();
-        if (!root) return null;                    // 经典渲染器没有 .lg-node → 不接管
-        const keep = { max: el.style.maxHeight, min: el.style.minHeight, flex: el.style.flex, h: el.style.height };
+    /**
+     * 量「内容自然高度」= 固定件（按钮区/标签/信息区…）+ 提示词框最小高度。
+     *   临时把容器高度放开成 auto，读 offsetHeight 得到内容真实需求高，然后原样恢复。
+     *   同一拍内不会有任何绘制，用户看不到。值只取决于宽度（换行）与 K（上方 widget 行数）。
+     */
+    const measureNatural = () => {
+        const ph = el.style.height, pm = el.style.maxHeight, pn = el.style.minHeight;
+        let nat = 0;
         try {
-            el.style.maxHeight = "";
+            el.style.height = "auto";
+            el.style.maxHeight = "none";
             el.style.minHeight = "0px";
-            el.style.flex = "0 0 auto";
-            el.style.height = PROBE + "px";
-            const rh = root.clientHeight;
-            const eh = el.clientHeight;
-            if (!eh || rh <= eh) return false;     // 量不到 → 稍后重试
-            cache.K = Math.max(40, Math.round(rh - eh));
-            return true;
-        } finally {
-            el.style.maxHeight = keep.max;
-            el.style.minHeight = keep.min;
-            el.style.flex = keep.flex;
-            el.style.height = keep.h;
-        }
+            nat = el.offsetHeight;
+        } catch (_) { nat = 0; }
+        try {
+            el.style.height = ph;
+            el.style.maxHeight = pm;
+            el.style.minHeight = pn;
+        } catch (_) { /* ignore */ }
+        return nat;
     };
 
+    /**
+     * 每次重新实测「容器可用高度」——不缓存任何常量：
+     *   可用高 = 小部件区高度(实时) − 容器在该区内的顶部偏移(实时)。
+     *
+     * ⎠ 旧写法把 chrome（容器上方的高度）用 3000px 探针测一次就永久缓存，
+     *    但它并不是常量：节点上方的原生 widget 行数会变（内部字段显隐、输入查位变化、
+     *    工作流加载后 widget 重建），一旦它变小，容器就会比可用区短 ⇒ 底部留一大片空白（用户报障）。
+     *    现在每次都用实时布局量一次，不依赖任何缓存值。
+     *
+     * ⎡ 不写 node.size，因此不存在反馈回路（不会弹性 / 偶发变高）。
+     */
+    /**
+     * 把容器高度写成 **CSS calc(var(--node-height) - K)**。
+     *
+     * ⎠ 为什么必须用 CSS而不是 JS 量一次写一次：
+     *    JS 写法要等下一拍（onResize 防抖 / ResizeObserver 回调）才能改容器高度，
+     *    拖拽时就会出现「节点先变高、提示词框迟一拍才跟着变」的延迟。
+     *    calc() 直接表达式依赖前端每帧更新的 --node-height ⇒ 节点和框**同一帧**变化（0 延迟）。
+     *
+     * ⎡ K 是不依赖节点高度的常量，每次用实时布局重量：
+     *    K = 容器顶部到节点顶部的偏移 + 小部件区下方的固定件高度（footer + 内边距）。
+     *    两项都是两个元素 rect 相减，与是否溢出无关、与节点高度无关 ⇒ **不存在反馈回路**。
+     *    只在上方 widget 行数变化（内部字段显隐、输入查位）时才会变，那种时候我们会重量并改写 calc 里的 K。
+     */
     const apply = () => {
         try {
             const root = rootEl();
-            if (!root) { restore(); return; }       // 切回经典模式 → 还原
+            if (!root) { restore(); return; }                       // 经典渲染器 → 交回原生
+            const wa = el.closest ? el.closest(".lg-node-widgets") : null;
+            if (!wa) { restore(); return; }                          // 没有 2.0 小部件区 → 交回原生
+            const nodeW = Number(node.size?.[0]) || 0;
+            const nodeH = Number(node.size?.[1]) || 0;
+            if (!(nodeW > 0) || !(nodeH > 0)) return;
+            const rr = root.getBoundingClientRect();
+            const wr = wa.getBoundingClientRect();
+            const er = el.getBoundingClientRect();
+            if (!(rr.width > 0) || !(rr.height > 0)) return;         // 还没真正布局
+            const scale = rr.width / nodeW;                          // 画布缩放 / UI 缩放
+            if (!(scale > 0.05) || !(scale < 20)) return;
+            const topInRoot = (er.top - rr.top) / scale;             // 容器顶部 到 节点顶部
+            const bottomChrome = (rr.bottom - wr.bottom) / scale;    // 小部件区下方的固定件（footer + 内边距）
+            if (!(topInRoot >= -2) || !(bottomChrome >= 0)) return;  // 动画 / 未就绪
+            const K = Math.round(topInRoot + bottomChrome);
+            if (!(K >= 40) || K > 4000) return;                      // 非常识 → 本拍不写
             let vh = "";
             try { vh = getComputedStyle(root).getPropertyValue("--node-height").trim(); } catch (_) { /* ignore */ }
-            if (!vh) return;                        // 拿不到就不写，避免兜底值弹簧
-            if (!cache.K) {
-                const ok = calibrate();
-                if (ok === null) { restore(); return; }
-                if (!ok) {
-                    if (tries++ <= 40) setTimeout(apply, 150);
-                    return;
-                }
-            }
-            const h = `calc(var(--node-height) - ${cache.K}px)`;
+            // 拿不到 --node-height 的环境（很老的前端 / 异常态）退化为固定 px
+            const h = vh ? `calc(var(--node-height) - ${K}px)` : `${Math.max(60, Math.round(nodeH + TITLE_H - K))}px`;
             applied = true;
-            if (el.style.maxHeight !== h) el.style.maxHeight = h;
+            if (el.style.flex !== "0 0 auto") el.style.flex = "0 0 auto";
             if (opts.definite && el.style.height !== h) el.style.height = h;
+            if (el.style.maxHeight !== h) el.style.maxHeight = h;
             if (minH > 0 && el.style.minHeight !== minH + "px") el.style.minHeight = minH + "px";
+            // 节点「最小高度」：保证最小时按钮区 + 提示词框全部同屏显示，
+            // 不裁掉任何一部分，也不产生滚动条（容器 overflow:hidden）。
+            //   内容自然高 nat = 固定件 + 提示词框最小高；可用高 = nodeH + 30 − K
+            //   ⇒ 最小 nodeH = nat + K − 30
+            try {
+                if (opts.autoMinHeight !== false) {
+                    const key = Math.round(nodeW) + "@" + K;
+                    const now = Date.now();
+                    // 2 秒兜底重量一次：万一某一拍在布局过渡中量到偏大的值，
+                    // 之后会自己修正回去（否则那个偏大的下限会一直卡着）。
+                    if (key !== lastMinKey || now - lastMinAt > 2000) {
+                        lastMinKey = key;
+                        lastMinAt = now;
+                        const nat = measureNatural();
+                        if (nat > 20 && nat < 6000) {
+                            const need = Math.round(nat + K - TITLE_H);
+                            if (need > 0 && Math.abs((Number(node._xbMinNodeH) || 0) - need) > 1) {
+                                node._xbMinNodeH = need;
+                            }
+                        }
+                    }
+                    const need2 = Number(node._xbMinNodeH) || 0;
+                    if (need2 > 0 && nodeH < need2 - 0.5 && !fixingH) {
+                        fixingH = true;
+                        try { node.setSize([nodeW, need2]); } catch (_) { /* ignore */ }
+                        fixingH = false;
+                    }
+                }
+            } catch (_) { /* ignore */ }
         } catch (_) { /* ignore */ }
     };
 
-    try {
-        requestAnimationFrame(() => { apply(); setTimeout(apply, 300); setTimeout(apply, 1200); });
-    } catch (_) { apply(); }
+    const tick = () => { try { apply(); } catch (_) { /* ignore */ } };
 
-    // 节点被删 / 切模式 → 还原；每 500ms 兜底确保刚刚创建时的时序窗口
+    // 首帧 + 几个时序点（DOM 挂载 / 工作流加载都能兜住）
+    try { requestAnimationFrame(() => { tick(); setTimeout(tick, 120); setTimeout(tick, 400); setTimeout(tick, 1000); }); }
+    catch (_) { tick(); }
+
+    // 小部件区 / 根元素尺寸变化（节点拖拽、widget 重建、显隐变化）→ 立即重量
+    try {
+        if (typeof ResizeObserver === "function") {
+            ro = new ResizeObserver(tick);
+            const root = rootEl();
+            const wa = el.closest ? el.closest(".lg-node-widgets") : null;
+            if (root) ro.observe(root);
+            if (wa) ro.observe(wa);
+        }
+    } catch (_) { ro = null; }
+
+    // 低频兜底：节点被删 / 切模式 → 还原；否则每次都重量一下（仅写差异，不抖）
     timer = setInterval(() => {
         if (!el.isConnected || !node.graph) {
             clearInterval(timer);
             timer = null;
+            if (ro) { try { ro.disconnect(); } catch (_) { /* ignore */ } ro = null; }
             restore();
             return;
         }
-        if (!applied || !cache.K) apply();
-    }, 500);
+        tick();
+    }, 400);
 
     const cleanup = () => {
         if (timer) { clearInterval(timer); timer = null; }
+        if (ro) { try { ro.disconnect(); } catch (_) { /* ignore */ } ro = null; }
         restore();
     };
     // 调用方可以随时重新应用 / 还原（如节点 resize 后重算）

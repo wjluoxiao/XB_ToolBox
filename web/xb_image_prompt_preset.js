@@ -3522,6 +3522,9 @@ function setupNode(node) {
   const TEXT_MIN_H = 300;   // 提示词框最小高度（节点再小也不低于它；节点变大则跟随）
   const DOM_FIXED_H = 116 + REF_ROW_H;  // 按钮区(66) + 标签(17) + 内边距/间距(≈33)
   const DOM_MIN_H = 411 + REF_ROW_H;    // DOM 区最小高度 = 按钮区 66 + 间距 12 + 标签 17 + 输入框 300 + 内边距 16
+  // 节点允许的最小高度 = 固定件 + 提示词框最小 120 + 标题栏 30。
+  //   ⎠ 不能直接用 DOM_MIN_H（它按提示词框 300px 算）——那样节点根本拖不矮（Pro 底下限 633，用户拖不动）。
+  const MIN_H = DOM_MIN_H - TEXT_MIN_H + 120 + 30;
   if (widget) {
     try { delete widget.computeSize; } catch (_) { widget.computeSize = undefined; }
     widget.options = widget.options || {};
@@ -3572,6 +3575,7 @@ function setupNode(node) {
   //   这里不再调 setSize，避免与之打架形成抖动环。
   let _xbResizeTimer = null;
   let _xbClampW = false;
+  let _xbClampH = false;
   const prevOnResize = node.onResize;
   node.onResize = function (...args) {
     const rr = prevOnResize?.apply(this, args);
@@ -3587,6 +3591,23 @@ function setupNode(node) {
           node.setDirtyCanvas?.(true, true);
         }
       } catch (_) { _xbClampW = false; }
+    }
+    // 高度下限同步钳制：直接改 size[1]（不调 setSize，避免 onResize 递归）。
+    //   不钳的话，拖到极矮时提示词框会被挤到看不见。
+    if (!_xbClampH) {
+      try {
+        const h = Number(node.size?.[1]) || 0;
+        // 下限取「硬编码下限」与「实测内容自然高度」的大者：
+        //   后者由 bindDomWidgetFill 测出并写在 node._xbMinNodeH，
+        //   保证最小时按钮区 + 提示词框全部同屏（无裁剪、无滚动条）。
+        const minH = Math.max(MIN_H, Number(node._xbMinNodeH) || 0);
+        if (h > 0 && h < minH - 0.5) {
+          _xbClampH = true;
+          try { node.size[1] = minH; } catch (_) { /* ignore */ }
+          _xbClampH = false;
+          node.setDirtyCanvas?.(true, true);
+        }
+      } catch (_) { _xbClampH = false; }
     }
     try {
       syncDomWidth();
