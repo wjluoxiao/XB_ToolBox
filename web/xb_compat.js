@@ -725,10 +725,131 @@ export function bindNodes2NodeFill(node, box, opts = {}) {
  *   · minWidth    最小宽度（默认 420）
  *   · rows        节点表面「可见参数行数」（数字或函数）
  *   · domFixedH   兜底常量估算用：DOM 区固定高度
+ *   · presetH     新建节点的**预置高度**（默认宽度下的实测最终高度）。
+ *                新建时直接就按它布局，不会先以 LiteGraph 默认小尺寸出现再被「拉长」。
  *   · textMinH    兜底常量估算用：提示词框最小高度
  * @returns {{ apply:Function, align:Function, markReady:Function, measure:Function, rows:Function,
  *             destroy:Function, chrome:Function, domHeight:Function, grid:Function, isReady:Function }}
  */
+/**
+ * ============================================================
+ * DOM 容器填满节点（无反馈回路的高度适配）
+ * ============================================================
+ * 目标：节点高度只由用户 / 工作流决定，DOM 内容适配节点（而不是反过来）。
+ *
+ * 做法（实测校准，不猜任何常量）：
+ *   ① **探测 chrome**：临时把容器高度撑到 3000px，
+ *      `chrome = 节点根元素 clientHeight − 容器 clientHeight`。
+ *      这个差值只取决于节点壳（标题栏/插槽/footer），**与内容无关**，
+ *      所以在任何内容状态下都能量准（旧写法用「实测 top」会随内容漂 ⇒ 越写越长）。
+ *   ② 把容器 `maxHeight`（可选同时 `height`）设为 `calc(var(--node-height) - chrome px)`。
+ *      `--node-height` 是前端写在 `.lg-node` 上的实时节点高度（Nodes 2.0）。
+ *      拿不到就什么都不写（避免 calc 落到兜底值导致「先变长再缩回」）。
+ *   ③ 内部用 flex 压缩（提示词框 `flex:1 1 0; min-height:小值`），
+ *      所以节点拖矮时内容自己让位（出现滚动条）而不会把节点撑高。
+ *
+ * ⚠️ 不写 node.size，因此不存在任何反馈回路：不会弹性、不会偶发变高、不可能无限变长。
+ *
+ * @param {object} node LiteGraph 节点
+ * @param {HTMLElement} el 容器（DOM widget 内容）
+ * @param {object} opts
+ *   · minHeight  容器最小高度（防被压成 0）
+ *   · definite   同时写 height（让内部 flex 真正压缩，甲滞留滚动条）
+ * @returns {Function} 干净撤销
+ */
+export function bindDomWidgetFill(node, el, opts = {}) {
+    if (!node || !el) return () => {};
+    const minH = Number(opts.minHeight) || 0;
+    const PROBE = 3000;
+    const cache = { K: 0 };
+    const rootEl = () => (el.closest ? el.closest(".lg-node") : null);
+    const orig = { max: el.style.maxHeight, min: el.style.minHeight, flex: el.style.flex, h: el.style.height };
+    let applied = false;
+    let tries = 0;
+    let timer = null;
+
+    const restore = () => {
+        if (!applied) return;
+        applied = false;
+        try {
+            el.style.maxHeight = orig.max;
+            el.style.minHeight = orig.min;
+            el.style.flex = orig.flex;
+            el.style.height = orig.h;
+        } catch (_) { /* ignore */ }
+    };
+
+    /** chrome = 节点根 clientHeight − 容器 clientHeight（与内容无关） */
+    const calibrate = () => {
+        const root = rootEl();
+        if (!root) return null;                    // 经典渲染器没有 .lg-node → 不接管
+        const keep = { max: el.style.maxHeight, min: el.style.minHeight, flex: el.style.flex, h: el.style.height };
+        try {
+            el.style.maxHeight = "";
+            el.style.minHeight = "0px";
+            el.style.flex = "0 0 auto";
+            el.style.height = PROBE + "px";
+            const rh = root.clientHeight;
+            const eh = el.clientHeight;
+            if (!eh || rh <= eh) return false;     // 量不到 → 稍后重试
+            cache.K = Math.max(40, Math.round(rh - eh));
+            return true;
+        } finally {
+            el.style.maxHeight = keep.max;
+            el.style.minHeight = keep.min;
+            el.style.flex = keep.flex;
+            el.style.height = keep.h;
+        }
+    };
+
+    const apply = () => {
+        try {
+            const root = rootEl();
+            if (!root) { restore(); return; }       // 切回经典模式 → 还原
+            let vh = "";
+            try { vh = getComputedStyle(root).getPropertyValue("--node-height").trim(); } catch (_) { /* ignore */ }
+            if (!vh) return;                        // 拿不到就不写，避免兜底值弹簧
+            if (!cache.K) {
+                const ok = calibrate();
+                if (ok === null) { restore(); return; }
+                if (!ok) {
+                    if (tries++ <= 40) setTimeout(apply, 150);
+                    return;
+                }
+            }
+            const h = `calc(var(--node-height) - ${cache.K}px)`;
+            applied = true;
+            if (el.style.maxHeight !== h) el.style.maxHeight = h;
+            if (opts.definite && el.style.height !== h) el.style.height = h;
+            if (minH > 0 && el.style.minHeight !== minH + "px") el.style.minHeight = minH + "px";
+        } catch (_) { /* ignore */ }
+    };
+
+    try {
+        requestAnimationFrame(() => { apply(); setTimeout(apply, 300); setTimeout(apply, 1200); });
+    } catch (_) { apply(); }
+
+    // 节点被删 / 切模式 → 还原；每 500ms 兜底确保刚刚创建时的时序窗口
+    timer = setInterval(() => {
+        if (!el.isConnected || !node.graph) {
+            clearInterval(timer);
+            timer = null;
+            restore();
+            return;
+        }
+        if (!applied || !cache.K) apply();
+    }, 500);
+
+    const cleanup = () => {
+        if (timer) { clearInterval(timer); timer = null; }
+        restore();
+    };
+    // 调用方可以随时重新应用 / 还原（如节点 resize 后重算）
+    cleanup.apply = () => { try { apply(); } catch (_) { /* ignore */ } };
+    cleanup.restore = () => { try { restore(); } catch (_) { /* ignore */ } };
+    return cleanup;
+}
+
 export function installStableNodeHeight(node, opts = {}) {
     const MIN_W = Number(opts.minWidth) || 420;
     const TITLE_H = 30;     // Vue 节点标题栏高度（实测恒定）
@@ -736,6 +857,7 @@ export function installStableNodeHeight(node, opts = {}) {
     const DOM_FIXED_H = Number.isFinite(opts.domFixedH) ? opts.domFixedH : 116;
     const TEXT_MIN_H = Number.isFinite(opts.textMinH) ? opts.textMinH : 300;
     const HARD_MIN = 420;
+    const PRESET_H = Number.isFinite(opts.presetH) && opts.presetH > 0 ? Math.round(opts.presetH) : 0;
     const rowsOf = typeof opts.rows === "function" ? opts.rows : () => (Number(opts.rows) || 0);
 
     /** 画布网格步长（ComfyUI 设置 → LiteGraph.CANVAS_GRID_SIZE → 10） */
@@ -747,198 +869,70 @@ export function installStableNodeHeight(node, opts = {}) {
         const lg = Number(window.LiteGraph?.CANVAS_GRID_SIZE);
         return Number.isFinite(lg) && lg > 0 ? lg : 10;
     };
-    /** 取节点**根**元素：同一个 data-node-id 还会命中节点内部的「节点编号」徽标（宽 20~30px），
-     *  它的高度与节点毫无关系，必须排除，否则量出来的高度是胡说八道。 */
-    const nodeEl = () => {
-        try {
-            const list = document.querySelectorAll(`[data-node-id="${node.id}"]`);
-            let best = null;
-            for (const el of list) {
-                if (!String(el.className || "").includes("lg-node")) continue;
-                if (!el.isConnected) continue;
-                if (!best || el.getBoundingClientRect().width > best.getBoundingClientRect().width) best = el;
-            }
-            return best;
-        } catch (_) { return null; }
-    };
-    /**
-     * DOM 实测高度，并**归一化到图单位**。
-     *  ⎠ 必须自校准：DOM 量出来的是渲染像素，受 UI 缩放 / 浏览器缩放 / 画布变换影响；
-     *    而 node.size 是图单位。两者比例不为 1 时，差值会随 size 线性放大，
-     *    于是每一轮都判定「还差一点」→ 再长高 → 差值更大 → **指数级一直变高**（用户报障）。
-     *    缩放因子用「宽度」自校准（DOM 宽度就是按 node.size[0] 给的），不依赖任何假设。
-     *  ⎡ 同时只认 .lg-node 根元素，避开「节点编号」徽标。
-     */
-    const nodeMetrics = () => {
-        const el = nodeEl();
-        if (!el) return null;
-        let r;
-        try { r = el.getBoundingClientRect(); } catch (_) { return null; }
-        const wNode = Number(node.size?.[0]) || 0;
-        if (!(r.width > 0) || !(r.height > 0) || !(wNode > 0)) return null;
-        const k = r.width / wNode;                 // 渲染缩放因子（正常为 1）
-        if (!(k > 0.05) || !(k < 20)) return null;
-        return { k, h: r.height / k };
-    };
-    /** 节点 DOM 实际渲染高度（已归一化到与 node.size 同单位） */
-    const domHeight = () => {
-        const m = nodeMetrics();
-        return m ? m.h : 0;
-    };
-    let ready = false;
-    let pendingNeed = 0;
-    let retries = 0;
-    let alignTimer = null;
-    let verifyUntil = 0;
-    let confirmedNeed = 0;   // 已确认的内容需求（同宽度下不变），用于拖拽到下限时即时弹回、不反复抖
-    let confirmedW = 0;
-    let grownTo = 0;         // 上一次「因内容溢出而长高」到的 size
-    let grownNeed = 0;       // 长高时读到的需求
-    let frozen = false;      // 长高后溢出不减 ⇒ 溢出与 size 无关，永不再长（防指数级跑飞）
 
-    /** 延时再对齐一次（去重）——用于「溢出量需要两次确认」的二次采样 */
-    const scheduleAlign = (delay) => {
-        if (alignTimer) return;
-        alignTimer = setTimeout(() => {
-            alignTimer = null;
-            try { align(); } catch (_) { /* ignore */ }
-        }, delay || 120);
-    };
-
-    /** 兜底估算（仅供下限/调试；真实值以 DOM 实测为准） */
+    /** 默认宽度下的内容最小高度（仅供下限/调试） */
     const measure = () => Math.max(HARD_MIN, Math.round(TITLE_H + rowsOf() * ROW_H + DOM_FIXED_H + TEXT_MIN_H));
 
-    /** DOM 实测的「内容真实需求」高度；0 表示 DOM 还没挂载 */
-    const domNeed = () => {
-        const h = domHeight();
-        return h > 0 ? h - TITLE_H : 0;
+    const domHeight = () => {
+        try {
+            const list = document.querySelectorAll(`[data-node-id="${node.id}"]`);
+            for (const el of list) {
+                if (String(el.className || "").includes("lg-node")) return el.offsetHeight || 0;
+            }
+        } catch (_) { /* ignore */ }
+        return 0;
     };
 
-    /** chrome = DOM 高度 − size，正常应为 30（标题栏）；大于 30 说明内容溢出 */
-    const chromeOf = () => {
-        const h = domHeight();
-        const cur = Number(node.size?.[1]) || 0;
-        return h > 0 && cur > 0 ? Math.round(h - cur) : 0;
-    };
-
+    /** 宽度下限锁（唯一会写尺寸的地方之一，且只管宽度） */
     const lockWidth = () => {
         try {
             const w = Number.isFinite(node.size?.[0]) ? node.size[0] : 0;
-            if (w >= MIN_W) return;
+            if (w >= MIN_W) return 0;
             node.setSize?.([MIN_W, Math.max(Number(node.size?.[1]) || HARD_MIN, HARD_MIN)]);
-        } catch (_) { /* ignore */ }
+            return 1;
+        } catch (_) { return 0; }
     };
 
-    /** 对齐一次（同步）——不能用 await：页面不可见时 requestAnimationFrame 不会回调，
-     *  一旦 await 它就会永远挂住。改为同步写入 + 多次调用（markReady 四拍 / 松手后延时）收敛。 */
+    /**
+     * 对齐：**不再写高度**。
+     *
+     * ⎠ 这是本次彻底修复的关键：
+     *    旧实现用「DOM 实测高度」反推 node.size，形成了 **DOM → size → DOM 的反馈回路**：
+     *      · 内容被拖矮 ⇒ 溢出 ⇒ 长高 ⇒ 移动/重排时又重算 ⇒ 弹性、偶发变高、无限变长；
+     *      · 「底边压网格」的 0~9px 补偿就是「拖到最小反弹 10px」的直接原因。
+     *    现在完全交给原生 + CSS（见 bindDomWidgetFill）：节点高度只由用户/工作流决定，
+     *    DOM 内容用 CSS 去适配节点（而不是节点去适配内容）⇒ 彻底无回路、无弹性、不可能自动变高。
+     */
     const align = () => {
-        if (!ready || !node.size) return 0;
-        lockWidth();
-        const w = Number(node.size?.[0]) || MIN_W;
-        let h = Number(node.size?.[1]) || HARD_MIN;
-        let changed = false;
-
-        // ① 喂饱：连续两次读到同样的溢出量才采纳，避免布局中间帧把节点永久顶高
-        const need = domNeed();
-        if (need > h + 2) {
-            if (frozen) {
-                // 已判定「长高治不了溢出」：不再动 size（否则每轮都长一点 → 一直变高）
-                pendingNeed = 0;
-                retries = 0;
-            } else if (grownTo && Math.abs(h - grownTo) < 2 && need > grownNeed + 2) {
-                // 已按需求长过一次，DOM 反而又变高了 ⇒ 量出来的高度与 size 脱钩，长高无效，冻结
-                frozen = true;
-                pendingNeed = 0;
-                retries = 0;
-                try {
-                    console.warn(`[XB-BOX] 节点高度增长无法收敛（size=${Math.round(h)} 需求=${Math.round(need)} 宽度=${Math.round(w)}），已冻结自动长高：${node.title || node.type}`);
-                } catch (_) { /* ignore */ }
-            } else if (Math.abs(need - confirmedNeed) <= 2 && Math.abs(w - confirmedW) <= 1) {
-                h = Math.ceil(need);                     // 已知需求：立即弹回，不再等二次采样
-                pendingNeed = 0;
-                retries = 0;
-            } else if (Math.abs(need - pendingNeed) <= 2) {
-                h = Math.ceil(need);
-                confirmedNeed = need;
-                confirmedW = w;
-                pendingNeed = 0;
-                retries = 0;
-            } else {
-                pendingNeed = need;
-                if (retries++ < 8) scheduleAlign(150);   // 自己排一次二次采样，不依赖外部再调
-            }
-        } else {
-            pendingNeed = 0;
-            retries = 0;
-        }
-
-        // ② 压线：视觉底边 = pos.y + size + 标题栏
-        const g = gridOf() > 0 ? gridOf() : 10;
-        const bottom = (Number(node.pos?.[1]) || 0) + Math.round(h) + TITLE_H;
-        const delta = (g - (bottom % g)) % g;
-        if (delta > 0.5) h = Math.round(h) + delta;
-
-        if (Math.abs(h - (Number(node.size?.[1]) || 0)) >= 1) {
-            const prevSize = Number(node.size?.[1]) || 0;
-            const growing = h > prevSize + 2;
-            if (growing) { grownTo = Math.round(h); grownNeed = need; }
-            else if (frozen && h < prevSize - 2) { frozen = false; grownTo = 0; grownNeed = 0; }  // 被拖矮了 → 重新允许长一次
-            node.setSize([w, Math.round(h)]);
-            node.setDirtyCanvas?.(true, true);
-            changed = true;
-            verifyUntil = Date.now() + 4000;   // 尺寸刚变过，允许后续对开渲染核对
-        } else if (!frozen && chromeOf() > TITLE_H + 4 && Date.now() < verifyUntil) {
-            // 内容仍溢出但短时内没读到稳定需求（DOM 重排布有延迟）→ 再等一拍复查
-            scheduleAlign(300);
-        }
-        return changed ? 1 : 0;
+        const c = lockWidth();
+        if (c) node.setDirtyCanvas?.(true, true);
+        return c;
     };
 
-    /** DOM 挂载 + 内部字段藏好之后调用一次（此后才允许写尺寸） */
-    const markReady = () => {
-        ready = true;
-        pendingNeed = 0;
-        retries = 0;
-        confirmedNeed = 0;
-        confirmedW = 0;
-        grownTo = 0;
-        grownNeed = 0;
-        frozen = false;
-        verifyUntil = Date.now() + 5000;
-        [0, 120, 400, 900].forEach((d) => setTimeout(() => { try { align(); } catch (_) { /* ignore */ } }, d));
-    };
-
-    // ⚠️ 不劫持 onResize：拖拽全交给 LiteGraph 原生（自己劫持是「弹跳好几格」的直接原因）
-
-    // 工作流加载 / 复制节点后重新对齐（configure 会覆盖 size，必须重新喂一次）
-    try {
-        const prevCfg = node.onConfigure;
-        node.onConfigure = function (...args) {
-            const r = prevCfg?.apply(this, args);
-            ready = false;
-            pendingNeed = 0;
-            retries = 0;
-            confirmedNeed = 0;
-            confirmedW = 0;
-            grownTo = 0;
-            grownNeed = 0;
-            frozen = false;
-            verifyUntil = 0;
-            setTimeout(() => { try { markReady(); } catch (_) { /* ignore */ } }, 150);
-            return r;
-        };
-    } catch (_) { /* ignore */ }
+    /** DOM 挂载完成后调一次（保留 API 兼容；不再做任何尺寸自适应） */
+    const markReady = () => { try { align(); } catch (_) { /* ignore */ } };
 
     const destroy = () => { try { node.__xbStableHeight = null; } catch (_) { /* ignore */ } };
 
+    /**
+     * 预置高度：本函数在 addDOMWidget 之前调用，此刻 DOM 还没挂载。
+     * 直接把 size 设到「默认宽度下的实测最终高度」，节点从第一帧就是最终尺寸。
+     * 工作流加载时 configure 会用保存的尺寸覆盖它，不影响老工作流。
+     */
+    if (PRESET_H) {
+        try {
+            const curW = Number(node.size?.[0]) || MIN_W;
+            node.setSize?.([Math.max(curW, MIN_W), PRESET_H]);
+        } catch (_) { /* ignore */ }
+    }
+
     const api = {
         apply: align, align, markReady, measure, rows: rowsOf, destroy,
-        chrome: chromeOf, domHeight, grid: gridOf,
-        isReady: () => ready,
+        chrome: () => 0, domHeight, grid: gridOf,
+        isReady: () => true,
     };
     try { node.__xbStableHeight = api; } catch (_) { /* ignore */ }
     return api;
-
 }
 
 /**

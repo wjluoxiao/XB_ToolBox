@@ -35,7 +35,7 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { installLatentGuard, installStableNodeHeight } from "./xb_compat.js";
+import { bindDomWidgetFill, installLatentGuard, installStableNodeHeight } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_ImagePromptPresetPro";
 
@@ -2701,7 +2701,7 @@ function setupNode(node) {
   container.appendChild(btnRow);
 
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
-  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
+  const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 0%;min-height:120px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
   promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n接了「🖼️ 图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\n「📝 提示词」端口接线后本框锁定";
   // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（Pro 新增；同时挂上端口锁定与执行回写）
@@ -2935,7 +2935,7 @@ function setupNode(node) {
   [0, 150, 500, 1200].forEach((d) => setTimeout(killGhost, d));
 
   // ── DOM widget（对齐短剧导演台：宽度钉死 + 高度自适应 + 每帧宽度同步） ──
-  const MIN_W = 420;
+  const MIN_W = 560;   // 最小宽度（四个预设节点统一：拖不到更窄）
   let refreshSize = () => {};   // 真实实现稍后赋值（需等 DOM widget 建好）
   const widget = node.addDOMWidget?.("xb_image_preset", "XB_IMAGE_PRESET", container, {
     serialize: false,
@@ -2981,11 +2981,14 @@ function setupNode(node) {
   //      遍历 node.widgets 求和，工作流加载/切图时 widget 被重建、hidden 标记短暂丢失，
   //      会把「全部 widget 可见」的巨大高度一次固化下来（且只增不减）→ 节点偶发自动变高。
   const SURFACE_ROWS = 7;   // 表面可见参数：latent类型/输出语言/画幅比例/宽度/高度/生成数量/启用LLM反推
+  // 默认宽度下的实测最终高度：新建时直接按它布局，避免「先出现一个小方块再被拉长」的观感
+  const DEFAULT_HEIGHT = 940;
   const stableH = installStableNodeHeight(node, {
     minWidth: MIN_W,
     rows: SURFACE_ROWS,
     domFixedH: DOM_FIXED_H,
     textMinH: TEXT_MIN_H,
+    presetH: DEFAULT_HEIGHT,
     getDomWidget: () => widget,
   });
   const minNodeHeight = () => stableH.measure();
@@ -2993,17 +2996,35 @@ function setupNode(node) {
   node._xbRefreshSize = refreshSize;
   node._xbEl = container;   // 调试/自动化定位用
 
-  // ⚠️ 不再使用 bindNodes2NodeFill：它会按 `calc(--node-height - 实测 top - PAD)` 写死容器高度，
-  //    实测 top 一旦偏小，容器就会被算得比可用空间大 ⇒ DOM 撑破节点 ⇒ 视觉底边失控 / 拖拽弹跳。
-  //    容器自身的 `height:100%` + 内部 flex 链已经能把提示词框撑到节点下边缘，无需额外干预。
+  // 容器高度锁到「节点实高 − 实测 chrome」（chrome 用 3000px 探测法得到，与内容无关 ⇒ 永远不会越读越大）。
+  //   提示词框是 flex:1 1 0 + 小 min-height，因此**节点拖矮时内容自己让位**，
+  //   不会反过来把节点撑高（这就是「弹性 / 偶发变高」的根源）。
+  try {
+    node._xbUnfillDom = bindDomWidgetFill(node, container, { minHeight: 120, definite: true });
+    node._xbRefillDom = () => { try { node._xbUnfillDom?.apply?.(); } catch (_) {} };
+  } catch (_) { /* ignore */ }
 
   // 节点 resize：只同步 overlay 宽度 + 重绘。
   //   高度下限/用户高度由 installStableNodeHeight 内部处理（区分「用户拖拽」与「程序写入」），
   //   这里不再调 setSize，避免与之打架形成抖动环。
   let _xbResizeTimer = null;
+  let _xbClampW = false;
   const prevOnResize = node.onResize;
   node.onResize = function (...args) {
     const rr = prevOnResize?.apply(this, args);
+    // 宽度下限同步钳制：直接改 size[0]（不调 setSize，避免 onResize 递归）。
+    //   放到 200ms 后去拉会出现「先被拖得很小、松手才弹回」的怪观感。
+    if (!_xbClampW) {
+      try {
+        const w = Number(node.size?.[0]) || 0;
+        if (w > 0 && w < MIN_W - 0.5) {
+          _xbClampW = true;
+          try { node.size[0] = MIN_W; } catch (_) { /* ignore */ }
+          _xbClampW = false;
+          node.setDirtyCanvas?.(true, true);
+        }
+      } catch (_) { _xbClampW = false; }
+    }
     try {
       syncDomWidth();
       node.setDirtyCanvas?.(true, true);
@@ -3011,8 +3032,8 @@ function setupNode(node) {
       _xbResizeTimer = setTimeout(() => {
         lockMinWidth();
         syncDomWidth();
-        // 松手后补一次网格对齐：原生拖拽按网格步进 size，但视觉底边还要加 chrome 才压线
-        try { stableH.align(); } catch (_) {}
+        // 绞定容器高度到新的节点高度（不写 node.size）
+        try { node._xbRefillDom?.(); } catch (_) {}
         node.setDirtyCanvas?.(true, true);
       }, 200);
     } catch (_) {}
