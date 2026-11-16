@@ -3120,9 +3120,9 @@ function setupNode(node) {
   //   ⚠️ 历史坑（已由 installStableNodeHeight 彻底修好）：以前用 node.computeSize() +
   //      遍历 node.widgets 求和，工作流加载/切图时 widget 被重建、hidden 标记短暂丢失，
   //      会把「全部 widget 可见」的巨大高度一次固化下来（且只增不减）→ 节点偶发自动变高。
-  const SURFACE_ROWS = 4;   // 表面可见参数：画幅比例/宽度/高度/生成数量（其余全在弹窗里）
+  const SURFACE_ROWS = 5;   // 表面可见参数：画幅比例/宽度/高度/生成数量/启用LLM（其余全在弹窗里）
   // 默认宽度下的实测最终高度：新建时直接按它布局，避免「先出现一个小方块再被拉长」的观感
-  const DEFAULT_HEIGHT = 810;
+  const DEFAULT_HEIGHT = 836;
   const stableH = installStableNodeHeight(node, {
     minWidth: MIN_W,
     rows: SURFACE_ROWS,
@@ -3315,7 +3315,8 @@ function setupNode(node) {
  *                + 提示词框标题行（右侧「📋 复制」）+ 参数设定显示（只读摘要 5 行）
  *                + 「📝 提示词」端口接线 → 提示词框锁定（二选一）
  *  弹窗：导演台同款二级弹窗（底部：自动保存 + 字号 + 界面缩放 + 取消/💾 保存）
- *  🤖 LLM设置 顶部 = LLM 增强总开关（单选必选：启用LLM增强 / 关闭LLM增强，默认启用）
+ *  🤖 LLM设置 顶部 = LLM 总开关（单选必选：启用LLM增强 / 关闭LLM增强，默认启用）
+ *              与节点表面的「启用LLM」是**同一个 widget**（llm_enable），两处任改一处都会同步
  *              → 节点 widget `llm_enable`（BOOLEAN，节点表面隐藏）；关闭 = 后端不加载文本编码器、不生成文本
  *  配置：manager_settings.qwen = { run.seed_control, extra_settings }（Generate Text 的全量参数走节点 widget，由弹窗读写）
  *  说明：本块所有标识符统一 xbr/XBR 前缀，避免与生图预设面板既有函数/常量重名。
@@ -3326,15 +3327,14 @@ const XBR_SEED_MODES = ["randomize", "fixed", "increment", "decrement"];const XB
 const XBR_IO_MODES = ["自动", "文生图", "图生图"];
 const XBR_SAMPLING_MODES = ["on", "off"];
 const XBR_MTP_MODES = ["auto", "off", "2", "3", "4", "5"];
-/** LLM 增强总开关（🤖 LLM设置 弹窗顶部单选，必选；默认「启用LLM增强」）*/
+/** LLM 总开关（节点表面「启用LLM」与 🤖 LLM设置 弹窗顶部单选共用同一个 widget；默认启用）*/
 const XBR_LLM_MODES = ["启用LLM增强", "关闭LLM增强"];
 const XBR_PANEL_BUTTONS = [
   { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "顶部 = LLM 增强总开关（默认启用）；模型选择 = 官方 Load CLIP；参数设置 = 官方 Generate Text 全量参数。" },
   { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "输出语言 / latent类型 / 预设模式 / 设定词 / SKILL。提示词正文在节点上的提示词框里编辑。" },
 ];
-/** 全部收进弹窗的节点 widget（节点表面只留画幅参数 / 生成数量） */
+/** 全部收进弹窗的节点 widget（节点表面只留画幅参数 / 生成数量 / 启用LLM） */
 const XBR_QWEN_WIDGETS = [
-  "llm_enable",
   "clip_name", "clip_type", "device",
   "max_length", "sampling_mode", "temperature", "top_k", "top_p", "min_p",
   "repetition_penalty", "presence_penalty", "seed", "control_after_generate",
@@ -4090,7 +4090,7 @@ function xbrBuildPromptHeader(node, promptBox) {
 
   // 表面参数变化 → 摘要刷新（只 setDirtyCanvas，不动用 setSize）
   for (const nm of ["latent_kind", "output_lang", "preset_mode", "three_view_text", "aspect_ratio",
-                    "width", "height", "batch_size", "clip_name", "clip_type", "device",
+                    "width", "height", "batch_size", "llm_enable", "clip_name", "clip_type", "device",
                     "max_length", "sampling_mode", "temperature", "top_k", "top_p", "min_p",
                     "repetition_penalty", "presence_penalty", "seed", "thinking",
                     "use_default_template", "mtp"]) {

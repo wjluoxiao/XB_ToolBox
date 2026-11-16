@@ -30,10 +30,13 @@ import { bindDomWidgetFill, installLatentGuard, installStableNodeHeight } from "
 import { openRefPicker } from "./xb_gallery_picker.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
-// 「🖼️ 生图预设」= 本节点 + 姿态/穿搭参考图：UI 全复用，只在 8 个分类按钮**上面**多一行参考图按钮
+// 「🖼️ 图像编辑预设」= 本节点 + 姿态/穿搭参考图：UI 全复用，只在 8 个分类按钮**上面**多一行参考图按钮
 const GALLERY_NODE_TYPE = "XB_ImagePreset";
-const NODE_TYPES = new Set([NODE_TYPE, GALLERY_NODE_TYPE]);
+// 「🖼️ 文生图提示词预设」= 纯提示词版：没有 latent 相关 widget（latent类型/画幅/宽高/数量）
+const PROMPT_ONLY_NODE_TYPE = "XB_Text2ImagePromptPreset";
+const NODE_TYPES = new Set([NODE_TYPE, GALLERY_NODE_TYPE, PROMPT_ONLY_NODE_TYPE]);
 const isGalleryNode = (node) => (node?.type || node?.comfyClass) === GALLERY_NODE_TYPE;
+const isPromptOnlyNode = (node) => (node?.type || node?.comfyClass) === PROMPT_ONLY_NODE_TYPE;
 // 参考图按钮 ↔ 内部字段名（值 = JSON {"path": 库内相对路径, "name": 展示名}）
 const REF_FIELDS = { pose: "pose_ref", costume: "outfit_ref" };
 const REF_LABELS = { pose: "🎬 姿态参考图", costume: "👚 穿搭参考图" };
@@ -2685,7 +2688,10 @@ function setupNode(node) {
   const wKind = findWidget(node, "latent_kind");
   const w3v = findWidget(node, "three_view_text");
   const ipWidget = findWidget(node, "internal_prompt");
-  if (!wAR || !wW || !wH || !ipWidget) return;
+  // 纯提示词节点（「🖼️ 文生图提示词预设」）没有 latent 相关 widget：
+  //   只有提示词文本框是必需的，latent 联动整体按 hasLatent 开关
+  if (!ipWidget) return;
+  const hasLatent = !!(wAR && wW && wH);
 
   // ── 内部字段从节点表面隐藏 ────────────────────────────────────────
   // ⚠️ 实测教训：后端只写 "advanced": True 在本前端版本里**不会**把 V1 widget 从节点表面藏起来，
@@ -2793,7 +2799,10 @@ function setupNode(node) {
 
   // ── 「空latent」输出没连线时：latent类型 / 画幅比例 / 宽度 / 高度 / 生成数量 全部变灰不可操作
   //    （接了「空latent」输出连线后自动恢复；接不接都只是 UI 层面，后端取值不受影响）
-  const refreshLatentGuard = installLatentGuard(node, ["latent_kind", "aspect_ratio", "width", "height", "batch_size"]);
+  //    纯提示词节点没有这些参数、也没有「空latent」端口 → 不装守卫
+  const refreshLatentGuard = hasLatent
+    ? installLatentGuard(node, ["latent_kind", "aspect_ratio", "width", "height", "batch_size"])
+    : () => {};
   // ── 节点表面 DOM：结构照抄「短剧导演台」（js/asset_manager.js）──
   // ① 容器 = 满高 flex 列（width/height:100% + overflow:hidden），高度完全交给前端 overlay 布局；
   //    提示词框 flex:1 1 auto 吃掉剩余高度。全程零 JS 高度计算 → 不可能出现
@@ -3418,6 +3427,7 @@ function setupNode(node) {
 
   // latent类型 → 同步 width/height/batch 的原生 step & 上下限（箭头/拖动按官方步长走）
   const applyKindLimits = () => {
+    if (!hasLatent) return;
     const sp = latentSpec(surfaceOf().kind);
     for (const w of [wW, wH]) {
       if (w && w.options) { w.options.step = w.options.step2 = sp.step; w.options.min = sp.min; w.options.max = sp.max; }
@@ -3431,7 +3441,7 @@ function setupNode(node) {
   // ── 画幅比例 + 步长联动（语义对齐 js/xb_video.js；步长按当前latent类型） ──
   let syncing = false;
   const snapByWidth = () => {
-    if (syncing) return;
+    if (syncing || !hasLatent) return;
     const [nw, nh] = snapFromWidth(String(readWidgetValue(wAR) ?? "Free"), readWidgetValue(wW), sizeOpt());
     syncing = true;
     try {
@@ -3440,7 +3450,7 @@ function setupNode(node) {
     } finally { syncing = false; }
   };
   const snapByHeight = () => {
-    if (syncing) return;
+    if (syncing || !hasLatent) return;
     const [nw, nh] = snapFromHeight(String(readWidgetValue(wAR) ?? "Free"), readWidgetValue(wH), sizeOpt());
     syncing = true;
     try {
@@ -3545,10 +3555,12 @@ function setupNode(node) {
   //   ⚠️ 历史坑（已由 installStableNodeHeight 彻底修好）：以前用 node.computeSize() +
   //      遍历 node.widgets 求和，工作流加载/切图时 widget 被重建、hidden 标记短暂丢失，
   //      会把「全部 widget 可见」的巨大高度一次固化下来（且只增不减）→ 节点偶发自动变高。
-  const SURFACE_ROWS = 6;   // 表面可见参数：latent类型/输出语言/画幅比例/宽度/高度/生成数量
+  const SURFACE_ROWS = hasLatent ? 6 : 1;   // 有 latent：latent类型/输出语言/画幅比例/宽度/高度/生成数量；纯提示词：只有输出语言
   // 默认宽度下的实测最终高度：新建时直接按它布局，避免「先出现一个小方块再被拉长」的观感
-  //   「图」节点多一排「姿态/穿搭参考图」按钮，且默认宽度更窄（按钮多一行），所以更高。
-  const DEFAULT_HEIGHT = isGalleryNode(node) ? 760 : 670;
+  //   「图像编辑预设」多一排「姿态/穿搭参考图」按钮；纯提示词节点没有 latent 参数行，所以更矮。
+  const DEFAULT_HEIGHT = isGalleryNode(node)
+    ? (hasLatent ? 760 : 630)
+    : (hasLatent ? 670 : 540);
   const stableH = installStableNodeHeight(node, {
     minWidth: MIN_W,
     rows: SURFACE_ROWS,
@@ -3716,11 +3728,13 @@ function setupNode(node) {
     syncPromptBoxFromWidget();
     applyKindLimits();       // 按当前latent类型同步 step / 上下限
     applyPresetTextVisibility();
-    const ar = String(readWidgetValue(wAR) ?? "Free");
-    const [nw, nh] = normalizeSize(ar, readWidgetValue(wW), readWidgetValue(wH), sizeOpt());
-    if (nw !== parseInt(readWidgetValue(wW), 10) || nh !== parseInt(readWidgetValue(wH), 10)) {
-      syncing = true;
-      try { setWidgetValue(wW, nw); setWidgetValue(wH, nh); } finally { syncing = false; }
+    if (hasLatent) {
+      const ar = String(readWidgetValue(wAR) ?? "Free");
+      const [nw, nh] = normalizeSize(ar, readWidgetValue(wW), readWidgetValue(wH), sizeOpt());
+      if (nw !== parseInt(readWidgetValue(wW), 10) || nh !== parseInt(readWidgetValue(wH), 10)) {
+        syncing = true;
+        try { setWidgetValue(wW, nw); setWidgetValue(wH, nh); } finally { syncing = false; }
+      }
     }
     refreshSize();
   };
@@ -3742,9 +3756,31 @@ function setupNode(node) {
   };
   applyPresetFiles();
 
+  // ── 老工作流兼容：本节点删掉了 5 个 latent 参数（latent类型/画幅比例/宽度/高度/生成数量），
+  //    而工作流的 widgets_values 是**按位置**存档的 → 老工作流会整排错位（提示词跑进设定词框、
+  //    配置 JSON 跑进参考图字段…）。这里认出「老布局」后按参数名重排一次；保存一次就变成新布局。
+  const LEGACY_WIDGET_ORDER = [
+    "latent_kind", "output_lang", "preset_mode", "three_view_text", "aspect_ratio",
+    "width", "height", "batch_size", "internal_prompt", "manager_settings",
+    "pose_ref", "outfit_ref",
+  ];
+  const migrateWidgetValues = (info) => {
+    try {
+      if (hasLatent || isPromptOnlyNode(node)) return;   // 布局没变的节点 / 全新类型：无需迁移
+      const vals = info && Array.isArray(info.widgets_values) ? info.widgets_values : null;
+      if (!vals || vals.length < LEGACY_WIDGET_ORDER.length) return;   // 已经是新布局
+      LEGACY_WIDGET_ORDER.forEach((name, i) => {
+        if (i >= vals.length) return;
+        const w = findWidget(node, name);
+        if (w) setWidgetValue(w, vals[i]);
+      });
+    } catch (_) { /* ignore */ }
+  };
+
   const prevConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
     const r = prevConfigure?.apply(this, args);
+    migrateWidgetValues(args[0]);
     setTimeout(boot, 60);
     setTimeout(killGhost, 200);
     setTimeout(applyPresetFiles, 120);

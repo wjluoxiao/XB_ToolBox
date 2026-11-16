@@ -249,6 +249,9 @@ try:
     # ── 生图提示词预设（提示词 + 空latent 一体化）──
     from .nodes.image.nodes_image_prompt_preset import XB_ImagePromptPreset
 
+    # ── 文生图提示词预设（纯提示词版：去掉所有 latent 参数与空latent 端口）──
+    from .nodes.image.nodes_image_prompt_only import XB_Text2ImagePromptPreset
+
     # ── 生图预设（生图提示词预设 + 姿态参考图 / 穿搭参考图）──
     # 同时 import xb_gallery → 注册 /xb_toolbox/gallery/* 端点（图库绑定、素材清单、图片读取）
     try:
@@ -271,6 +274,7 @@ try:
         "XB_ImageParamsMasterMini": XB_ImageParamsMasterMini, 
         "XB_ShenBi": XB_ShenBi,
         "XB_ImagePromptPreset": XB_ImagePromptPreset,
+        "XB_Text2ImagePromptPreset": XB_Text2ImagePromptPreset,
         "XB_PlaySound": XB_PlaySound,
         "XB_MasterParameter": XB_MasterParameter,
         "XB_VideoLoader": XB_VideoLoader,
@@ -481,8 +485,9 @@ try:
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
         "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
         "XB_ShenBi": "XB-BOX - 🖌️ ShenBi Brush",
-        "XB_ImagePromptPreset": "XB-BOX - Image Prompt Preset",
-        "XB_ImagePreset": "XB-BOX - 🖼️ 生图提示词预设（图）",
+        "XB_ImagePromptPreset": "XB-BOX - 🖼️ 文生图提示词预设 Pro",
+        "XB_Text2ImagePromptPreset": "XB-BOX - 🖼️ 文生图提示词预设",
+        "XB_ImagePreset": "XB-BOX - 🖼️ 图像编辑预设",
         "XB_PlaySound": "XB-BOX - 🔊 播放声音",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
         "XB_VideoLoader": "XB-BOX - 🎬 视频加载器（修复预览BUG）",
@@ -643,16 +648,16 @@ try:
             "XB_llamaPromptReverse": "XB-llama - ✨ 提示词增强反推",
         })
 
-    # ── 生图提示词预设Pro 显示名 ──
+    # ── 文生图提示词预设（LLM） 显示名 ──
     if _PRO_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
-            "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 生图提示词预设Pro",
+            "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 文生图提示词预设（LLM）",
         })
 
-    # ── Qwen2.1提示词预设 显示名 ──
+    # ── 文生图提示词预设（CLIP） 显示名 ──
     if _QWEN_AVAILABLE:
         NODE_DISPLAY_NAME_MAPPINGS.update({
-            "XB_QwenPromptPreset": "XB-BOX - 🖼️ Qwen2.1提示词预设",
+            "XB_QwenPromptPreset": "XB-BOX - 🖼️ 文生图提示词预设（CLIP）",
         })
 
     # ── 🎵 YuE2 音乐节点 显示名 ──

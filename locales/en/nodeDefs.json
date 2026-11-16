@@ -488,8 +488,8 @@
     }
   },
   "XB_ImagePromptPresetPro": {
-    "display_name": "XB-BOX - 🖼️ Image Prompt Preset Pro",
-    "description": "Image Prompt Preset + Prompt Enhance/Reverse fused: latent type + aspect params + 8-category element panel; optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Outputs: prompt / prompt list / prompt settings / empty latent.",
+    "display_name": "XB-BOX - 🖼️ Text-to-Image Prompt Preset (LLM)",
+    "description": "Text-to-Image Prompt Preset (LLM): everything in Pro plus optional LLM enhance/reverse (local model or online API, enhance preset / task preset / extra settings / sampling params). Enable LLM off = prompt assembly only. Outputs: prompt / empty latent / prompt list / prompt settings.",
     "inputs": {
       "latent_kind": {
         "name": "Latent Type"
@@ -559,8 +559,8 @@
     }
   },
   "XB_QwenPromptPreset": {
-    "display_name": "XB-BOX - 🖼️ Qwen2.1 Prompt Preset",
-    "description": "Image prompt preset + official Load CLIP + official Generate Text: latent type / aspect params + 8-category element panel, then the text encoder turns the body into a full prompt. Outputs: prompt / empty latent.",
+    "display_name": "XB-BOX - 🖼️ Text-to-Image Prompt Preset (CLIP)",
+    "description": "Text-to-Image Prompt Preset (CLIP): latent type / aspect params + 8-category element panel, then the text encoder (official Load CLIP + Generate Text) turns the body into a full prompt. Turn Enable LLM off to skip the whole LLM stage and just output the assembled prompt. Outputs: prompt / empty latent.",
     "inputs": {
       "latent_kind": {
         "name": "Latent Type"
@@ -596,7 +596,7 @@
         "name": "Batch Size"
       },
       "llm_enable": {
-        "name": "LLM Enhance"
+        "name": "Enable LLM"
       },
       "clip_name": {
         "name": "Model (Load CLIP)"
@@ -660,7 +660,7 @@
     }
   },
   "XB_ImagePromptPreset": {
-    "display_name": "XB-BOX - 🖼️ Image Prompt Preset",
+    "display_name": "XB-BOX - 🖼️ Text-to-Image Prompt Preset Pro",
     "inputs": {
       "output_lang": {
         "name": "Output Language"
@@ -700,15 +700,13 @@
       "1": {
         "name": "Empty Latent"
       }
-    }
+    },
+    "description": "Text-to-Image Prompt Preset Pro: latent type (auto-adapts to mainstream models) + output language + aspect ratio / width / height / batch, plus the 8-category element panel. Outputs: prompt / empty latent."
   },
-  "XB_ImagePreset": {
-    "display_name": "XB-BOX - 🖼️ Image Prompt Preset (Image)",
-    "description": "Everything in Image Prompt Preset (latent type + aspect ratio / size / batch + 8-element prompt panels + preset files), plus two pickers: Pose Reference and Outfit Reference. Bind a catalogued gallery (filter by system / category / angle / tag, grouped by pose with an angle strip) or any plain image folder (grid by file name). Each reference can be disabled: a disabled output produces nothing (like muting it) and skips downstream nodes. Outputs: prompt / empty latent / pose image / outfit image.",
+  "XB_Text2ImagePromptPreset": {
+    "display_name": "XB-BOX - 🖼️ Text-to-Image Prompt Preset",
+    "description": "Text-to-Image Prompt Preset: output language + 8-category element panel + preset text/files, prompt output only. No latent type / aspect ratio / size / batch and no empty latent (use Text-to-Image Prompt Preset Pro for that).",
     "inputs": {
-      "latent_kind": {
-        "name": "Latent Type"
-      },
       "output_lang": {
         "name": "Output Language"
       },
@@ -718,17 +716,31 @@
       "three_view_text": {
         "name": "Preset Text (manage presets from the buttons above)"
       },
-      "aspect_ratio": {
-        "name": "Aspect Ratio"
+      "internal_prompt": {
+        "name": "Internal Prompt"
       },
-      "width": {
-        "name": "Width"
+      "manager_settings": {
+        "name": "Node Config"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Prompt"
+      }
+    }
+  },
+  "XB_ImagePreset": {
+    "display_name": "XB-BOX - 🖼️ Image Edit Preset",
+    "description": "Image Edit Preset: output language + 8-category element panel + preset text/files, plus two pickers: Pose Reference and Outfit Reference. Bind a catalogued gallery or any plain image folder. No latent params and no empty latent output. Outputs: prompt / pose image / outfit image.",
+    "inputs": {
+      "output_lang": {
+        "name": "Output Language"
       },
-      "height": {
-        "name": "Height"
+      "preset_mode": {
+        "name": "Preset Mode"
       },
-      "batch_size": {
-        "name": "Batch Size"
+      "three_view_text": {
+        "name": "Preset Text (manage presets from the buttons above)"
       },
       "internal_prompt": {
         "name": "Internal Prompt"
@@ -748,12 +760,9 @@
         "name": "Prompt"
       },
       "1": {
-        "name": "Empty Latent"
-      },
-      "2": {
         "name": "Pose Image"
       },
-      "3": {
+      "2": {
         "name": "Outfit Image"
       }
     }

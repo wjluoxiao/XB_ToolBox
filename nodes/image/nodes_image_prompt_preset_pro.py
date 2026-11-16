@@ -1028,7 +1028,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 生图提示词预设Pro",
+    "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 文生图提示词预设（LLM）",
 }
 
 

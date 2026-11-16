@@ -940,12 +940,13 @@ class XB_QwenPromptPreset:
                     "tooltip": "一次生成的图片数量（空 latent 的 batch 维度）",
                 }),
 
-                # ══ ② LLM 增强总开关（弹窗「🤖 LLM设置」顶部的单选，默认启用）══
+                # ══ ② LLM 总开关（节点表面可见，与「文生图提示词预设（LLM）」的「启用LLM」一致）══
                 "llm_enable": ("BOOLEAN", {
                     "default": True,
-                    "label_on": "✅ 启用 LLM 增强", "label_off": "⛔ 关闭 LLM 增强",
-                    "tooltip": "启用（默认）= 用文本编码器把正文生成成完整提示词\n"
-                               "关闭 = 只输出拼装好的提示词 + 空latent（不加载文本编码器、不生成文本）",
+                    "label_on": "✅ 启用 LLM", "label_off": "⛔ 关闭 LLM",
+                    "tooltip": "启用（默认）= 用文本编码器把正文生成成完整提示词（需要配好下面的 CLIP 模型）\n"
+                               "关闭 = 整段 LLM 逻辑直接跳过：不加载文本编码器、不生成文本、不校验模型，"
+                               "只输出拼装好的提示词（不用担心 CLIP 没配好而报错）",
                 }),
 
                 # ══ ③ 官方 Load CLIP（模型选择）══
@@ -1047,10 +1048,10 @@ class XB_QwenPromptPreset:
     OUTPUT_IS_LIST = (False, False)
     FUNCTION = "generate"
     CATEGORY = "XB_ToolBox/Image_Params"
-    DESCRIPTION = ("Qwen2.1提示词预设：生图预设（latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板拼装）"
+    DESCRIPTION = ("文生图提示词预设（CLIP）：生图预设（latent类型/输出语言/预设模式/画幅参数 + 8 大类元素面板拼装）"
                    "＋ 官方 Load CLIP 与官方 Generate Text（纯本地文本生成）。"
-                   "「启用 / 关闭 LLM 增强」在弹窗「🤖 LLM设置」顶部（默认启用；关闭 = 只输出拼装好的提示词）。"
-                   "输出：提示词 / 空latent。")
+                   "节点表面的「启用LLM」默认启用；关闭 = 整段 LLM 逻辑跳过（不加载文本编码器、不生成文本、不校验模型），"
+                   "只输出拼装好的提示词。输出：提示词 / 空latent。")
 
     @classmethod
     def VALIDATE_INPUTS(cls, latent_kind=None, output_lang=None, io_mode=None, preset_mode=None,
@@ -1215,5 +1216,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "XB_QwenPromptPreset": "XB-BOX - 🖼️ Qwen2.1提示词预设",
+    "XB_QwenPromptPreset": "XB-BOX - 🖼️ 文生图提示词预设（CLIP）",
 }
