@@ -928,6 +928,35 @@ export function bindDomWidgetFill(node, el, opts = {}) {
     return cleanup;
 }
 
+/**
+ * 让节点尺寸**只由自己决定**（用户拖拽 / presetH / 我们自己的下限钳制）。
+ *
+ * ⎠ 为什么要劫持 computeSize：
+ *   前端在「加载 / 打开工作流」的收尾会跑一段 grow-only 的尺寸修正
+ *   （app.js：`t = e.computeSize(); t[0] = max(e.size[0], t[0]); …; e.setSize(t)`），
+ *   而 `computeSize()` 会把 DOM 部件的 `computeLayoutSize().minWidth` 再加上「值区宽度」：
+ *   我们的 DOM 部件 minWidth = 560 → 560 + 110 = **670**。
+ *   于是任何宽度小于 670 的预设节点，刷新页面后都会被顶回 670，而且永远缩不小
+ *   （它只增不减）。高度同理会被撑到 `minHeight` 之和，造成「刷新后变高 / 底部空白」。
+ *
+ *   把 computeSize 换成就地返回当前尺寸后，那一段修正对我们是空操作；
+ *   节点尺寸完全由 `installStableNodeHeight`（预置高度 + 宽度锁）与用户拖拽决定。
+ *
+ * @param {object} node 节点
+ * @param {number} [minW] 宽度兜底（节点尺寸异常为 0 时用）
+ */
+export function lockNodeComputeSize(node, minW = 0) {
+    if (!node || node.__xbComputeLocked) return;
+    node.__xbComputeLocked = true;
+    try {
+        node.computeSize = function () {
+            const w = Number(this.size?.[0]);
+            const h = Number(this.size?.[1]);
+            return [w > 0 ? w : (minW > 0 ? minW : 200), h > 0 ? h : 240];
+        };
+    } catch (_) { /* ignore */ }
+}
+
 export function installStableNodeHeight(node, opts = {}) {
     const MIN_W = Number(opts.minWidth) || 420;
     const TITLE_H = 30;     // Vue 节点标题栏高度（实测恒定）

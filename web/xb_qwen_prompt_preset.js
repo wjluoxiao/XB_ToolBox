@@ -29,7 +29,7 @@
  */
 
 import { app } from "../../scripts/app.js";
-import { bindDomWidgetFill, installLatentGuard, installStableNodeHeight } from "./xb_compat.js";
+import { bindDomWidgetFill, installLatentGuard, installStableNodeHeight, lockNodeComputeSize } from "./xb_compat.js";
 
 const NODE_TYPE = "XB_QwenPromptPreset";
 
@@ -3113,6 +3113,9 @@ function setupNode(node) {
     widget.options.afterResize = () => syncDomWidth();
   }
   node.min_width = MIN_W;
+  // 尺寸主权：禁止前端「加载工作流后撑到 computeSize」那一步改我们的宽高
+  //   （否则 DOM 部件 minWidth 560 + 值区 110 = 670 → 宽度永远缩不到 670 以下）。
+  lockNodeComputeSize(node, MIN_W);
   node.minWidth = MIN_W;
   node._xbDomWidget = widget;
   node._xbSyncWidth = syncDomWidth;   // 供 canvas.onDrawForeground 每帧调用
