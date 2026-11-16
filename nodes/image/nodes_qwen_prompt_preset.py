@@ -157,7 +157,8 @@ def safe_print(msg):
 
 # ── 主流模型的空 latent 规格表（逐项抄自 ComfyUI：comfy/latent_formats.py + 官方空 latent 节点）──
 # 选项文字 = 模型名（干净，不带专业参数；细节放 tooltip 与日志）；规格仍完整保留以保证对得上模型：
-#   每行： (选项名, 通道数, 下采样除数_h, _w, 尺寸步长, 最小, 最大, batch上限, downscale_ratio_spacial)
+#   每行： (选项名, 通道数, 下采样除数_h, _w, 尺寸步长, 最小, 最大, batch上限, downscale_ratio_spacial[, 时间维])
+#   时间维可省略（= 4 维 [B,C,H,W]）；MiniMax-H3 写 1 → 5 维 [B,C,1,H,W]（官方 Image Conditioning 同款）
 #   · 尺寸步长 = 各模型**官方最小步长**（= 下采样 × patch2）：
 #     Anima/Boogu/SDXL = 8（/8）、Flux2 = 16（/16）、Krea2/SD3/Z-image = 16（/8×patch2）、
 #     Qwen-image = 32（用户指定：Qwen 系工作流习惯锁 32）、Hunyuan = 32（/32）。
@@ -170,6 +171,9 @@ _OFFICIAL_LATENT_ROWS = [
     ("Flux2",      128, 16, 16, 16, 16, MAX_RESOLUTION, 4096, 16),
     ("Hunyuan",     64, 32, 32, 32, 64, MAX_RESOLUTION, 4096, 32),
     ("Krea2",       16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
+    # MiniMax-H3：官方 "MiniMax H3 Image Conditioning" 的空 latent = [B, 24, 1, H/16, W/16]
+    #   （多一个时间维 T=1，且不带 downscale_ratio_spacial 元数据；步长 = 官方 CANVAS_MULTIPLE 32）
+    ("MiniMax-H3",  24, 16, 16, 32, 32, MAX_RESOLUTION, 4096, 0, 1),
     ("Qwen-image",  16, 8,  8,  32, 32, MAX_RESOLUTION, 4096, 8),
     ("SD3",         16, 8,  8,  16, 16, MAX_RESOLUTION, 4096, 8),
     ("SDXL",        4,  8,  8,  8,  16, MAX_RESOLUTION, 4096, 8),
@@ -182,6 +186,7 @@ LATENT_KIND_SPEC = {
         "label": row[0], "channels": row[1], "h_div": row[2], "w_div": row[3],
         "step": row[4], "min": row[5], "max": row[6], "batch_max": row[7],
         "downscale": row[8],
+        "t_dim": (row[9] if len(row) > 9 else 0),   # 0 = 4 维；1 = 5 维 [B,C,1,H,W]
     }
     for row in _OFFICIAL_LATENT_ROWS
 }
@@ -351,6 +356,9 @@ def latent_shape_of(label, width, height, batch_size=1):
     w = _round_step(width, spec["step"], spec["min"], spec["max"])
     h = _round_step(height, spec["step"], spec["min"], spec["max"])
     b = max(1, min(spec["batch_max"], int(batch_size or 1)))
+    if spec["t_dim"]:
+        return (b, spec["channels"], int(spec["t_dim"]),
+                max(1, h // spec["h_div"]), max(1, w // spec["w_div"]))
     return (b, spec["channels"], max(1, h // spec["h_div"]), max(1, w // spec["w_div"]))
 
 
@@ -381,7 +389,8 @@ def normalize_size(aspect_ratio, width, height, step=SIZE_STEP,
 def build_empty_latent(latent_kind, width, height, batch_size=1):
     """主流模型的空 latent（形状/下采样/步长/上下限逐项对齐官方 latent_format）。
 
-    形状恒为 [B, C, H//h_div, W//w_div]，并带回 `downscale_ratio_spacial`（官方
+    形状默认 [B, C, H//h_div, W//w_div]；带时间维的类型（MiniMax-H3）为 [B, C, T, H//h_div, W//w_div]。
+    并带回 `downscale_ratio_spacial`（官方
     EmptyLatentImage / EmptySD3LatentImage 同款元数据），让
     `comfy/sample.py:fix_empty_latent_channels` 能正确判断尺寸是否需要缩放：
       · 尺寸与模型声明一致 → 不缩放；选错类型则按比例自动缩放（全零 latent 可自由转换）
@@ -393,11 +402,11 @@ def build_empty_latent(latent_kind, width, height, batch_size=1):
     w = _round_step(width, step, min_size, max_size)
     h = _round_step(height, step, min_size, max_size)
     b = max(1, min(int(spec["batch_max"]), int(batch_size or 1)))
-    z = torch.zeros(
-        [b, int(spec["channels"]),
-         max(1, h // int(spec["h_div"])), max(1, w // int(spec["w_div"]))],
-        device=comfy.model_management.intermediate_device(),
-    )
+    shape = [b, int(spec["channels"])]
+    if spec["t_dim"]:
+        shape.append(int(spec["t_dim"]))          # MiniMax-H3 等带时间维： [B, C, T, H, W]
+    shape += [max(1, h // int(spec["h_div"])), max(1, w // int(spec["w_div"]))]
+    z = torch.zeros(shape, device=comfy.model_management.intermediate_device())
     out = {"samples": z}
     if spec["downscale"]:
         out["downscale_ratio_spacial"] = int(spec["downscale"])

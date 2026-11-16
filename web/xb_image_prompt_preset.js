@@ -120,7 +120,7 @@ const BATCH_MAX = 4096;
 // ── 主流模型的空 latent（选项名 = 模型名，规格按官方 latent_format；必须与后端 _OFFICIAL_LATENT_ROWS 逐字一致）──
 // 选项按首字母（A→Z，不区分大小写）排列；DEFAULT_LATENT_KIND 固定 Z-image，不受排序影响。
 const LATENT_KINDS = [
-  "Anima", "Boogu", "Flux2", "Flux3", "Hunyuan", "Krea2", "Moss-image", "Qwen-image", "SD3", "SDXL", "Z-image",
+  "Anima", "Boogu", "Flux2", "Flux3", "Hunyuan", "Krea2", "MiniMax-H3", "Moss-image", "Qwen-image", "SD3", "SDXL", "Z-image",
 ];
 // 每项：channels(通道) / hDiv・wDiv(下采样除数) / step(尺寸步长 = 各模型官方最小步长) / min・max / batchMax / downscale / desc(悬停说明)
 // 步长 = 下采样 × patch2：Anima/Boogu/SDXL = 8、Flux2/Flux3 = 16、Krea2/SD3/Z-image = 16、Qwen-image = 32（按需求锁 32）、Hunyuan = 32
@@ -131,6 +131,7 @@ const LATENT_KIND_SPEC = {
   "Flux3": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Flux3：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Hunyuan": { channels: 64, hDiv: 32, wDiv: 32, step: 32, min: 64, max: 16384, batchMax: 4096, downscale: 32, desc: "Hunyuan：64 通道 · /32 · 步长 32（官方 EmptyHunyuanImageLatent / HunyuanImage 2.1）" },
   "Krea2": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "Krea2：16 通道 · /8 · 步长 16（官方 latent_format = Wan21）" },
+  "MiniMax-H3": { channels: 24, hDiv: 16, wDiv: 16, step: 32, min: 32, max: 16384, batchMax: 4096, downscale: 0, desc: "MiniMax-H3：24 通道 · /16 · 步长 32 · 5 维 [B,24,1,H/16,W/16]（官方 MiniMax H3 Image Conditioning 的空 latent）" },
   "Moss-image": { channels: 128, hDiv: 16, wDiv: 16, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 16, desc: "Moss-image：与 Flux2 完全同规格（128 通道 · /16 · 步长 16），仅作额外选项" },
   "Qwen-image": { channels: 16, hDiv: 8, wDiv: 8, step: 32, min: 32, max: 16384, batchMax: 4096, downscale: 8, desc: "Qwen-image：16 通道 · /8 · 步长 32（官方 latent_format = Wan21，采样时自动补 T 维；按需求锁 32）" },
   "SD3": { channels: 16, hDiv: 8, wDiv: 8, step: 16, min: 16, max: 16384, batchMax: 4096, downscale: 8, desc: "SD3：16 通道 · /8 · 步长 16（官方 EmptySD3LatentImage）" },
