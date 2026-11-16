@@ -21,6 +21,7 @@ from .nodes_image_prompt_preset import (
     XB_ImagePromptPreset,
     _norm_combo,
     build_prompt,
+    preset_text_of,
 )
 
 _REF_TOOLTIP = ("内部字段（节点表面不显示）：由「参考图选择」按钮写入的图库相对路径 JSON；"
@@ -66,7 +67,9 @@ class XB_ImagePreset(XB_ImagePromptPreset):
         output_lang = _norm_combo(output_lang, OUTPUT_LANGS, LANG_ZH)
         preset_mode = _norm_combo(preset_mode, PRESET_MODES, MODE_TEXT2IMG)
 
-        prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
+        # 设定词：老工作流里遗留的「上一版内置默认句」自动换成当前默认（用户改过的原样保留）
+        preset_text = preset_text_of(preset_mode, output_lang, three_view_text)
+        prompt = build_prompt(output_lang, preset_mode, preset_text, internal_prompt)
 
         print(f"[XB-图像编辑预设] 模式 {preset_mode}丨语言 {output_lang}丨提示词 {len(prompt)} 字"
               f"丨姿态图 {'有' if pose_ref else '无'}丨穿搭图 {'有' if outfit_ref else '无'}")

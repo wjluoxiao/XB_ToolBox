@@ -122,6 +122,21 @@ MODE_ALIASES = {
     "🎨 整图风格化": "整图风格化",
     "🌐 360°全景": "360°全景",
     "🗂 多图指认合成": "多图指认合成",
+    # 英文目录的文件名也是可能存进工作流的值（英文系统）→ 一律归一到中文规范档位名
+    "Character Three-View": "人物三视图",
+    "Character Four-View": "人物四视图",
+    "Character Five-View": "人物五视图",
+    "Transparent Background": "背景纯透明",
+    "Poster Layout": "图文版面",
+    "Infographic": "信息图",
+    "Comic Storyboard": "多格分镜",
+    "Ad Storyboard": "广告分镜板",
+    "Keep Subject New Scene": "保持主体换场景",
+    "Local Edit": "局部编辑",
+    "Photo Restoration": "老照片修复",
+    "Full Image Stylize": "整图风格化",
+    "360 Panorama": "360°全景",
+    "Multi-Image Compose": "多图指认合成",
 }
 
 
@@ -238,37 +253,33 @@ DEFAULT_LATENT_KIND = "Z-image"
 # · 人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 = 成句时自动把预设句拼在正文前（中文「。」/英文 ". "）
 PRESET_TEXT = {
     MODE_THREE_VIEW: {
-        LANG_ZH: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成："
-                 "第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，"
-                 "第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
-        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in parallel panels, "
-                         "the image is composed of four separate panels from left to right: "
-                         "the first panel is a finely detailed close-up portrait of the character's face, "
-                         "the second panel is a full-body front standing pose, "
-                         "the third panel is a full-body side standing pose, "
-                         "the fourth panel is a full-body back standing pose.",
+        LANG_ZH: "生成平行排列的角色概念设计图：第一个超大面板是角色正面面部特写；第二个面板是该人物正面全身站姿，对面部用纯白圆遮挡；第三个面板是该人物侧面全身站姿，对面部用纯白圆遮挡；第四个面板是该人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in parallel panels: the first, oversized panel is a close-up of the character's frontal face; the second panel is a full-body front standing pose of that same character with the face covered by a plain white circle; the third panel is a full-body side standing pose with the face covered by a plain white circle; the fourth panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
     },
     MODE_FOUR_VIEW: {
-        LANG_ZH: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，"
-                 "画面右上角面板是角色面部侧面的的精细特写肖像，"
-                 "画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
-        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in a 2x2 grid, "
-                         "the top-left panel is a finely detailed close-up portrait of the character's face, "
-                         "the top-right panel is a finely detailed close-up profile portrait of the character's face, "
-                         "the bottom-left panel is a headless front-facing outfit display view, "
-                         "the bottom-right panel is a full-body back standing pose.",
+        LANG_ZH: "生成四宫格排列的角色概念设计图：画面左上角面板是角色正面面部特写；画面右上角面板是角色侧面面部特写；画面左下角面板是人物正面全身站姿，对面部用纯白圆遮挡；画面右下角面板是人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in a 2x2 grid: the top-left panel is a close-up of the character's frontal face; the top-right panel is a close-up of the character's side face; the bottom-left panel is a full-body front standing pose with the face covered by a plain white circle; the bottom-right panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
     },
     MODE_FIVE_VIEW: {
-        LANG_ZH: "生成五宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，"
-                 "画面右上角面板是角色面部侧面的的精细特写肖像，"
-                 "画面下方左侧面板是无头部人物正面衣着展示图，画面下方中间面板是无头部人物侧面衣着展示图，"
-                 "画面下方右侧面板是人物背面全身站姿。",
-        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in five panels, "
-                         "the top-left panel is a finely detailed close-up portrait of the character's face, "
-                         "the top-right panel is a finely detailed close-up profile portrait of the character's face, "
-                         "the bottom-left panel is a headless front-facing outfit display view, "
-                         "the bottom-middle panel is a headless side-facing outfit display view, "
-                         "the bottom-right panel is a full-body back standing pose.",
+        LANG_ZH: "生成五宫格排列的角色概念设计图：画面左上角面板是角色正面面部特写；画面右上角面板是角色侧面面部特写；画面下方左侧面板是人物正面全身站姿，对面部用纯白圆遮挡；画面下方中间面板是人物侧面全身站姿，对面部用纯白圆遮挡；画面下方右侧面板是人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in five panels: the top-left panel is a close-up of the character's frontal face; the top-right panel is a close-up of the character's side face; the bottom-left panel is a full-body front standing pose with the face covered by a plain white circle; the bottom-middle panel is a full-body side standing pose with the face covered by a plain white circle; the bottom-right panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
+    },
+}
+
+# 旧版「三/四/五视图」预设句（v0.4.x 及以前）：**只**用于识别「老工作流里没改过的默认句」，
+# 命中时自动换成新文案（见 all_default_texts）；用户真正改过的文本不会被动。
+PRESET_TEXT_LEGACY = {
+    MODE_THREE_VIEW: {
+        LANG_ZH: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成：第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in parallel panels, the image is composed of four separate panels from left to right: the first panel is a finely detailed close-up portrait of the character's face, the second panel is a full-body front standing pose, the third panel is a full-body side standing pose, the fourth panel is a full-body back standing pose.",
+    },
+    MODE_FOUR_VIEW: {
+        LANG_ZH: "生成四宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面左下角面板是无头部人物正面衣着展示图，画面右下角面板是人物背面全身站姿。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in a 2x2 grid, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
+    },
+    MODE_FIVE_VIEW: {
+        LANG_ZH: "生成五宫格排列的角色概念设计图，画面左上角面板是角色面部的精细特写肖像，画面右上角面板是角色面部侧面的的精细特写肖像，画面下方左侧面板是无头部人物正面衣着展示图，画面下方中间面板是无头部人物侧面衣着展示图，画面下方右侧面板是人物背面全身站姿。",
+        OUTPUT_LANGS[1]: "Generate a character concept design sheet arranged in five panels, the top-left panel is a finely detailed close-up portrait of the character's face, the top-right panel is a finely detailed close-up profile portrait of the character's face, the bottom-left panel is a headless front-facing outfit display view, the bottom-middle panel is a headless side-facing outfit display view, the bottom-right panel is a full-body back standing pose.",
     },
 }
 THREE_VIEW_TEXT = PRESET_TEXT[MODE_THREE_VIEW]
@@ -429,6 +440,16 @@ def all_default_texts(preset_mode):
       就是三视图预设句 → 无预设档必须当空白，不能当成用户的「自定义」继续前置）。
     """
     out = []
+    # 旧版内置预设句也算「默认」：老工作流里存着的那一份会自动换成新文案
+    #   （「无预设」档把所有旧文案都算默认：它的设定词本来就该是空白）
+    _legacy = (list(PRESET_TEXT_LEGACY.values())
+               if normalize_mode(preset_mode) == MODE_TEXT2IMG
+               else [PRESET_TEXT_LEGACY.get(normalize_mode(preset_mode)) or {}])
+    for _tbl in _legacy:
+        for t in _tbl.values():
+            t = _as_str(t).strip()
+            if t and t not in out:
+                out.append(t)
     for lg in OUTPUT_LANGS:
         t = preset_text_for(preset_mode, lg).strip()
         if t and t not in out:
@@ -455,8 +476,18 @@ def preset_text_of(preset_mode, output_lang, three_view_text):
 
     ⚠️ 「预设模式」下拉已取消：设定词完全由用户在面板里写 / 从预设词填入，
        这里原样返回（留空 = 不前置）。`preset_mode` 参数只为兼容旧调用保留。
+    · 唯一例外：老工作流里遗留的「上一版内置预设句」会自动换成当前默认文案
+      （用户真正改过的文本原样保留）。
     """
-    return _as_str(three_view_text).strip()
+    txt = _as_str(three_view_text).strip()
+    mode = normalize_mode(preset_mode) or MODE_TEXT2IMG
+    if txt and mode != MODE_TEXT2IMG:
+        legacy = {_as_str(v).strip() for v in (PRESET_TEXT_LEGACY.get(mode) or {}).values()}
+        if txt in legacy:
+            now = _as_str(preset_text_for(mode, _pick(OUTPUT_LANGS, output_lang, LANG_ZH))).strip()
+            if now:
+                return now
+    return txt
 
 
 def build_prompt(lang, preset_mode, three_view_text, body):
@@ -901,7 +932,7 @@ class XB_ImagePromptPresetPro:
         preset_eff = _preset_text_of(preset_mode, output_lang, three_view_text)   # 送模型 / 置顶都用这一份
         # 用户输入的正文（外接「📝 提示词」优先）：接了图片时它是【修改指令】，不是待增强的提示词
         body_in = (text or "").strip() or (internal_prompt or "").strip()
-        base_prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
+        base_prompt = build_prompt(output_lang, preset_mode, preset_eff, internal_prompt)
 
         # ③ LLM 反推配置（来自 manager_settings.llm；输出语言复用节点表面参数）
         llm = parse_llm_settings(_llm_section(manager_settings))
@@ -1003,7 +1034,7 @@ class XB_ImagePromptPresetPro:
                     safe_print("[XB-生图预设Pro] ⚠️ 重试仍不合格，保留本次输出")
 
             # ④d 设定词**原封不动**加在增强结果最顶端（与未启用 LLM 时的成句规则完全一致）
-            final_prompt = build_prompt(output_lang, preset_mode, three_view_text, body_out)
+            final_prompt = build_prompt(output_lang, preset_mode, preset_eff, body_out)
         else:
             # 原「🖼️ 生图提示词预设」行为：直接输出拼装好的提示词
             final_prompt = base_prompt

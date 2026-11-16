@@ -5,12 +5,14 @@ xb_skill 预设文件加载器（生图提示词预设等节点共用）
 
     xb_skill/
       XB_ImagePromptPreset/
-        ZH/  01-人物三视图.txt  02-人物四视图.txt …
-        EN/  01-人物三视图.txt  02-人物四视图.txt …
+        ZH/  01-人物三视图.txt        02-人物四视图.txt …
+        EN/  01-Character Three-View.txt  02-Character Four-View.txt …
 
 · 一个 txt = 一个下拉选项，文件名（去掉编号前缀与 .txt）= 选项名，文件内容 = 该选项的设定词；
 · 文件名前缀 `01-` / `1.` / `01_` 只用于排序，不进入选项名；
 · 语言目录按 ComfyUI 系统语言自动选：中文（zh*）→ ZH，其他所有语言 → EN；
+· 英文目录用**英文文件名**（可读性），但取值上仍对应中文规范档位名：`LABEL_ALIASES` 负责等价，
+  所以「中文目录 + 中文档位值」与「英文目录 + 英文档位值」互相都能取到同一份文案；
 · 目录不存在 / 没有 txt 时返回空，调用方自行回退到内置文案（老部署不受影响）。
 """
 
@@ -32,6 +34,38 @@ _PREFIX_RE = re.compile(r"^\s*(\d+)\s*[-_.,，、．]?\s*")
 _CACHE_TTL = 1.5
 _cache = {}      # {绝对路径: (时间戳, [(顺序, 选项名, 路径), …])}
 
+# 英文目录的**文件名**用英文（可读性好），但它对应的是同一个「档位」：
+#   这里把英文文件名等价到中文规范档位名 —— **对外（下拉选项 / 工作流取值 / 前端查表）一律用规范名**，
+#   这样中文系统与英文系统、以及互相之间打开工作流都指向同一个档位，文案不会错位或丢失。
+# 新增英文预设文件时，若它有对应的中文档位，记得在这里登记（没登记也能用，只是不跨语言等价）。
+LABEL_ALIASES = {
+    "Character Three-View": "人物三视图",
+    "Character Four-View": "人物四视图",
+    "Character Five-View": "人物五视图",
+    "Transparent Background": "背景纯透明",
+    "Poster Layout": "图文版面",
+    "Infographic": "信息图",
+    "Comic Storyboard": "多格分镜",
+    "Ad Storyboard": "广告分镜板",
+    "Keep Subject New Scene": "保持主体换场景",
+    "Local Edit": "局部编辑",
+    "Photo Restoration": "老照片修复",
+    "Full Image Stylize": "整图风格化",
+    "360 Panorama": "360°全景",
+    "Multi-Image Compose": "多图指认合成",
+}
+_ALIAS_LOWER = {k.strip().lower(): v for k, v in LABEL_ALIASES.items()}
+_CANON_LOWER = {v.strip().lower(): v for v in LABEL_ALIASES.values()}
+
+
+def canonical_label(label):
+    """选项名 → 规范档位名（英文文件名 → 中文档位名；认不出就原样返回）"""
+    s = str(label or "").strip()
+    if not s:
+        return s
+    key = s.lower()
+    return _ALIAS_LOWER.get(key) or _CANON_LOWER.get(key) or s
+
 
 def _mtime_of_dir(folder):
     try:
@@ -41,7 +75,11 @@ def _mtime_of_dir(folder):
 
 
 def _scan_folder(folder):
-    """列出目录下的 txt：[(排序号, 选项名, 完整路径), …]（已按排序号 + 名字排好）"""
+    """列出目录下的 txt：[(排序号, 选项名, 完整路径), …]（已按排序号 + 名字排好）
+
+    选项名统一归一到**规范档位名**：英文目录 `01-Character Three-View.txt` 的选项名就是
+    「人物三视图」——文件名只是文件，取值/查表始终是同一套名字。
+    """
     items = []
     try:
         names = os.listdir(folder)
@@ -56,7 +94,7 @@ def _scan_folder(folder):
         label = (stem[m.end():] if m else stem).strip()
         if not label:
             continue
-        items.append((order, label, os.path.join(folder, name)))
+        items.append((order, canonical_label(label), os.path.join(folder, name)))
     items.sort(key=lambda x: (x[0], x[1]))
     return items
 
@@ -166,14 +204,19 @@ def backup_entries(lang=None, node_name=None):
 
 
 def merged_entries(node_name=DEFAULT_NODE, lang=None):
-    """预设目录 + 备份目录合并（同名以预设目录为准，备份里独有的也能被读到）"""
+    """预设目录 + 备份目录合并（同名以预设目录为准，备份里独有的也能被读到）
+
+    「同名」按**规范档位名**判断：英文目录的 `Character Three-View.txt` 与备份里的
+    `人物三视图.txt` 视为同一个档位，不会重复出现。
+    """
     lang = (lang or system_lang_folder()).upper()
     out = list(preset_entries(node_name, lang))
-    seen = {label for label, _p in out}
+    seen = {canonical_label(label) for label, _p in out}
     for label, path in backup_entries(lang, node_name):
-        if label not in seen:
+        key = canonical_label(label)
+        if key not in seen:
             out.append((label, path))
-            seen.add(label)
+            seen.add(key)
     return out
 
 
@@ -183,9 +226,14 @@ def preset_labels(node_name=DEFAULT_NODE, lang=None):
 
 
 def preset_text(node_name, label, lang=None):
-    """某选项在该语言下的设定词（预设目录优先，其次备份目录；都没有 → ""）"""
+    """某选项在该语言下的设定词（预设目录优先，其次备份目录；都没有 → ""）
+
+    ⚠️ 按**规范档位名**匹配：传给本函数的既可能是中文档位名（中文系统 / 老工作流），
+       也可能是英文文件名（英文系统），两者都能命中同一份文案。
+    """
+    want = canonical_label(label)
     for name, path in merged_entries(node_name, lang):
-        if name == label:
+        if canonical_label(name) == want:
             try:
                 with open(path, "r", encoding="utf-8-sig") as f:
                     return f.read().strip()
@@ -246,8 +294,9 @@ def save_preset(node_name, label, text, lang=None):
         return None, f"目录创建失败：{e}"
 
     target = None
+    want = canonical_label(safe)
     for name, path in preset_entries(node_name, lang):
-        if name == safe:
+        if name == safe or canonical_label(name) == want:
             target = path
             break
     if target is None:
@@ -280,7 +329,12 @@ def delete_preset(node_name, label, lang=None):
 
 
 def all_preset_texts(node_name=DEFAULT_NODE):
-    """{"选项名": {"中文 [ZH]": 文本, "英文 [EN]": 文本}}（预设目录 + 备份目录都读）"""
+    """{"选项名": {"中文 [ZH]": 文本, "英文 [EN]": 文本}}（预设目录 + 备份目录都读）
+
+    · 中英两个目录按**规范档位名**归并（英文目录的 `Character Three-View.txt` 与中文目录的
+      `人物三视图.txt` 是同一个档位，各自补上自己那份语言文案）；
+    · 某档位缺某种语言时用另一语言补上，避免「英文系统 + 中文输出语言」时取不到文案。
+    """
     out = {}
     for lang in LANG_FOLDERS:
         for label, path in merged_entries(node_name, lang):
@@ -289,7 +343,11 @@ def all_preset_texts(node_name=DEFAULT_NODE):
                     text = f.read().strip()
             except Exception:
                 continue
-            out.setdefault(label, {})[LANG_LABELS[lang]] = text
+            out.setdefault(canonical_label(label), {})[LANG_LABELS[lang]] = text
+    for by_lang in out.values():
+        first = next(iter(by_lang.values()), "")
+        for lg in LANG_LABELS.values():
+            by_lang.setdefault(lg, first)
     return out
 
 

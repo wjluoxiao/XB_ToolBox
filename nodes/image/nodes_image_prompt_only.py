@@ -18,6 +18,7 @@ from .nodes_image_prompt_preset import (
     XB_ImagePromptPreset,
     _norm_combo,
     build_prompt,
+    preset_text_of,
 )
 
 # 从父类里摘掉这几个「关于 latent」的输入（顺序保持父类剩余部分不变）
@@ -58,7 +59,9 @@ class XB_Text2ImagePromptPreset(XB_ImagePromptPreset):
         output_lang = _norm_combo(output_lang, OUTPUT_LANGS, LANG_ZH)
         preset_mode = _norm_combo(preset_mode, PRESET_MODES, MODE_TEXT2IMG)
 
-        prompt = build_prompt(output_lang, preset_mode, three_view_text, internal_prompt)
+        # 设定词：老工作流里遗留的「上一版内置默认句」自动换成当前默认（用户改过的原样保留）
+        preset_text = preset_text_of(preset_mode, output_lang, three_view_text)
+        prompt = build_prompt(output_lang, preset_mode, preset_text, internal_prompt)
 
         print(f"[XB-文生图提示词预设] 模式 {preset_mode}丨语言 {output_lang}丨提示词 {len(prompt)} 字")
         if prompt:

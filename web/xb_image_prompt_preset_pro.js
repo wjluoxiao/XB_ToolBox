@@ -114,6 +114,22 @@ const DEFAULT_LATENT_KIND = "Z-image";
 /** 各预设模式的默认预设句（可编辑字段 three_view_text）；无预设 = 不前置（原样输出正文） */
 const PRESET_TEXT_DEFAULT = {
   [MODE_3V]: {
+    [LANG_ZH]: "生成平行排列的角色概念设计图：第一个超大面板是角色正面面部特写；第二个面板是该人物正面全身站姿，对面部用纯白圆遮挡；第三个面板是该人物侧面全身站姿，对面部用纯白圆遮挡；第四个面板是该人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in parallel panels: the first, oversized panel is a close-up of the character's frontal face; the second panel is a full-body front standing pose of that same character with the face covered by a plain white circle; the third panel is a full-body side standing pose with the face covered by a plain white circle; the fourth panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
+  },
+  [MODE_4V]: {
+    [LANG_ZH]: "生成四宫格排列的角色概念设计图：画面左上角面板是角色正面面部特写；画面右上角面板是角色侧面面部特写；画面左下角面板是人物正面全身站姿，对面部用纯白圆遮挡；画面右下角面板是人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in a 2x2 grid: the top-left panel is a close-up of the character's frontal face; the top-right panel is a close-up of the character's side face; the bottom-left panel is a full-body front standing pose with the face covered by a plain white circle; the bottom-right panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
+  },
+  [MODE_5V]: {
+    [LANG_ZH]: "生成五宫格排列的角色概念设计图：画面左上角面板是角色正面面部特写；画面右上角面板是角色侧面面部特写；画面下方左侧面板是人物正面全身站姿，对面部用纯白圆遮挡；画面下方中间面板是人物侧面全身站姿，对面部用纯白圆遮挡；画面下方右侧面板是人物背面全身站姿。所有面板人物的面部表情、衣着装扮、画风、光影保持完全一致。",
+    [LANG_EN]: "Generate a character concept design sheet arranged in five panels: the top-left panel is a close-up of the character's frontal face; the top-right panel is a close-up of the character's side face; the bottom-left panel is a full-body front standing pose with the face covered by a plain white circle; the bottom-middle panel is a full-body side standing pose with the face covered by a plain white circle; the bottom-right panel is a full-body back standing pose. Facial expression, outfit, art style and lighting stay exactly the same across all panels.",
+  },
+};
+/** 旧版「三/四/五视图」预设句（v0.4.x 及以前）：**只**用于识别「老工作流里没改过的
+ *  默认句」，命中即换成新文案；用户真正改过的文本不会被动。 */
+const PRESET_TEXT_LEGACY = {
+  [MODE_3V]: {
     [LANG_ZH]: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成：第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
     [LANG_EN]: "Generate a character concept design sheet arranged in parallel panels, the image is composed of four separate panels from left to right: the first panel is a finely detailed close-up portrait of the character's face, the second panel is a full-body front standing pose, the third panel is a full-body side standing pose, the fourth panel is a full-body back standing pose.",
   },
@@ -179,6 +195,14 @@ const allDefaultTextsOf = (mode) => {
         }
       }
     }
+  }
+  // 旧文案也当「默认」（「无预设」档：所有旧文案都算，它的设定词本该是空白）
+  const legacyTexts = mode === MODE_TP
+    ? Object.values(PRESET_TEXT_LEGACY).flatMap((m) => Object.values(m || {}))
+    : Object.values(PRESET_TEXT_LEGACY[mode] || {});
+  for (const t of legacyTexts) {
+    const s = String(t || "").trim();
+    if (s && !out.includes(s)) out.push(s);
   }
   return out;
 };
