@@ -26,12 +26,13 @@ except ImportError:
     comfy_aimdo = None
 
 # ── AMD / ROCm GPU 监控 ──
-# 优先使用 LibreHardwareMonitor（跨厂商硬件监控库），
-# 其次尝试 rocm-smi CLI。
+# 优先使用 LibreHardwareMonitor（跨厂商硬件监控库，仅 Windows），
+# Linux 首选 amdgpu sysfs（内核驱动直读，零依赖、无需 ROCm 用户态栈），
+# 最后回退 rocm-smi CLI。
 # LHM 需要 pythonnet + LibreHardwareMonitorLib.dll (net8.0)
 _lhm_state = {"checked": False, "available": False, "computer": None}
 _amd_state = {"checked": False, "available": False, "gpu_name": None,
-              "rocm_smi_path": None,
+              "rocm_smi_path": None, "sysfs_paths": None,
               "util_cache": None, "temp_cache": None,
               "power_cache": None, "cache_time": 0}
 
@@ -216,6 +217,73 @@ def _lhm_get_shared_memory():
     _amd_state["shared_cache_time"] = time.time()
     return result
 
+def _amd_sysfs_paths():
+    """定位 amdgpu 驱动的 sysfs 传感器目录（Linux 首选后端）。
+
+    rocm-smi 本身也是读取这些内核节点，直接读可省掉整个 ROCm 用户态栈，
+    且不需要 root 权限。返回 (device_dir, hwmon_dir)，找不到返回 None。
+    多卡时取第一张具备完整节点的卡，与下面 rocm-smi 分支取首卡的行为一致。
+    """
+    import re
+    drm_root = "/sys/class/drm"
+    try:
+        cards = sorted(x for x in os.listdir(drm_root)
+                       if re.fullmatch(r"card\d+", x))
+    except OSError:
+        return None
+    for card in cards:
+        base = os.path.join(drm_root, card, "device")
+        if not os.path.exists(os.path.join(base, "gpu_busy_percent")):
+            continue
+        hwmons = os.path.join(base, "hwmon")
+        try:
+            hw_list = sorted(os.listdir(hwmons))
+        except OSError:
+            continue
+        for h in hw_list:
+            hw = os.path.join(hwmons, h)
+            try:
+                with open(os.path.join(hw, "name")) as f:
+                    if f.read().strip() != "amdgpu":
+                        continue
+            except OSError:
+                continue
+            if os.path.exists(os.path.join(hw, "temp1_input")):
+                return base, hw
+    return None
+
+
+def _query_amd_sysfs():
+    """从 amdgpu sysfs 读取 (util%, temp_C, power_mW)。
+
+    单位: gpu_busy_percent=%, temp*_input=毫摄氏度, power1_*=微瓦。
+    返回值单位与 NVML / rocm-smi 分支保持一致（功耗为毫瓦）。
+    """
+    paths = _amd_state.get("sysfs_paths")
+    if not paths:
+        return None, None, None
+    base, hw = paths
+
+    def _read(path, cast=float):
+        try:
+            with open(path) as f:
+                return cast(f.read().strip())
+        except (OSError, ValueError, TypeError):
+            return None
+
+    util = _read(os.path.join(base, "gpu_busy_percent"), int)
+    # 取 edge 温度，与 rocm-smi 的 "Temperature (Sensor edge) (C)" 对齐；
+    # hwmon 里另有 temp2(junction) / temp3(mem) 可供后续扩展。
+    temp_mc = _read(os.path.join(hw, "temp1_input"), int)
+    temp = temp_mc / 1000.0 if temp_mc is not None else None
+    # power1_average 为滑动平均；部分驱动只暴露瞬时 power1_input。
+    uw = _read(os.path.join(hw, "power1_average"), int)
+    if uw is None:
+        uw = _read(os.path.join(hw, "power1_input"), int)
+    power = uw / 1000.0 if uw is not None else None  # µW -> mW
+    return util, temp, power
+
+
 def _detect_amd_gpu():
     """检测是否为 AMD GPU 并初始化监控后端"""
     if _amd_state["checked"]:
@@ -242,7 +310,16 @@ def _detect_amd_gpu():
         _amd_state["available"] = True
         return True
     
-    # 方案 2: rocm-smi CLI (Linux 主方案，Windows 备选)
+    # 方案 2: amdgpu sysfs (Linux 首选，零依赖、无需 ROCm 用户态栈)
+    sysfs_paths = _amd_sysfs_paths() if platform.system() == "Linux" else None
+    if sysfs_paths:
+        _amd_state["sysfs_paths"] = sysfs_paths
+        _amd_state["available"] = True
+        log.info("aimdo-viz: 使用 amdgpu sysfs: %s", sysfs_paths[1])
+        print("[XB 硬件监控] [OK] AMD GPU 监控已就绪 (amdgpu sysfs)")
+        return True
+
+    # 方案 3: rocm-smi CLI (无 sysfs 时回退，Windows 备选)
     import shutil
     candidates = []
     if platform.system() == "Windows":
@@ -277,8 +354,9 @@ def _detect_amd_gpu():
         print("  3) LibreHardwareMonitorLib.dll 在工具箱目录中")
     elif sys_name == "Linux":
         print("[XB 硬件监控] [WARN] AMD GPU 详细监控不可用，仅显示 VRAM")
-        print("  请安装 ROCm SMI: sudo apt install rocm-smi-lib rocm-smi")
-        print("  或: pip install amdsmi && 确认 /opt/rocm/bin/rocm-smi 可用")
+        print("  已尝试 amdgpu sysfs (/sys/class/drm/card*/device) 与 rocm-smi，均不可用")
+        print("  可尝试: sudo apt install rocm-smi  (Ubuntu noble/universe 提供 5.7.0-1)")
+        print("  注: 本模块只调用 rocm-smi CLI，安装 python 包 amdsmi 无效")
     elif sys_name == "Darwin":
         print("[XB 硬件监控] [WARN] macOS AMD GPU 详细监控不可用，仅显示 VRAM")
         print("  macOS 暂不支持 GPU 传感器读取，仅能显示 VRAM 基本信息")
@@ -302,6 +380,18 @@ def _query_amd_gpu():
         _amd_state["power_cache"] = p
         return u, t, p
     
+    # amdgpu sysfs (Linux 首选)
+    if _amd_state.get("sysfs_paths"):
+        now = time.time()
+        if now - _amd_state["cache_time"] < 2:
+            return _amd_state["util_cache"], _amd_state["temp_cache"], _amd_state["power_cache"]
+        _amd_state["cache_time"] = now
+        u, t, p = _query_amd_sysfs()
+        _amd_state["util_cache"] = u
+        _amd_state["temp_cache"] = t
+        _amd_state["power_cache"] = p
+        return u, t, p
+
     # rocm-smi 回退
     if _amd_state.get("rocm_smi_path"):
         now = time.time()
