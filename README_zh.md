@@ -265,6 +265,19 @@ XB_ToolBox/
 再在 `data/index.json`、`data/index.zh.json` 里各加一条条目（`name` 与 JSON 文件名一致）。
 预览图放同目录，命名 `<name>-1.webp`。
 
+**每次点卡片打开的都是独立副本**（新工作流 id + 未被占用的标签页路径），
+所以你的改动不会被我们的模版重置，插件里的 JSON 也不会被写入。
+想留档自己 `Ctrl+S` 存到本地即可，之后那份就是你的；再次点同一个卡片会再给一份干净的副本
+（旧的还在时会命名为 `标题 (2)`、`标题 (3)`）。
+
+当前内置 **13 个分类 / 70 个工作流**。整批同步用脚本完成，源目录按
+`<分类>/<编号>-<标题>.json` 组织，预览图取根目录的 `界面图.png`：
+
+```bash
+python tools/import_jzl_workflows.py "Y:\ComfyUI_LX\workflows\0"        # 正式同步
+python tools/import_jzl_workflows.py "Y:\ComfyUI_LX\workflows\0" --dry-run   # 只看映射结果
+```
+
 ---
 
 ### 🙏 致谢

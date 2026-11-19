@@ -264,6 +264,20 @@ To add a workflow: drop the JSON into `jzl_workflows/data/` (ASCII file name), a
 both index files (`name` must match the file name), and put the preview next to it as
 `<name>-1.webp`.
 
+Each card click opens a **fresh, independent copy** (new workflow id + an unused tab path), so your
+edits are never reset by us and the bundled JSON files are never touched. Save locally (`Ctrl+S`)
+and the copy is yours from then on; loading the card again gives you another clean copy
+(named `Title (2)`, `Title (3)`, ... if the earlier one is still around).
+
+The bundle currently ships **13 categories / 70 workflows**. A whole batch is synced with a
+script; the source folder is laid out as `<category>/<NN>-<title>.json` and the preview image is
+the `界面图.png` at its root:
+
+```bash
+python tools/import_jzl_workflows.py "Y:\ComfyUI_LX\workflows\0"             # sync
+python tools/import_jzl_workflows.py "Y:\ComfyUI_LX\workflows\0" --dry-run   # preview the mapping
+```
+
 ---
 
 ### 🙏 Credits

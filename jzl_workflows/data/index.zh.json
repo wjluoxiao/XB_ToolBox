@@ -8,7 +8,7 @@
     "templates": [
       {
         "name": "anima_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -23,7 +23,7 @@
       },
       {
         "name": "anima_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -38,7 +38,7 @@
       },
       {
         "name": "anima_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -62,7 +62,7 @@
     "templates": [
       {
         "name": "flux2_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -77,7 +77,7 @@
       },
       {
         "name": "flux2_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -92,7 +92,7 @@
       },
       {
         "name": "flux2_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -107,7 +107,7 @@
       },
       {
         "name": "flux2_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -122,7 +122,7 @@
       },
       {
         "name": "flux2_05",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -137,7 +137,7 @@
       },
       {
         "name": "flux2_06",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -152,7 +152,7 @@
       },
       {
         "name": "flux2_07",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -163,6 +163,21 @@
         ],
         "title": "07-Flux2-klein 图片扩展",
         "description": "07-Flux2-klein 图片扩展",
+        "username": "机智罗"
+      },
+      {
+        "name": "flux2_08",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux2_08-1.webp"
+        ],
+        "tags": [
+          "Flux-2"
+        ],
+        "title": "08-Flux 2 Klein 换脸工作流",
+        "description": "08-Flux 2 Klein 换脸工作流",
         "username": "机智罗"
       }
     ]
@@ -176,7 +191,7 @@
     "templates": [
       {
         "name": "flux3_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -191,7 +206,7 @@
       },
       {
         "name": "flux3_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -206,7 +221,7 @@
       },
       {
         "name": "flux3_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -217,6 +232,21 @@
         ],
         "title": "03-Flux-3-klein 96视角切换工作流",
         "description": "03-Flux-3-klein 96视角切换工作流",
+        "username": "机智罗"
+      },
+      {
+        "name": "flux3_04",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "flux3_04-1.webp"
+        ],
+        "tags": [
+          "Flux-3"
+        ],
+        "title": "04-Flux-3-klein 控制生图",
+        "description": "04-Flux-3-klein 控制生图",
         "username": "机智罗"
       }
     ]
@@ -230,7 +260,7 @@
     "templates": [
       {
         "name": "krea2_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -245,7 +275,7 @@
       },
       {
         "name": "krea2_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -260,7 +290,7 @@
       },
       {
         "name": "krea2_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -275,7 +305,7 @@
       },
       {
         "name": "krea2_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -284,68 +314,275 @@
         "tags": [
           "Krea-2"
         ],
-        "title": "04-Krea-2 角色多视图生成",
-        "description": "04-Krea-2 角色多视图生成",
+        "title": "04-Krea-2 风格复刻文生图",
+        "description": "04-Krea-2 风格复刻文生图",
         "username": "机智罗"
-      },
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
+    "title": "MiniMax-H3",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
       {
-        "name": "krea2_1139",
-        "date": "2026-11-10",
+        "name": "minimaxh3_01",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
-          "krea2_1139-1.webp"
+          "minimaxh3_01-1.webp"
         ],
         "tags": [
-          "Krea-2"
+          "MiniMax-H3"
         ],
-        "title": "1139-Krea-2 免Lora 风格复刻文生图工作流",
-        "description": "1139-Krea-2 免Lora 风格复刻文生图工作流",
+        "title": "01-MiniMax-H3 fl2va 文生视频",
+        "description": "01-MiniMax-H3 fl2va 文生视频",
         "username": "机智罗"
       },
       {
-        "name": "krea2_1140",
-        "date": "2026-11-10",
+        "name": "minimaxh3_02",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
-          "krea2_1140-1.webp"
+          "minimaxh3_02-1.webp"
         ],
         "tags": [
-          "Krea-2"
+          "MiniMax-H3"
         ],
-        "title": "1140-Krea-2 风格克隆 人物三视图 生成工作流",
-        "description": "1140-Krea-2 风格克隆 人物三视图 生成工作流",
+        "title": "02-MiniMax-H3 fl2va 文图生视频",
+        "description": "02-MiniMax-H3 fl2va 文图生视频",
         "username": "机智罗"
       },
       {
-        "name": "krea2_07",
-        "date": "2026-11-10",
+        "name": "minimaxh3_03",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
-          "krea2_07-1.webp"
+          "minimaxh3_03-1.webp"
         ],
         "tags": [
-          "Krea-2"
+          "MiniMax-H3"
         ],
-        "title": "Qwen-Image-2511 角色三视图工作流",
-        "description": "Qwen-Image-2511 角色三视图工作流",
+        "title": "03-MiniMax-H3 fl2va 文图生视频 常规二次采样",
+        "description": "03-MiniMax-H3 fl2va 文图生视频 常规二次采样",
         "username": "机智罗"
       },
       {
-        "name": "krea2_08",
-        "date": "2026-11-10",
+        "name": "minimaxh3_04",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
-          "krea2_08-1.webp"
+          "minimaxh3_04-1.webp"
         ],
         "tags": [
-          "Krea-2"
+          "MiniMax-H3"
         ],
-        "title": "三视图-Flux2-三视图",
-        "description": "三视图-Flux2-三视图",
+        "title": "04-MiniMax-H3 fl2va 文图生视频 SelfLift 二次采样",
+        "description": "04-MiniMax-H3 fl2va 文图生视频 SelfLift 二次采样",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaxh3_05",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxh3_05-1.webp"
+        ],
+        "tags": [
+          "MiniMax-H3"
+        ],
+        "title": "05-MiniMax-H3 ref2va 多参考生视频",
+        "description": "05-MiniMax-H3 ref2va 多参考生视频",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaxh3_06",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxh3_06-1.webp"
+        ],
+        "tags": [
+          "MiniMax-H3"
+        ],
+        "title": "06-MiniMax-H3 ref2va 多参考生视频 常规二次采样",
+        "description": "06-MiniMax-H3 ref2va 多参考生视频 常规二次采样",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaxh3_07",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxh3_07-1.webp"
+        ],
+        "tags": [
+          "MiniMax-H3"
+        ],
+        "title": "07-MiniMax-H3 ref2va 多参考生视频 SelfLift 二次采样",
+        "description": "07-MiniMax-H3 ref2va 多参考生视频 SelfLift 二次采样",
+        "username": "机智罗"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
+    "title": "MiniMax-image",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "minimaximage_01",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_01-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "01-MiniMax-H3-image 文生图",
+        "description": "01-MiniMax-H3-image 文生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaximage_02",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_02-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "02-MiniMax-H3-image 单图编辑",
+        "description": "02-MiniMax-H3-image 单图编辑",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaximage_03",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_03-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "03-MiniMax-H3-image 图像多角度编辑",
+        "description": "03-MiniMax-H3-image 图像多角度编辑",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaximage_04",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_04-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "04-MiniMax-H3-image 多图编辑",
+        "description": "04-MiniMax-H3-image 多图编辑",
+        "username": "机智罗"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
+    "title": "Moss-image",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "mossimage_01",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "mossimage_01-1.webp"
+        ],
+        "tags": [
+          "Moss-image"
+        ],
+        "title": "01-Moss-Image-sft 文生图",
+        "description": "01-Moss-Image-sft 文生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "mossimage_02",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "mossimage_02-1.webp"
+        ],
+        "tags": [
+          "Moss-image"
+        ],
+        "title": "02-Moss-Image-sft 控制生图",
+        "description": "02-Moss-Image-sft 控制生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "mossimage_03",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "mossimage_03-1.webp"
+        ],
+        "tags": [
+          "Moss-image"
+        ],
+        "title": "03-Moss-Image-base 文生图",
+        "description": "03-Moss-Image-base 文生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "mossimage_04",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "mossimage_04-1.webp"
+        ],
+        "tags": [
+          "Moss-image"
+        ],
+        "title": "04-Moss-Image-base 控制生图",
+        "description": "04-Moss-Image-base 控制生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "mossimage_05",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "mossimage_05-1.webp"
+        ],
+        "tags": [
+          "Moss-image"
+        ],
+        "title": "05-Moss-Image-sft 文生图 4步加速",
+        "description": "05-Moss-Image-sft 文生图 4步加速",
         "username": "机智罗"
       }
     ]
@@ -359,7 +596,7 @@
     "templates": [
       {
         "name": "qwen21_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -374,7 +611,7 @@
       },
       {
         "name": "qwen21_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -389,7 +626,7 @@
       },
       {
         "name": "qwen21_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -404,7 +641,7 @@
       },
       {
         "name": "qwen21_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -419,7 +656,7 @@
       },
       {
         "name": "qwen21_05",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -434,7 +671,7 @@
       },
       {
         "name": "qwen21_06",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -445,6 +682,36 @@
         ],
         "title": "06-Qwen-2.1 手绘生图",
         "description": "06-Qwen-2.1 手绘生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "qwen21_07",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_07-1.webp"
+        ],
+        "tags": [
+          "Qwen-image-2.1"
+        ],
+        "title": "07-Qwen-image-2.1 控制生图-A",
+        "description": "07-Qwen-image-2.1 控制生图-A",
+        "username": "机智罗"
+      },
+      {
+        "name": "qwen21_08",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_08-1.webp"
+        ],
+        "tags": [
+          "Qwen-image-2.1"
+        ],
+        "title": "08-Qwen-image-2.1 控制生图-B",
+        "description": "08-Qwen-image-2.1 控制生图-B",
         "username": "机智罗"
       }
     ]
@@ -458,7 +725,7 @@
     "templates": [
       {
         "name": "qwen2511_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -467,13 +734,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "01-Qwe-Image-2511 图片编辑",
-        "description": "01-Qwe-Image-2511 图片编辑",
+        "title": "01-Qwen-Image-2511 图片编辑",
+        "description": "01-Qwen-Image-2511 图片编辑",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -482,13 +749,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "02-Qwe-Image-2511 图片编辑 - GGUF",
-        "description": "02-Qwe-Image-2511 图片编辑 - GGUF",
+        "title": "02-Qwen-Image-2511 图片编辑 - GGUF",
+        "description": "02-Qwen-Image-2511 图片编辑 - GGUF",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -497,13 +764,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "03-Qwe-Image-2511 多图编辑",
-        "description": "03-Qwe-Image-2511 多图编辑",
+        "title": "03-Qwen-Image-2511 多图编辑",
+        "description": "03-Qwen-Image-2511 多图编辑",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -512,13 +779,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "04-Qwe-Image-2511 多图编辑 - GGUF",
-        "description": "04-Qwe-Image-2511 多图编辑 - GGUF",
+        "title": "04-Qwen-Image-2511 多图编辑 - GGUF",
+        "description": "04-Qwen-Image-2511 多图编辑 - GGUF",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_05",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -527,13 +794,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "05-Qwe-Image-2511 多Lora切换",
-        "description": "05-Qwe-Image-2511 多Lora切换",
+        "title": "05-Qwen-Image-2511 多Lora切换",
+        "description": "05-Qwen-Image-2511 多Lora切换",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_06",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -542,13 +809,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "06-Qwe-Image-2511 多Lora切换 - GGUF",
-        "description": "06-Qwe-Image-2511 多Lora切换 - GGUF",
+        "title": "06-Qwen-Image-2511 多Lora切换 - GGUF",
+        "description": "06-Qwen-Image-2511 多Lora切换 - GGUF",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_07",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -557,13 +824,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "07-Qwe-Image-2511 单视角切换",
-        "description": "07-Qwe-Image-2511 单视角切换",
+        "title": "07-Qwen-Image-2511 单视角切换",
+        "description": "07-Qwen-Image-2511 单视角切换",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_08",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -572,13 +839,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "08-Qwe-Image-2511 单视角切换 - GGUF",
-        "description": "08-Qwe-Image-2511 单视角切换 - GGUF",
+        "title": "08-Qwen-Image-2511 单视角切换 - GGUF",
+        "description": "08-Qwen-Image-2511 单视角切换 - GGUF",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_09",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -587,13 +854,13 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "09-Qwe-Image-2511 96视角生成",
-        "description": "09-Qwe-Image-2511 96视角生成",
+        "title": "09-Qwen-Image-2511 96视角生成",
+        "description": "09-Qwen-Image-2511 96视角生成",
         "username": "机智罗"
       },
       {
         "name": "qwen2511_10",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -602,8 +869,23 @@
         "tags": [
           "Qwen-image-2511"
         ],
-        "title": "10-Qwe-Image-2511 96视角生成 - GGUF",
-        "description": "10-Qwe-Image-2511 96视角生成 - GGUF",
+        "title": "10-Qwen-Image-2511 96视角生成 - GGUF",
+        "description": "10-Qwen-Image-2511 96视角生成 - GGUF",
+        "username": "机智罗"
+      },
+      {
+        "name": "qwen2511_11",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen2511_11-1.webp"
+        ],
+        "tags": [
+          "Qwen-image-2511"
+        ],
+        "title": "11-Qwen-Image-2511 控制生图",
+        "description": "11-Qwen-Image-2511 控制生图",
         "username": "机智罗"
       }
     ]
@@ -617,7 +899,7 @@
     "templates": [
       {
         "name": "qwen2512_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -632,7 +914,7 @@
       },
       {
         "name": "qwen2512_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -647,7 +929,7 @@
       },
       {
         "name": "qwen2512_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -662,7 +944,7 @@
       },
       {
         "name": "qwen2512_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -677,7 +959,7 @@
       },
       {
         "name": "qwen2512_05",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -692,7 +974,7 @@
       },
       {
         "name": "qwen2512_06",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -710,13 +992,76 @@
   {
     "moduleName": "jzl",
     "category": "机智罗的工作流",
+    "title": "RelayVSR",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "relayvsr_01",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "relayvsr_01-1.webp"
+        ],
+        "tags": [
+          "RelayVSR"
+        ],
+        "title": "01-RelayVSR 视频放大",
+        "description": "01-RelayVSR 视频放大",
+        "username": "机智罗"
+      },
+      {
+        "name": "relayvsr_02",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "relayvsr_02-1.webp"
+        ],
+        "tags": [
+          "RelayVSR"
+        ],
+        "title": "02-RelayVSR 无限时长视频放大",
+        "description": "02-RelayVSR 无限时长视频放大",
+        "username": "机智罗"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
+    "title": "SeeThrough",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "seethrough_01",
+        "date": "2026-11-19",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "seethrough_01-1.webp"
+        ],
+        "tags": [
+          "SeeThrough"
+        ],
+        "title": "01-SeeThrough 图层拆解",
+        "description": "01-SeeThrough 图层拆解",
+        "username": "机智罗"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "机智罗的工作流",
     "title": "Z-image",
     "icon": "icon-[lucide--image]",
     "type": "image",
     "templates": [
       {
         "name": "zimage_01",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -731,7 +1076,7 @@
       },
       {
         "name": "zimage_02",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -746,7 +1091,7 @@
       },
       {
         "name": "zimage_03",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -761,7 +1106,7 @@
       },
       {
         "name": "zimage_04",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -776,7 +1121,7 @@
       },
       {
         "name": "zimage_05",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -791,7 +1136,7 @@
       },
       {
         "name": "zimage_06",
-        "date": "2026-11-10",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -805,12 +1150,12 @@
         "username": "机智罗"
       },
       {
-        "name": "zimage_10",
-        "date": "2026-11-10",
+        "name": "zimage_07",
+        "date": "2026-11-19",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
-          "zimage_10-1.webp"
+          "zimage_07-1.webp"
         ],
         "tags": [
           "Z-image"

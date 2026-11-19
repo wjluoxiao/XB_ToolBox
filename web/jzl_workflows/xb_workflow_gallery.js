@@ -190,6 +190,30 @@ function workflowTabName(item) {
     return cleaned || "JZL Workflow";
 }
 
+function freshWorkflowId() {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    if (uuid) return uuid;
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+        const r = (Math.random() * 16) | 0;
+        return (ch === "x" ? r : (r & 0x3) | 0x8).toString(16);
+    });
+}
+
+/**
+ * 找一个还没被占用的标签页名字。
+ * 前端按「路径」识别文档：同名标签页 / 同名本地文件会被当成同一个工作流，
+ * 再次加载时直接把画布重置成我们的模版内容（用户改动全丢）。所以每次都取新路径。
+ */
+function uniqueTabName(workflowStore, base) {
+    const taken = (name) => Boolean(workflowStore?.getWorkflowByPath?.(`workflows/${name}.json`));
+    if (!taken(base)) return base;
+    for (let index = 2; index < 100; index += 1) {
+        const candidate = `${base} (${index})`;
+        if (!taken(candidate)) return candidate;
+    }
+    return `${base} ${Date.now()}`;
+}
+
 /** 打开清单里的一个工作流；返回是否新建了标签页 */
 async function openWorkflowItem(item) {
     const response = await api.fetchApi(ASSET_BASE + item.name + ".json", { cache: "no-store" });
@@ -198,11 +222,12 @@ async function openWorkflowItem(item) {
 
     const workflowStore = app.extensionManager?.workflow;
     const before = new Set(workflowStore?.openWorkflows?.map((wf) => wf.path) ?? []);
-    const tabName = workflowTabName(item);
+    const tabName = uniqueTabName(workflowStore, workflowTabName(item));
 
-    // 第 4 个参数是「工作流名字」，前端会据此新建一个临时工作流标签页，
-    // 标签页标题即该名字。传成路径（或省略）会让标签页拿到非法路径，
-    // 之后自动保存时 userdata 接口会 403。
+    // 模版只是一份「仓库副本」：换掉工作流 id，保证每次都当全新文档打开，
+    // 既不会合并进用户已保存的工作流，也不会覆盖它。
+    graph.id = freshWorkflowId();
+
     await app.loadGraphData(graph, true, true, tabName);
 
     const created = workflowStore?.openWorkflows?.find((wf) => !before.has(wf.path));
