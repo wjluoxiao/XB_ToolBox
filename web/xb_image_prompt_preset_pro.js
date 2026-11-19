@@ -72,7 +72,7 @@ const modeSkillHint = (mode) => "system_prompt_t2i.txt";   // Pro 固定文生�
 // ── 设定词按「模式 × 语言」取（Pro 只有 4 档模式，固定文生图）────────────────
 /** ⚠️ Pro 固定文生图：不追加任何模版条款（原「以输入图为准」条款随模版选择一并删除） */
 function modeIoClause(mode, hasImage, lang) { return ""; }
-/** 节点是否接了参考图（🖼️ 图像 端口有连线） */
+/** 节点是否接了参考图（图像 端口有连线） */
 function modeHasImage(node) {
   try {
     const inp = (node.inputs || []).find((i) => i.name === "images");
@@ -1781,7 +1781,7 @@ function openPanel(ctx, panelId) {
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
   const sticky = el("div", "position:sticky;top:0;z-index:6;background:var(--xb-bg);padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid var(--xb-border);");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
-  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
+  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
   head.append(headCount);
   const presetChip = el("div", "font-size:11px;color:var(--xb-warn);background:var(--xb-tint-warn);border:1px dashed #8a6d3b;border-radius:4px;padding:4px 8px;margin-bottom:6px;white-space:pre-wrap;line-height:1.5;display:none;");
@@ -2728,7 +2728,7 @@ function setupNode(node) {
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
   const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 0%;min-height:120px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
-  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n接了「🖼️ 图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\n「📝 提示词」端口接线后本框锁定";
+  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n接了「图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\n「提示词」端口接线后本框锁定";
   // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（Pro 新增；同时挂上端口锁定与执行回写）
   const xbrHeadAndInfo = xbrBuildPromptHeader(node, promptBox);
   container.append(xbrHeadAndInfo[0], promptBox, xbrHeadAndInfo[1]);
@@ -2741,7 +2741,7 @@ function setupNode(node) {
   promptBox.addEventListener("input", () => { setWidgetValue(ipWidget, promptBox.value); });
 
   // ── 表面参数（原「⚙️ 输出设置」面板的 4 项已上提到节点表面）──
-  /** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+  /** 当前模版（文生图 / 图生图）：自动 → 按「图像」有没有接线判断 */
   const curIoMode = () => resolveIoMode(ioModeOf(wIo ? readWidgetValue(wIo) : ""), modeHasImage(node));
   const surfaceOf = () => ({
     lang: pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH),
@@ -3230,7 +3230,7 @@ function setupNode(node) {
  *  节点表面新增：2 个按钮（🤖 大语言模型配置 ｜ ✨ 提示词增强预设）
  *                + 「✅ 启用 LLM 反推」开关（节点表面参数，默认关）
  *                + 提示词框标题行（右侧「📋 复制」）+ 参数设定显示（只读摘要）
- *                + 「📝 提示词」端口接线 → 提示词框锁定（二选一）
+ *                + 「提示词」端口接线 → 提示词框锁定（二选一）
  *  弹窗：导演台同款二级弹窗（底部：自动保存 + 字号 + 界面缩放 + 取消/💾 保存）
  *  配置：manager_settings.llm = { model, run, params, extra_system }（与后端 _llm_section 对齐）
  *  说明：本块所有标识符统一 xbr/XBR 前缀，避免与生图预设面板既有函数/常量重名。
@@ -3680,7 +3680,7 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(el("div", "font-size:11px;color:#888;line-height:1.65;margin:2px 0 8px;",
     "开启后＝① 系统提示词末尾追加「只输出最终提示词」硬规则　② 仍漏出思考时自动剔除思考标签、"
     + "Final Output / 最终输出 标记之前的推理段与代码围栏（拿不到内容则原文保留）。"));
-  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「提示词」端口接线后该框锁定。"));
 }
 
 /* ── 预设词库：与「🖼️ 生图提示词预设」共用 xb_skill/XB_ImagePromptPreset/{ZH,EN}/*.txt ──────
@@ -4392,7 +4392,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
       body.append(el("div", "font-size:11px;color:var(--xb-warn);", "没有可用的反推预设"));
     }
     body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
-      "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「📝 提示词」填入。"));
+      "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「提示词」填入。"));
     const taskRow = el("div", "display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;");
     taskRow.append(smallBtn("✏️ 编辑反推预设", btnCss, "编辑反推预设 txt（面板与「设定词 → 编辑预设」完全一致）",
       () => {
@@ -4428,7 +4428,7 @@ function xbrRenderHelp(body) {
     "  左边拼提示词，右边配画布，中间还能让 AI 帮你写、帮你看图改图",
     "",
     "【三步上手】",
-    "  1. 📊 空latent 接采样器；📝 提示词 接文本编码器",
+    "  1. 空 Latent 接采样器；提示词 接文本编码器",
     "  2. 点第 2 行的分类按钮挑词；短句直接写在节点提示词框里",
     "  3. 想让 AI 代写：开 ✅ 启用 LLM 反推，先到 🤖 LLM设置 选好模型或填好 API",
     "",
@@ -4447,16 +4447,16 @@ function xbrRenderHelp(body) {
     "  · 搜索框与「全部加入」只作用于当前子类",
     "",
     "【输入端口】",
-    "  · 📝 提示词：外接提示词；接线后节点上的提示词框会锁定",
-    "  · 🖼️ 图像：外接图像 / 视频帧",
+    "  · 提示词：外接提示词；接线后节点上的提示词框会锁定",
+    "  · 图像：外接图像 / 视频帧",
     "  · 只有文字 = 把这段文字写成完整的画面提示词",
     "  · 只有图 = 看图写提示词",
     "  · 有图 + 有文字 = 看图改图：先识图，再把文字当【修改指令】执行，最终只输出修改后的画面提示词，",
     "    不会写成「原本…被替换为…」；万一模型写成对比式，节点会自动让它重写一次",
     "",
     "【输出端口】",
-    "  · 📝 提示词：最终提示词，直接进文本编码器",
-    "  · 📊 空latent：第二位，直接进采样器",
+    "  · 提示词：最终提示词，直接进文本编码器",
+    "  · 空 Latent：第二位，直接进采样器",
     "  · 📋 提示词列表：按行拆分，方便批量处理",
     "  · 🧩 提示词设定：本次的提示词设定，即反推预设 + 输出语言 + 设定词",
     "",
@@ -4470,7 +4470,7 @@ function xbrRenderHelp(body) {
     "  · 点 ♻️ 恢复默认 一键回到官方文本；启用 LLM 时设定词另作增强参考交给模型",
     "  · 启用 LLM 时，设定词只作为增强参考交给模型，输出时由节点原封不动加在最顶端",
     "  · 本节点固定文生图（模版选择已删）：不会出现「以输入图为准」类条款",
-    "  · 🖼️ 图像端口只用于 LLM 反推（看图改图 / 看图反推），不会改变设定词",
+    "  · 图像端口只用于 LLM 反推（看图改图 / 看图反推），不会改变设定词",
     "",
     "【提示词增强】（只有开启 ✅ 启用 LLM 反推 时才参与）",
     "  · ✨ 预设参数 → 提示词增强 → 设定词来源：二选一",
@@ -4635,7 +4635,7 @@ function xbrInfoLines(node, promptText) {
   const llm = xbrParseLlm(xbrCurJson(node).llm);
   const useLlm = !!xbrWidgetVal(node, "use_llm");
   const backend = String(xbrWidgetVal(node, "backend") ?? "");
-  const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
+  const line1 = `空 Latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
   // 设定词（预设模式下拉已取消）：只显示有没有设定词，不再显示档位名
   const wPreset = String(xbrWidgetVal(node, "three_view_text") ?? "");
   const line2 = `🎨 设定词：${wPreset.trim() ? wPreset.trim().length + " 字" : "空（不前置）"}`;
@@ -4654,7 +4654,7 @@ function xbrInfoLines(node, promptText) {
     ? `🎯 提示词增强：预设词 ｜ 增强 ${xbrClean(xbrWidgetVal(node, "preset")) || "-"} ｜ 反推 ${xbrClean(xbrWidgetVal(node, "task_preset")) || "-"}`
     : `🎯 提示词增强：skill ｜ ${xbrClean(skillShown)}`;
   const line6 = `⚙️ 温度 ${llm.params.temperature} · top_k ${llm.params.top_k} · top_p ${llm.params.top_p} · max_tokens ${llm.params.max_tokens} ｜ ${xbrClean(llm.run.inference_mode)} ｜ 种子 ${llm.run.seed}`;
-  const line7 = `📝 提示词：${(promptText || "").length} 字`;
+  const line7 = `提示词：${(promptText || "").length} 字`;
   return [line1, line2, line3, line4, line5, line6, line7].join("\n");
 }
 
@@ -4675,7 +4675,7 @@ function xbrBuildPromptHeader(node, promptBox) {
   node.__xbrProRefreshInfo = refresh;
   node.__ippRefreshInfo = refresh;   // 基础面板改了设定词存档也会来刷这条摘要
 
-  // 「📝 提示词」端口接线 → 锁定提示词框（二选一）
+  // 「提示词」端口接线 → 锁定提示词框（二选一）
   const updateLock = () => {
     try {
       const inp = (node.inputs || []).find((i) => i.name === "text");
@@ -4683,8 +4683,8 @@ function xbrBuildPromptHeader(node, promptBox) {
       promptBox.readOnly = linked;
       promptBox.style.background = linked ? "#141416" : "var(--xb-bg)";
       promptBox.style.color = linked ? "var(--xb-text-dim)" : "var(--xb-text)";
-      promptBox.title = linked ? "已由「📝 提示词」端口控制，断开连线后恢复编辑" : "";
-      lab.textContent = linked ? "📝 提示词已锁定（由「📝 提示词」端口控制）" : "📝 节点提示词（与面板预览框双向同步）";
+      promptBox.title = linked ? "已由「提示词」端口控制，断开连线后恢复编辑" : "";
+      lab.textContent = linked ? "提示词已锁定（由「提示词」端口控制）" : "📝 节点提示词（与面板预览框双向同步）";
       lab.style.color = linked ? "#d9a441" : "#bbb";
     } catch (_) {}
   };

@@ -14,7 +14,7 @@ const BTN_LABEL = "⬇ 取下游 COMBO 下拉值";
 function notify(msg, type = "info") {
     try {
         if (app?.extensionManager?.toast?.add) {
-            app.extensionManager.toast.add({ severity: type, summary: "📝 提示词多行", detail: msg, life: 3000 });
+            app.extensionManager.toast.add({ severity: type, summary: "提示词多行", detail: msg, life: 3000 });
             return;
         }
     } catch (_) { /* ignore */ }

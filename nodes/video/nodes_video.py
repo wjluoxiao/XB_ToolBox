@@ -214,7 +214,7 @@ class XB_MasterParameter:
         }
 
     RETURN_TYPES = ("INT", "FLOAT")
-    RETURN_NAMES = ("Integer (INT)", "Float (FLOAT)")
+    RETURN_NAMES = ("Integer", "Float")
     FUNCTION = "get_value"
     CATEGORY = "XB_ToolBox/Params_Control"
 

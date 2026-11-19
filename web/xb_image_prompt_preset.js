@@ -30,7 +30,7 @@ import { bindDomWidgetFill, installLatentGuard, installStableNodeHeight, lockNod
 import { openRefPicker } from "./xb_gallery_picker.js";
 
 const NODE_TYPE = "XB_ImagePromptPreset";
-// 「🖼️ 图像编辑预设」= 本节点 + 姿态/穿搭参考图：UI 全复用，只在 8 个分类按钮**上面**多一行参考图按钮
+// 「图像编辑预设」= 本节点 + 姿态/穿搭参考图：UI 全复用，只在 8 个分类按钮**上面**多一行参考图按钮
 const GALLERY_NODE_TYPE = "XB_ImagePreset";
 // 「🖼️ 文生图提示词预设」= 纯提示词版：没有 latent 相关 widget（latent类型/画幅/宽高/数量）
 const PROMPT_ONLY_NODE_TYPE = "XB_Text2ImagePromptPreset";
@@ -101,7 +101,7 @@ function modeIoClause(mode, hasImage, lang) {
   if (!m || m === MODE_TP || MODE_NEEDS_IMAGE.includes(m)) return "";
   return hasImage ? (IO_I2I_COMMON[lg] || "") : "";
 }
-/** 节点是否接了参考图（🖼️ 图像 端口有连线） */
+/** 节点是否接了参考图（图像 端口有连线） */
 function modeHasImage(node) {
   try {
     const inp = (node.inputs || []).find((i) => i.name === "images");
@@ -1933,7 +1933,7 @@ function openPanel(ctx, panelId) {
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
   const sticky = el("div", "position:sticky;top:0;z-index:6;background:var(--xb-bg);padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid var(--xb-border);");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
-  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
+  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
   head.append(headCount);
   const presetChip = el("div", "font-size:11px;color:var(--xb-warn);background:var(--xb-tint-warn);border:1px dashed #8a6d3b;border-radius:4px;padding:4px 8px;margin-bottom:6px;white-space:pre-wrap;line-height:1.5;display:none;");
@@ -2972,7 +2972,7 @@ function setupNode(node) {
   promptBox.addEventListener("input", () => { setWidgetValue(ipWidget, promptBox.value); });
 
   // ── 表面参数（原「⚙️ 输出设置」面板的 4 项已上提到节点表面）──
-  /** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+  /** 当前模版（文生图 / 图生图）：自动 → 按「图像」有没有接线判断 */
   const curIoMode = () => resolveIoMode(ioModeOf(wIo ? readWidgetValue(wIo) : ""), modeHasImage(node));
   const surfaceOf = () => ({
     lang: pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH),

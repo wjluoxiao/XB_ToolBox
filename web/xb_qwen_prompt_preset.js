@@ -93,7 +93,7 @@ function modeIoClause(mode, hasImage, lang) {
   if (!m || m === MODE_TP || MODE_NEEDS_IMAGE.includes(m)) return "";
   return hasImage ? (IO_I2I_COMMON[lg] || "") : "";
 }
-/** 节点是否接了参考图（🖼️ 图像 端口有连线） */
+/** 节点是否接了参考图（图像 端口有连线） */
 function modeHasImage(node) {
   try {
     const inp = (node.inputs || []).find((i) => i.name === "images");
@@ -1878,7 +1878,7 @@ function openPanel(ctx, panelId) {
   // ── 吸顶预览框（不受滚动条约束，始终在画面内） ──
   const sticky = el("div", "position:sticky;top:0;z-index:6;background:var(--xb-bg);padding:16px 0 10px;margin:0 0 6px;border-bottom:1px solid var(--xb-border);");
   const head = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;");
-  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "📝 提示词预览（与节点提示词框实时同步，可直接编辑）"));
+  head.append(el("span", "font-size:12px;font-weight:600;color:var(--xb-info);", "提示词预览（与节点提示词框实时同步，可直接编辑）"));
   const headCount = el("span", "font-size:11px;color:#888;", "");
   head.append(headCount);
   const presetChip = el("div", "font-size:11px;color:var(--xb-warn);background:var(--xb-tint-warn);border:1px dashed #8a6d3b;border-radius:4px;padding:4px 8px;margin-bottom:6px;white-space:pre-wrap;line-height:1.5;display:none;");
@@ -2866,7 +2866,7 @@ function setupNode(node) {
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
   const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 0%;min-height:120px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
-  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n执行节点时：这段文字会作为【正文】交给文本编码器生成完整提示词\n「📝 提示词」端口接线后本框锁定";
+  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n执行节点时：这段文字会作为【正文】交给文本编码器生成完整提示词\n「提示词」端口接线后本框锁定";
   // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（同时挂上端口锁定与执行回写）
   const xbrHeadAndInfo = xbrBuildPromptHeader(node, promptBox);
   container.append(xbrHeadAndInfo[0], promptBox, xbrHeadAndInfo[1]);
@@ -2879,7 +2879,7 @@ function setupNode(node) {
   promptBox.addEventListener("input", () => { setWidgetValue(ipWidget, promptBox.value); });
 
   // ── 表面参数（原「⚙️ 输出设置」面板的 4 项已上提到节点表面）──
-  /** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+  /** 当前模版（文生图 / 图生图）：自动 → 按「图像」有没有接线判断 */
   const curIoMode = () => resolveIoMode(ioModeOf(wIo ? readWidgetValue(wIo) : ""), modeHasImage(node));
   const surfaceOf = () => ({
     lang: pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH),
@@ -3341,7 +3341,7 @@ function setupNode(node) {
  *  ---------------------------------------------------------------------------
  *  节点表面新增：2 个按钮（🤖 LLM设置 ｜ ✨ 预设参数）
  *                + 提示词框标题行（右侧「📋 复制」）+ 参数设定显示（只读摘要 5 行）
- *                + 「📝 提示词」端口接线 → 提示词框锁定（二选一）
+ *                + 「提示词」端口接线 → 提示词框锁定（二选一）
  *  弹窗：导演台同款二级弹窗（底部：自动保存 + 字号 + 界面缩放 + 取消/💾 保存）
  *  🤖 LLM设置 顶部 = LLM 总开关（单选必选：启用LLM增强 / 关闭LLM增强，默认启用）
  *              与节点表面的「启用LLM」是**同一个 widget**（llm_enable），两处任改一处都会同步
@@ -3442,7 +3442,7 @@ function xbrPresetTextFor(node, mode, lang, io) {
   if (t && String(t).trim() && !isDefaultPresetText(mode, t)) return t;
   return (presetTextOf(mode, lang, io) || "");
 }
-/** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+/** 当前模版（文生图 / 图生图）：自动 → 按「图像」有没有接线判断 */
 function xbrResolveIo(node, ioRaw) {
   const has = (typeof modeHasImage === "function") && modeHasImage(node);
   return (typeof resolveIoMode === "function") ? resolveIoMode(ioRaw, has) : "文生图";
@@ -3639,8 +3639,8 @@ function xbrRenderLlm(body, node, draft, ctx) {
   body.append(xbrHint("mtp：多 token 预测投机解码，没有 MTP 权重时无效；与官方 Generate Text 同义。"));
   body.append(el("div", "font-size:11px;color:" + (draft.llm ? "#888" : "#d9a441") + ";line-height:1.6;margin:2px 0 8px;",
     draft.llm
-      ? "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"
-      : "已关闭 LLM 增强：执行节点不会加载上面的模型、也不会用这些参数，输出 = 本档设定词置顶 + 提示词框正文（「📝 提示词」端口接线时用它）。"));
+      ? "提示词正文在节点上的提示词框里编辑；「提示词」端口接线后该框锁定。"
+      : "已关闭 LLM 增强：执行节点不会加载上面的模型、也不会用这些参数，输出 = 本档设定词置顶 + 提示词框正文（「提示词」端口接线时用它）。"));
 }
 
 /* ── 弹窗内容：✨ 预设参数（生图预设 + 设定词 + SKILL）───────────── */
@@ -3663,7 +3663,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
     if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, draft.lang, xbrResolveIo(node, v));
     ctx.rerender();
   })));
-  body.append(xbrHint("模版：自动 = 按「🖼️ 图像」有没有接线判断；文生图 / 图生图 = 手动指定。每个预设模式都有两套设定词，切模版会直接换掉下面「设定词」那一栏的内容。"));
+  body.append(xbrHint("模版：自动 = 按「图像」有没有接线判断；文生图 / 图生图 = 手动指定。每个预设模式都有两套设定词，切模版会直接换掉下面「设定词」那一栏的内容。"));
   body.append(field("预设模式", selectControl(MODES, draft.mode, (v) => {
     draft.mode = v;
     // 换模式 → 立刻取该「模式 × 模版」的设定词（用户改过的存档 → 默认），改过的不会被冲掉
@@ -3677,7 +3677,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
   const ioNow = xbrResolveIo(node, draft.ioMode);
   body.append(el("div", "font-size:11px;color:#8fb;line-height:1.7;margin:2px 0 4px;",
     "当前模版：" + ioNow
-    + (draft.ioMode === "自动" ? ("（自动：" + (hasImgNow ? "检测到 🖼️ 图像已接线" : "未接 🖼️ 图像") + "）")
+    + (draft.ioMode === "自动" ? ("（自动：" + (hasImgNow ? "检测到 图像已接线" : "未接 图像") + "）")
                               : "（手动指定）")
     + (needsImg ? "　❗本档属于图生图档" : "")));
   body.append(el("div", "font-size:11px;color:" + (needsImg ? "#d9a441" : "#888") + ";line-height:1.7;margin:2px 0 8px;",
@@ -3686,7 +3686,7 @@ function xbrRenderPreset(body, node, draft, ctx) {
       : (needsImg
           ? (ioNow === "文生图"
               ? "⚠️ 本档属于「图生图」，但当前是文生图模版：下面用的是从零生成的写法（不依赖任何输入图）。接图或把模版改成图生图即可切回去。"
-              : "本档属于「图生图」：设定词按输入图改写场景，需接参考图（🖼️ 图像）。")
+              : "本档属于「图生图」：设定词按输入图改写场景，需接参考图（图像）。")
           : (ioNow === "图生图"
               ? "本档属于「文生图」，当前用图生图模版：设定词末尾会追加「以输入图为准」的条款，需接参考图。"
               : "本档属于「文生图」：不接图也行；接图后把模版改成「图生图」（或保持自动）会追加「以输入图为准」的条款。"))));
@@ -3772,7 +3772,7 @@ function xbrRenderHelp(body) {
     "  表面挑词拼正文 → 文本编码器把正文写成完整提示词 → 设定词置顶输出",
     "",
     "【节点做什么（执行顺序）】",
-    "  1. 正文 = 提示词框（或外接 📝 提示词 端口）的字",
+    "  1. 正文 = 提示词框（或外接 提示词 端口）的字",
     "  2. 送模型 = 【参考设定·本档设定词】+【正文】",
     "     （选中 SKILL 时，SKILL 全文另作为系统提示词送到最前面）",
     "  3. 输出提示词 = 本档设定词原封不动置顶 + 模型生成的正文",
@@ -3782,14 +3782,14 @@ function xbrRenderHelp(body) {
     "  1. 🤖 LLM设置 选模型（类型 qwen_image，设备 default）",
     "  2. ✨ 预设参数 选输出语言 + latent类型 + 预设模式",
     "     （文生图组）+ SKILL 模式（保持自动即可）",
-    "  3. 📊 空latent 接采样器、📝 提示词 接文本编码器，点运行",
+    "  3. 空 Latent 接采样器、提示词 接文本编码器，点运行",
     "",
     "【三步上手 · 图生图（图像编辑）】",
     "  1. ✨ 预设参数 选一个图生图档位（如 保持主体换场景）",
-    "  2. 参考图接 🖼️ 图像（多张就接多张，按连接顺序 = 第 1…N 张图）",
+    "  2. 参考图接 图像（多张就接多张，按连接顺序 = 第 1…N 张图）",
     "  3. SKILL 模式保持「自动」：图生图档会自动用 system_prompt_edit.txt",
     "     提示词框里写要求（改哪里 / 换成什么，例：把背景换成草地）",
-    "  · 图生图不要接 📊 空latent：官方编辑链路是",
+    "  · 图生图不要接 空 Latent：官方编辑链路是",
     "    输入图 → VAEEncode → 采样",
     "  · 提示词输出接文本编码器/编辑节点即可",
     "",
@@ -3839,8 +3839,8 @@ function xbrRenderHelp(body) {
     "  · 设定词：见上（无预设档则不前置）",
     "",
     "【文生图 / 图生图两套模版（全自动切换）】",
-    "  · 没接 🖼️ 图像 → 走文生图模版：从零生成的写法，不会出现「参考输入图」类条款",
-    "  · 接了 🖼️ 图像 → 走图生图模版：自动追加「以输入图为准」的条款，按序号引用第 1…N 张图",
+    "  · 没接 图像 → 走文生图模版：从零生成的写法，不会出现「参考输入图」类条款",
+    "  · 接了 图像 → 走图生图模版：自动追加「以输入图为准」的条款，按序号引用第 1…N 张图",
     "  · 两种模版不用手动切：面板会显示当前用的是哪套 + 自动追加的条款原文",
     "  · 图生图档没接图也不会报错：会自动改成从零生成的写法（并在日志里提醒）",
     "",
@@ -3873,13 +3873,13 @@ function xbrRenderHelp(body) {
     "  · 思考模式：模型支持时更稳，长一点；思考内容不会进入输出",
     "",
     "【输入端口】",
-    "  · 📝 提示词：外接提示词；接线后节点上的提示词框会锁定",
-    "  · 🖼️ 图像：参考图；一批图 = N 张参考图（不抽帧），官方最多 10 张",
+    "  · 提示词：外接提示词；接线后节点上的提示词框会锁定",
+    "  · 图像：参考图；一批图 = N 张参考图（不抽帧），官方最多 10 张",
     "    用「📦 批量图像」等多图节点直接接这里即可，按顺序 = 第 1…N 张图",
     "",
     "【输出端口】",
-    "  · 📝 提示词：最终提示词 = 本档设定词置顶 + 生成正文",
-    "  · 📊 空latent：文生图直接进采样器；图生图不要接它",
+    "  · 提示词：最终提示词 = 本档设定词置顶 + 生成正文",
+    "  · 空 Latent：文生图直接进采样器；图生图不要接它",
     "",
     "【空latent 类型】",
     "  Anima / Boogu / Flux2 / Hunyuan / Krea2 / MiniMax-H3 / Qwen-image / SD3 / SDXL / Z-image",
@@ -4078,7 +4078,7 @@ function xbrBuildPromptHeader(node, promptBox) {
   node.__qbrRefreshInfo = refresh;
   node.__ippRefreshInfo = refresh;   // 基础面板改了设定词存档也会来刷这条摘要
 
-  // 「📝 提示词」端口接线 → 锁定提示词框（二选一）
+  // 「提示词」端口接线 → 锁定提示词框（二选一）
   const updateLock = () => {
     try {
       const inp = (node.inputs || []).find((i) => i.name === "text");
@@ -4086,8 +4086,8 @@ function xbrBuildPromptHeader(node, promptBox) {
       promptBox.readOnly = linked;
       promptBox.style.background = linked ? "#141416" : "var(--xb-bg)";
       promptBox.style.color = linked ? "var(--xb-text-dim)" : "var(--xb-text)";
-      promptBox.title = linked ? "已由「📝 提示词」端口控制，断开连线后恢复编辑" : "";
-      lab.textContent = linked ? "📝 提示词已锁定（由「📝 提示词」端口控制）" : "📝 节点提示词（与面板预览框双向同步）";
+      promptBox.title = linked ? "已由「提示词」端口控制，断开连线后恢复编辑" : "";
+      lab.textContent = linked ? "提示词已锁定（由「提示词」端口控制）" : "📝 节点提示词（与面板预览框双向同步）";
       lab.style.color = linked ? "#d9a441" : "#bbb";
     } catch (_) {}
   };

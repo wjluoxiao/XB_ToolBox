@@ -216,19 +216,19 @@
     },
     "outputs": {
       "0": {
-        "name": "images"
+        "name": "Images"
       },
       "1": {
-        "name": "audio"
+        "name": "Audio"
       },
       "2": {
-        "name": "fps"
+        "name": "FPS"
       },
       "3": {
-        "name": "bit_depth"
+        "name": "Bit Depth"
       },
       "4": {
-        "name": "color_space"
+        "name": "Color Space"
       }
     }
   },
@@ -237,7 +237,7 @@
     "description": "Batch version of the official Trim Video node: slice a long video (or image frames) by start time, segment duration and segment count, then feed the segments downstream one at a time to avoid OOM. With a VIDEO input each segment is decoded on demand (only that segment), and image/audio/fps lists are exported so downstream does not decode twice. Accepts VIDEO or IMAGE; every segment works as both IMAGE and VIDEO.",
     "inputs": {
       "video": {
-        "name": "video"
+        "name": "Video"
       },
       "start_time": {
         "name": "Start Time"
@@ -319,7 +319,7 @@
         "name": "Batch Videos"
       },
       "merge": {
-        "name": "Merge & Save"
+        "name": "Merge and Save"
       },
       "keep_segments": {
         "name": "Keep Segments"
@@ -501,10 +501,11 @@
         "name": "Preset Mode"
       },
       "three_view_text": {
-        "name": "Preset Text (3/4/5-view / transparent)"
+        "name": "Preset Text",
+        "tooltip": "Preset text for 3/4/5-view transparent-background shots"
       },
       "skill_name": {
-        "name": "SKILL Select"
+        "name": "SKILL"
       },
       "skill_mode": {
         "name": "SKILL Mode"
@@ -537,24 +538,24 @@
         "name": "Reverse Preset"
       },
       "text": {
-        "name": "📝 Prompt"
+        "name": "Prompt"
       },
       "images": {
-        "name": "🖼️ Image"
+        "name": "Image"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 Prompt"
+        "name": "Prompt"
       },
       "1": {
-        "name": "📊 Empty Latent"
+        "name": "Empty Latent"
       },
       "2": {
-        "name": "📋 Prompt List"
+        "name": "Prompt List"
       },
       "3": {
-        "name": "🧩 Prompt Settings"
+        "name": "Prompt Settings"
       }
     }
   },
@@ -572,10 +573,11 @@
         "name": "Preset Mode"
       },
       "three_view_text": {
-        "name": "Preset Text (3/4/5-view / transparent)"
+        "name": "Preset Text",
+        "tooltip": "Preset text for 3/4/5-view transparent-background shots"
       },
       "skill_name": {
-        "name": "SKILL Select"
+        "name": "SKILL"
       },
       "skill_mode": {
         "name": "SKILL Mode"
@@ -599,7 +601,7 @@
         "name": "Enable LLM"
       },
       "clip_name": {
-        "name": "Model (Load CLIP)"
+        "name": "CLIP Model"
       },
       "clip_type": {
         "name": "Type"
@@ -617,13 +619,13 @@
         "name": "Temperature"
       },
       "top_k": {
-        "name": "top_k"
+        "name": "Top-K"
       },
       "top_p": {
-        "name": "top_p"
+        "name": "Top-P"
       },
       "min_p": {
-        "name": "min_p"
+        "name": "Min-P"
       },
       "repetition_penalty": {
         "name": "Repetition Penalty"
@@ -641,21 +643,21 @@
         "name": "Use Default Template"
       },
       "mtp": {
-        "name": "mtp"
+        "name": "MTP"
       },
       "text": {
-        "name": "📝 Prompt"
+        "name": "Prompt"
       },
       "images": {
-        "name": "🖼️ Image"
+        "name": "Image"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 Prompt"
+        "name": "Prompt"
       },
       "1": {
-        "name": "📊 Empty Latent"
+        "name": "Empty Latent"
       }
     }
   },
@@ -672,7 +674,8 @@
         "name": "Latent Type"
       },
       "three_view_text": {
-        "name": "Preset Text (manage presets from the buttons above)"
+        "name": "Preset Text",
+        "tooltip": "Preset text for 3/4/5-view transparent-background shots; manage presets with the buttons above"
       },
       "aspect_ratio": {
         "name": "Aspect Ratio"
@@ -714,7 +717,8 @@
         "name": "Preset Mode"
       },
       "three_view_text": {
-        "name": "Preset Text (manage presets from the buttons above)"
+        "name": "Preset Text",
+        "tooltip": "Preset text for 3/4/5-view transparent-background shots; manage presets with the buttons above"
       },
       "internal_prompt": {
         "name": "Internal Prompt"
@@ -740,7 +744,8 @@
         "name": "Preset Mode"
       },
       "three_view_text": {
-        "name": "Preset Text (manage presets from the buttons above)"
+        "name": "Preset Text",
+        "tooltip": "Preset text for 3/4/5-view transparent-background shots; manage presets with the buttons above"
       },
       "internal_prompt": {
         "name": "Internal Prompt"
@@ -749,10 +754,12 @@
         "name": "Node Config"
       },
       "pose_ref": {
-        "name": "Pose Reference (internal)"
+        "name": "Pose Reference",
+        "tooltip": "Internal port: pose reference image"
       },
       "outfit_ref": {
-        "name": "Outfit Reference (internal)"
+        "name": "Outfit Reference",
+        "tooltip": "Internal port: outfit reference image"
       }
     },
     "outputs": {
@@ -799,7 +806,8 @@
         "name": "Tempo Bucket"
       },
       "BPM数值": {
-        "name": "Exact BPM (0 = bucket)"
+        "name": "BPM",
+        "tooltip": "0 = unused; an exact BPM is written to the style and must match the score's Q:1/4"
       },
       "情绪氛围": {
         "name": "Mood"
@@ -823,18 +831,21 @@
         "name": "Extra Notes"
       },
       "max_duration": {
-        "name": "Max Duration (s)"
+        "name": "Max Duration",
+        "tooltip": "Seconds"
       },
       "seed": {
-        "name": "Seed (planner + generator)"
+        "name": "Seed",
+        "tooltip": "Use the same seed for the planner and the generator to reproduce the same score and audio"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎵 style"
+        "name": "style"
       },
       "1": {
-        "name": "Max Duration (s)"
+        "name": "Max Duration",
+        "tooltip": "Seconds"
       },
       "2": {
         "name": "Seed"
@@ -846,10 +857,10 @@
     "description": "Lyrics with section tags plus singability checks (implementation notes leaking into lyrics, round-bracket role labels, empty sections, per-line syllable counts, and whether a tag is in the official eight-tag vocabulary).",
     "outputs": {
       "0": {
-        "name": "🎤 lyrics"
+        "name": "lyrics"
       },
       "1": {
-        "name": "🔍 Check"
+        "name": "Check"
       }
     }
   },
@@ -867,18 +878,20 @@
         "name": "Overlap"
       },
       "编辑框": {
-        "name": "Edited ABC"
+        "name": "Edited ABC",
+        "tooltip": "ABC score text or events.json"
       },
       "abc": {
-        "name": "🎼 Upstream ABC"
+        "name": "Upstream ABC",
+        "tooltip": "ABC score text from the upstream node"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 Report"
+        "name": "Report"
       }
     }
   },
@@ -893,15 +906,16 @@
         "name": "Harmony"
       },
       "abc": {
-        "name": "🎼 Source ABC"
+        "name": "Source ABC",
+        "tooltip": "Source ABC score text"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 Report"
+        "name": "Report"
       }
     }
   },
@@ -910,21 +924,23 @@
     "description": "Reads SheetSage2 output (score.abc / events.json) and validates it. Applies the mechanical normalizations from the official repair table (strip Markdown fences / BOM / curly quotes, M:C to M:4/4, Q:81 to Q:1/4=81, K:B minor to K:Bm); semantic repairs are left to you. Emits a usable score plus a readable report. It does not run transcription itself - that needs a separate Python environment.",
     "inputs": {
       "转谱路径": {
-        "name": "Path (folder or file)"
+        "name": "Path",
+        "tooltip": "Folder or single file path"
       },
       "规范化": {
         "name": "Normalize"
       },
       "abc": {
-        "name": "🎼 Compare With (optional)"
+        "name": "Compare With",
+        "tooltip": "Optional: ABC score to compare against"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 Report"
+        "name": "Report"
       }
     }
   },
@@ -1002,7 +1018,7 @@
         "name": "CFG"
       },
       "sampler_name": {
-        "name": "Sampler"
+        "name": "Sampler Name"
       },
       "scheduler": {
         "name": "Scheduler"

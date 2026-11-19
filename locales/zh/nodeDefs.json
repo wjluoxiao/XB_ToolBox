@@ -18,33 +18,33 @@
         "name": "帧数上限"
       },
       "skip_first_frames": {
-        "name": "跳过前X帧"
+        "name": "跳过前 N 帧"
       },
       "select_every_nth": {
-        "name": "间隔取帧"
+        "name": "每 N 帧取一帧"
       },
       "format": {
-        "name": "模型格式"
+        "name": "格式"
       },
       "meta_batch": {
-        "name": "批次管理"
+        "name": "批量大小"
       },
       "vae": {
-        "name": "VAE解码"
+        "name": "VAE"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎞️ 图像帧"
+        "name": "图像"
       },
       "1": {
-        "name": "🔢 帧数"
+        "name": "帧数"
       },
       "2": {
-        "name": "🔊 音频"
+        "name": "音频"
       },
       "3": {
-        "name": "📋 视频信息"
+        "name": "视频信息"
       }
     }
   },
@@ -64,13 +64,13 @@
         "name": "文件名前缀"
       },
       "format": {
-        "name": "输出格式"
+        "name": "格式"
       },
       "pingpong": {
         "name": "乒乓循环"
       },
       "save_output": {
-        "name": "保存到输出"
+        "name": "保存输出"
       },
       "audio": {
         "name": "音频"
@@ -86,10 +86,12 @@
     "display_name": "XB-BOX - 📟 可用显存计算",
     "inputs": {
       "Total_VRAM_GB": {
-        "name": "显卡总显存_GB"
+        "name": "显卡总显存",
+        "tooltip": "单位 GB"
       },
       "System_Overhead_GB": {
-        "name": "系统开销_GB"
+        "name": "系统开销",
+        "tooltip": "单位 GB"
       },
       "Main_Video_Model": {
         "name": "视频主模型"
@@ -104,7 +106,8 @@
         "name": "下放层数"
       },
       "LoRA_Plugin_VRAM_GB": {
-        "name": "LoRA及插件总占用_GB"
+        "name": "LoRA 及插件占用",
+        "tooltip": "单位 GB"
       },
       "Context_Length_Frames": {
         "name": "上下文总帧数"
@@ -126,7 +129,8 @@
         "name": "统计模式"
       },
       "Available_VRAM_GB": {
-        "name": "可用显存_GB"
+        "name": "可用显存",
+        "tooltip": "单位 GB"
       },
       "Image_Width": {
         "name": "图片宽度"
@@ -218,13 +222,13 @@
         "name": "高度"
       },
       "length": {
-        "name": "帧数"
+        "name": "长度"
       },
       "fps": {
         "name": "帧率"
       },
       "fps_float": {
-        "name": "帧率(小数)"
+        "name": "帧率（浮点）"
       },
       "multiple": {
         "name": "倍数"
@@ -244,7 +248,7 @@
         "name": "帧率"
       },
       "4": {
-        "name": "帧率(小数)"
+        "name": "帧率（浮点）"
       },
       "5": {
         "name": "缩放尺寸"
@@ -264,13 +268,13 @@
         "name": "高度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "strength_float": {
-        "name": "强度(小数)"
+        "name": "强度（浮点）"
       },
       "strength_int": {
-        "name": "强度(整数)"
+        "name": "强度（整数）"
       },
       "multiple": {
         "name": "倍数"
@@ -284,13 +288,13 @@
         "name": "图片高度"
       },
       "2": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "3": {
-        "name": "浮点控制"
+        "name": "强度（浮点）"
       },
       "4": {
-        "name": "整数控制"
+        "name": "强度（整数）"
       },
       "5": {
         "name": "缩放尺寸"
@@ -338,7 +342,7 @@
         "name": "高度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "multiple": {
         "name": "倍数"
@@ -352,7 +356,7 @@
         "name": "图片高度"
       },
       "2": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "3": {
         "name": "缩放尺寸"
@@ -371,10 +375,10 @@
     },
     "outputs": {
       "0": {
-        "name": "整数(INT)"
+        "name": "整数"
       },
       "1": {
-        "name": "浮点(FLOAT)"
+        "name": "浮点"
       }
     }
   },
@@ -382,15 +386,15 @@
     "display_name": "XB-BOX - ✂️ 模型分块交换（UNet）",
     "inputs": {
       "unet_model": {
-        "name": "UNet模型"
+        "name": "UNet 模型"
       },
       "blocks_to_swap": {
-        "name": "下放块数量"
+        "name": "卸载块数量"
       }
     },
     "outputs": {
       "0": {
-        "name": "UNet模型"
+        "name": "UNet 模型"
       }
     }
   },
@@ -398,10 +402,10 @@
     "display_name": "XB-BOX - ✂️ 模型分块交换（Checkpoints）",
     "inputs": {
       "checkpoint_model": {
-        "name": "大模型"
+        "name": "Checkpoint 模型"
       },
       "blocks_to_swap": {
-        "name": "下放块数量"
+        "name": "卸载块数量"
       },
       "offload_img_emb": {
         "name": "卸载图像嵌入层"
@@ -415,7 +419,7 @@
     },
     "outputs": {
       "0": {
-        "name": "大模型"
+        "name": "Checkpoint 模型"
       }
     }
   },
@@ -423,7 +427,7 @@
     "display_name": "XB-BOX - 🗂️ UNet 名称分发",
     "inputs": {
       "unet_name": {
-        "name": "选择UNet模型"
+        "name": "UNet 模型"
       }
     },
     "outputs": {
@@ -436,7 +440,7 @@
     "display_name": "XB-BOX - 🗂️ CLIP 名称分发",
     "inputs": {
       "clip_name": {
-        "name": "选择CLIP模型"
+        "name": "CLIP 模型"
       }
     },
     "outputs": {
@@ -449,10 +453,10 @@
     "display_name": "XB-BOX - 🖼️ 单图转视频分块 (Wan)",
     "inputs": {
       "positive": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE解码器"
@@ -464,10 +468,10 @@
         "name": "高度"
       },
       "length": {
-        "name": "帧数"
+        "name": "长度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -481,10 +485,10 @@
     },
     "outputs": {
       "0": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "1": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "2": {
         "name": "潜变量"
@@ -495,10 +499,10 @@
     "display_name": "XB-BOX - 🎞️ 首尾帧视频分块(Wan)",
     "inputs": {
       "positive": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE解码器"
@@ -510,10 +514,10 @@
         "name": "高度"
       },
       "length": {
-        "name": "帧数"
+        "name": "长度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -533,10 +537,10 @@
     },
     "outputs": {
       "0": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "1": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "2": {
         "name": "潜变量"
@@ -550,7 +554,8 @@
         "name": "文件夹路径"
       },
       "seed": {
-        "name": "步进种子"
+        "name": "随机种",
+        "tooltip": "内置自动步进：每次执行 +1，按图片总数取模选图"
       }
     },
     "outputs": {
@@ -612,7 +617,7 @@
         "name": "高度"
       },
       "length": {
-        "name": "帧数"
+        "name": "长度"
       },
       "fps": {
         "name": "帧率"
@@ -624,7 +629,7 @@
         "name": "VAE解码分块"
       },
       "spatial_overlap": {
-        "name": "画面重叠"
+        "name": "空间重叠"
       },
       "temporal_chunk_size": {
         "name": "时间分块"
@@ -633,16 +638,16 @@
         "name": "时间重叠"
       },
       "steps": {
-        "name": "总步数"
+        "name": "步数"
       },
       "high_noise_steps": {
         "name": "高噪步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -651,7 +656,7 @@
         "name": "随机种"
       },
       "cut_first_frame": {
-        "name": "去除首帧(接力去重)"
+        "name": "去除首帧"
       },
       "concat_mode": {
         "name": "视频拼接模式"
@@ -659,7 +664,8 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_BUS (动态总线)"
+        "name": "WAN_BUS",
+        "tooltip": "动态参数总线，传给下段"
       }
     }
   },
@@ -673,7 +679,7 @@
         "name": "起始图片"
       },
       "positive_prompt": {
-        "name": "段落正向提示词"
+        "name": "段落提示词"
       },
       "end_image_file": {
         "name": "选择尾图"
@@ -687,13 +693,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_BUS (传给下段)"
+        "name": "WAN_BUS"
       },
       "1": {
-        "name": "🖼️ 当前尾图 (接下段首图)"
+        "name": "当前尾图"
       },
       "2": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -707,7 +713,7 @@
         "name": "起始图片"
       },
       "positive_prompt": {
-        "name": "段落正向提示词"
+        "name": "段落提示词"
       },
       "prev_video": {
         "name": "前段视频"
@@ -715,13 +721,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_BUS (传给下段)"
+        "name": "WAN_BUS"
       },
       "1": {
-        "name": "🖼️ 当前尾图 (接下段首图)"
+        "name": "当前尾图"
       },
       "2": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -737,7 +743,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🎞️ 完整长视频"
+        "name": "完整长视频"
       }
     }
   },
@@ -810,7 +816,7 @@
         "name": "加速方式"
       },
       "blocks_to_swap": {
-        "name": "模型分块数量"
+        "name": "卸载块数量"
       }
     },
     "outputs": {
@@ -823,10 +829,10 @@
     "display_name": "XB-BOX - 🎵 音频图像转视频分块(WanSound)",
     "inputs": {
       "positive": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE解码器"
@@ -841,7 +847,7 @@
         "name": "长度"
       },
       "batch_size": {
-        "name": "批次大小"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -870,10 +876,10 @@
         "name": "模型补丁"
       },
       "positive": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE"
@@ -926,10 +932,10 @@
         "name": "模型"
       },
       "1": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "2": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "3": {
         "name": "潜变量"
@@ -949,10 +955,10 @@
         "name": "模型补丁"
       },
       "positive": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE"
@@ -993,10 +999,10 @@
         "name": "模型"
       },
       "1": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "2": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "3": {
         "name": "潜变量"
@@ -1016,10 +1022,10 @@
         "name": "模型补丁"
       },
       "positive": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE"
@@ -1069,10 +1075,10 @@
         "name": "模型"
       },
       "1": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "2": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "3": {
         "name": "潜变量"
@@ -1086,10 +1092,10 @@
     "display_name": "XB-BOX - 🎮 控制视频转视频分块(Wan2.1)",
     "inputs": {
       "positive": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE解码器"
@@ -1104,7 +1110,7 @@
         "name": "长度"
       },
       "batch_size": {
-        "name": "批次大小"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -1124,10 +1130,10 @@
     "display_name": "XB-BOX - 🎮 控制视频转视频分块(Wan2.2)",
     "inputs": {
       "positive": {
-        "name": "正面提示词"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负面提示词"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE解码器"
@@ -1142,7 +1148,7 @@
         "name": "长度"
       },
       "batch_size": {
-        "name": "批次大小"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -1162,7 +1168,7 @@
         "name": "编译后端"
       },
       "fullgraph": {
-        "name": "完整图"
+        "name": "全图编译"
       },
       "mode": {
         "name": "编译模式"
@@ -1171,10 +1177,10 @@
         "name": "动态形状"
       },
       "dynamo_cache_size_limit": {
-        "name": "缓存大小限制"
+        "name": "缓存大小上限"
       },
       "compile_transformer_blocks_only": {
-        "name": "仅限Transformer层"
+        "name": "仅编译 Transformer 块"
       }
     },
     "outputs": {
@@ -1187,10 +1193,10 @@
     "display_name": "XB-BOX - 🎬 Wan 动画转视频",
     "inputs": {
       "positive": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "negative": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "vae": {
         "name": "VAE"
@@ -1205,7 +1211,7 @@
         "name": "长度"
       },
       "batch_size": {
-        "name": "批次大小"
+        "name": "批量大小"
       },
       "continue_motion_max_frames": {
         "name": "继续运动最大帧数"
@@ -1240,19 +1246,19 @@
     },
     "outputs": {
       "0": {
-        "name": "正向提示"
+        "name": "正面条件"
       },
       "1": {
-        "name": "负向提示"
+        "name": "负面条件"
       },
       "2": {
         "name": "潜变量"
       },
       "3": {
-        "name": "修剪潜变量"
+        "name": "裁剪潜变量"
       },
       "4": {
-        "name": "修剪图像"
+        "name": "裁剪图像"
       },
       "5": {
         "name": "视频帧偏移"
@@ -1293,7 +1299,7 @@
         "name": "VAE解码分块"
       },
       "spatial_overlap": {
-        "name": "画面重叠"
+        "name": "空间重叠"
       },
       "temporal_chunk_size": {
         "name": "时间分块"
@@ -1302,13 +1308,13 @@
         "name": "时间重叠"
       },
       "steps": {
-        "name": "总步数"
+        "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -1343,7 +1349,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_ANIMATE_BUS (动画总线)"
+        "name": "WAN_ANIMATE_BUS"
       }
     }
   },
@@ -1360,10 +1366,11 @@
         "name": "动作提示词"
       },
       "use_local_ref_image": {
-        "name": "独立参考图输入"
+        "name": "参考图来源",
+        "tooltip": "继承总线参考图，或使用本节点独立上传的参考图"
       },
       "ref_image_file": {
-        "name": "选择上传参考图"
+        "name": "参考图"
       },
       "prev_video": {
         "name": "前段视频"
@@ -1371,10 +1378,10 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_ANIMATE_BUS (传给下段)"
+        "name": "WAN_ANIMATE_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -1417,7 +1424,7 @@
         "name": "音频文件"
       },
       "fps": {
-        "name": "视频帧率"
+        "name": "帧率"
       },
       "start_time": {
         "name": "开始时间"
@@ -1448,7 +1455,7 @@
         "name": "音频文件"
       },
       "fps": {
-        "name": "视频帧率"
+        "name": "帧率"
       },
       "start_time": {
         "name": "开始时间"
@@ -1479,7 +1486,7 @@
         "name": "音频文件1"
       },
       "fps": {
-        "name": "视频帧率"
+        "name": "帧率"
       },
       "start1": {
         "name": "开始时间1"
@@ -1534,7 +1541,7 @@
         "name": "音频文件1"
       },
       "fps": {
-        "name": "视频帧率"
+        "name": "帧率"
       },
       "start1": {
         "name": "开始时间1"
@@ -1607,19 +1614,19 @@
         "name": "高度"
       },
       "fps": {
-        "name": "帧率整数"
+        "name": "帧率（整数）"
       },
       "fps_float": {
-        "name": "帧率浮点"
+        "name": "帧率（浮点）"
       },
       "audio": {
         "name": "音频文件"
       },
       "start_time": {
-        "name": "音频开始时间"
+        "name": "开始时间"
       },
       "end_time": {
-        "name": "音频结束时间"
+        "name": "结束时间"
       },
       "duration_display": {
         "name": "输出总帧数"
@@ -1636,10 +1643,10 @@
         "name": "总帧数"
       },
       "3": {
-        "name": "帧率整数"
+        "name": "帧率（整数）"
       },
       "4": {
-        "name": "帧率浮点"
+        "name": "帧率（浮点）"
       },
       "5": {
         "name": "音频"
@@ -1659,10 +1666,10 @@
         "name": "高度"
       },
       "fps": {
-        "name": "帧率整数"
+        "name": "帧率（整数）"
       },
       "fps_float": {
-        "name": "帧率浮点"
+        "name": "帧率（浮点）"
       },
       "audio1": {
         "name": "音频文件1"
@@ -1712,10 +1719,10 @@
         "name": "总帧数"
       },
       "3": {
-        "name": "帧率整数"
+        "name": "帧率（整数）"
       },
       "4": {
-        "name": "帧率浮点"
+        "name": "帧率（浮点）"
       },
       "5": {
         "name": "音频1"
@@ -1750,7 +1757,7 @@
         "name": "起始参考图"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -1786,19 +1793,19 @@
         "name": "时间重叠"
       },
       "steps": {
-        "name": "采样步数"
+        "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "audio_scale": {
         "name": "音频强度"
@@ -1818,7 +1825,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_INFINITETALK_BUS"
+        "name": "WAN_INFINITETALK_BUS"
       }
     }
   },
@@ -1846,13 +1853,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+        "name": "WAN_INFINITETALK_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       },
       "2": {
-        "name": "🔊 累加音频流"
+        "name": "累加音频流"
       }
     }
   },
@@ -1896,7 +1903,7 @@
         "name": "参考图像"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -1954,7 +1961,7 @@
         "name": "尾帧图"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2009,7 +2016,7 @@
         "name": "相机条件"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2058,7 +2065,7 @@
         "name": "图像"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2069,10 +2076,10 @@
         "name": "正面条件"
       },
       "1": {
-        "name": "负面条件(文本)"
+        "name": "负面条件（文本）"
       },
       "2": {
-        "name": "负面条件(图像文本)"
+        "name": "负面条件（图像文本）"
       },
       "3": {
         "name": "潜变量"
@@ -2113,7 +2120,7 @@
         "name": "参考图像"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2156,7 +2163,7 @@
         "name": "首帧图"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2257,7 +2264,7 @@
         "name": "姿态视频"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2370,7 +2377,7 @@
         "name": "高度"
       },
       "length": {
-        "name": "生成帧数"
+        "name": "长度"
       },
       "vae_tile_size": {
         "name": "VAE分块大小"
@@ -2429,7 +2436,7 @@
         "name": "音频文件"
       },
       "start_time": {
-        "name": "起始时间"
+        "name": "开始时间"
       },
       "end_time": {
         "name": "结束时间"
@@ -2452,7 +2459,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🎵 音频"
+        "name": "音频"
       },
       "1": {
         "name": "整体描述提示词"
@@ -2514,7 +2521,7 @@
         "name": "VAE解码分块"
       },
       "spatial_overlap": {
-        "name": "画面重叠"
+        "name": "空间重叠"
       },
       "temporal_chunk_size": {
         "name": "时间分块"
@@ -2523,13 +2530,13 @@
         "name": "时间重叠"
       },
       "steps": {
-        "name": "总步数"
+        "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -2553,7 +2560,7 @@
         "name": "姿态遮罩视频"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2561,7 +2568,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_SCAIL_BUS (SCAIL总线)"
+        "name": "WAN_SCAIL_BUS"
       }
     }
   },
@@ -2575,16 +2582,17 @@
         "name": "单次生成帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "positive_prompt": {
         "name": "动作提示词"
       },
       "use_local_ref_image": {
-        "name": "继承/独立参考图"
+        "name": "参考图来源",
+        "tooltip": "继承总线参考图，或使用本节点独立上传的参考图"
       },
       "ref_image_file": {
-        "name": "选择参考图"
+        "name": "参考图"
       },
       "previous_frame_count": {
         "name": "接力重叠帧数"
@@ -2595,10 +2603,10 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_SCAIL_BUS (传给下段)"
+        "name": "WAN_SCAIL_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -2690,7 +2698,7 @@
         "name": "视频"
       },
       "start_time": {
-        "name": "起始时间"
+        "name": "开始时间"
       },
       "duration": {
         "name": "每段时长"
@@ -2699,7 +2707,7 @@
         "name": "段落数量"
       },
       "fps": {
-        "name": "图像输入帧率"
+        "name": "输入帧率"
       }
     },
     "outputs": {
@@ -2722,7 +2730,7 @@
     "description": "参考官方 Create Video / Save Video 的批量版：逐段 解码→组帧→编码→写盘→释放，峰值内存只占 1 段，专治长视频批量放大的 OOM。接 vae + 潜变量列表 + 低清参考帧时自动做 VSR/VAE 解码；只接图像/视频列表时直接编码存盘。",
     "inputs": {
       "samples": {
-        "name": "潜变量"
+        "name": "潜空间"
       },
       "vae": {
         "name": "VAE"
@@ -2794,22 +2802,22 @@
         "name": "模型"
       },
       "lora_01": {
-        "name": "LORA-01"
+        "name": "LoRA 1"
       },
       "strength_01": {
-        "name": "强度-01"
+        "name": "强度 1"
       },
       "lora_02": {
-        "name": "LORA-02"
+        "name": "LoRA 2"
       },
       "strength_02": {
-        "name": "强度-02"
+        "name": "强度 2"
       },
       "lora_03": {
-        "name": "LORA-03"
+        "name": "LoRA 3"
       },
       "strength_03": {
-        "name": "强度-03"
+        "name": "强度 3"
       }
     },
     "outputs": {
@@ -2828,22 +2836,22 @@
         "name": "CLIP"
       },
       "lora_01": {
-        "name": "LORA-01"
+        "name": "LoRA 1"
       },
       "strength_01": {
-        "name": "强度-01"
+        "name": "强度 1"
       },
       "lora_02": {
-        "name": "LORA-02"
+        "name": "LoRA 2"
       },
       "strength_02": {
-        "name": "强度-02"
+        "name": "强度 2"
       },
       "lora_03": {
-        "name": "LORA-03"
+        "name": "LoRA 3"
       },
       "strength_03": {
-        "name": "强度-03"
+        "name": "强度 3"
       }
     },
     "outputs": {
@@ -2881,7 +2889,7 @@
         "name": "输入数量"
       },
       "string_1": {
-        "name": "字符串_1"
+        "name": "字符串 1"
       },
       "delimiter": {
         "name": "分隔符"
@@ -2938,7 +2946,7 @@
         "name": "帧数"
       },
       "scale_method": {
-        "name": "缩放方法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -2975,7 +2983,7 @@
         "name": "起始图片"
       },
       "positive_prompt": {
-        "name": "段落正向提示词"
+        "name": "段落提示词"
       },
       "trim_head_frames": {
         "name": "接力重叠帧数"
@@ -2984,7 +2992,7 @@
         "name": "总计生成帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "prev_video": {
         "name": "前段视频"
@@ -2992,13 +3000,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_BUS (传给下段)"
+        "name": "WAN_BUS"
       },
       "1": {
-        "name": "🖼️ 当前尾图 (接下段首图)"
+        "name": "当前尾图"
       },
       "2": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -3018,7 +3026,7 @@
         "name": "独立参考图输入"
       },
       "ref_image_file": {
-        "name": "选择上传参考图"
+        "name": "参考图"
       },
       "continue_motion_max_frames": {
         "name": "接力重叠帧数"
@@ -3027,7 +3035,7 @@
         "name": "总计生成帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "prev_video": {
         "name": "前段视频"
@@ -3035,10 +3043,10 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_ANIMATE_BUS (传给下段)"
+        "name": "WAN_ANIMATE_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -3061,7 +3069,7 @@
         "name": "总计生成帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "prev_video": {
         "name": "前置累加视频"
@@ -3075,13 +3083,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+        "name": "WAN_INFINITETALK_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       },
       "2": {
-        "name": "🔊 累加音频流"
+        "name": "累加音频流"
       }
     }
   },
@@ -3140,7 +3148,7 @@
         "name": "VAE解码分块"
       },
       "spatial_overlap": {
-        "name": "画面重叠"
+        "name": "空间重叠"
       },
       "temporal_chunk_size": {
         "name": "时间分块"
@@ -3149,13 +3157,13 @@
         "name": "时间重叠"
       },
       "steps": {
-        "name": "总步数"
+        "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -3179,7 +3187,7 @@
         "name": "姿态遮罩视频"
       },
       "scale_method": {
-        "name": "缩放算法"
+        "name": "放大方法"
       },
       "crop_mode": {
         "name": "裁剪模式"
@@ -3187,7 +3195,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_SCAIL_BUS (SCAIL总线)"
+        "name": "WAN_SCAIL_BUS"
       }
     }
   },
@@ -3210,7 +3218,7 @@
         "name": "总计生成帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "prev_video": {
         "name": "前段视频"
@@ -3218,10 +3226,10 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_SCAIL_BUS (传给下段)"
+        "name": "WAN_SCAIL_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       }
     }
   },
@@ -3237,10 +3245,10 @@
     },
     "outputs": {
       "0": {
-        "name": "洗净给大模型的提示词"
+        "name": "清洗后提示词"
       },
       "1": {
-        "name": "给渲染节点的台词"
+        "name": "台词"
       }
     }
   },
@@ -3254,7 +3262,7 @@
         "name": "台词文字"
       },
       "font_name": {
-        "name": "字体名/路径"
+        "name": "字体"
       },
       "font_size": {
         "name": "字体大小"
@@ -3294,10 +3302,10 @@
         "name": "图像"
       },
       "text": {
-        "name": "台词文本 (| 分隔)"
+        "name": "台词文本"
       },
       "font_name": {
-        "name": "字体名/路径"
+        "name": "字体"
       },
       "font_size": {
         "name": "字体大小"
@@ -3333,7 +3341,7 @@
         "name": "最大宽高比"
       },
       "erode_iterations": {
-        "name": "边界分离(腐蚀)"
+        "name": "边界分离"
       },
       "morph_close_size": {
         "name": "形态学内核"
@@ -3355,7 +3363,7 @@
         "name": "模型"
       },
       "seed": {
-        "name": "种子"
+        "name": "随机种"
       },
       "steps": {
         "name": "步数"
@@ -3364,7 +3372,7 @@
         "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -3398,10 +3406,10 @@
         "name": "模型"
       },
       "add_noise": {
-        "name": "加噪"
+        "name": "添加噪波"
       },
       "noise_seed": {
-        "name": "噪声种子"
+        "name": "随机种"
       },
       "steps": {
         "name": "步数"
@@ -3410,7 +3418,7 @@
         "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
@@ -3425,13 +3433,13 @@
         "name": "潜空间"
       },
       "start_at_step": {
-        "name": "起始步"
+        "name": "开始步数"
       },
       "end_at_step": {
-        "name": "结束步"
+        "name": "结束步数"
       },
       "return_with_leftover_noise": {
-        "name": "返回残留噪声"
+        "name": "返回剩余噪波"
       },
       "cleanup": {
         "name": "执行前清理"
@@ -3450,10 +3458,10 @@
         "name": "模型"
       },
       "add_noise": {
-        "name": "加噪"
+        "name": "添加噪波"
       },
       "noise_seed": {
-        "name": "噪声种子"
+        "name": "随机种"
       },
       "cfg": {
         "name": "CFG"
@@ -3468,7 +3476,7 @@
         "name": "采样器"
       },
       "sigmas": {
-        "name": "Sigma"
+        "name": "Sigmas"
       },
       "latent_image": {
         "name": "潜空间"
@@ -3479,10 +3487,10 @@
     },
     "outputs": {
       "0": {
-        "name": "Latent"
+        "name": "潜空间"
       },
       "1": {
-        "name": "降噪Latent"
+        "name": "降噪潜空间"
       }
     }
   },
@@ -3499,7 +3507,7 @@
         "name": "采样器"
       },
       "sigmas": {
-        "name": "Sigma"
+        "name": "Sigmas"
       },
       "latent_image": {
         "name": "潜空间"
@@ -3510,10 +3518,10 @@
     },
     "outputs": {
       "0": {
-        "name": "Latent"
+        "name": "潜空间"
       },
       "1": {
-        "name": "降噪Latent"
+        "name": "降噪潜空间"
       }
     }
   },
@@ -3680,7 +3688,7 @@
         "name": "遮罩"
       },
       "grow_mask_by": {
-        "name": "遮罩扩展"
+        "name": "扩展遮罩"
       },
       "cleanup": {
         "name": "执行前清理"
@@ -3711,10 +3719,10 @@
         "name": "高度"
       },
       "length": {
-        "name": "帧数"
+        "name": "长度"
       },
       "batch_size": {
-        "name": "批次大小"
+        "name": "批量大小"
       },
       "vae_tile_size": {
         "name": "VAE编码分块大小"
@@ -3729,7 +3737,7 @@
         "name": "参考图最大尺寸"
       },
       "scale_method": {
-        "name": "缩放方法"
+        "name": "放大方法"
       },
       "reference_image_0": {
         "name": "参考图0"
@@ -3781,7 +3789,7 @@
         "name": "单次生成帧数"
       },
       "use_local_ref_image": {
-        "name": "继承/独立参考图"
+        "name": "参考图来源"
       },
       "ref_image_file": {
         "name": "选择参考图"
@@ -3790,7 +3798,7 @@
         "name": "接力重叠帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "total_frames_display": {
         "name": "总计生成帧数"
@@ -3807,13 +3815,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+        "name": "WAN_INFINITETALK_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       },
       "2": {
-        "name": "🔊 累加音频流"
+        "name": "累加音频流"
       }
     }
   },
@@ -3839,7 +3847,7 @@
         "name": "接力重叠帧数"
       },
       "relay_count": {
-        "name": "接力数量设定"
+        "name": "接力数量"
       },
       "total_frames_display": {
         "name": "总计生成帧数"
@@ -3856,13 +3864,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 WAN_INFINITETALK_BUS (传给下段)"
+        "name": "WAN_INFINITETALK_BUS"
       },
       "1": {
-        "name": "🎞️ 累加视频流"
+        "name": "累加视频流"
       },
       "2": {
-        "name": "🔊 累加音频流"
+        "name": "累加音频流"
       }
     }
   },
@@ -3887,7 +3895,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🎤 CosyVoice模型"
+        "name": "CosyVoice 模型"
       }
     }
   },
@@ -3907,7 +3915,7 @@
         "name": "语速"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "text_frontend": {
         "name": "文本正则化"
@@ -3915,7 +3923,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔊 合成音频"
+        "name": "合成音频"
       }
     }
   },
@@ -3938,7 +3946,7 @@
         "name": "目标语言"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "text_frontend": {
         "name": "文本正则化"
@@ -3946,7 +3954,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔊 合成音频"
+        "name": "合成音频"
       }
     }
   },
@@ -3966,12 +3974,12 @@
         "name": "语速"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       }
     },
     "outputs": {
       "0": {
-        "name": "🔊 转换后音频"
+        "name": "转换后音频"
       }
     }
   },
@@ -3982,7 +3990,7 @@
         "name": "输入音频"
       },
       "start_time": {
-        "name": "起始时间"
+        "name": "开始时间"
       },
       "end_time": {
         "name": "结束时间"
@@ -3990,7 +3998,7 @@
     },
     "outputs": {
       "0": {
-        "name": "✂️ 裁剪后音频"
+        "name": "裁剪后音频"
       }
     }
   },
@@ -4019,27 +4027,27 @@
         "name": "说话人D参考音频"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       }
     },
     "outputs": {
       "0": {
-        "name": "💬 对话音频"
+        "name": "对话音频"
       },
       "1": {
-        "name": "🗣️ 说话人A音频"
+        "name": "说话人A音频"
       },
       "2": {
-        "name": "🗣️ 说话人B音频"
+        "name": "说话人B音频"
       },
       "3": {
-        "name": "🗣️ 说话人C音频"
+        "name": "说话人C音频"
       },
       "4": {
-        "name": "🗣️ 说话人D音频"
+        "name": "说话人D音频"
       },
       "5": {
-        "name": "📋 消息"
+        "name": "消息"
       }
     }
   },
@@ -4062,7 +4070,7 @@
         "name": "语速"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "text_frontend": {
         "name": "文本正则化"
@@ -4070,7 +4078,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔊 合成音频"
+        "name": "合成音频"
       }
     }
   },
@@ -4092,7 +4100,7 @@
     },
     "outputs": {
       "0": {
-        "name": "💾 保存路径"
+        "name": "保存路径"
       }
     }
   },
@@ -4112,7 +4120,7 @@
         "name": "语速"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "text_frontend": {
         "name": "文本正则化"
@@ -4120,7 +4128,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔊 合成音频"
+        "name": "合成音频"
       }
     }
   },
@@ -4143,7 +4151,7 @@
         "name": "语速"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "text_frontend": {
         "name": "文本正则化"
@@ -4151,7 +4159,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔊 合成音频"
+        "name": "合成音频"
       }
     }
   },
@@ -4162,7 +4170,7 @@
         "name": "LLM模型"
       },
       "mmproj": {
-        "name": "视觉投影(mmproj)"
+        "name": "视觉投影"
       },
       "chat_handler": {
         "name": "对话处理器"
@@ -4171,18 +4179,18 @@
         "name": "上下文长度"
       },
       "vram_limit": {
-        "name": "显存上限(GB)"
+        "name": "显存上限"
       },
       "image_min_tokens": {
-        "name": "图像最小Token"
+        "name": "图像最小 Token"
       },
       "image_max_tokens": {
-        "name": "图像最大Token"
+        "name": "图像最大 Token"
       }
     },
     "outputs": {
       "0": {
-        "name": "🤖 Llama模型"
+        "name": "Llama 模型"
       }
     }
   },
@@ -4193,7 +4201,7 @@
         "name": "LLM模型"
       },
       "mmproj": {
-        "name": "视觉投影(mmproj)"
+        "name": "视觉投影"
       },
       "chat_handler": {
         "name": "对话处理器"
@@ -4205,16 +4213,16 @@
         "name": "上下文长度"
       },
       "vram_limit": {
-        "name": "显存上限(GB)"
+        "name": "显存上限"
       },
       "image_min_tokens": {
-        "name": "图像最小Token"
+        "name": "图像最小 Token"
       },
       "image_max_tokens": {
-        "name": "图像最大Token"
+        "name": "图像最大 Token"
       },
       "max_tokens": {
-        "name": "最大Token数"
+        "name": "最大 Token 数"
       },
       "top_k": {
         "name": "Top-K采样"
@@ -4261,10 +4269,10 @@
     },
     "outputs": {
       "0": {
-        "name": "🤖 Llama模型"
+        "name": "Llama 模型"
       },
       "1": {
-        "name": "⚙️ 推理参数"
+        "name": "推理参数"
       }
     }
   },
@@ -4272,7 +4280,7 @@
     "display_name": "XB-llama - 💬 指令推理",
     "inputs": {
       "llama_model": {
-        "name": "🔌 模型 / API配置"
+        "name": "模型 / API 配置"
       },
       "preset_prompt": {
         "name": "预设提示词"
@@ -4293,7 +4301,7 @@
         "name": "最大图像尺寸"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "force_offload": {
         "name": "强制卸载"
@@ -4313,13 +4321,13 @@
     },
     "outputs": {
       "0": {
-        "name": "📝 输出文本"
+        "name": "输出文本"
       },
       "1": {
-        "name": "📋 输出列表"
+        "name": "输出列表"
       },
       "2": {
-        "name": "🔑 状态UID"
+        "name": "状态UID"
       }
     }
   },
@@ -4327,7 +4335,7 @@
     "display_name": "XB-llama - ⚙️ 推理参数",
     "inputs": {
       "max_tokens": {
-        "name": "最大Token数"
+        "name": "最大 Token 数"
       },
       "top_k": {
         "name": "Top-K采样"
@@ -4368,7 +4376,7 @@
     },
     "outputs": {
       "0": {
-        "name": "⚙️ 推理参数"
+        "name": "推理参数"
       }
     }
   },
@@ -4381,7 +4389,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔗 任意输出"
+        "name": "任意输出"
       }
     }
   },
@@ -4397,7 +4405,7 @@
     },
     "outputs": {
       "0": {
-        "name": "🔗 任意输出"
+        "name": "任意输出"
       }
     }
   },
@@ -4416,7 +4424,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📦 BBox"
+        "name": "BBox"
       }
     }
   },
@@ -4432,7 +4440,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📝 纯文本"
+        "name": "纯文本"
       }
     }
   },
@@ -4445,7 +4453,7 @@
     },
     "outputs": {
       "0": {
-        "name": "📝 系统提示词"
+        "name": "系统提示词"
       }
     }
   },
@@ -4454,36 +4462,36 @@
     "description": "五合一融合节点：模型加载器 + 指令推理 + 提示词增强预设 + 推理参数 + LLM-API 设置。节点表面只有按钮、手写提示词框与参数设定显示：点「🤖 大语言模型配置」配后端/参数，点「✨ 提示词增强预设」选预设与追加设定。输入端口只有「📝 提示词」「🖼️ 图像」（接上「提示词」后手写框锁定）。",
     "inputs": {
       "backend": {
-        "name": "🧠 推理后端"
+        "name": "推理后端"
       },
       "preset": {
-        "name": "✨ 增强预设"
+        "name": "增强预设"
       },
       "task_preset": {
-        "name": "🎯 反推任务"
+        "name": "反推任务"
       },
       "open_api_settings": {
-        "name": "🌐 API 设置"
+        "name": "API 设置"
       },
       "custom_prompt": {
-        "name": "✍️ 自定义提示词"
+        "name": "自定义提示词"
       },
       "text": {
-        "name": "📝 提示词"
+        "name": "提示词"
       },
       "images": {
-        "name": "🖼️ 图像"
+        "name": "图像"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 提示词全量"
+        "name": "提示词全量"
       },
       "1": {
-        "name": "📋 提示词列表"
+        "name": "提示词列表"
       },
       "2": {
-        "name": "🧩 提示词设定"
+        "name": "提示词设定"
       }
     }
   },
@@ -4492,30 +4500,30 @@
     "description": "模块化分镜工具——选择目标模型、故事风格、镜头调度，输入角色锚点和故事文本，一键生成适配特定模型语法的分镜提示词序列。",
     "inputs": {
       "model_target": {
-        "name": "🎯 目标模型"
+        "name": "目标模型"
       },
       "story_style": {
-        "name": "🎨 故事风格"
+        "name": "故事风格"
       },
       "camera_logic": {
-        "name": "🎬 镜头调度"
+        "name": "镜头调度"
       },
       "character_anchor": {
-        "name": "👤 角色锚点"
+        "name": "角色锚点"
       },
       "frame_count": {
-        "name": "🎞️ 分镜帧数"
+        "name": "分镜帧数"
       },
       "language": {
-        "name": "🌐 输出语言"
+        "name": "输出语言"
       },
       "user_story": {
-        "name": "📖 故事文本"
+        "name": "故事文本"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 系统提示词"
+        "name": "系统提示词"
       }
     }
   },
@@ -4524,66 +4532,66 @@
     "description": "一体化分镜推理节点——融合分镜增强预设与指令推理，根据模式自动构建System Prompt并调用LLM生成分镜序列、短篇故事或反推增强提示词。",
     "inputs": {
       "llama_model": {
-        "name": "🦙 Llama模型"
+        "name": "Llama 模型"
       },
       "preset_mode": {
-        "name": "🎯 预设模式"
+        "name": "预设模式"
       },
       "model_target": {
-        "name": "🖼️ 目标模型"
+        "name": "目标模型"
       },
       "story_style": {
-        "name": "🎨 故事风格"
+        "name": "故事风格"
       },
       "camera_logic": {
-        "name": "🎬 镜头调度"
+        "name": "镜头调度"
       },
       "frame_count": {
-        "name": "🎞️ 分镜数量"
+        "name": "分镜数量"
       },
       "language": {
-        "name": "🌐 输出语言"
+        "name": "输出语言"
       },
       "character_anchor": {
-        "name": "👤 角色设定"
+        "name": "角色设定"
       },
       "background_setting": {
-        "name": "🏞️ 背景设定"
+        "name": "背景设定"
       },
       "story_synopsis": {
-        "name": "📝 故事梗概"
+        "name": "故事梗概"
       },
       "inference_mode": {
-        "name": "📹 推理模式"
+        "name": "推理模式"
       },
       "max_frames": {
-        "name": "🎬 最大帧数"
+        "name": "最大帧数"
       },
       "max_size": {
-        "name": "📏 最大图像尺寸"
+        "name": "最大图像尺寸"
       },
       "seed": {
-        "name": "🎲 随机种子"
+        "name": "随机种"
       },
       "force_offload": {
-        "name": "🗑️ 生成后卸载"
+        "name": "生成后卸载"
       },
       "save_states": {
-        "name": "💾 保存对话状态"
+        "name": "保存对话状态"
       },
       "parameters": {
-        "name": "⚙️ 推理参数"
+        "name": "推理参数"
       },
       "images": {
-        "name": "🖼️ 输入图像"
+        "name": "输入图像"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 输出文本"
+        "name": "输出文本"
       },
       "1": {
-        "name": "📋 输出列表"
+        "name": "输出列表"
       }
     }
   },
@@ -4592,18 +4600,18 @@
     "description": "分镜词处理器——Show Text 显示 + 抽卡模式。关闭: text_input 逐行列表输出; 开启: JS 自动 mute 上游节点, 从缓存中按分镜范围输出提示词。",
     "inputs": {
       "text_input": {
-        "name": "📝 文本输入"
+        "name": "文本输入"
       },
       "draw_mode": {
-        "name": "🎮 抽卡模式"
+        "name": "抽卡模式"
       },
       "draw_range": {
-        "name": "🎯 抽卡范围"
+        "name": "抽卡范围"
       }
     },
     "outputs": {
       "0": {
-        "name": "📋 输出列表"
+        "name": "输出列表"
       }
     }
   },
@@ -4612,30 +4620,30 @@
     "description": "分镜词处理器Pro——完全复刻原版 + 背景/角色嗅探。从每段分镜词中提取背景和角色标签，分别输出到独立端口。角色不足时对应端口输出「全部关闭」。",
     "inputs": {
       "text_input": {
-        "name": "📝 文本输入"
+        "name": "文本输入"
       },
       "draw_mode": {
-        "name": "🎮 抽卡模式"
+        "name": "抽卡模式"
       },
       "draw_range": {
-        "name": "🎯 抽卡范围"
+        "name": "抽卡范围"
       }
     },
     "outputs": {
       "0": {
-        "name": "📋 输出列表"
+        "name": "输出列表"
       },
       "1": {
-        "name": "🏞️ 背景"
+        "name": "背景"
       },
       "2": {
-        "name": "👤 角色_1"
+        "name": "角色 1"
       },
       "3": {
-        "name": "👤 角色_2"
+        "name": "角色 2"
       },
       "4": {
-        "name": "👤 角色_3"
+        "name": "角色 3"
       }
     }
   },
@@ -4644,33 +4652,33 @@
     "description": "角色场景调度器——逐帧配对提示词+背景+角色。接收分镜提示词列表, 嗅探每帧所需的背景和角色标签, 从上游图片中匹配并输出等长列表, ComfyUI Zip 对齐实现逐帧切换参考图。",
     "inputs": {
       "text_input": {
-        "name": "📝 分镜提示词"
+        "name": "分镜提示词"
       },
       "draw_mode": {
-        "name": "🎮 抽卡模式"
+        "name": "抽卡模式"
       },
       "draw_range": {
-        "name": "🎯 抽卡范围"
+        "name": "抽卡范围"
       }
     },
     "outputs": {
       "0": {
-        "name": "📋 提示词"
+        "name": "提示词"
       },
       "1": {
-        "name": "🏞️ 背景图"
+        "name": "背景图"
       },
       "2": {
-        "name": "👤 角色01"
+        "name": "角色01"
       },
       "3": {
-        "name": "👤 角色02"
+        "name": "角色02"
       },
       "4": {
-        "name": "👤 角色03"
+        "name": "角色03"
       },
       "5": {
-        "name": "👤 角色04"
+        "name": "角色04"
       }
     }
   },
@@ -4679,7 +4687,7 @@
     "description": "实时显存内存监控面板——显示GPU/CPU/内存/磁盘等硬件资源使用情况。将此节点添加到工作流即可在界面右下角激活可拖拽的监控面板。",
     "inputs": {
       "any_input": {
-        "name": "任意输入（可选）"
+        "name": "任意输入"
       }
     }
   },
@@ -4729,7 +4737,7 @@
         "name": "负面提示词"
       },
       "seed": {
-        "name": "随机种子"
+        "name": "随机种"
       },
       "sampler_gen": {
         "name": "采样器"
@@ -4761,16 +4769,16 @@
     },
     "outputs": {
       "0": {
-        "name": "🎞️ 累积视频"
+        "name": "累积视频"
       },
       "1": {
-        "name": "🔊 原始音频"
+        "name": "原始音频"
       },
       "2": {
         "name": "输出帧率"
       },
       "3": {
-        "name": "📁 输出文件路径"
+        "name": "输出文件路径"
       }
     }
   },
@@ -4805,7 +4813,7 @@
         "name": "生成加速模式"
       },
       "blocks_to_swap": {
-        "name": "模型分块数量"
+        "name": "卸载块数量"
       }
     },
     "outputs": {
@@ -4842,7 +4850,7 @@
         "name": "高噪加速模式"
       },
       "blockswap_high": {
-        "name": "高噪分块数量"
+        "name": "高噪卸载块数量"
       },
       "model_low": {
         "name": "低噪GGUF模型"
@@ -4860,7 +4868,7 @@
         "name": "低噪加速模式"
       },
       "blockswap_low": {
-        "name": "低噪分块数量"
+        "name": "低噪卸载块数量"
       },
       "clip": {
         "name": "GGUF CLIP"
@@ -4924,7 +4932,7 @@
         "name": "生成加速模式"
       },
       "blocks_to_swap": {
-        "name": "模型分块数量"
+        "name": "卸载块数量"
       }
     },
     "outputs": {
@@ -5012,7 +5020,8 @@
         "name": "提示词"
       },
       "vae": {
-        "name": "VAE（可选）"
+        "name": "VAE",
+        "tooltip": "可选：接入 VAE 以启用参考图"
       },
       "image1": {
         "name": "图片1"
@@ -5034,7 +5043,8 @@
         "name": "提示词"
       },
       "vae": {
-        "name": "VAE（可选）"
+        "name": "VAE",
+        "tooltip": "可选：接入 VAE 以启用参考图"
       },
       "image1": {
         "name": "图片1"
@@ -5050,7 +5060,7 @@
     "display_name": "XB-BOX - 📐 批量缩放图像",
     "inputs": {
       "upscale_method": {
-        "name": "缩放方法"
+        "name": "放大方法"
       },
       "width": {
         "name": "宽度"
@@ -5071,10 +5081,11 @@
     "display_name": "XB-BOX - 📐 批量缩放图像（像素）",
     "inputs": {
       "upscale_method": {
-        "name": "缩放方法"
+        "name": "放大方法"
       },
       "megapixels": {
-        "name": "像素数量"
+        "name": "百万像素",
+        "tooltip": "目标像素总量，单位百万像素（MP）"
       },
       "resolution_step": {
         "name": "分辨率步长"
@@ -5092,16 +5103,18 @@
         "name": "画幅比例"
       },
       "megapixels": {
-        "name": "百万像素(MP)"
+        "name": "百万像素",
+        "tooltip": "目标像素总量，单位百万像素（MP）"
       },
       "multiple": {
         "name": "对齐倍数"
       },
       "frames_display": {
-        "name": "分辨率 & 帧数估算"
+        "name": "分辨率与帧数估算"
       },
       "duration": {
-        "name": "时间（秒）"
+        "name": "时长",
+        "tooltip": "时长，单位秒"
       },
       "scale_factor": {
         "name": "参考图放大系数"
@@ -5138,51 +5151,51 @@
     "display_name": "MiniMax - 🎬 剧本编剧",
     "inputs": {
       "llm_backend": {
-        "name": "🔌 LLM后端"
+        "name": "LLM后端"
       },
       "mode": {
-        "name": "🎯 运行模式"
+        "name": "运行模式"
       },
       "story_style": {
-        "name": "🎨 故事风格"
+        "name": "故事风格"
       },
       "story_name": {
-        "name": "📛 故事名称"
+        "name": "故事名称"
       },
       "story_input": {
-        "name": "📖 故事内容"
+        "name": "故事内容"
       },
       "shot_preference": {
-        "name": "🎭 分镜偏好"
+        "name": "分镜偏好"
       },
       "shot_length": {
-        "name": "🎞️ 镜头数量"
+        "name": "镜头数量"
       },
       "seed": {
-        "name": "🎲 随机种子"
+        "name": "随机种"
       },
       "force_offload": {
-        "name": "🗑️ 强制卸载"
+        "name": "强制卸载"
       },
       "save_states": {
-        "name": "💾 保存对话状态"
+        "name": "保存对话状态"
       },
       "llama_model": {
-        "name": "🦙 Llama模型"
+        "name": "Llama 模型"
       },
       "parameters": {
-        "name": "⚙️ 推理参数"
+        "name": "推理参数"
       },
       "api_response": {
-        "name": "🌐 API响应"
+        "name": "API响应"
       }
     },
     "outputs": {
       "0": {
-        "name": "🔗 参数总线"
+        "name": "参数总线"
       },
       "1": {
-        "name": "📜 剧本输出"
+        "name": "剧本输出"
       }
     }
   },
@@ -5190,27 +5203,27 @@
     "display_name": "MiniMax - ✍️ 分镜词生成器",
     "inputs": {
       "bus": {
-        "name": "🔗 参数总线"
+        "name": "参数总线"
       },
       "shot_text": {
-        "name": "📜 剧本输入"
+        "name": "剧本输入"
       },
       "seed": {
-        "name": "🎲 随机种子"
+        "name": "随机种"
       },
       "force_offload": {
-        "name": "🗑️ 强制卸载"
+        "name": "强制卸载"
       },
       "save_states": {
-        "name": "💾 保存对话状态"
+        "name": "保存对话状态"
       }
     },
     "outputs": {
       "0": {
-        "name": "🔗 参数总线"
+        "name": "参数总线"
       },
       "1": {
-        "name": "📜 剧本输入"
+        "name": "剧本输入"
       }
     }
   },
@@ -5251,7 +5264,7 @@
     },
     "outputs": {
       "0": {
-        "name": "切换Lora"
+        "name": "LoRA"
       },
       "1": {
         "name": "激活词"
@@ -5266,7 +5279,7 @@
     "description": "文生图提示词预设（LLM）：文生图提示词预设 Pro 的全部能力 + 可选 LLM 反推（本地模型或在线 API、增强预设 / 反推预设 / 追加设定 / 采样参数 / 生成后控制）。「启用LLM」关 = 只输出拼装好的提示词；开 = 图/文 → 提示词。输出：提示词 / 空latent / 提示词列表 / 提示词设定。",
     "inputs": {
       "latent_kind": {
-        "name": "latent类型"
+        "name": "Latent 类型"
       },
       "output_lang": {
         "name": "输出语言"
@@ -5275,16 +5288,16 @@
         "name": "预设模式"
       },
       "three_view_text": {
-        "name": "预设句（三/四/五视图·透明背景）"
+        "name": "预设句"
       },
       "skill_name": {
-        "name": "SKILL 选择"
+        "name": "SKILL"
       },
       "skill_mode": {
         "name": "SKILL 模式"
       },
       "io_mode": {
-        "name": "模版"
+        "name": "模板"
       },
       "aspect_ratio": {
         "name": "画幅比例"
@@ -5296,7 +5309,7 @@
         "name": "高度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "use_llm": {
         "name": "启用LLM"
@@ -5311,24 +5324,24 @@
         "name": "反推预设"
       },
       "text": {
-        "name": "📝 提示词"
+        "name": "提示词"
       },
       "images": {
-        "name": "🖼️ 图像"
+        "name": "图像"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 提示词"
+        "name": "提示词"
       },
       "1": {
-        "name": "📊 空latent"
+        "name": "空 Latent"
       },
       "2": {
-        "name": "📋 提示词列表"
+        "name": "提示词列表"
       },
       "3": {
-        "name": "🧩 提示词设定"
+        "name": "提示词设定"
       }
     }
   },
@@ -5337,7 +5350,7 @@
     "description": "文生图提示词预设（CLIP）：latent类型 / 画幅参数 + 8 大类元素面板拼装提示词，再用文本编码器（官方 Load CLIP + Generate Text）把正文生成成完整提示词。节点表面的「启用LLM」关闭时整段 LLM 逻辑跳过（不加载文本编码器、不生成文本），只输出拼装好的提示词。输出：提示词 / 空latent。",
     "inputs": {
       "latent_kind": {
-        "name": "latent类型"
+        "name": "Latent 类型"
       },
       "output_lang": {
         "name": "输出语言"
@@ -5346,16 +5359,16 @@
         "name": "预设模式"
       },
       "three_view_text": {
-        "name": "设定词（三/四/五视图·透明背景）"
+        "name": "设定词"
       },
       "skill_name": {
-        "name": "SKILL 选择"
+        "name": "SKILL"
       },
       "skill_mode": {
         "name": "SKILL 模式"
       },
       "io_mode": {
-        "name": "模版"
+        "name": "模板"
       },
       "aspect_ratio": {
         "name": "画幅比例"
@@ -5367,16 +5380,16 @@
         "name": "高度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "llm_enable": {
         "name": "启用LLM"
       },
       "clip_name": {
-        "name": "模型·Load CLIP"
+        "name": "CLIP 模型"
       },
       "clip_type": {
-        "name": "类型"
+        "name": "CLIP 类型"
       },
       "device": {
         "name": "设备"
@@ -5391,13 +5404,13 @@
         "name": "温度"
       },
       "top_k": {
-        "name": "top_k"
+        "name": "Top-K"
       },
       "top_p": {
-        "name": "top_p"
+        "name": "Top-P"
       },
       "min_p": {
-        "name": "min_p"
+        "name": "Min-P"
       },
       "repetition_penalty": {
         "name": "重复惩罚"
@@ -5406,7 +5419,7 @@
         "name": "存在惩罚"
       },
       "seed": {
-        "name": "种子"
+        "name": "随机种"
       },
       "thinking": {
         "name": "思考模式"
@@ -5418,18 +5431,18 @@
         "name": "mtp"
       },
       "text": {
-        "name": "📝 提示词"
+        "name": "提示词"
       },
       "images": {
-        "name": "🖼️ 图像"
+        "name": "图像"
       }
     },
     "outputs": {
       "0": {
-        "name": "📝 提示词"
+        "name": "提示词"
       },
       "1": {
-        "name": "📊 空latent"
+        "name": "空 Latent"
       }
     }
   },
@@ -5443,10 +5456,10 @@
         "name": "预设模式"
       },
       "latent_kind": {
-        "name": "latent类型"
+        "name": "Latent 类型"
       },
       "three_view_text": {
-        "name": "预设句（右上角按钮管理预设）"
+        "name": "预设句"
       },
       "aspect_ratio": {
         "name": "画幅比例"
@@ -5458,7 +5471,7 @@
         "name": "高度"
       },
       "batch_size": {
-        "name": "生成数量"
+        "name": "批量大小"
       },
       "internal_prompt": {
         "name": "节点内提示词"
@@ -5472,7 +5485,7 @@
         "name": "提示词"
       },
       "1": {
-        "name": "空latent"
+        "name": "空 Latent"
       }
     },
     "description": "文生图提示词预设 Pro：latent类型（主流模型一键适配）+ 输出语言 + 画幅比例/宽度/高度/生成数量（步长按各模型官方最小步长 + 比例联动）＋ 8 大类元素面板拼装提示词（风格/视角/主体/姿态/穿搭/道具/光影/背景）。输出：提示词 / 空latent。"
@@ -5488,7 +5501,7 @@
         "name": "预设模式"
       },
       "three_view_text": {
-        "name": "设定词（右上角按钮管理预设）"
+        "name": "设定词"
       },
       "internal_prompt": {
         "name": "节点内提示词"
@@ -5514,7 +5527,7 @@
         "name": "预设模式"
       },
       "three_view_text": {
-        "name": "预设句（右上角按钮管理预设）"
+        "name": "预设句"
       },
       "internal_prompt": {
         "name": "节点内提示词"
@@ -5523,10 +5536,10 @@
         "name": "节点配置"
       },
       "pose_ref": {
-        "name": "姿态参考（内部）"
+        "name": "姿态参考"
       },
       "outfit_ref": {
-        "name": "穿搭参考（内部）"
+        "name": "穿搭参考"
       }
     },
     "outputs": {
@@ -5568,24 +5581,24 @@
     "description": "按官方 6 段式（语言 / 曲风 / 人声 / 速度 / 乐器 / 音乐特征）生成 YuE2 的 style 串，并输出 max_duration 与 seed。不写段落结构、调式、调号、拍号——这些由歌词标签与 ABC 谱面承担。",
     "inputs": {
       "BPM数值": {
-        "name": "精确 BPM"
+        "name": "BPM"
       },
       "max_duration": {
-        "name": "最长时长（秒）"
+        "name": "最长时长"
       },
       "seed": {
-        "name": "种子（规划器与生成器共用）"
+        "name": "随机种"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎵 style"
+        "name": "style"
       },
       "1": {
-        "name": "最长时长（秒）"
+        "name": "最长时长"
       },
       "2": {
-        "name": "种子"
+        "name": "随机种"
       }
     }
   },
@@ -5594,10 +5607,10 @@
     "description": "歌词正文 + 段落标签，附带可唱性检查（实现说明混入、圆括号角色标注、空段落、逐行音节统计、标签是否属于官方 8 词表）。输出歌词与检查报告。",
     "outputs": {
       "0": {
-        "name": "🎤 lyrics"
+        "name": "lyrics"
       },
       "1": {
-        "name": "🔍 检查"
+        "name": "检查"
       }
     }
   },
@@ -5615,18 +5628,18 @@
         "name": "重叠处理"
       },
       "编辑框": {
-        "name": "编辑框（谱面 / events.json）"
+        "name": "编辑框"
       },
       "abc": {
-        "name": "🎼 上游谱面（ABC）"
+        "name": "上游谱面"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 报告"
+        "name": "报告"
       }
     }
   },
@@ -5641,15 +5654,15 @@
         "name": "和声处理"
       },
       "abc": {
-        "name": "🎼 原始谱面（ABC）"
+        "name": "原始谱面"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 报告"
+        "name": "报告"
       }
     }
   },
@@ -5658,21 +5671,21 @@
     "description": "读入 SheetSage2 的产物（score.abc / events.json）并校验。按官方修谱表做机械规范化（去 Markdown 围栏 / BOM / 弯引号、M:C→M:4/4、Q:81→Q:1/4=81、K:B minor→K:Bm），语义性修复不猜。输出可用谱面 + 中文报告。注意：本节点不做转谱本身（那需要独立 Python 环境）。",
     "inputs": {
       "转谱路径": {
-        "name": "转谱路径（目录或文件）"
+        "name": "转谱路径"
       },
       "规范化": {
         "name": "机械规范化"
       },
       "abc": {
-        "name": "🎼 比对方（可选）"
+        "name": "比对方"
       }
     },
     "outputs": {
       "0": {
-        "name": "🎼 abc"
+        "name": "abc"
       },
       "1": {
-        "name": "📋 报告"
+        "name": "报告"
       }
     }
   },
@@ -5735,7 +5748,7 @@
         "name": "VAE"
       },
       "start_time": {
-        "name": "起始时间"
+        "name": "开始时间"
       },
       "duration": {
         "name": "每段时长"
@@ -5750,13 +5763,13 @@
         "name": "CFG"
       },
       "sampler_name": {
-        "name": "采样器"
+        "name": "采样器名称"
       },
       "scheduler": {
         "name": "调度器"
       },
       "seed": {
-        "name": "种子"
+        "name": "随机种"
       },
       "seed_increment": {
         "name": "每段递增种子"

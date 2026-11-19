@@ -124,7 +124,7 @@ class XB_ComicPromptParser:
         }
 
     RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("洗净给大模型的提示词", "给渲染节点的台词(|分隔)")
+    RETURN_NAMES = ("清洗后提示词", "台词")
     FUNCTION = "parse"
     CATEGORY = "XB_ToolBox/Comic"
     DESCRIPTION = (

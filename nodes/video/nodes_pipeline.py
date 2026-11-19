@@ -177,7 +177,7 @@ class XB_Wan_ParamBus:
                 "sampler_name": (comfy.samplers.KSAMPLER_NAMES, ),
                 "scheduler": (comfy.samplers.SCHEDULER_NAMES, ),
                 "seed": ("INT", {"default": 123456789}),
-                "cut_first_frame": ("BOOLEAN", {"default": True, "label_on": "Yes (Relay Deduplication)", "label_off": "No (Keep First Frame)"}),
+                "cut_first_frame": ("BOOLEAN", {"default": True, "tooltip": "接力时去掉上段末尾与新段首帧重复的那一帧", "label_on": "Yes (Relay Deduplication)", "label_off": "No (Keep First Frame)"}),
                 "trim_head_frames": ("INT", {"default": 1, "min": 1, "max": 8192, "step": 1}),
             },
             "optional": {
@@ -190,7 +190,7 @@ class XB_Wan_ParamBus:
         }
 
     RETURN_TYPES = ("WAN_BUS",)  
-    RETURN_NAMES = ("📦 WAN_BUS (Dynamic Bus)",)
+    RETURN_NAMES = ("WAN_BUS",)
     FUNCTION = "pack_bus"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -241,7 +241,7 @@ class XB_Wan_RelayNode:
         return True 
 
     RETURN_TYPES = ("WAN_BUS", "IMAGE", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_BUS (Pass to next)", "🖼️ Current End Image (Connect to next Start Image)", "🎞️ Accumulated Video Stream")
+    RETURN_NAMES = ("WAN_BUS", "当前尾图", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -368,7 +368,7 @@ class XB_Wan_InfiniteRelayNode:
         return True 
 
     RETURN_TYPES = ("WAN_BUS", "IMAGE", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_BUS (Pass to next)", "🖼️ Current End Image (Connect to next Start Image)", "🎞️ Accumulated Video Stream")
+    RETURN_NAMES = ("WAN_BUS", "当前尾图", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -465,7 +465,7 @@ class XB_Video_Merger:
         return inputs
     
     RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("🎞️ Full Long Video",)
+    RETURN_NAMES = ("完整长视频",)
     FUNCTION = "merge_videos"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -584,7 +584,7 @@ class XB_WanAnimate_ParamBus:
         }
 
     RETURN_TYPES = ("WAN_ANIMATE_BUS",)
-    RETURN_NAMES = ("📦 WAN_ANIMATE_BUS",)
+    RETURN_NAMES = ("WAN_ANIMATE_BUS",)
     FUNCTION = "pack_bus"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -633,7 +633,7 @@ class XB_WanAnimate_RelayNode:
         return True 
 
     RETURN_TYPES = ("WAN_ANIMATE_BUS", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_ANIMATE_BUS (传给下段)", "🎞️ 累加视频流")
+    RETURN_NAMES = ("WAN_ANIMATE_BUS", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -869,7 +869,7 @@ class XB_WanInfiniteTalk_ParamBus:
         }
 
     RETURN_TYPES = ("WAN_INFINITETALK_BUS",)
-    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS",)
+    RETURN_NAMES = ("WAN_INFINITETALK_BUS",)
     FUNCTION = "pack_bus"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -933,7 +933,7 @@ class XB_WanInfiniteTalk_RelayNode:
         }
 
     RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
-    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    RETURN_NAMES = ("WAN_INFINITETALK_BUS", "累加视频流", "累加音频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1160,7 +1160,7 @@ class XB_Wan_InfiniteRelayNode_New:
         return True 
 
     RETURN_TYPES = ("WAN_BUS", "IMAGE", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_BUS (Pass to next)", "🖼️ Current End Image (Connect to next Start Image)", "🎞️ Accumulated Video Stream")
+    RETURN_NAMES = ("WAN_BUS", "当前尾图", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1256,7 +1256,7 @@ class XB_Video_Merger:
         return inputs
     
     RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("🎞️ Full Long Video",)
+    RETURN_NAMES = ("完整长视频",)
     FUNCTION = "merge_videos"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1362,7 +1362,7 @@ class XB_WanAnimate_RelayNode_New:
         return True 
 
     RETURN_TYPES = ("WAN_ANIMATE_BUS", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_ANIMATE_BUS (传给下段)", "🎞️ 累加视频流")
+    RETURN_NAMES = ("WAN_ANIMATE_BUS", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1540,7 +1540,7 @@ class XB_WanInfiniteTalk_RelayNode_New:
         }
 
     RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
-    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    RETURN_NAMES = ("WAN_INFINITETALK_BUS", "累加视频流", "累加音频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1788,7 +1788,7 @@ class XB_WanSCAIL_ParamBus_New:
         }
 
     RETURN_TYPES = ("WAN_SCAIL_BUS",)
-    RETURN_NAMES = ("📦 WAN_SCAIL_BUS",)
+    RETURN_NAMES = ("WAN_SCAIL_BUS",)
     FUNCTION = "pack_bus"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -1837,7 +1837,7 @@ class XB_WanSCAIL_RelayNode_New:
         }
 
     RETURN_TYPES = ("WAN_SCAIL_BUS", "IMAGE")
-    RETURN_NAMES = ("📦 WAN_SCAIL_BUS (传给下段)", "🎞️ 累加视频流")
+    RETURN_NAMES = ("WAN_SCAIL_BUS", "累加视频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -2000,7 +2000,7 @@ class XB_WanInfiniteTalk_RelayNode_MultiRef:
         }
 
     RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
-    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    RETURN_NAMES = ("WAN_INFINITETALK_BUS", "累加视频流", "累加音频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
@@ -2256,7 +2256,7 @@ class XB_WanInfiniteTalk_RelayNode_AllInOne:
         }
 
     RETURN_TYPES = ("WAN_INFINITETALK_BUS", "IMAGE", "AUDIO")
-    RETURN_NAMES = ("📦 WAN_INFINITETALK_BUS (传给下段)", "🎞️ 累加视频流", "🔊 累加音频流")
+    RETURN_NAMES = ("WAN_INFINITETALK_BUS", "累加视频流", "累加音频流")
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 

@@ -27,11 +27,11 @@ function widgetNum(node, name, fallback = 0) {
 }
 
 // 输出名 → 上游部件名/标签的别名（不同节点的输出名和部件名并不一致，
-// 例如 XB_VideoParamsMaster 的 Frames 输出对应的是 length 部件，标签叫「帧数」）
+// 例如 XB_VideoParamsMaster 的 Frames 输出对应的是 length 部件，标签叫「长度」）
 const OUTPUT_ALIASES = {
-    frames: ["length", "frame_count", "frames", "num_frames", "帧数", "总帧数"],
+    frames: ["length", "frame_count", "frames", "num_frames", "长度", "帧数", "总帧数"],
     fps: ["fps", "frame_rate", "framerate", "帧率"],
-    fps_float: ["fps_float", "fpsfloat", "帧率(小数)", "帧率（小数）"],
+    fps_float: ["fps_float", "fpsfloat", "帧率（浮点）", "帧率(小数)", "帧率（小数）"],
     width: ["width", "宽度"],
     height: ["height", "高度"],
 };

@@ -591,7 +591,7 @@ class XB_llamaModelLoader:
 
         return {"required": {
             "model": (model_list,),
-            "mmproj": (mmproj_list,),
+            "mmproj": (mmproj_list, {"tooltip": "多模态投影文件（mmproj）：让本地模型具备看图能力"}),
             "chat_handler": (chat_handlers, {"default": "None"}),
             "n_ctx": ("INT", {
                 "default": 8192,
@@ -1157,7 +1157,7 @@ class XB_llamaModelLoaderPro:
         return {
             "required": {
                 "model": (model_list,),
-                "mmproj": (mmproj_list,),
+                "mmproj": (mmproj_list, {"tooltip": "多模态投影文件（mmproj）：让本地模型具备看图能力"}),
                 "chat_handler": (chat_handlers, {"default": "None"}),
                 "advanced_settings": ("BOOLEAN", {
                     "default": False,

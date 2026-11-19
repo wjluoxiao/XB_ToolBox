@@ -4,7 +4,7 @@
  * 节点表面（零选项参数，交互对齐「短剧导演台」）：
  *   ① 按钮区（grid：跟随节点宽度等分拉伸，导演台同款蓝框按钮）
  *        🤖 大语言模型配置 ｜ ✨ 提示词增强预设 ｜ 📖 使用说明
- *   ② 手写提示词编辑框（右上角「📋 复制」按钮；「📝 提示词」端口接线后自动锁定）
+ *   ② 手写提示词编辑框（右上角「📋 复制」按钮；「提示词」端口接线后自动锁定）
  *   ③ 参数设定显示（只读摘要 4 行：LLM后端/语言/模型 ｜ 增强预设 ｜ 反推预设 ｜ 温度等采样参数）
  *
  * 弹窗（导演台同款）：居中 overlay + `var(--xb-bg)` 面板 + header（标题/副标题）+ 内容 + 底部「取消 / 💾 保存」
@@ -655,7 +655,7 @@ function renderLlmPanel(body, node, draft, ctx) {
   body.append(field("最大尺寸", numberControl(r.max_size, { min: 128, max: 16384, step: 64 }, (v) => { r.max_size = Math.round(v); })));
   body.append(field("保存对话状态", checkboxControl(r.save_states, "在内存中保留本次对话上下文（多轮连续反推）", (v) => { r.save_states = v; })));
   body.append(field("状态 UID", numberControl(s.params.state_uid, { min: -1, max: 999999, step: 1 }, (v) => { s.params.state_uid = Math.round(v); })));
-  body.append(hint("手写提示词在节点上的编辑框里填写；「📝 提示词」端口接线后编辑框会锁定。"));
+  body.append(hint("手写提示词在节点上的编辑框里填写；「提示词」端口接线后编辑框会锁定。"));
 }
 
 /* ── ✨ 提示词增强预设 ── */
@@ -672,7 +672,7 @@ function renderPresetPanel(body, node, draft, ctx) {
     body.append(field("反推预设", selectControl(taskOpts, draft.task_preset, (v) => { draft.task_preset = v; })));
     const cur = String(draft.task_preset || "");
     if (cur.includes("BBox") || cur.startsWith("Vision -")) {
-      body.append(hint("该预设为框选/检测类：预设里的 * 是必填占位符，由节点上的手写提示词或外接「📝 提示词」填入。"));
+      body.append(hint("该预设为框选/检测类：预设里的 * 是必填占位符，由节点上的手写提示词或外接「提示词」填入。"));
     }
   }
 
@@ -688,11 +688,11 @@ function renderPresetPanel(body, node, draft, ctx) {
 function renderHelpPanel(body) {
   const lines = [
     "【输入端口（只保留两个）】",
-    "  · 📝 提示词：外接文本提示词。**接上线后，节点上的手写提示词编辑框会锁定不可编辑**（二选一）",
-    "  · 🖼️ 图像：外接图像 / 视频帧（VLM 反推：图 → 提示词）",
+    "  · 提示词：外接文本提示词。**接上线后，节点上的手写提示词编辑框会锁定不可编辑**（二选一）",
+    "  · 图像：外接图像 / 视频帧（VLM 反推：图 → 提示词）",
     "",
     "【输出端口】",
-    "  · 📝 提示词全量：合并后的完整提示词文本",
+    "  · 提示词全量：合并后的完整提示词文本",
     "  · 📋 提示词列表：按行拆分的列表",
     "  · 🧩 提示词设定：本次使用的提示词设定（增强预设 + 输出语言 + 追加设定）",
     "",
@@ -840,7 +840,7 @@ function setupNode(node) {
   };
   hideAllOptions();
 
-  // ② 清掉这些 widget 的「接线按钮」（端口只留 📝 提示词 / 🖼️ 图像）
+  // ② 清掉这些 widget 的「接线按钮」（端口只留 提示词 / 图像）
   const killGhost = (connectOn) => {
     try {
       for (const nm of OPTION_WIDGETS) {
@@ -935,7 +935,7 @@ function setupNode(node) {
   promptWrap.append(promptBox);
   container.append(promptWrap);
 
-  // ⑥ 「📝 提示词」端口接线 → 锁定编辑框（二选一）
+  // ⑥ 「提示词」端口接线 → 锁定编辑框（二选一）
   const textInput = () => (node.inputs || []).find((i) => i.name === "text");
   const updateLock = () => {
     try {
@@ -944,9 +944,9 @@ function setupNode(node) {
       promptBox.style.background = linked ? "#141416" : "var(--xb-bg)";
       promptBox.style.color = linked ? "var(--xb-text-dim)" : "var(--fg-color,var(--xb-text))";
       promptBox.style.borderColor = linked ? "#5a5a5a" : "var(--border-color,var(--xb-border))";
-      promptBox.title = linked ? "已由「📝 提示词」端口控制，断开连线后恢复编辑" : "";
+      promptBox.title = linked ? "已由「提示词」端口控制，断开连线后恢复编辑" : "";
       lockHint.textContent = linked
-        ? "🔒 手写提示词已锁定（由「📝 提示词」端口控制）"
+        ? "🔒 手写提示词已锁定（由「提示词」端口控制）"
         : "✍️ 手写提示词";
       lockHint.style.color = linked ? "#d9a441" : "var(--descrip-text,#999)";
     } catch (_) {}
