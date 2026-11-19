@@ -5568,7 +5568,7 @@
     "description": "按官方 6 段式（语言 / 曲风 / 人声 / 速度 / 乐器 / 音乐特征）生成 YuE2 的 style 串，并输出 max_duration 与 seed。不写段落结构、调式、调号、拍号——这些由歌词标签与 ABC 谱面承担。",
     "inputs": {
       "BPM数值": {
-        "name": "精确 BPM（0=用档位）"
+        "name": "精确 BPM"
       },
       "max_duration": {
         "name": "最长时长（秒）"
