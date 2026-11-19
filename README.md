@@ -236,10 +236,23 @@ XB_ToolBox/
 ### 🗂️ JZL Workflows (sidebar entry)
 
 Once XB_ToolBox is installed, ComfyUI's sidebar gains a **"机智罗 / JZL Workflows"** entry,
-sitting right above the built-in **Templates** tab. Clicking it opens a **centered dialog** just
-like the official Templates browser — category list on the left, search on top, thumbnail cards,
-and a card click opens the workflow in a new workflow tab (`Esc` / backdrop click / ✕ closes it).
-No ComfyUI frontend files are patched, so frontend upgrades won't break it.
+sitting right above the built-in **Templates** tab. Clicking it opens a **centered panel** laid out
+like the official Templates browser:
+
+- **Left**: brand header + category list (folder icon + count), with "All" pinned on top
+- **Right**: three tabs **Workflows / Prompts / About** on the first row (✕ at the far right); the
+  second row holds each tab's own tools — the "All types" dropdown and search box live here
+- **Workflows**: an "All types" dropdown (image / video / music / speech / text, with counts) and
+  thumbnail cards — every card reserves two title lines, the model tag is pinned to the bottom-left,
+  and GGUF cards carry a red badge
+- **Prompts**: 14 built-in structured prompts shown as a 3-column card grid, filterable by type
+  (text-to-image / image edit / text-to-video / image-to-video / video edit); hover a card for a
+  large preview and the read-only full text, click “Copy” to copy. Effect images go next to the
+  `.txt` files under `xb_skill/XB_ImagePromptPreset/<locale>/` with the same base name
+- **About**: usage notes, FAQ and links
+
+A card click opens the workflow in a new tab as an independent clean copy. `Esc` / backdrop click /
+✕ closes it. No ComfyUI frontend files are patched, so frontend upgrades won't break it.
 
 Everything for this feature lives in **`jzl_workflows/`**:
 
@@ -247,7 +260,7 @@ Everything for this feature lives in **`jzl_workflows/`**:
 XB_ToolBox/
   jzl_workflows/
     __init__.py        registration entry (root __init__.py calls it)
-    routes.py          routes: index / workflow / preview / icon+css assets
+    routes.py          routes: index / workflow / preview / icon+css / prompts
     data/
       index.json       English index
       index.zh.json    Chinese index (same shape as comfyui-workflow-templates)

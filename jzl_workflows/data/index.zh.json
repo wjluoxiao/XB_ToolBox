@@ -325,7 +325,7 @@
     "category": "机智罗的工作流",
     "title": "MiniMax-H3",
     "icon": "icon-[lucide--image]",
-    "type": "image",
+    "type": "video",
     "templates": [
       {
         "name": "minimaxh3_01",
@@ -994,7 +994,7 @@
     "category": "机智罗的工作流",
     "title": "RelayVSR",
     "icon": "icon-[lucide--image]",
-    "type": "image",
+    "type": "video",
     "templates": [
       {
         "name": "relayvsr_01",

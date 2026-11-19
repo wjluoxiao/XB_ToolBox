@@ -47,6 +47,12 @@ SLUGS = {
     "Z-image": "zimage",
 }
 
+# 分类 → 面板「类型」：将来加入音乐 / 语音 / 文本分类时在这里登记即可
+CATEGORY_TYPES = {
+    "MiniMax-H3": "video",
+    "RelayVSR": "video",
+}
+
 # 英文标题用的术语表；长词在前，避免「文生图」先吃掉「文生图基础工作流」
 TERMS = [
     ("文生图基础工作流", "Text to Image Basics"),
@@ -213,7 +219,7 @@ def main() -> int:
                 "category": "机智罗的工作流" if locale == "zh" else "JZL Workflows",
                 "title": category,
                 "icon": "icon-[lucide--image]",
-                "type": "image",
+                "type": CATEGORY_TYPES.get(category, "image"),
                 "templates": templates,
             })
         return payload

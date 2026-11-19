@@ -27,8 +27,29 @@ WEB_ASSETS = (
     "xb_workflow_gallery.css",
 )
 
+# 「提示词」页的文案来源：与「生图提示词预设」节点共用同一批 .txt
+PROMPT_DIRS = {
+    "zh": Path(__file__).resolve().parent.parent / "xb_skill" / "XB_ImagePromptPreset" / "ZH",
+    "en": Path(__file__).resolve().parent.parent / "xb_skill" / "XB_ImagePromptPreset" / "EN",
+}
+
 # 清单文件名（英文 / 中文）
 MANIFESTS = ("index.json", "index.zh.json")
+
+_PROMPT_PREFIX = re.compile(r"^\d+\s*[-_.]\s*")
+
+# 提示词分组（前端「全部类型」下拉用）：按标题关键词归类，中英文通用
+PROMPT_GROUP_RULES = (
+    ("image_edit", ("编辑", "修复", "风格化", "换场景", "全景", "合成",
+                    "edit", "restoration", "stylize", "scene", "panorama", "compose")),
+    ("text2image", ("视图", "三视", "四视", "五视", "版面", "信息图", "分镜", "透明",
+                    "view", "layout", "infographic", "poster", "storyboard", "transparent")),
+)
+PROMPT_GROUP_FALLBACK = "text2image"
+
+# 提示词效果图：与 .txt 同名、放同一目录（也允许放在 preview/ 子目录下）
+PROMPT_IMAGE_EXTS = (".webp", ".png", ".jpg", ".jpeg", ".gif")
+PROMPT_IMAGE_SUBDIR = "preview"
 
 # 放行文件名只允许 ASCII 安全字符，天然排除 "/" 与 ".."
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -72,6 +93,65 @@ def _allowed_files() -> set[str]:
     return allowed
 
 
+def _prompt_image(folder: Path, stem: str) -> Path | None:
+    """找提示词的效果图：同目录同名，其次 preview/ 子目录同名。"""
+    for candidate_dir in (folder, folder / PROMPT_IMAGE_SUBDIR):
+        if not candidate_dir.is_dir():
+            continue
+        for ext in PROMPT_IMAGE_EXTS:
+            path = candidate_dir / f"{stem}{ext}"
+            if path.is_file():
+                return path
+    return None
+
+
+def _prompt_group(title: str) -> str:
+    """按标题关键词归类，供前端「全部类型」下拉筛选。"""
+    lowered = title.lower()
+    for group, keywords in PROMPT_GROUP_RULES:
+        if any(keyword in lowered for keyword in keywords):
+            return group
+    return PROMPT_GROUP_FALLBACK
+
+
+def _load_prompts(locale: str) -> list[dict]:
+    """读取提示词预设（.txt）为 [{name, title, text, image, group}]，标题去掉编号前缀。"""
+    folder = PROMPT_DIRS.get(locale)
+    if folder is None or not folder.is_dir():
+        return []
+    items = []
+    for path in sorted(folder.glob("*.txt")):
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if not text:
+            continue
+        image = _prompt_image(folder, path.stem)
+        title = _PROMPT_PREFIX.sub("", path.stem).strip() or path.stem
+        items.append({
+            "name": path.stem,
+            "title": title,
+            "text": text,
+            "image": image.name if image else "",
+            "group": _prompt_group(title),
+        })
+    return items
+
+
+def _prompt_image_files(locale: str) -> dict[str, Path]:
+    """该语言下所有可用的效果图 {文件名: 路径}，用于路由白名单。"""
+    folder = PROMPT_DIRS.get(locale)
+    files: dict[str, Path] = {}
+    if folder is None or not folder.is_dir():
+        return files
+    for stem_path in sorted(folder.glob("*.txt")):
+        image = _prompt_image(folder, stem_path.stem)
+        if image is not None:
+            files[image.name] = image
+    return files
+
+
 def register_routes():
     from server import PromptServer
 
@@ -107,6 +187,32 @@ def register_routes():
             raise web.HTTPNotFound()
         target = WEB_DIR / name
         if not target.is_file():
+            raise web.HTTPNotFound()
+        return web.FileResponse(
+            target,
+            headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
+        )
+
+    @routes.get("/xb_toolbox/prompts/{locale}")
+    async def get_prompts(request):
+        """「提示词」页数据：直接读 xb_skill/XB_ImagePromptPreset 下的 .txt。"""
+        locale = request.match_info.get("locale", "")
+        if locale not in PROMPT_DIRS:
+            raise web.HTTPNotFound()
+        return web.json_response(
+            _load_prompts(locale),
+            headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
+        )
+
+    @routes.get("/xb_toolbox/prompts/{locale}/{filename}")
+    async def get_prompt_image(request):
+        """提示词效果图：只放行与某个 .txt 同名（含 preview/ 下）的图片。"""
+        locale = request.match_info.get("locale", "")
+        filename = request.match_info.get("filename", "")
+        if locale not in PROMPT_DIRS:
+            raise web.HTTPNotFound()
+        target = _prompt_image_files(locale).get(filename)
+        if target is None:
             raise web.HTTPNotFound()
         return web.FileResponse(
             target,
