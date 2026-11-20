@@ -1,4 +1,38 @@
 {
+  "XB_OutpaintBoard": {
+    "display_name": "XB-BOX - 🖼️ 外补画板",
+    "inputs": {
+      "aspect_ratio": { "name": "画幅比例" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "multiple": { "name": "对齐倍数" },
+      "feathering": { "name": "羽化" },
+      "fill_color": { "name": "外补颜色" },
+      "resample": { "name": "缩放算法" },
+      "layout": { "name": "布局数据" },
+      "image": { "name": "图像" },
+      "mask": { "name": "遮罩" }
+    },
+    "outputs": {
+      "0": { "name": "图像" },
+      "1": { "name": "遮罩" },
+      "2": { "name": "参数" }
+    }
+  },
+  "XB_OutpaintMerge": {
+    "display_name": "XB-BOX - 🖼️ 外补融合",
+    "inputs": {
+      "image": { "name": "图像" },
+      "seam": { "name": "参数" },
+      "sync_feather": { "name": "跟随画板羽化" },
+      "feather": { "name": "自定义羽化" },
+      "color_match": { "name": "颜色还原强度" }
+    },
+    "outputs": {
+      "0": { "name": "图像" },
+      "1": { "name": "遮罩" }
+    }
+  },
   "XB_VideoLoader": {
     "display_name": "XB-BOX - 🎬 视频加载器",
     "inputs": {

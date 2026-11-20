@@ -1,4 +1,10 @@
 {
+  "XB_OutpaintBoard": {
+    "display_name": "XB-BOX - 🖼️ Outpaint Board"
+  },
+  "XB_OutpaintMerge": {
+    "display_name": "XB-BOX - 🖼️ Outpaint Merge"
+  },
   "XB_VideoLoader": {
     "display_name": "XB-BOX - 🎬 Video Loader (Fix Preview Bug)"
   },

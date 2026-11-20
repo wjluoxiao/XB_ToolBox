@@ -118,6 +118,7 @@ try:
     from .nodes.image.nodes_encode_tiled import XB_MiniMaxH3ImageConditioningTiled, XB_TextEncodeQwenImage21Tiled
     from .nodes.image.nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
     from .nodes.image.nodes_shenbi import XB_ShenBi
+    from .nodes.image.nodes_outpaint_board import XB_OutpaintBoard, XB_OutpaintMerge
     from .nodes.video.nodes_hailuo_video import XB_HailuoH3VideoParams
     from .nodes.core.nodes_list_dispatcher import XB_ListDispatcher
     from .nodes.core.nodes_batch_images import XB_BatchImages
@@ -274,6 +275,8 @@ try:
         "XB_ImageParamsMaster": XB_ImageParamsMaster,
         "XB_ImageParamsMasterMini": XB_ImageParamsMasterMini, 
         "XB_ShenBi": XB_ShenBi,
+        "XB_OutpaintBoard": XB_OutpaintBoard,
+        "XB_OutpaintMerge": XB_OutpaintMerge,
         "XB_ImagePromptPreset": XB_ImagePromptPreset,
         "XB_Text2ImagePromptPreset": XB_Text2ImagePromptPreset,
         "XB_PlaySound": XB_PlaySound,
@@ -488,6 +491,8 @@ try:
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
         "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
         "XB_ShenBi": "XB-BOX - 🖌️ ShenBi Brush",
+        "XB_OutpaintBoard": "XB-BOX - 🖼️ 外补画板",
+        "XB_OutpaintMerge": "XB-BOX - 🖼️ 外补融合",
         "XB_ImagePromptPreset": "XB-BOX - 🖼️ 文生图提示词预设 Pro",
         "XB_Text2ImagePromptPreset": "XB-BOX - 🖼️ 文生图提示词预设",
         "XB_ImagePreset": "XB-BOX - 🖼️ 图像编辑预设",
