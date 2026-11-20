@@ -115,6 +115,7 @@ try:
     from .nodes.core.nodes_fast_toggle import XB_DisableGroups, XB_DisableNodes, XB_AnySwitch, XB_AnyIndexSwitch
     from .nodes.image.nodes_flux_encode import XB_FluxMultiImageEncode
     from .nodes.image.nodes_qwen_encode import XB_TextEncodeQwenImageEdit, XB_TextEncodeQwenImageEditPlus
+    from .nodes.image.nodes_encode_tiled import XB_MiniMaxH3ImageConditioningTiled, XB_TextEncodeQwenImage21Tiled
     from .nodes.image.nodes_image_scale import XB_ImageScale, XB_ImageScalePixels
     from .nodes.image.nodes_shenbi import XB_ShenBi
     from .nodes.video.nodes_hailuo_video import XB_HailuoH3VideoParams
@@ -349,6 +350,8 @@ try:
         "XB_FluxMultiImageEncode": XB_FluxMultiImageEncode,
         "XB_TextEncodeQwenImageEdit": XB_TextEncodeQwenImageEdit,
         "XB_TextEncodeQwenImageEditPlus": XB_TextEncodeQwenImageEditPlus,
+        "XB_MiniMaxH3ImageConditioningTiled": XB_MiniMaxH3ImageConditioningTiled,
+        "XB_TextEncodeQwenImage21Tiled": XB_TextEncodeQwenImage21Tiled,
         "XB_ImageScale": XB_ImageScale,
         "XB_ImageScalePixels": XB_ImageScalePixels,
         "XB_HailuoH3VideoParams": XB_HailuoH3VideoParams,
@@ -543,6 +546,8 @@ try:
         "XB_FluxMultiImageEncode": "XB-BOX - 🖼️ FLUX多图编码",
         "XB_TextEncodeQwenImageEdit": "XB-BOX - 📝 Qwen图像编辑编码",
         "XB_TextEncodeQwenImageEditPlus": "XB-BOX - 📝 Qwen图像编辑编码Plus",
+        "XB_MiniMaxH3ImageConditioningTiled": "XB-BOX - 🖼️ MiniMax H3 图像条件化（分块）",
+        "XB_TextEncodeQwenImage21Tiled": "XB-BOX - 📝 文本编码 Qwen Image 2.1（分块）",
         "XB_ImageScale": "XB-BOX - 📐 批量缩放图像",
         "XB_ImageScalePixels": "XB-BOX - 📐 批量缩放图像（像素）",
         "XB_HailuoH3VideoParams": "XB-BOX - 🌊 海螺H3视频参数",

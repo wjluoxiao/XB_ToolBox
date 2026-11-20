@@ -467,10 +467,32 @@
 .mini-gpu-section:not(.is-multibar) .aimdo-mini-inline > .mini-power-usage {
     display: none;
 }
+/* 只给 background 做过渡；条宽改由 transform 驱动（见下方 .aimdo-barstack），
+   直接在 width 上做过渡会逐帧触发整页重排。 */
 .aimdo-mini-fill {
     height: 100%;
     width: 0;
-    transition: width 0.35s ease-out, background 0.35s ease-out;
+    transition: background 0.35s ease-out;
+}
+
+/* ── 条形进度的合成层写法 ────────────────────────────────────────────────
+   width 过渡会逐帧让整页重新布局（实测 idle 时 ~75 次/秒）；transform 只走
+   合成/绘制，不触发布局。过渡动画由 JS 的共享缓动循环驱动，这里不再挂
+   transition: transform（面板有 zoom 时 CSS 过渡会退化成主线程逐帧重算）。 */
+.aimdo-barstack {
+    position: relative;
+    display: block !important;
+}
+.aimdo-barstack > .aimdo-seg,
+.aimdo-barstack > .aimdo-mini-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    height: 100%;
+    transform-origin: 0 50%;
+    transform: translateX(0) scaleX(0);
+    transition: background 0.35s ease-out;
 }
 .mini-disk-read-fill  { background: var(--aimdo-pinned); }
 .mini-disk-write-fill { background: var(--aimdo-vram); }

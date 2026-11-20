@@ -12,6 +12,75 @@ import {
 let pollInterval = 500;
 const FADE_TICKS = 6;
 
+/* ── 条形进度：transform + 共享缓动循环 ─────────────────────────────────
+   · 不用 width：width 变化会让浏览器重新布局（面板 30 多条 × 每拍一次）。
+   · 共享 rAF 循环把显示值缓动到目标值，两拍之间连续推进（不再是一格一格跳），
+     全部收敛后自动停表。
+   · 容器需带 class="aimdo-barstack"（见 xb_memory_viz.css）。 */
+const _barDirty = new Set();
+let _barRaf = 0, _barPrev = 0;
+
+function _barTick(ts) {
+    const dt = _barPrev ? Math.min(80, ts - _barPrev) : 16;
+    _barPrev = ts;
+    const k = 1 - Math.exp(-dt / 90);          // ~90ms 时间常数：几帧内到位
+    for (const el of _barDirty) {
+        const tx = el.__xbTX, ts2 = el.__xbTS;
+        let cx = el.__xbX, cs = el.__xbS;
+        if (cx === undefined) { cx = tx; cs = ts2; }   // 首次赋值直接就位
+        else {
+            cx += (tx - cx) * k;
+            cs += (ts2 - cs) * k;
+            if (Math.abs(tx - cx) < 0.05 && Math.abs(ts2 - cs) < 0.0015) { cx = tx; cs = ts2; }
+        }
+        el.__xbX = cx; el.__xbS = cs;
+        el.style.transform = `translateX(${cx.toFixed(3)}%) scaleX(${cs.toFixed(4)})`;
+        if (cx === tx && cs === ts2) _barDirty.delete(el);
+    }
+    _barRaf = _barDirty.size ? requestAnimationFrame(_barTick) : 0;
+    if (!_barRaf) _barPrev = 0;
+}
+
+function _barPush(el, x, s) {
+    if (!el) return;
+    if (el.__xbTX === x && el.__xbTS === s) return;
+    el.__xbTX = x;
+    el.__xbTS = s;
+    // 变化太小（<0.3% 条宽）就直接到位：内存/显存这类几乎不动的条
+    // 不必参与逐帧缓动，省下的样式计算比"看不出来的 0.1%"值钱。
+    const tiny = el.__xbX !== undefined && Math.abs(x - el.__xbX) < 0.3 && Math.abs(s - el.__xbS) < 0.003;
+    // 调试/低配开关：window.__xbBarAnimOff = true → 不做缓动，直接到位
+    if (tiny || window.__xbBarAnimOff) {
+        el.__xbX = x; el.__xbS = s;
+        el.style.transform = `translateX(${x.toFixed(3)}%) scaleX(${s.toFixed(4)})`;
+        _barDirty.delete(el);
+        if (!_barDirty.size && _barRaf) { cancelAnimationFrame(_barRaf); _barRaf = 0; _barPrev = 0; }
+        return;
+    }
+    _barDirty.add(el);
+    if (!_barRaf) { _barPrev = 0; _barRaf = requestAnimationFrame(_barTick); }
+}
+
+function setBarFill(el, pct) {
+    if (!el) return;
+    const w = Number.isFinite(pct) ? Math.max(0, pct) : 0;
+    _barPush(el, 0, w / 100);
+}
+
+/** 多段堆叠条：第 i 段放在前面各段之和的位置，宽度 = 本段占比。 */
+function setBarStack(segs, pcts) {
+    if (!segs) return;
+    let acc = 0;
+    for (let i = 0; i < segs.length; i++) {
+        const el = segs[i];
+        if (!el) continue;
+        const raw = pcts[i];
+        const w = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+        _barPush(el, acc, w / 100);
+        acc += w;
+    }
+}
+
 const execState = { running: false, node: null, progress: null };
 let peakVramUsed = 0;
 let modelCollapsed = {};
@@ -969,6 +1038,8 @@ function createPanel() {
     </div>`;
 
     // refs cached once so the per-tick render path doesn't re-query
+    // 所有轨道都改成 transform 驱动（见 setBarFill / setBarStack）
+    miniBar.querySelectorAll(".aimdo-mini-track").forEach((t) => t.classList.add("aimdo-barstack"));
     const mbRefs = {
         bar: miniBar,
         ramSection: miniBar.querySelector(".mini-ram-section"),
@@ -2132,7 +2203,7 @@ function ensureStructure(body) {
                 <span>${_t("ram")}</span>
                 <span class="content-ram-usage"></span>
             </div>
-            <div style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;display:flex;">
+            <div class="aimdo-barstack" style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;">
                 <div class="aimdo-seg aimdo-seg-pinned"></div>
                 <div class="aimdo-seg aimdo-seg-loadedRam"></div>
                 <div class="aimdo-seg aimdo-seg-python"></div>
@@ -2150,7 +2221,7 @@ function ensureStructure(body) {
                 <span class="content-vram-label">${_t("vram")}</span>
                 <span class="content-vram-usage"></span>
             </div>
-            <div style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;display:flex;">
+            <div class="aimdo-barstack" style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;">
                 <div class="aimdo-seg aimdo-seg-vram"></div>
                 <div class="aimdo-seg aimdo-seg-torch"></div>
                 <div class="aimdo-seg aimdo-seg-torchCache"></div>
@@ -2177,7 +2248,7 @@ function ensureStructure(body) {
                 <span>${_t("pagefile")}</span>
                 <span class="content-pagefile-usage"></span>
             </div>
-            <div class="content-pagefile-bar" style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;display:flex;">
+            <div class="content-pagefile-bar aimdo-barstack" style="background:var(--aimdo-barBg);border-radius:3px;height:8px;overflow:hidden;">
                 <div class="aimdo-seg aimdo-seg-python"></div>
             </div>
         </div>
@@ -2437,7 +2508,7 @@ function renderModelRow(r, m, data) {
         head.appendChild(right);
         el.appendChild(head);
         const bar = document.createElement("div");
-        bar.className = "aimdo-model-bar";
+        bar.className = "aimdo-model-bar aimdo-barstack";
         el.appendChild(bar);
         const legend = document.createElement("div");
         legend.className = "aimdo-model-legend";
@@ -2531,13 +2602,11 @@ function renderModelRow(r, m, data) {
         lastColor = "var(--aimdo-pinned)";
         lastAlwaysShow = false;
     }
-    row.barSegs[0].style.width = (vramShown / total * 100) + "%";
+    setBarStack(row.barSegs, [vramShown / total * 100, pinnedRam / total * 100,
+                              loadedRam / total * 100, lastSize / total * 100]);
     row.barSegs[0].title = _t("vramLabel") + ": " + formatBytes(vramShown);
-    row.barSegs[1].style.width = (pinnedRam / total * 100) + "%";
     row.barSegs[1].title = _t("pinnedRAM") + ": " + formatBytes(pinnedRam);
-    row.barSegs[2].style.width = (loadedRam / total * 100) + "%";
     row.barSegs[2].title = _t("loadedRAM") + ": " + formatBytes(loadedRam);
-    row.barSegs[3].style.width = (lastSize / total * 100) + "%";
     row.barSegs[3].title = (m.dynamic ? _t("unloaded") + ": " : _t("ramTooltip") + ": ") + formatBytes(lastSize);
 
     const le = row.legendEntries;
@@ -2670,17 +2739,11 @@ function renderData(body, data) {
     m.vramUsage.textContent = !_n ? "" :
         _u ? `${formatBytesCompact(used)}|${formatBytesCompact(data.total_vram)}`
            : asPct(used, data.total_vram);
-    m.vramSegs[0].style.width = aimdoPct + "%";
-    m.vramSegs[1].style.width = torchPct + "%";
-    m.vramSegs[2].style.width = torchCachePct + "%";
-    m.vramSegs[3].style.width = otherPct + "%";
+    setBarStack(m.vramSegs, [aimdoPct, torchPct, torchCachePct, otherPct]);
     m.ramUsage.textContent = !_n ? "" :
         _u ? `${formatBytesCompact(ramUsed)}|${formatBytesCompact(ramTotal)}`
            : asPct(ramUsed, ramTotal);
-    m.ramSegs[0].style.width = pinnedRamPct + "%";
-    m.ramSegs[1].style.width = loadedRamPct + "%";
-    m.ramSegs[2].style.width = pythonOtherPct + "%";
-    m.ramSegs[3].style.width = ramOtherPct + "%";
+    setBarStack(m.ramSegs, [pinnedRamPct, loadedRamPct, pythonOtherPct, ramOtherPct]);
 
     // toggleable "Type" label hides RAM / VRAM / CPU / GPU prefixes (plus any device suffix)
     m.ramLabel.style.display = miniShowType ? "" : "none";
@@ -2697,7 +2760,7 @@ function renderData(body, data) {
             ? `<span style="color:${cpuColor};">${(cpuPct < 10 ? "0" : "") + cpuPct}%</span>`
             : "";
         m.cpuFill.style.background = cpuColor;
-        m.cpuFill.style.width = `${cpuPct}%`;
+        setBarFill(m.cpuFill, cpuPct);
         m.cpuLabel.textContent = (showHwNames && data.cpu_name) ? `CPU (${shortenCpuName(data.cpu_name)})` : "CPU";
         m.cpuLabel.title = data.cpu_name || "";
         m.cpuLabel.style.display = miniShowType ? "" : "none";
@@ -2723,8 +2786,8 @@ function renderData(body, data) {
         diskState.prevTime = now;
         m.diskReadUsage.textContent = _n ? (formatBytesCompact(readRate) + "/s ↓") : "";
         m.diskWriteUsage.textContent = _n ? (formatBytesCompact(writeRate) + "/s ↑") : "";
-        m.diskReadFill.style.width = (readRate / diskState.peakRead * 100) + "%";
-        m.diskWriteFill.style.width = (writeRate / diskState.peakWrite * 100) + "%";
+        setBarFill(m.diskReadFill, readRate / diskState.peakRead * 100);
+        setBarFill(m.diskWriteFill, writeRate / diskState.peakWrite * 100);
         m.diskLabel.style.display = miniShowType ? "" : "none";
     } else {
         m.diskSection.style.display = "none";
@@ -2750,7 +2813,7 @@ function renderData(body, data) {
             const row = document.createElement("div");
             row.className = "aimdo-mini-inline mini-diskspace-drive-row";
             row.innerHTML = `<span class="mini-diskspace-mp"></span>`
-                + `<div class="aimdo-mini-track mini-diskspace-bar"><div class="aimdo-mini-fill mini-diskspace-fill"></div></div>`
+                + `<div class="aimdo-mini-track aimdo-barstack mini-diskspace-bar"><div class="aimdo-mini-fill mini-diskspace-fill"></div></div>`
                 + `<span class="mini-diskspace-usage"></span>`;
             rows.appendChild(row);
         }
@@ -2765,7 +2828,7 @@ function renderData(body, data) {
             const used = (total != null && free != null) ? total - free : null;
             const pct = (used != null && total) ? (used / total * 100) : 0;
             mpEl.textContent = shortMountpoint(d.mountpoint);
-            fillEl.style.width = pct.toFixed(1) + "%";
+            setBarFill(fillEl, pct);
             // colour warms as the drive fills — same scale as gpuUtilColor (10/80 thresholds
             // are util-shaped; for free space "low → warmer" maps better at 75/90).
             fillEl.style.background = pct >= 90 ? C.gpuUtilHi : (pct >= 75 ? C.gpuUtil : C.pinned);
@@ -2785,7 +2848,7 @@ function renderData(body, data) {
         m.pagefileUsage.textContent = _n
             ? (_u ? `${formatBytesCompact(data.used_swap)}|${formatBytesCompact(data.total_swap)}` : (swapPct < 10 ? "0" : "") + swapPct + "%")
             : "";
-        m.pagefileSegs[0].style.width = (data.used_swap / data.total_swap * 100) + "%";
+        setBarFill(m.pagefileSegs[0], data.used_swap / data.total_swap * 100);
         m.pagefileLabel.style.display = miniShowType ? "" : "none";
     } else {
         m.pagefileSection.style.display = "none";
@@ -2805,7 +2868,7 @@ function renderData(body, data) {
         faultState.prev = data.hard_faults;
         faultState.prevTime = now;
         // bar height is rate vs recent peak; fixed color (height conveys activity)
-        m.faultsFill.style.width = (rate / faultState.peak * 100) + "%";
+        setBarFill(m.faultsFill, rate / faultState.peak * 100);
         m.faultsUsage.textContent = _n ? `${Math.round(rate)}/s` : "";
         m.faultsLabel.style.display = miniShowType ? "" : "none";
     } else {
@@ -2842,12 +2905,12 @@ function renderData(body, data) {
             if (_utilOk) {
                 const gpuColor = gpuUtilColor(data.gpu_util);
                 m.gpuFill.style.background = gpuColor;
-                m.gpuFill.style.width = `${data.gpu_util}%`;
+                setBarFill(m.gpuFill, data.gpu_util);
                 m.gpuUsage.innerHTML = _n
                     ? `<span style="color:${gpuColor};">${(data.gpu_util < 10 ? "0" : "") + data.gpu_util}%</span>`
                     : "";
             } else {
-                m.gpuFill.style.width = "0%";
+                setBarFill(m.gpuFill, 0);
                 m.gpuUsage.textContent = _t("na");
             }
         }
@@ -2859,13 +2922,13 @@ function renderData(body, data) {
             if (_tempOk) {
                 const tempColor = gpuTempColor(data.gpu_temp);
                 m.tempFill.style.background = tempColor;
-                m.tempFill.style.width = `${Math.min(100, data.gpu_temp)}%`;
+                setBarFill(m.tempFill, Math.min(100, data.gpu_temp));
                 const tempDisplay = _u ? `${data.gpu_temp}&deg;C` : `${Math.min(100, data.gpu_temp)}%`;
                 m.tempUsage.innerHTML = _n
                     ? `<span style="color:${tempColor};">${tempDisplay}</span>`
                     : "";
             } else {
-                m.tempFill.style.width = "0%";
+                setBarFill(m.tempFill, 0);
                 m.tempUsage.textContent = _t("na");
             }
         }
@@ -2879,7 +2942,7 @@ function renderData(body, data) {
                 const powerPct = data.gpu_power_limit > 0
                     ? Math.min(100, data.gpu_power / data.gpu_power_limit * 100)
                     : 0;
-                m.powerFill.style.width = `${powerPct}%`;
+                setBarFill(m.powerFill, powerPct);
                 const powerText = _u
                     ? formatPower(data.gpu_power, data.gpu_power_limit)
                     : asPct(data.gpu_power, data.gpu_power_limit);
@@ -2887,7 +2950,7 @@ function renderData(body, data) {
                     ? `<span style="color:${powerColor};">${powerText}</span>`
                     : "";
             } else {
-                m.powerFill.style.width = "0%";
+                setBarFill(m.powerFill, 0);
                 m.powerUsage.textContent = _t("na");
             }
         }
@@ -2924,13 +2987,10 @@ function renderData(body, data) {
 
     const cr = r.contentDiv._refs;
     cr.ramUsage.textContent = `${formatBytes(ramUsed)}|${formatBytes(ramTotal)}`;
-    cr.ramSegs[0].style.width = pinnedRamPct + "%";
+    setBarStack(cr.ramSegs, [pinnedRamPct, loadedRamPct, pythonOtherPct, ramOtherPct]);
     cr.ramSegs[0].title = _t("pinned") + ": " + formatBytes(pinnedRamTotal);
-    cr.ramSegs[1].style.width = loadedRamPct + "%";
     cr.ramSegs[1].title = _t("loaded") + ": " + formatBytes(loadedRamTotal);
-    cr.ramSegs[2].style.width = pythonOtherPct + "%";
     cr.ramSegs[2].title = _t("python") + ": " + formatBytes(pythonOther);
-    cr.ramSegs[3].style.width = ramOtherPct + "%";
     cr.ramSegs[3].title = _t("other") + ": " + formatBytes(ramOther);
     cr.ramLegend.style.display = showLegends ? "flex" : "none";
     if (showLegends) {
@@ -2943,13 +3003,10 @@ function renderData(body, data) {
     cr.vramLabel.textContent = _t("vram") + ((showHwNames && data.gpu_name) ? ` (${shortenGpuName(data.gpu_name)})` : "");
     cr.vramLabel.title = data.gpu_name || "";
     cr.vramUsage.textContent = `${formatBytes(used)}|${formatBytes(data.total_vram)}`;
-    cr.vramSegs[0].style.width = aimdoPct + "%";
+    setBarStack(cr.vramSegs, [aimdoPct, torchPct, torchCachePct, otherPct]);
     cr.vramSegs[0].title = _t("models") + ": " + formatBytes(aimdo);
-    cr.vramSegs[1].style.width = torchPct + "%";
     cr.vramSegs[1].title = _t("torch") + ": " + formatBytes(torchActive);
-    cr.vramSegs[2].style.width = torchCachePct + "%";
     cr.vramSegs[2].title = _t("cache") + ": " + formatBytes(torchCache);
-    cr.vramSegs[3].style.width = otherPct + "%";
     cr.vramSegs[3].title = _t("other") + ": " + formatBytes(otherUsed);
     cr.vramLegend.style.display = showLegends ? "flex" : "none";
     if (showLegends) {
@@ -3007,7 +3064,7 @@ function renderData(body, data) {
     }
     if (data.total_swap > 0) {
         cr.pagefileSection.style.display = "";
-        cr.pagefileSegs[0].style.width = (data.used_swap / data.total_swap * 100) + "%";
+        setBarFill(cr.pagefileSegs[0], data.used_swap / data.total_swap * 100);
         cr.pagefileUsage.textContent = `${formatBytes(data.used_swap)}|${formatBytes(data.total_swap)}`;
     } else {
         cr.pagefileSection.style.display = "none";

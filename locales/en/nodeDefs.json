@@ -111,6 +111,12 @@
   "XB_TextEncodeQwenImageEditPlus": {
     "display_name": "XB-BOX - 📝 Qwen Image Edit Encode Plus"
   },
+  "XB_MiniMaxH3ImageConditioningTiled": {
+    "display_name": "XB-BOX - 🖼️ MiniMax H3 Image Conditioning (Tiled)"
+  },
+  "XB_TextEncodeQwenImage21Tiled": {
+    "display_name": "XB-BOX - 📝 Text Encode Qwen Image 2.1 (Tiled)"
+  },
   "XB_ImageScale": {
     "display_name": "XB-BOX - 📐 Batch Scale Image"
   },

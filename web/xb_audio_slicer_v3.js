@@ -312,12 +312,20 @@ app.registerExtension({
             if (w.merge_mode) { const o = w.merge_mode.callback; w.merge_mode.callback = function () { o?.apply(this, arguments); updateTot(); }; }
 
             let _running = true;
-            const renderLoop = () => {
+            // 只在需要时跑满帧：拖动 / 播放 → 逐帧；静止 → 5fps；切到后台 → 停画。
+            const trackBusy = () => [1, 2].some((t) => tracks[t] && (tracks[t].drag || (tracks[t].ael && !tracks[t].ael.paused)));
+            let lastPaint = 0;
+            const renderLoop = (ts) => {
                 if (!_running) return;
-                drawWave(1); drawWave(2);
+                if (!node.graph) { _running = false; return; }
                 requestAnimationFrame(renderLoop);
+                if (document.hidden) return;
+                const now = ts || performance.now();
+                if (!trackBusy() && now - lastPaint < 200) return;
+                lastPaint = now;
+                drawWave(1); drawWave(2);
             };
-            renderLoop();
+            requestAnimationFrame(renderLoop);
 
             setTimeout(() => { [1, 2].forEach(t => { parseMutes(t); updateSrc(t); if (tracks[t].wA?.value && tracks[t].wA.value !== "none") fetchPeaks(tracks[t].wA.value, t); }); updateTot(); }, 400);
 

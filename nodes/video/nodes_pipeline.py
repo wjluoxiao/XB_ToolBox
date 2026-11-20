@@ -99,6 +99,79 @@ def _safe_video_accumulate(prev_video, new_segment, concat_dim, label="", concat
     return torch.cat([prev_video, new_segment], dim=concat_dim)
 
 
+# --- SCAIL 段间色彩匹配 (对齐官方 ColorTransfer: reinhard_lab / per_frame) ---
+_LAB_RGB2XYZ = ((0.412453, 0.357580, 0.180423),
+                (0.212671, 0.715160, 0.072169),
+                (0.019334, 0.119193, 0.950227))
+_LAB_XYZ2RGB = ((3.240481, -1.537152, -0.498536),
+                (-0.969256, 1.875992, 0.041556),
+                (0.055648, -0.204043, 1.057311))
+
+
+def _rgb_to_lab(img):
+    """(..., 3) 图像 (0~1) → CIELAB, L∈[0,100]"""
+    m = torch.tensor(_LAB_RGB2XYZ, device=img.device, dtype=torch.float32)
+    xyz = img.to(torch.float32) @ m.T
+    x = xyz[..., 0].clamp_min(0) / 0.950456
+    y = xyz[..., 1].clamp_min(0)
+    z = xyz[..., 2].clamp_min(0) / 1.088754
+    eps = 0.008856
+
+    def f(t):
+        return torch.where(t > eps, t.clamp_min(eps).pow(1.0 / 3.0), 7.787 * t + 16.0 / 116.0)
+
+    fx, fy, fz = f(x), f(y), f(z)
+    return torch.stack([116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz)], dim=-1)
+
+
+def _lab_to_rgb(lab):
+    """CIELAB → (..., 3) 图像 (0~1)"""
+    fy = (lab[..., 0] + 16.0) / 116.0
+    fx = fy + lab[..., 1] / 500.0
+    fz = fy - lab[..., 2] / 200.0
+    eps = 0.008856
+
+    def inv(f):
+        f3 = f.pow(3)
+        return torch.where(f3 > eps, f3, (f - 16.0 / 116.0) / 7.787)
+
+    xyz = torch.stack([inv(fx) * 0.950456, inv(fy), inv(fz) * 1.088754], dim=-1)
+    m = torch.tensor(_LAB_XYZ2RGB, device=lab.device, dtype=torch.float32)
+    return torch.clamp(xyz @ m.T, 0.0, 1.0)
+
+
+def _color_match_reinhard_lab(frames, ref_frame, strength=1.0):
+    """段间颜色匹配：frames (T,H,W,3) 每帧在 Lab 空间对齐到 ref_frame (1,H,W,3) 的均值/标准差。"""
+    src = _rgb_to_lab(frames)
+    ref = _rgb_to_lab(ref_frame[:1].to(device=src.device, dtype=torch.float32))
+    r_flat = ref.reshape(-1, 3)
+    r_mean, r_std = r_flat.mean(dim=0), r_flat.std(dim=0).clamp_min(1e-6)
+
+    flat = src.reshape(src.shape[0], -1, 3)
+    s_mean = flat.mean(dim=1, keepdim=True)
+    s_std = flat.std(dim=1, keepdim=True).clamp_min(1e-6)
+    matched = (flat - s_mean) / s_std * r_std + r_mean
+    if strength < 1.0:
+        matched = torch.lerp(flat, matched, strength)
+    return _lab_to_rgb(matched.reshape_as(src))
+
+
+def _safe_segment_color_match(segment, ref_frame, is_4d, strength=1.0, label=""):
+    """接力段色彩匹配包装，失败时原样返回不影响主流程。"""
+    if strength <= 0.0 or ref_frame is None or ref_frame.shape[0] < 1:
+        return segment
+    try:
+        vid = segment if is_4d else segment[0]
+        matched = _color_match_reinhard_lab(vid, ref_frame, strength)
+        if matched.shape != vid.shape:
+            return segment
+        out = matched if is_4d else matched.unsqueeze(0)
+        return out.to(device=segment.device, dtype=segment.dtype)
+    except Exception as e:
+        print(f"⚠️ [XB-BOX] {label} 段间色彩匹配失败，已跳过: {e}")
+        return segment
+
+
 def _match_color_to_ref(target_img, ref_img):
     """色彩重映射引擎：用均值和标准差将 target 光影强制对齐到 ref。
 
@@ -1784,6 +1857,8 @@ class XB_WanSCAIL_ParamBus_New:
                 "pose_video_mask": ("IMAGE", {"tooltip": "SCAIL-2 彩色遮罩视频"}),
                 "scale_method": (cls._SCALE_METHODS, {"default": "lanczos"}),
                 "crop_mode": (cls._CROP_MODES, {"default": "center"}),
+                "size_mode": (["手动", "跟随驱动视频比例"], {"default": "手动", "tooltip": "跟随驱动视频比例: 以 width×height 为像素预算, 按驱动视频宽高比重新计算 (自动对齐 32)"}),
+                "clip_vision_mode": (["官方拉伸", "等比裁切"], {"default": "官方拉伸", "tooltip": "官方拉伸 = 原图直接拉伸编码 (SCAIL-2 训练方式); 等比裁切 = 先缩放到出图尺寸再中心裁切 (旧行为)"}),
             }
         }
 
@@ -1793,20 +1868,39 @@ class XB_WanSCAIL_ParamBus_New:
     CATEGORY = "XB_ToolBox/Pipeline"
 
     def pack_bus(self, **kwargs):
-        # CLIP 视觉编码：参考图缩放到视频尺寸后编码
+        w, h = kwargs["width"], kwargs["height"]
+        pose_video = kwargs.get("pose_video")
+
+        # --- 分辨率：跟随驱动视频比例 + 32 对齐 (官方 (a // 32) * 32) ---
+        if kwargs.get("size_mode", "手动") == "跟随驱动视频比例" and pose_video is not None and len(pose_video.shape) == 4:
+            ph, pw = int(pose_video.shape[1]), int(pose_video.shape[2])
+            if ph > 0 and pw > 0:
+                aspect = pw / ph
+                base_pixels = max(1, w * h)
+                new_h = (base_pixels / aspect) ** 0.5
+                w, h = int(round(new_h * aspect)), int(round(new_h))
+                print(f"📐 [XB-BOX] SCAIL 跟随驱动视频比例 {pw}×{ph} → {w}×{h}")
+        w, h = max(32, (w // 32) * 32), max(32, (h // 32) * 32)
+        kwargs["width"], kwargs["height"] = w, h
+
+        # --- CLIP 视觉编码：官方用原始参考图 stretch 编码 (crop=none) ---
         cv = kwargs.get("clip_vision")
         ref = kwargs.get("global_ref_image")
         if cv is not None and ref is not None:
-            w, h = kwargs["width"], kwargs["height"]
-            method = kwargs.get("scale_method", "lanczos")
-            crop = kwargs.get("crop_mode", "center")
-            scaled = comfy.utils.common_upscale(ref.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
-            kwargs["clip_vision_output"], = nodes.CLIPVisionEncode().encode(cv, scaled, "center")
-            print(f"👁️ [XB-BOX] SCAIL CLIP视觉编码 ({ref.shape[1]}×{ref.shape[2]} → {w}×{h}, {method}/{crop})")
+            if kwargs.get("clip_vision_mode", "官方拉伸") == "等比裁切":
+                method = kwargs.get("scale_method", "lanczos")
+                crop = kwargs.get("crop_mode", "center")
+                scaled = comfy.utils.common_upscale(ref.movedim(-1, 1), w, h, method, crop).movedim(1, -1)
+                kwargs["clip_vision_output"], = nodes.CLIPVisionEncode().encode(cv, scaled, "center")
+                print(f"👁️ [XB-BOX] SCAIL CLIP视觉编码 (等比裁切 {method}/{crop})")
+            else:
+                kwargs["clip_vision_output"], = nodes.CLIPVisionEncode().encode(cv, ref, "none")
+                print(f"👁️ [XB-BOX] SCAIL CLIP视觉编码 (官方拉伸, 原图 {ref.shape[1]}×{ref.shape[2]})")
         else:
             kwargs["clip_vision_output"] = None
 
         kwargs["current_offset"] = 0
+        print(f"📦 [XB-BOX] SCAIL 总线: {w}×{h}")
         return (kwargs,)
 
 
@@ -1830,6 +1924,8 @@ class XB_WanSCAIL_RelayNode_New:
                 "previous_frame_count": ("INT", {"default": 5, "min": 1, "max": 8192, "step": 4, "tooltip": "接力重叠帧数（尾帧衔接）"}),
                 "relay_count": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1, "tooltip": "接力数量设定"}),
                 "total_frames_display": ("STRING", {"default": "", "multiline": False, "tooltip": "总计生成帧数（自动计算）"}),
+                "color_match": (["开启 (官方 reinhard_lab)", "关闭"], {"default": "开启 (官方 reinhard_lab)", "tooltip": "段间色彩匹配: 以已生成视频最后一帧为参考，消除长视频分段的色温/曝光漂移"}),
+                "color_match_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05}),
             },
             "optional": {
                 "prev_video": ("IMAGE",),
@@ -1841,7 +1937,7 @@ class XB_WanSCAIL_RelayNode_New:
     FUNCTION = "execute_relay"
     CATEGORY = "XB_ToolBox/Pipeline"
 
-    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", previous_frame_count=5, relay_count=1, total_frames_display="", prev_video=None):
+    def execute_relay(self, wan_scail_bus, segment_length, positive_prompt="", previous_frame_count=5, relay_count=1, total_frames_display="", color_match="开启 (官方 reinhard_lab)", color_match_strength=1.0, prev_video=None):
         b = wan_scail_bus.copy()
         print(f"\n🏃‍♀️ [XB-BOX] Executing SCAIL Relay × {relay_count} relay(s)... 每段 {segment_length} 帧, 总计约 {segment_length * relay_count} 帧")
         accumulated_video = prev_video
@@ -1935,7 +2031,7 @@ class XB_WanSCAIL_RelayNode_New:
                 cleanup=cleanup_mode,
             )
 
-            # --- 裁剪重叠帧 & 累加 ---
+            # --- 裁剪重叠帧 ---
             is_4d = len(decoded_image.shape) == 4
             concat_dim = 0 if is_4d else 1
             total_out = decoded_image.shape[concat_dim]
@@ -1946,6 +2042,12 @@ class XB_WanSCAIL_RelayNode_New:
                     decoded_image = decoded_image[trim_px:, :, :, :]
                 else:
                     decoded_image = decoded_image[:, trim_px:, :, :, :]
+
+            # --- 段间色彩匹配（对齐官方 ColorTransfer: 以上一段最后一帧为参考） ---
+            if color_match != "关闭" and accumulated_video is not None and current_offset > 0:
+                prev_ref = accumulated_video[-1:] if len(accumulated_video.shape) == 4 else accumulated_video[:, -1:]
+                decoded_image = _safe_segment_color_match(
+                    decoded_image, prev_ref, is_4d, strength=color_match_strength, label=f"SCAIL-{r+1}")
 
             accumulated_video = _safe_video_accumulate(accumulated_video, decoded_image, concat_dim, label=f"SCAIL-{r+1}", concat_mode=b.get("concat_mode", "自动"))
             actual_out = decoded_image.shape[concat_dim]

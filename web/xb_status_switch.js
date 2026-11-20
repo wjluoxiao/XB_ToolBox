@@ -312,8 +312,10 @@ let mirrorLoopRunning = false;
 function mirrorFrame() {
     if (!mirrorLoopRunning) return;
     try {
-        const allNodes = app.graph?._nodes ?? app.graph?.nodes ?? [];
-        for (const n of allNodes) { if (n.type === NODE_TYPE) syncExternalToLocal(n); }
+        if (!document.hidden) {
+            const allNodes = app.graph?._nodes ?? app.graph?.nodes ?? [];
+            for (const n of allNodes) { if (n.type === NODE_TYPE) syncExternalToLocal(n); }
+        }
     } catch (_) {}
     requestAnimationFrame(mirrorFrame);
 }

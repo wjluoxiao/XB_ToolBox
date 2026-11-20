@@ -259,8 +259,19 @@ app.registerExtension({
         if (wEnd) { const orig = wEnd.callback; wEnd.callback = function () { orig?.apply(this, arguments); onTimeChange(false); }; }
 
         let _running = true;
-        const renderLoop = () => { if (!_running) return; if (totalDur > 0) { syncWidgets(); draw(); } requestAnimationFrame(renderLoop); };
-        renderLoop();
+        // 只在需要时跑满帧：拖动 / 播放 → 逐帧；静止 → 5fps；切到后台 → 停画。
+        let lastPaint = 0;
+        const renderLoop = (ts) => {
+            if (!_running) return;
+            if (!node.graph) { _running = false; return; }
+            requestAnimationFrame(renderLoop);
+            if (document.hidden) return;
+            const now = ts || performance.now();
+            if (!drag && audioEl.paused && now - lastPaint < 200) return;
+            lastPaint = now;
+            if (totalDur > 0) { syncWidgets(); draw(); }
+        };
+        requestAnimationFrame(renderLoop);
 
         setTimeout(() => { updateSrc(); if (wAudio?.value && wAudio.value !== "none") fetchPeaks(wAudio.value); }, 400);
         const o2 = node.onRemoved; node.onRemoved = () => { _running = false; o2?.apply(node); };

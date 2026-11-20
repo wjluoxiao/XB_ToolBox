@@ -1363,17 +1363,20 @@ class XB_WanSCAILToVideoPro:
             video_frame_offset -= prev_trimmed.shape[0]
             video_frame_offset = max(0, video_frame_offset)
 
-        # --- reference_image + mask ---
+        # --- reference_image + mask (多参考图：首张为主参考，其余为附加视角/身份) ---
         if reference_image is not None:
-            reference_image = comfy.utils.common_upscale(reference_image[:1].movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
-            # Replacement Mode: composite ref on black bg using reference_image_mask as alpha matte
+            ref_imgs = comfy.utils.common_upscale(reference_image.movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
+            n_ref = ref_imgs.shape[0]
+            # Replacement Mode: composite each ref on black bg using its mask as alpha matte
             if replacement_mode and reference_image_mask is not None:
-                rm = comfy.utils.common_upscale(reference_image_mask[:1].movedim(-1, 1), width, height, "nearest-exact", "center").movedim(1, -1)
-                is_char = (rm[..., :3].max(dim=-1, keepdim=True).values > 0.1).to(reference_image.dtype)
-                reference_image = reference_image * is_char
-            ref_latent = _encode_vae(vae, reference_image[:, :, :, :3], vae_tile_size)
-            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [ref_latent]}, append=True)
-            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": [ref_latent]}, append=True)
+                rm = comfy.utils.common_upscale(reference_image_mask.movedim(-1, 1), width, height, "nearest-exact", "center").movedim(1, -1)
+                rm = rm[[min(i, rm.shape[0] - 1) for i in range(n_ref)]]
+                is_char = (rm[..., :3].max(dim=-1, keepdim=True).values > 0.1).to(ref_imgs.dtype)
+                ref_imgs = ref_imgs * is_char
+            # 逐张单帧编码：一次批量编码会被 VAE 当成分辨率视频
+            ref_latents = [_encode_vae(vae, ref_imgs[i:i + 1, :, :, :3], vae_tile_size) for i in range(n_ref)]
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
+            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": ref_latents}, append=True)
 
         if clip_vision_output is not None:
             positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
@@ -1412,11 +1415,15 @@ class XB_WanSCAILToVideoPro:
             positive = node_helpers.conditioning_set_values(positive, {"driving_mask_28ch": driving_mask_28ch})
             negative = node_helpers.conditioning_set_values(negative, {"driving_mask_28ch": driving_mask_28ch})
 
-        if reference_image_mask is not None and replacement_mode:
-            ref_mask_hw = comfy.utils.common_upscale(reference_image_mask[:1].movedim(-1, 1), width, height, "bicubic", "center").movedim(1, -1)
-            ref_mask_1f = _scail_extract_mask_to_28ch(ref_mask_hw)
+        # ref mask 用于把参考帧绑定到身份，只要有参考图就要给（动画模式同样需要）
+        if reference_image_mask is not None and reference_image is not None:
+            ref_mask_hw = comfy.utils.common_upscale(reference_image_mask.movedim(-1, 1), width, height, "nearest-exact", "center").movedim(1, -1)
+            n_masks = ref_mask_hw.shape[0]
+            n_ref = reference_image.shape[0]
+            add_masks = [_scail_extract_mask_to_28ch(ref_mask_hw[min(i, n_masks - 1)][None]) for i in range(1, n_ref)]
+            ref_mask_1f = _scail_extract_mask_to_28ch(ref_mask_hw[:1])
             zeros = torch.zeros((1, latent.shape[2], 28, ref_mask_1f.shape[-2], ref_mask_1f.shape[-1]), device=ref_mask_1f.device, dtype=ref_mask_1f.dtype)
-            ref_mask_28ch = torch.cat([ref_mask_1f, zeros], dim=1)
+            ref_mask_28ch = torch.cat(add_masks + [ref_mask_1f, zeros], dim=1)
             positive = node_helpers.conditioning_set_values(positive, {"ref_mask_28ch": ref_mask_28ch})
             negative = node_helpers.conditioning_set_values(negative, {"ref_mask_28ch": ref_mask_28ch})
 

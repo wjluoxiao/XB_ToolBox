@@ -120,14 +120,20 @@ const applyStep = (w, step, node) => {
         // 子图节点上的 widget 是响应式代理，options 只有 getter，不能整体赋值
         const opts = t.options;
         if (opts) {
-            try { opts.step = step; opts.step2 = step; opts.min = step; } catch (_) { /* ignore */ }
+            // 值没变就不要写：Nodes 2.0 下 options 可能是响应式代理，每次写都会触发重渲染
+            if (opts.step !== step || opts.step2 !== step || opts.min !== step) {
+                try { opts.step = step; opts.step2 = step; opts.min = step; } catch (_) { /* ignore */ }
+            }
         }
         const el = t.inputEl || t.element;
         if (el && typeof el.setAttribute === "function") {
-            el.step = step;
-            el.min = step;
-            el.setAttribute("step", String(step));
-            el.setAttribute("min", String(step));
+            // 同理：setAttribute 会作废布局/样式，只在真的变了才写
+            if (String(el.getAttribute("step")) !== String(step) || String(el.getAttribute("min")) !== String(step)) {
+                el.step = step;
+                el.min = step;
+                el.setAttribute("step", String(step));
+                el.setAttribute("min", String(step));
+            }
         }
     }
 };
@@ -344,9 +350,16 @@ app.registerExtension({
                         }
 
                         let alignStepLen = isFree ? 1 : 8;
-                        if (wLen.options) wLen.options.step = wLen.options.step2 = alignStepLen;
-                        if (wLen.inputEl) { wLen.inputEl.step = alignStepLen; wLen.inputEl.setAttribute("step", String(alignStepLen)); }
-                        else if (wLen.element) { wLen.element.step = alignStepLen; wLen.element.setAttribute("step", String(alignStepLen)); }
+                        // 只在步长真的变化时写：这两行会作废输入框的布局/样式
+                        if (node._xb_len_step !== alignStepLen) {
+                            node._xb_len_step = alignStepLen;
+                            if (wLen.options) wLen.options.step = wLen.options.step2 = alignStepLen;
+                            const lenEl = wLen.inputEl || wLen.element;
+                            if (lenEl) {
+                                lenEl.step = alignStepLen;
+                                lenEl.setAttribute("step", String(alignStepLen));
+                            }
+                        }
 
                         let len = parseInt(wLen.value, 10) || 1;
                         let safeLen = len;
@@ -451,6 +464,6 @@ app.registerExtension({
                     }
                 }
             }
-        }, 50);
+        }, 150);
     }
 });

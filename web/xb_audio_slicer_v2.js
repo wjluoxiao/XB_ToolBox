@@ -84,7 +84,8 @@ app.registerExtension({
                 if (we) { we.value = e; if (we.inputEl) we.inputEl.value = e; if (we.element) we.element.value = e; }
                 const durSec = Math.max(0, e - s);
                 const lbl = t === 1 ? label1 : label2;
-                lbl.textContent = (t === 1 ? "🎵 音频1" : "🎵 音频2") + " (已选择 " + durSec.toFixed(2) + "秒)";
+                const lblTxt = (t === 1 ? "🎵 音频1" : "🎵 音频2") + " (已选择 " + durSec.toFixed(2) + "秒)";
+                if (lbl.textContent !== lblTxt) lbl.textContent = lblTxt;
                 if (wTot) {
                     const fps = parseFloat(wFps?.value) || 25, g = parseInt(wGap?.value) || 0;
                     const d1 = Math.max(0, getE(1) - getS(1)), d2 = Math.max(0, getE(2) - getS(2));
@@ -234,8 +235,20 @@ app.registerExtension({
             if (wGap) { const o = wGap.callback; wGap.callback = function () { o?.apply(this, arguments); syncW(1); syncW(2); }; }
 
             let _running = true;
-            const renderLoop = () => { if (!_running) return; if (dur1 > 0 || dur2 > 0) { syncW(1); syncW(2); drawWave(canvas1, 1); drawWave(canvas2, 2); } requestAnimationFrame(renderLoop); };
-            renderLoop();
+            // 只在需要时跑满帧：拖动 / 播放 → 逐帧；静止 → 5fps；切到后台 → 停画。
+            let lastPaint = 0;
+            const renderLoop = (ts) => {
+                if (!_running) return;
+                if (!node.graph) { _running = false; return; }
+                requestAnimationFrame(renderLoop);
+                if (document.hidden) return;
+                const now = ts || performance.now();
+                const busy = !!(drags[1] || drags[2]) || !audioEl1.paused || !audioEl2.paused;
+                if (!busy && now - lastPaint < 200) return;
+                lastPaint = now;
+                if (dur1 > 0 || dur2 > 0) { syncW(1); syncW(2); drawWave(canvas1, 1); drawWave(canvas2, 2); }
+            };
+            requestAnimationFrame(renderLoop);
 
             setTimeout(() => { updateSrc(audioEl1, wA1, 1, _last1); updateSrc(audioEl2, wA2, 2, _last2); if (wA1?.value && wA1.value !== "none") fetchPeaks(wA1.value, 1); if (wA2?.value && wA2.value !== "none") fetchPeaks(wA2.value, 2); }, 400);
 

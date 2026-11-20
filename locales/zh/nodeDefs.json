@@ -5056,6 +5056,69 @@
       }
     }
   },
+  "XB_MiniMaxH3ImageConditioningTiled": {
+    "display_name": "XB-BOX - 🖼️ MiniMax H3 图像条件化（分块）",
+    "inputs": {
+      "clip": { "name": "CLIP模型" },
+      "prompt": { "name": "提示词" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "vae": { "name": "VAE" },
+      "image_0": { "name": "图片1" },
+      "image_1": { "name": "图片2" },
+      "image_2": { "name": "图片3" },
+      "image_3": { "name": "图片4" },
+      "image_4": { "name": "图片5" },
+      "image_5": { "name": "图片6" },
+      "image_6": { "name": "图片7" },
+      "image_7": { "name": "图片8" },
+      "tile_size": { "name": "分块边长", "tooltip": "参考图 VAE 编码分块像素。0 = 按可用显存自动挑；整幅装得进一块时不切块" },
+      "overlap": { "name": "分块重叠", "tooltip": "分块重叠像素，防止接缝。0 = 自动（tile/8，16~128）" },
+      "tile_mode": { "name": "分块模式", "tooltip": "单遍(快) = 显存最低、速度最快；官方三遍(稳) = 官方行为，慢 3 倍" },
+      "free_after": { "name": "编码后清显存", "tooltip": "每张参考图编码完清一次显存缓存，避免图多堆积" }
+    },
+    "outputs": {
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "潜变量"
+      }
+    }
+  },
+  "XB_TextEncodeQwenImage21Tiled": {
+    "display_name": "XB-BOX - 📝 文本编码 Qwen Image 2.1（分块）",
+    "inputs": {
+      "clip": { "name": "CLIP模型" },
+      "prompt": { "name": "正面提示词" },
+      "negative_prompt": { "name": "负面提示词" },
+      "resolution": { "name": "参考图分辨率", "tooltip": "参考图缩放到约 分辨率×分辨率（32 的倍数，保持比例）；0 = 保持原尺寸" },
+      "vae": { "name": "VAE" },
+      "image_1": { "name": "图片1" },
+      "image_2": { "name": "图片2" },
+      "image_3": { "name": "图片3" },
+      "image_4": { "name": "图片4" },
+      "image_5": { "name": "图片5" },
+      "image_6": { "name": "图片6" },
+      "image_7": { "name": "图片7" },
+      "image_8": { "name": "图片8" },
+      "tile_size": { "name": "分块边长", "tooltip": "参考图 VAE 编码分块像素。0 = 按可用显存自动挑；整幅装得进一块时不切块" },
+      "overlap": { "name": "分块重叠", "tooltip": "分块重叠像素，防止接缝。0 = 自动（tile/8，16~128）" },
+      "tile_mode": { "name": "分块模式", "tooltip": "单遍(快) = 显存最低、速度最快；官方三遍(稳) = 官方行为，慢 3 倍" },
+      "free_after": { "name": "编码后清显存", "tooltip": "每张参考图编码完清一次显存缓存，避免图多堆积" }
+    },
+    "outputs": {
+      "0": {
+        "name": "正面条件"
+      },
+      "1": {
+        "name": "负面条件"
+      },
+      "2": {
+        "name": "潜变量"
+      }
+    }
+  },
   "XB_ImageScale": {
     "display_name": "XB-BOX - 📐 批量缩放图像",
     "inputs": {
