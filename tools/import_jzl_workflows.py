@@ -33,10 +33,12 @@ from PIL import Image
 
 SLUGS = {
     "Anima": "anima",
+    "Boogu-image": "boogu",
     "Flux-2": "flux2",
     "Flux-3": "flux3",
     "Krea-2": "krea2",
     "MiniMax-H3": "minimaxh3",
+    "MiniMax-Music": "minimaxmusic",
     "MiniMax-image": "minimaximage",
     "Moss-image": "mossimage",
     "Qwen-image-2.1": "qwen21",
@@ -44,17 +46,24 @@ SLUGS = {
     "Qwen-image-2512": "qwen2512",
     "RelayVSR": "relayvsr",
     "SeeThrough": "seethrough",
+    "YuE2": "yue2",
     "Z-image": "zimage",
 }
 
-# 分类 → 面板「类型」：将来加入音乐 / 语音 / 文本分类时在这里登记即可
+# 分类 → 面板「类型」：未登记的一律按图片处理
 CATEGORY_TYPES = {
     "MiniMax-H3": "video",
     "RelayVSR": "video",
+    "MiniMax-Music": "music",
+    "YuE2": "music",
 }
 
 # 英文标题用的术语表；长词在前，避免「文生图」先吃掉「文生图基础工作流」
 TERMS = [
+    ("歌曲创作（单人）", "Song Creation (Solo)"),
+    ("歌曲创作（双人）", "Song Creation (Duet)"),
+    ("歌曲创作", "Song Creation"),
+    ("歌曲翻唱", "Song Cover"),
     ("文生图基础工作流", "Text to Image Basics"),
     ("局部重绘基础工作流", "Inpainting Basics"),
     ("无限时长视频放大", "Infinite-Length Video Upscale"),
@@ -95,6 +104,7 @@ TERMS = [
     ("换脸", "Face Swap"),
     ("工作流", " Workflow"),
     ("（带放大）", " with Upscale"),
+    ("测试-", "Test - "),
     ("Qwe-Image", "Qwen-Image"),
 ]
 

@@ -8,7 +8,7 @@
     "templates": [
       {
         "name": "anima_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -23,7 +23,7 @@
       },
       {
         "name": "anima_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -38,7 +38,7 @@
       },
       {
         "name": "anima_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -56,13 +56,52 @@
   {
     "moduleName": "jzl",
     "category": "JZL Workflows",
+    "title": "Boogu-image",
+    "icon": "icon-[lucide--image]",
+    "type": "image",
+    "templates": [
+      {
+        "name": "boogu_01",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "boogu_01-1.webp"
+        ],
+        "tags": [
+          "Boogu-image"
+        ],
+        "title": "Boogu-image Text to Image",
+        "description": "Boogu-image Text to Image",
+        "username": "JZL"
+      },
+      {
+        "name": "boogu_02",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "boogu_02-1.webp"
+        ],
+        "tags": [
+          "Boogu-image"
+        ],
+        "title": "Boogu-image Image Edit",
+        "description": "Boogu-image Image Edit",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
     "title": "Flux-2",
     "icon": "icon-[lucide--image]",
     "type": "image",
     "templates": [
       {
         "name": "flux2_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -77,7 +116,7 @@
       },
       {
         "name": "flux2_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -92,7 +131,7 @@
       },
       {
         "name": "flux2_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -107,7 +146,7 @@
       },
       {
         "name": "flux2_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -122,7 +161,7 @@
       },
       {
         "name": "flux2_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -137,7 +176,7 @@
       },
       {
         "name": "flux2_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -152,7 +191,7 @@
       },
       {
         "name": "flux2_07",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -167,7 +206,7 @@
       },
       {
         "name": "flux2_08",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -191,7 +230,7 @@
     "templates": [
       {
         "name": "flux3_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -206,7 +245,7 @@
       },
       {
         "name": "flux3_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -221,7 +260,7 @@
       },
       {
         "name": "flux3_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -236,7 +275,7 @@
       },
       {
         "name": "flux3_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -260,7 +299,7 @@
     "templates": [
       {
         "name": "krea2_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -275,7 +314,7 @@
       },
       {
         "name": "krea2_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -290,7 +329,7 @@
       },
       {
         "name": "krea2_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -305,7 +344,7 @@
       },
       {
         "name": "krea2_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -329,7 +368,7 @@
     "templates": [
       {
         "name": "minimaxh3_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -344,7 +383,7 @@
       },
       {
         "name": "minimaxh3_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -359,7 +398,7 @@
       },
       {
         "name": "minimaxh3_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -374,7 +413,7 @@
       },
       {
         "name": "minimaxh3_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -389,7 +428,7 @@
       },
       {
         "name": "minimaxh3_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -404,7 +443,7 @@
       },
       {
         "name": "minimaxh3_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -419,7 +458,7 @@
       },
       {
         "name": "minimaxh3_07",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -437,13 +476,52 @@
   {
     "moduleName": "jzl",
     "category": "JZL Workflows",
+    "title": "MiniMax-Music",
+    "icon": "icon-[lucide--image]",
+    "type": "music",
+    "templates": [
+      {
+        "name": "minimaxmusic_01",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxmusic_01-1.webp"
+        ],
+        "tags": [
+          "MiniMax-Music"
+        ],
+        "title": "MiniMax-Music Song Creation (Solo)",
+        "description": "MiniMax-Music Song Creation (Solo)",
+        "username": "JZL"
+      },
+      {
+        "name": "minimaxmusic_02",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxmusic_02-1.webp"
+        ],
+        "tags": [
+          "MiniMax-Music"
+        ],
+        "title": "MiniMax-Music Song Creation (Duet)",
+        "description": "MiniMax-Music Song Creation (Duet)",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
     "title": "MiniMax-image",
     "icon": "icon-[lucide--image]",
     "type": "image",
     "templates": [
       {
         "name": "minimaximage_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -458,7 +536,7 @@
       },
       {
         "name": "minimaximage_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -473,7 +551,7 @@
       },
       {
         "name": "minimaximage_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -488,7 +566,7 @@
       },
       {
         "name": "minimaximage_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -499,6 +577,21 @@
         ],
         "title": "MiniMax-H3-image Multi-Image Edit",
         "description": "MiniMax-H3-image Multi-Image Edit",
+        "username": "JZL"
+      },
+      {
+        "name": "minimaximage_05",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_05-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "Test - MiniMax-H3-image Single Image Edit",
+        "description": "Test - MiniMax-H3-image Single Image Edit",
         "username": "JZL"
       }
     ]
@@ -512,7 +605,7 @@
     "templates": [
       {
         "name": "mossimage_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -527,7 +620,7 @@
       },
       {
         "name": "mossimage_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -542,7 +635,7 @@
       },
       {
         "name": "mossimage_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -557,7 +650,7 @@
       },
       {
         "name": "mossimage_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -572,7 +665,7 @@
       },
       {
         "name": "mossimage_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -596,7 +689,7 @@
     "templates": [
       {
         "name": "qwen21_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -611,7 +704,7 @@
       },
       {
         "name": "qwen21_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -626,7 +719,7 @@
       },
       {
         "name": "qwen21_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -641,7 +734,7 @@
       },
       {
         "name": "qwen21_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -656,7 +749,7 @@
       },
       {
         "name": "qwen21_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -671,7 +764,7 @@
       },
       {
         "name": "qwen21_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -686,7 +779,7 @@
       },
       {
         "name": "qwen21_07",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -701,7 +794,7 @@
       },
       {
         "name": "qwen21_08",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -712,6 +805,21 @@
         ],
         "title": "Qwen-image-2.1 Controlled Generation-B",
         "description": "Qwen-image-2.1 Controlled Generation-B",
+        "username": "JZL"
+      },
+      {
+        "name": "qwen21_09",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "qwen21_09-1.webp"
+        ],
+        "tags": [
+          "Qwen-image-2.1"
+        ],
+        "title": "Test - Qwen-2.1 Single Image Edit",
+        "description": "Test - Qwen-2.1 Single Image Edit",
         "username": "JZL"
       }
     ]
@@ -725,7 +833,7 @@
     "templates": [
       {
         "name": "qwen2511_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -740,7 +848,7 @@
       },
       {
         "name": "qwen2511_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -755,7 +863,7 @@
       },
       {
         "name": "qwen2511_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -770,7 +878,7 @@
       },
       {
         "name": "qwen2511_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -785,7 +893,7 @@
       },
       {
         "name": "qwen2511_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -800,7 +908,7 @@
       },
       {
         "name": "qwen2511_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -815,7 +923,7 @@
       },
       {
         "name": "qwen2511_07",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -830,7 +938,7 @@
       },
       {
         "name": "qwen2511_08",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -845,7 +953,7 @@
       },
       {
         "name": "qwen2511_09",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -860,7 +968,7 @@
       },
       {
         "name": "qwen2511_10",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -875,7 +983,7 @@
       },
       {
         "name": "qwen2511_11",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -899,7 +1007,7 @@
     "templates": [
       {
         "name": "qwen2512_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -914,7 +1022,7 @@
       },
       {
         "name": "qwen2512_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -929,7 +1037,7 @@
       },
       {
         "name": "qwen2512_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -944,7 +1052,7 @@
       },
       {
         "name": "qwen2512_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -959,7 +1067,7 @@
       },
       {
         "name": "qwen2512_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -974,7 +1082,7 @@
       },
       {
         "name": "qwen2512_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -998,7 +1106,7 @@
     "templates": [
       {
         "name": "relayvsr_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1013,7 +1121,7 @@
       },
       {
         "name": "relayvsr_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1037,7 +1145,7 @@
     "templates": [
       {
         "name": "seethrough_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1055,13 +1163,52 @@
   {
     "moduleName": "jzl",
     "category": "JZL Workflows",
+    "title": "YuE2",
+    "icon": "icon-[lucide--image]",
+    "type": "music",
+    "templates": [
+      {
+        "name": "yue2_01",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "yue2_01-1.webp"
+        ],
+        "tags": [
+          "YuE2"
+        ],
+        "title": "YuE2 Song Creation",
+        "description": "YuE2 Song Creation",
+        "username": "JZL"
+      },
+      {
+        "name": "yue2_02",
+        "date": "2026-11-20",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "yue2_02-1.webp"
+        ],
+        "tags": [
+          "YuE2"
+        ],
+        "title": "YuE2 Song Cover",
+        "description": "YuE2 Song Cover",
+        "username": "JZL"
+      }
+    ]
+  },
+  {
+    "moduleName": "jzl",
+    "category": "JZL Workflows",
     "title": "Z-image",
     "icon": "icon-[lucide--image]",
     "type": "image",
     "templates": [
       {
         "name": "zimage_01",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1076,7 +1223,7 @@
       },
       {
         "name": "zimage_02",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1091,7 +1238,7 @@
       },
       {
         "name": "zimage_03",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1106,7 +1253,7 @@
       },
       {
         "name": "zimage_04",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1121,7 +1268,7 @@
       },
       {
         "name": "zimage_05",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1136,7 +1283,7 @@
       },
       {
         "name": "zimage_06",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1151,7 +1298,7 @@
       },
       {
         "name": "zimage_07",
-        "date": "2026-11-19",
+        "date": "2026-11-20",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [

@@ -282,7 +282,7 @@ edits are never reset by us and the bundled JSON files are never touched. Save l
 and the copy is yours from then on; loading the card again gives you another clean copy
 (named `Title (2)`, `Title (3)`, ... if the earlier one is still around).
 
-The bundle currently ships **13 categories / 70 workflows**. A whole batch is synced with a
+The bundle currently ships **16 categories / 78 workflows**. A whole batch is synced with a
 script; the source folder is laid out as `<category>/<NN>-<title>.json` and the preview image is
 the `界面图.png` at its root:
 
