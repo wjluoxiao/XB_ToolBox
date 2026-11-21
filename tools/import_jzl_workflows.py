@@ -100,6 +100,7 @@ TERMS = [
     ("控制生图", "Controlled Generation"),
     ("局部重绘", "Inpainting"),
     ("图片扩展", "Outpainting"),
+    ("图像扩展", "Outpainting"),
     ("手绘生图", "Sketch to Image"),
     ("换脸", "Face Swap"),
     ("工作流", " Workflow"),
