@@ -192,10 +192,11 @@ function relaxNodes2PreviewMinSize(node) {
 /**
  * 给节点上的视频预览绑定 自动播放 / 悬停出声，并固定节点尺寸。
  * @param {object} node LiteGraph 节点
- * @param {{autoplayWidget?: string, onApply?: (node: object) => void}} options
+ * @param {{autoplayWidget?: string, onApply?: (node: object) => void, pinSize?: boolean}} options
+ *   pinSize=false：不接管节点尺寸（多段预览节点自己决定排版）
  */
 export function setupVideoPreview(node, options = {}) {
-    const { autoplayWidget = "autoplay", onApply } = options;
+    const { autoplayWidget = "autoplay", onApply, pinSize = true } = options;
 
     const tryPlay = (v) => {
         try {
@@ -242,7 +243,7 @@ export function setupVideoPreview(node, options = {}) {
             onApply?.(node);
             relaxPreviewMinSize(node);
             relaxNodes2PreviewMinSize(node);
-            enforcePinnedSize(node);     // 预览/视频绝不允许改变节点尺寸
+            if (pinSize) enforcePinnedSize(node);     // 预览/视频绝不允许改变节点尺寸
             const autoplay = readToggle(node, autoplayWidget);
             for (const v of collectVideos(node)) {
                 let st = v.__xbVideoPreview;
@@ -271,7 +272,7 @@ export function setupVideoPreview(node, options = {}) {
 
     apply();
     hookPreviewWidgetCreation(node);
-    installSizePin();
+    if (pinSize) installSizePin();
     relaxPreviewMinSize(node);
     const timer = setInterval(apply, 400);
 
