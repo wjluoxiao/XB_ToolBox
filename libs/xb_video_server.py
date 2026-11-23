@@ -31,18 +31,40 @@ else:
 ENCODE_ARGS = ("utf-8", "backslashreplace")
 PREVIEW_MAX = 960      # 预览转码的长边上限（只影响预览，不影响真实输出）
 MIN_DIM = 16           # 宽高低于它就当「没填」（拦截小数/脏值被当成分辨率）
+FIRST_CHUNK_TIMEOUT = 30   # 秒：ffmpeg 这么久还没出第一块数据就当失败（前端会退回原片）
 
 
 async def _stream_media(request, args, filename, content_type="video/webm"):
-    """把 ffmpeg 的 stdout 直接流给浏览器，中途取消也能安全收尾。"""
+    """把 ffmpeg 的 stdout 直接流给浏览器，中途取消也能安全收尾。
+
+    先等第一块数据再发响应头：ffmpeg 启动就失败时（坏参数、解码不了的文件），
+    直接回 4xx/5xx，前端才好退回原片预览；否则浏览器拿到一个空响应只会显示「视频加载失败」。
+    """
     proc = await asyncio.create_subprocess_exec(
         *args, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
+    try:
+        first = await asyncio.wait_for(proc.stdout.read(2**16), timeout=FIRST_CHUNK_TIMEOUT)
+    except asyncio.TimeoutError:
+        first = b""
+    except (ConnectionResetError, ConnectionError, BrokenPipeError):
+        first = b""
+    if not first:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        await proc.wait()
+        return web.Response(status=500, text="transcode failed")
+
     resp = web.StreamResponse()
     resp.content_type = content_type
     resp.headers["Content-Disposition"] = f'filename="{os.path.basename(filename)}"'
     resp.headers["Cache-Control"] = "no-store"
+    # 这是实时转码流，不支持断点续传；不声明的话浏览器会先发 Range 请求再来回重试
+    resp.headers["Accept-Ranges"] = "none"
     try:
         await resp.prepare(request)
+        await resp.write(first)
         while True:
             chunk = await proc.stdout.read(2**20)
             if not chunk:

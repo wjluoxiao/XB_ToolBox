@@ -9,6 +9,8 @@ import { setupVideoPreview, collectVideos } from "./xb_video_preview.js";
 //      参数从别的节点连线进来时也会跟着上游变化（200ms 轮询）。
 //   2. 自动播放开关、鼠标悬停才出声由 xb_video_preview.js 统一处理。
 //   3. 经典模式的「上传」按钮改名为「选择上传视频」。
+//   4. 播放器出错时自愈：转码流 → 原片 → 换新流；官方组件已经进入错误态（<video>
+//      被移除）时自动重建这一个节点的预览，不用再刷新整个页面。
 // ============================================================
 
 const NODE_TYPE = "XB_LoadVideo";
@@ -218,6 +220,13 @@ function previewParams(node) {
     };
 }
 
+/** 当前「文件 + 参数」快照：预览地址只由它决定（也是「这套参数走不通」的判定键） */
+function previewKey(node) {
+    const file = currentFile(node);
+    if (!file) return null;
+    return JSON.stringify([file, previewParams(node)]);
+}
+
 /** 按当前参数生成预览地址（只在参数变化时才换新地址，否则会不断重启播放） */
 function makePreviewUrlBuilder(node) {
     let lastKey = null;
@@ -267,6 +276,33 @@ function officialUrl(file) {
     return api.apiURL("/view?" + q.toString());
 }
 
+/** 节点 DOM 根（Nodes 2.0）；经典模式返回 null */
+function nodeRootEl(node) {
+    try {
+        const own = node.domElement?.closest?.(".lg-node") || node.domElement;
+        if (own) return own;
+    } catch (_) { /* ignore */ }
+    return document.querySelector(`.lg-node[data-node-id="${node.id}"]`);
+}
+
+/**
+ * 让官方 VideoPreview 重建 <video>。
+ * 它判定失败后会 v-if 移除 <video>（只剩错误框），之后任何脚本都改不回来，只能刷新页面。
+ * 做法：先把节点输出摘掉（组件卸载、错误态清零），再挂一份新的 outputs
+ * （预览地址会带新的 rand，组件按新地址从头建播放器）——等价于只刷新这一个节点。
+ */
+function remountPreview(node) {
+    const outs = app.nodeOutputs?.[node.id];
+    if (!outs?.images?.length) return false;
+    const fresh = { ...outs, images: outs.images.map((i) => (i ? { ...i } : i)) };
+    try { delete app.nodeOutputs[node.id]; } catch (_) { /* ignore */ }
+    setTimeout(() => {
+        if (!node.graph || !app.nodeOutputs) return;
+        app.nodeOutputs[node.id] = fresh;
+    }, 80);
+    return true;
+}
+
 /** 经典模式的「上传」按钮默认沿用输入框的名字，这里改成更直白的文案 */
 function labelUploadButton(node) {
     const w = (node.widgets || []).find((x) => x && x.name === "upload");
@@ -278,11 +314,12 @@ function labelUploadButton(node) {
 function setupLoadVideoUi(node) {
     let timer = null;
     let lastUrl = null;
-    let lastSetAt = 0;         // 上次给播放器换地址的时刻（用来识别「自己打断自己」）
-    let earlyErrors = 0;
     let failures = 0;          // 连续失败次数 → 退避重试，绝不永久放弃
     let retryAt = 0;
     let needFreshUrl = false;  // 失败后重试要换一个带新 v= 的地址
+    let blockedKey = null;     // 这套「文件+参数」的转码流反复失败 → 改用原片，不再换回转码
+    let remountFails = 0;      // 「重建预览」连续没救回来的次数（拉长重试间隔）
+    let lastRemountAt = 0;
     const previewUrl = makePreviewUrlBuilder(node);
 
     // 转码预览失败时的退避表（毫秒）：1.5s → 3s → 6s → 12s → 30s 封顶
@@ -296,47 +333,126 @@ function setupLoadVideoUi(node) {
     const noteSuccess = () => {
         failures = 0;
         retryAt = 0;
-        earlyErrors = 0;
+    };
+
+    const assignSrc = (v, url) => {
+        try { v.src = url; } catch (_) { /* ignore */ }
+    };
+
+    // 失败自愈：最近一段时间内失败太多次 → 这套参数放弃转码，永久用原片
+    const ERR_WINDOW_MS = 10000;
+    const ERR_LIMIT = 5;
+    const errStamps = [];
+    const tooManyErrors = () => {
+        const now = Date.now();
+        while (errStamps.length && now - errStamps[0] > ERR_WINDOW_MS) errStamps.shift();
+        return errStamps.length >= ERR_LIMIT;
+    };
+
+    /**
+     * 播放器报错时的兜底链：转码流 → 原片 → 换一份新转码流 → 放弃（交给官方显示错误）。
+     * 返回 true 表示已处理（调用方要拦下这次 error，别让官方组件进入「移除 <video>」的错误态）。
+     */
+    const healVideo = (v) => {
+        const src = normalize(v.currentSrc || v.src || v.getAttribute?.("src") || "");
+        if (!src) return false;
+        errStamps.push(Date.now());
+        noteSuccess();                       // 清掉退避，允许立刻用别的地址重试
+
+        if (tooManyErrors()) {
+            const key = previewKey(node);
+            if (key) blockedKey = key;       // 这套参数别再用转码流了
+            const fb = officialUrl(currentFile(node));
+            if (!fb || src === normalize(fb)) return false;   // 原片也失败 → 交给官方
+            lastUrl = null;
+            noteFailure();
+            assignSrc(v, fb);
+            return true;
+        }
+
+        // 1) 我们自己的转码流坏了 → 先退回官方原片，保证画面不空
+        if (lastUrl && src === normalize(lastUrl)) {
+            const fb = officialUrl(currentFile(node));
+            if (!fb) return false;
+            lastUrl = null;
+            noteFailure();
+            assignSrc(v, fb);
+            return true;
+        }
+
+        // 2) 原片 / 官方地址也失败 → 换一份新的转码流再试
+        const file = currentFile(node);
+        if (!file || !fileIsSelectable(node, file)) return false;   // 文件本体有问题 → 交给官方显示
+        if (blockedKey && blockedKey === previewKey(node)) return false;
+        needFreshUrl = true;
+        lastUrl = null;
+        const url = previewUrl.get(true);
+        if (!url) return false;
+        setPreviewSrc(url);
+        return true;
     };
 
     const setPreviewSrc = (url) => {
         lastUrl = url;
-        lastSetAt = Date.now();
         const target = normalize(url);
         for (const v of collectVideos(node)) {
             if (!v.__xbParamBound) {
                 v.__xbParamBound = true;
-                // 只有「本脚本设置的地址」出错才算失败，官方预览的报错不参与
-                v.addEventListener("error", () => {
-                    if (!lastUrl || normalize(v.currentSrc || v.src) !== normalize(lastUrl)) return;
-                    // 刚换地址就报错，多半是我们自己打断上一份流：换个新地址快速重试一次，先别退回原片
-                    if (Date.now() - lastSetAt < 700 && earlyErrors < 2) {
-                        earlyErrors += 1;
-                        needFreshUrl = true;
-                        retryAt = Date.now() + 500;
-                        return;
-                    }
-                    earlyErrors = 0;
-                    noteFailure();
-                    // 退回原片预览：宁可先看到未抽帧的原片，也不要留一个「视频加载失败」的错误框
-                    const fb = officialUrl(currentFile(node));
-                    if (fb) {
-                        lastUrl = null;
-                        try { v.src = fb; } catch (_) { /* ignore */ }
-                    }
-                });
+                // 经典模式没有 DOM 根可挂捕获监听，只能靠元素自身的 error 自愈
+                v.addEventListener("error", () => { healVideo(v); });
                 v.addEventListener("loadeddata", () => {
-                    if (lastUrl && normalize(v.currentSrc || v.src) === normalize(lastUrl)) {
-                        earlyErrors = 0;
-                        noteSuccess();
-                    }
+                    errStamps.length = 0;
+                    remountFails = 0;
+                    if (lastUrl && normalize(v.currentSrc || v.src) === normalize(lastUrl)) noteSuccess();
                 });
             }
-            if (normalize(v.src) !== target) {
-                try { v.src = url; } catch (_) { /* ignore */ }
-            }
+            if (normalize(v.src) !== target) assignSrc(v, url);
         }
     };
+
+    // ── 错误态守卫 ─────────────────────────────────────────────────
+    // 官方 VideoPreview 一旦报错就 v-if 移除 <video>，之后谁也改不回画面（只能刷新页面）。
+    // 所以在捕获阶段拦下 <video> 的 error：只要我们还兜得住，就不让它进入错误态。
+    let guardRoot = null;
+    const onErrorCapture = (e) => {
+        const el = e.target;
+        if (!el || el.tagName !== "VIDEO") return;
+        let healed = false;
+        try { healed = healVideo(el); } catch (_) { healed = false; }
+        if (healed) {
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+        }
+    };
+    const attachGuard = (root) => {
+        if (!root || root === guardRoot) return;
+        if (guardRoot) {
+            try { guardRoot.removeEventListener("error", onErrorCapture, true); } catch (_) { /* ignore */ }
+        }
+        guardRoot = root;
+        root.addEventListener("error", onErrorCapture, true);
+    };
+
+    // 万一还是进了错误态（没有 <video> 只剩错误框）→ 自动重建预览，等价于「刷新页面」。
+    // 重建后仍失败就逐步拉长间隔，避免对真坏的文件死循环重试。
+    const REMOUNT_BACKOFF = [1500, 3000, 6000, 15000, 30000];
+    const healTimer = setInterval(() => {
+        if (!node.graph) return;
+        const root = nodeRootEl(node);
+        if (!root) return;
+        attachGuard(root);
+        if (root.querySelector("video")) return;                 // 画面在，正常
+        const errorBox = root.querySelector('[role="alert"]');
+        if (!errorBox) return;                                   // 还没渲染预览
+        const wait = REMOUNT_BACKOFF[Math.min(remountFails, REMOUNT_BACKOFF.length - 1)];
+        if (Date.now() - lastRemountAt < wait) return;
+        if (!remountPreview(node)) return;
+        lastRemountAt = Date.now();
+        remountFails = Math.min(remountFails + 1, REMOUNT_BACKOFF.length);
+        noteSuccess();
+        errStamps.length = 0;
+        setTimeout(pin, 150);
+    }, 600);
 
     // 官方预览会在执行完成 / 重渲染时把 src 换回原片，这里每轮都拉回「按参数转码」的地址。
     // 参数没变就沿用缓存地址（绝不重新加载，避免播放被打断）；失败后退避期内不打扰。
@@ -345,6 +461,8 @@ function setupLoadVideoUi(node) {
         if (Date.now() < retryAt) return;
         const file = currentFile(node);
         if (!file || !fileIsSelectable(node, file)) return;   // 文件不见了 → 保留官方预览
+        // 这套参数转码反复失败 → 一直用原片，直到参数/文件变化（key 变了）再重试
+        if (blockedKey && blockedKey === previewKey(node)) return;
         const fresh = needFreshUrl;
         needFreshUrl = false;
         const url = previewUrl.get(fresh);
@@ -389,6 +507,11 @@ function setupLoadVideoUi(node) {
     node.onRemoved = function (...args) {
         clearTimeout(timer);
         clearInterval(linkedTimer);
+        clearInterval(healTimer);
+        if (guardRoot) {
+            try { guardRoot.removeEventListener("error", onErrorCapture, true); } catch (_) { /* ignore */ }
+            guardRoot = null;
+        }
         try { api.removeEventListener("executed", onExecuted); } catch (_) { /* ignore */ }
         return origRemoved?.apply?.(this, args);
     };
@@ -396,6 +519,8 @@ function setupLoadVideoUi(node) {
     setupVideoPreview(node, {
         onApply: (n) => {
             labelUploadButton(n);
+            // 尽早挂上错误守卫（比 600ms 的看护定时器更早介入，减少进错误态的机会）
+            attachGuard(nodeRootEl(n));
             pin();
         },
     });

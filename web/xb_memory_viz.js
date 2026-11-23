@@ -74,8 +74,8 @@ function setBarStack(segs, pcts) {
     for (let i = 0; i < segs.length; i++) {
         const el = segs[i];
         if (!el) continue;
-        const raw = pcts[i];
-        const w = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+        const value = Number(pcts[i]);
+        const w = Number.isFinite(value) ? Math.max(0, value) : 0;
         _barPush(el, acc, w / 100);
         acc += w;
     }
