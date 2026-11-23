@@ -149,7 +149,7 @@ app.registerExtension({
                 return origExec?.apply(this, arguments);
             };
             try {
-                setupVideoPreview(this, { pinSize: false });
+                setupVideoPreview(this);
             } catch (e) {
                 console.warn("[XB-BOX 视频批量拼接] 预览控制初始化失败", e);
             }

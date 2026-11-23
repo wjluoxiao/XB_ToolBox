@@ -19,44 +19,84 @@ const CLASSIC_PREVIEW_MIN = -8;
 // 基准尺寸存在 properties 里，跟着工作流一起保存（刷新后仍按它固定）
 const PIN_KEY = "xbPinnedSize";
 
-/** 读取「钉住」的尺寸（Nodes 2.0 里 size 可能是类数组代理，不能用 Array.isArray 判） */
-function readPin(node) {
-    const p = node?.properties?.[PIN_KEY];
-    const w = Math.round(Number(p?.[0]));
-    const h = Math.round(Number(p?.[1]));
+/** 尺寸规范化（Nodes 2.0 里 size 可能是类数组代理，不能用 Array.isArray 判） */
+function sizePair(size) {
+    const w = Math.round(Number(size?.[0]));
+    const h = Math.round(Number(size?.[1]));
     return w > 0 && h > 0 ? [w, h] : null;
+}
+
+/** 读取「钉住」的尺寸 */
+function readPin(node) {
+    return sizePair(node?.properties?.[PIN_KEY]);
 }
 
 /** 写入「钉住」的尺寸 */
 function writePin(node, size) {
-    const w = Math.round(Number(size?.[0]));
-    const h = Math.round(Number(size?.[1]));
-    if (!(w > 0 && h > 0)) return;
+    const pair = sizePair(size);
+    if (!pair) return;
     node.properties = node.properties || {};
     const cur = node.properties[PIN_KEY];
-    if (Number(cur?.[0]) === w && Number(cur?.[1]) === h) return;
-    node.properties[PIN_KEY] = [w, h];
+    if (Number(cur?.[0]) === pair[0] && Number(cur?.[1]) === pair[1]) return;
+    node.properties[PIN_KEY] = pair;
 }
 
-/** 用户是否正在手动拖拽改尺寸（按住鼠标 + 2.0 的缩放手柄） */
+/** 用户是否正在手动拖拽改尺寸（按住鼠标 + 按在这个节点上 / 2.0 的缩放手柄） */
 function userIsResizing(node) {
-    return pointerHeld || !!node.__xbUserResizing;
+    return (pointerHeld && ownsPointer(node, pointerDownTarget)) || !!node.__xbUserResizing;
 }
 
-// 全局记录「鼠标是否按下」：只有按住鼠标拖拽才会改变尺寸，其余变化一律是自动的。
+// 全局记录「鼠标是否按下 / 按在哪个元素上 / 按下那一刻各节点的尺寸」：
+// 只有「这次按下到松手之间尺寸变了」才算用户手动调整，其余变化一律是自动的。
 let pointerHeld = false;
+let pointerDownTarget = null;
+let pointerDownSizes = null;
 const pinWatchers = new Set();
+
+/** 节点的 DOM 根（Nodes 2.0；经典模式可能返回 null） */
+function nodeRootEl(node) {
+    try {
+        const own = node.domElement?.closest?.(".lg-node") || node.domElement;
+        if (own) return own;
+    } catch (_) { /* ignore */ }
+    return document.querySelector(`.lg-node[data-node-id="${node.id}"]`);
+}
+
+/** 这次按下是不是落在这个节点上（2.0 看 DOM，经典模式看选中状态） */
+function ownsPointer(node, target) {
+    if (target?.closest?.(".lg-node")) {
+        return !!nodeRootEl(node)?.contains?.(target);
+    }
+    return !!node.is_selected;
+}
 
 function hookGlobalPointer() {
     if (window.__xbPinPointerHooked) return;
     window.__xbPinPointerHooked = true;
-    window.addEventListener("pointerdown", () => { pointerHeld = true; }, true);
+    window.addEventListener("pointerdown", (e) => {
+        pointerHeld = true;
+        pointerDownTarget = e.target;
+        pointerDownSizes = new Map();
+        for (const node of pinWatchers) {
+            const size = sizePair(node.size);
+            if (size) pointerDownSizes.set(node, size);
+        }
+    }, true);
     const release = () => {
+        const target = pointerDownTarget;
+        const sizes = pointerDownSizes;
         pointerHeld = false;
-        // 松手那一刻把当前尺寸认作用户设定（拖拽可能比轮询更快结束）
+        pointerDownTarget = null;
+        pointerDownSizes = null;
         for (const node of pinWatchers) {
             if (!node.graph) { pinWatchers.delete(node); continue; }
-            writePin(node, node.size);
+            if (!ownsPointer(node, target)) continue;
+            const before = sizes?.get(node);
+            const now = sizePair(node.size);
+            if (!before || !now) continue;
+            if (before[0] === now[0] && before[1] === now[1]) continue;
+            // 拖拽 / 双击自适应等：这一次操作确实改变了尺寸 → 认作新的基准
+            writePin(node, now);
         }
     };
     window.addEventListener("pointerup", release, true);
@@ -192,11 +232,10 @@ function relaxNodes2PreviewMinSize(node) {
 /**
  * 给节点上的视频预览绑定 自动播放 / 悬停出声，并固定节点尺寸。
  * @param {object} node LiteGraph 节点
- * @param {{autoplayWidget?: string, onApply?: (node: object) => void, pinSize?: boolean}} options
- *   pinSize=false：不接管节点尺寸（多段预览节点自己决定排版）
+ * @param {{autoplayWidget?: string, onApply?: (node: object) => void}} options
  */
 export function setupVideoPreview(node, options = {}) {
-    const { autoplayWidget = "autoplay", onApply, pinSize = true } = options;
+    const { autoplayWidget = "autoplay", onApply } = options;
 
     const tryPlay = (v) => {
         try {
@@ -207,15 +246,38 @@ export function setupVideoPreview(node, options = {}) {
 
     // ── 尺寸固定：记录基准，之后只由用户拖拽改写 ──────────────────────
     const installSizePin = () => {
-        // 载入工作流时先把「工作流里保存的尺寸」定为基准
+        // 载入工作流时以「工作流里保存的尺寸」为基准 —— 换一台电脑打开也是同样的尺寸。
+        // 不能用「properties 里有没有 pin」来判断：老工作流可能压根没存过 pin，
+        // 这时若沿用新建节点的默认尺寸当基准，节点就会被压成最窄最矮。
         const origConfigure = node.onConfigure;
         node.onConfigure = function (info) {
             const r = origConfigure?.apply(this, arguments);
-            if (!readPin(this)) writePin(this, info?.size || this.size);
-            else enforcePinnedSize(this);
+            this.__xbSizeConfigured = true;
+            // 用 configure 之后的实际尺寸（已包含其它扩展对尺寸的修正），拿不到再退回 JSON 里的
+            const pair = sizePair(this.size);
+            writePin(this, pair || info?.size);
             return r;
         };
-        if (!readPin(node)) writePin(node, node.size);
+        // 新建的节点不走 configure：等一拍拿到真实尺寸后再记基准
+        setTimeout(() => {
+            if (!node.__xbSizeConfigured && !readPin(node)) writePin(node, node.size);
+        }, 500);
+
+        // 保存工作流时写回「实际显示尺寸」。
+        // Nodes 2.0 里节点显示尺寸 = max(node.size, DOM 实测尺寸)：预览把节点撑高/撑宽时，
+        // node.size 本身没变，只存 size 的话，换一台电脑（没有本地视频 → 没有实测尺寸）
+        // 打开就会退回那个更小的 size，节点变成最窄最矮。
+        const origSerialize = node.onSerialize;
+        node.onSerialize = function (o) {
+            const r = origSerialize?.apply(this, arguments);
+            try {
+                if (o && !this.flags?.collapsed) {
+                    const size = sizePair(this.renderingSize) || sizePair(this.size);
+                    if (size) o.size = size;
+                }
+            } catch (_) { /* ignore */ }
+            return r;
+        };
         pinWatchers.add(node);
         hookGlobalPointer();
 
@@ -243,7 +305,7 @@ export function setupVideoPreview(node, options = {}) {
             onApply?.(node);
             relaxPreviewMinSize(node);
             relaxNodes2PreviewMinSize(node);
-            if (pinSize) enforcePinnedSize(node);     // 预览/视频绝不允许改变节点尺寸
+            enforcePinnedSize(node);     // 预览/视频绝不允许改变节点尺寸
             const autoplay = readToggle(node, autoplayWidget);
             for (const v of collectVideos(node)) {
                 let st = v.__xbVideoPreview;
@@ -272,7 +334,7 @@ export function setupVideoPreview(node, options = {}) {
 
     apply();
     hookPreviewWidgetCreation(node);
-    if (pinSize) installSizePin();
+    installSizePin();
     relaxPreviewMinSize(node);
     const timer = setInterval(apply, 400);
 
