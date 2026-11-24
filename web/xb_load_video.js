@@ -314,24 +314,13 @@ function labelUploadButton(node) {
 function setupLoadVideoUi(node) {
     let timer = null;
     let lastUrl = null;
-    let failures = 0;          // 连续失败次数 → 退避重试，绝不永久放弃
-    let retryAt = 0;
     let needFreshUrl = false;  // 失败后重试要换一个带新 v= 的地址
-    let blockedKey = null;     // 这套「文件+参数」的转码流反复失败 → 改用原片，不再换回转码
+    let retryAt = 0;           // 短暂延后下一次 pin（换新地址前给播放器一点时间）
     let remountFails = 0;      // 「重建预览」连续没救回来的次数（拉长重试间隔）
     let lastRemountAt = 0;
     const previewUrl = makePreviewUrlBuilder(node);
 
-    // 转码预览失败时的退避表（毫秒）：1.5s → 3s → 6s → 12s → 30s 封顶
-    const BACKOFF = [1500, 3000, 6000, 12000, 30000];
-
-    const noteFailure = () => {
-        failures = Math.min(failures + 1, BACKOFF.length);
-        retryAt = Date.now() + BACKOFF[failures - 1];
-        needFreshUrl = true;          // 可能只是这一份流坏了，重试时换新地址
-    };
     const noteSuccess = () => {
-        failures = 0;
         retryAt = 0;
     };
 
@@ -339,56 +328,54 @@ function setupLoadVideoUi(node) {
         try { v.src = url; } catch (_) { /* ignore */ }
     };
 
-    // 失败自愈：最近一段时间内失败太多次 → 这套参数放弃转码，永久用原片
-    const ERR_WINDOW_MS = 10000;
-    const ERR_LIMIT = 5;
-    const errStamps = [];
-    const tooManyErrors = () => {
-        const now = Date.now();
-        while (errStamps.length && now - errStamps[0] > ERR_WINDOW_MS) errStamps.shift();
-        return errStamps.length >= ERR_LIMIT;
+    /**
+     * 失败记忆：某个「文件+参数」的转码流坏过一次就记住（只给它一次换新地址的机会）。
+     * 没有这个记忆的话，退回原片后 200ms 轮询又会把地址换成坏掉的转码流 → 反复报错，
+     * 表现就是「频繁提示视频加载失败」。参数/文件一变（key 变化）自动重新尝试。
+     */
+    const retried = new Set();     // 已经换过一次新地址的 key
+    const failed = new Set();      // 确认走不通的 key → 这套参数只用原片
+    const key = () => previewKey(node);
+
+    /** 让播放器回到官方原片预览（原片走 /view，支持 Range/拖动，最稳） */
+    const useOfficial = () => {
+        lastUrl = null;
+        const fb = officialUrl(currentFile(node));
+        if (!fb) return false;
+        for (const v of collectVideos(node)) {
+            if (normalize(v.currentSrc || v.src) === normalize(fb)) continue;
+            assignSrc(v, fb);
+        }
+        return true;
     };
 
     /**
-     * 播放器报错时的兜底链：转码流 → 原片 → 换一份新转码流 → 放弃（交给官方显示错误）。
-     * 返回 true 表示已处理（调用方要拦下这次 error，别让官方组件进入「移除 <video>」的错误态）。
+     * 播放器报错时的兜底：转码流坏 → 换一次新地址；再坏 → 这套参数永久用原片。
+     * 返回 true 表示已经处理（调用方要拦下这次 error，别让官方组件移除 <video>）。
      */
     const healVideo = (v) => {
         const src = normalize(v.currentSrc || v.src || v.getAttribute?.("src") || "");
         if (!src) return false;
-        errStamps.push(Date.now());
-        noteSuccess();                       // 清掉退避，允许立刻用别的地址重试
+        const k = key();
+        if (!k) return false;
 
-        if (tooManyErrors()) {
-            const key = previewKey(node);
-            if (key) blockedKey = key;       // 这套参数别再用转码流了
-            const fb = officialUrl(currentFile(node));
-            if (!fb || src === normalize(fb)) return false;   // 原片也失败 → 交给官方
-            lastUrl = null;
-            noteFailure();
-            assignSrc(v, fb);
+        // 原片都放不出来 → 文件本身有问题，交给官方显示错误（换什么都不管用）
+        const fb = officialUrl(currentFile(node));
+        if (fb && src === normalize(fb)) return false;
+
+        // 1) 转码流第一次失败：换一个带新 v= 的地址再试一次（可能只是这一份流坏了）
+        if (!retried.has(k)) {
+            retried.add(k);
+            needFreshUrl = true;
+            retryAt = Date.now() + 400;
             return true;
         }
 
-        // 1) 我们自己的转码流坏了 → 先退回官方原片，保证画面不空
-        if (lastUrl && src === normalize(lastUrl)) {
-            const fb = officialUrl(currentFile(node));
-            if (!fb) return false;
-            lastUrl = null;
-            noteFailure();
-            assignSrc(v, fb);
-            return true;
-        }
-
-        // 2) 原片 / 官方地址也失败 → 换一份新的转码流再试
-        const file = currentFile(node);
-        if (!file || !fileIsSelectable(node, file)) return false;   // 文件本体有问题 → 交给官方显示
-        if (blockedKey && blockedKey === previewKey(node)) return false;
-        needFreshUrl = true;
-        lastUrl = null;
-        const url = previewUrl.get(true);
-        if (!url) return false;
-        setPreviewSrc(url);
+        // 2) 还是失败：这套参数不再用转码流，永久退回原片
+        failed.add(k);
+        needFreshUrl = false;
+        retryAt = 0;
+        useOfficial();
         return true;
     };
 
@@ -401,9 +388,13 @@ function setupLoadVideoUi(node) {
                 // 经典模式没有 DOM 根可挂捕获监听，只能靠元素自身的 error 自愈
                 v.addEventListener("error", () => { healVideo(v); });
                 v.addEventListener("loadeddata", () => {
-                    errStamps.length = 0;
                     remountFails = 0;
-                    if (lastUrl && normalize(v.currentSrc || v.src) === normalize(lastUrl)) noteSuccess();
+                    // 只有「我们的转码流」放出来了才算这套参数可用；
+                    // 原片（兜底）成功不能清掉失败记忆，否则会再次切回坏掉的转码流 → 反复报错
+                    if (!lastUrl || normalize(v.currentSrc || v.src) !== normalize(lastUrl)) return;
+                    const k = key();
+                    if (k) { retried.delete(k); failed.delete(k); }
+                    noteSuccess();
                 });
             }
             if (normalize(v.src) !== target) assignSrc(v, url);
@@ -450,19 +441,19 @@ function setupLoadVideoUi(node) {
         lastRemountAt = Date.now();
         remountFails = Math.min(remountFails + 1, REMOUNT_BACKOFF.length);
         noteSuccess();
-        errStamps.length = 0;
         setTimeout(pin, 150);
     }, 600);
 
     // 官方预览会在执行完成 / 重渲染时把 src 换回原片，这里每轮都拉回「按参数转码」的地址。
-    // 参数没变就沿用缓存地址（绝不重新加载，避免播放被打断）；失败后退避期内不打扰。
+    // 参数没变就沿用缓存地址（绝不重新加载，避免播放被打断）；失败后不再纠缠这套参数。
     const pin = () => {
         if (!node.graph) return;
         if (Date.now() < retryAt) return;
         const file = currentFile(node);
         if (!file || !fileIsSelectable(node, file)) return;   // 文件不见了 → 保留官方预览
-        // 这套参数转码反复失败 → 一直用原片，直到参数/文件变化（key 变了）再重试
-        if (blockedKey && blockedKey === previewKey(node)) return;
+        const k = key();
+        // 这套参数已确认走不通 → 只用原片（参数/文件一变，key 也变，会自动重新尝试）
+        if (k && failed.has(k)) { useOfficial(); return; }
         const fresh = needFreshUrl;
         needFreshUrl = false;
         const url = previewUrl.get(fresh);

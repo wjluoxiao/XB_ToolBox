@@ -38,10 +38,11 @@ async def _stream_media(request, args, filename, content_type="video/webm"):
     """把 ffmpeg 的 stdout 直接流给浏览器，中途取消也能安全收尾。
 
     先等第一块数据再发响应头：ffmpeg 启动就失败时（坏参数、解码不了的文件），
-    直接回 4xx/5xx，前端才好退回原片预览；否则浏览器拿到一个空响应只会显示「视频加载失败」。
+    直接回 5xx 并把 ffmpeg 的报错打到控制台，前端才好退回原片预览；
+    否则浏览器拿到一个 200 + 空响应，只会显示「视频加载失败」。
     """
     proc = await asyncio.create_subprocess_exec(
-        *args, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
+        *args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
     try:
         first = await asyncio.wait_for(proc.stdout.read(2**16), timeout=FIRST_CHUNK_TIMEOUT)
     except asyncio.TimeoutError:
@@ -53,8 +54,15 @@ async def _stream_media(request, args, filename, content_type="video/webm"):
             proc.kill()
         except ProcessLookupError:
             pass
+        try:
+            err = (await asyncio.wait_for(proc.stderr.read(4096), timeout=5)).decode(*ENCODE_ARGS).strip()
+        except Exception:
+            err = ""
         await proc.wait()
+        # 前端会自动退回原片预览，这里把原因留在服务端控制台方便排查
+        print(f"[XB-BOX] 预览转码失败（{os.path.basename(filename)}）：{err or 'ffmpeg 没有输出'}")
         return web.Response(status=500, text="transcode failed")
+    err_task = asyncio.ensure_future(proc.stderr.read())
 
     resp = web.StreamResponse()
     resp.content_type = content_type
@@ -78,6 +86,13 @@ async def _stream_media(request, args, filename, content_type="video/webm"):
         except ProcessLookupError:
             pass
         await proc.wait()
+        # 收尾读一次 stderr：流在播放中途断掉时（ffmpeg 报了错），原因在这里
+        try:
+            err = (await asyncio.wait_for(err_task, timeout=3)).decode(*ENCODE_ARGS).strip()
+        except Exception:
+            err = ""
+        if err:
+            print(f"[XB-BOX] 预览流转码中断（{os.path.basename(filename)}）：{err[:600]}")
     return resp
 
 
