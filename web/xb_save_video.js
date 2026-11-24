@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { setupVideoPreview } from "./xb_video_preview.js";
 import { allNodes } from "./xb_compat.js";
+import { rememberOutput, restorePreview, installAutoRestore } from "./xb_preview_restore.js";
 
 // ============================================================
 // XB-BOX - 🎬 保存视频 —— 预览播放行为
@@ -86,104 +87,9 @@ function installPrefixExpansion(node) {
     w.serializeValue = () => applyTextReplacements(w.value);
 }
 
-// ── 刷新后继续显示上一次生成的视频 ─────────────────────────────────────
-// 前端的执行结果只存在内存里（撤销记录里带一份），刷新就丢了；
-// 所以跑完把结果记进 node.properties（随工作流保存），载入时再塞回 app.nodeOutputs，
-// 前端就会照常建出预览。文件被删掉的情况用一次 HEAD 请求挡掉。
-
-const LAST_OUTPUT_PROP = "xbLastOutput";
-
-function rememberOutput(node, output) {
-    const first = output?.images?.[0];
-    if (!first?.filename) return;
-    node.properties = node.properties || {};
-    node.properties[LAST_OUTPUT_PROP] = {
-        filename: first.filename,
-        subfolder: first.subfolder || "",
-        type: first.type || "output",
-    };
-}
-
-function viewUrl(entry) {
-    const q = new URLSearchParams({
-        filename: entry.filename,
-        subfolder: entry.subfolder || "",
-        type: entry.type || "output",
-    });
-    return `/view?${q}`;
-}
-
-async function stillExists(entry) {
-    try {
-        const r = await fetch(viewUrl(entry), { method: "HEAD" });
-        return r.ok;
-    } catch (_) {
-        return false;
-    }
-}
-
-/** 把历史结果塞回前端的结果仓库，预览就会像刚跑完一样出现 */
-function applyPreview(node, entry) {
-    if (!app.nodeOutputs) return;
-    app.nodeOutputs[node.id] = {
-        images: [{ filename: entry.filename, subfolder: entry.subfolder || "", type: entry.type || "output" }],
-        animated: [true],
-    };
-    // 经典模式：预览部件是在 onDrawBackground（updatePreviews）里惰性创建的，
-    // 刚载入工作流时画布往往已经画完了，这里直接踢一脚，并补几次重绘兜底。
-    const kick = () => {
-        if (!node.graph) return;
-        try { node.onDrawBackground?.({}); } catch (_) { /* ignore */ }
-        node.graph.setDirtyCanvas?.(true, true);
-    };
-    kick();
-    for (const ms of [120, 500, 1200, 2500]) setTimeout(kick, ms);
-}
-
-/** 老工作流里没有记录时，去 /history 找这个节点最后一次的输出 */
-async function findInHistory(node) {
-    try {
-        const res = await fetch("/history?max_items=64");
-        const data = await res.json();
-        const startTime = (h) => {
-            for (const [name, payload] of h?.status?.messages || []) {
-                if (name === "execution_start") return Number(payload?.timestamp) || 0;
-            }
-            return 0;
-        };
-        const hits = [];
-        for (const h of Object.values(data || {})) {
-            const img = h?.outputs?.[node.id]?.images?.[0];
-            if (!img?.filename) continue;
-            const meta = Array.isArray(h.prompt) ? h.prompt[2]?.[node.id] : null;
-            if (meta && meta.class_type && meta.class_type !== node.type) continue;
-            hits.push({ entry: { filename: img.filename, subfolder: img.subfolder || "", type: img.type || "output" }, ts: startTime(h) });
-        }
-        hits.sort((a, b) => b.ts - a.ts);
-        for (const hit of hits) {
-            if (await stillExists(hit.entry)) return hit.entry;
-        }
-    } catch (_) { /* ignore */ }
-    return null;
-}
-
-async function restoreLastVideo(node) {
-    if (!app.nodeOutputs || app.nodeOutputs[node.id]?.images?.length) return;
-    const saved = node.properties?.[LAST_OUTPUT_PROP];
-    if (saved?.filename) {
-        if (await stillExists(saved)) {
-            applyPreview(node, saved);
-            return;
-        }
-        delete node.properties[LAST_OUTPUT_PROP];
-    }
-    const fromHistory = await findInHistory(node);
-    if (fromHistory) {
-        node.properties = node.properties || {};
-        node.properties[LAST_OUTPUT_PROP] = fromHistory;
-        applyPreview(node, fromHistory);
-    }
-}
+// ── 刷新 / 复制粘贴后继续显示上一次生成的视频 ───────────────────────────
+// 前端结果只按「节点 id」存在内存里：刷新会丢，复制粘贴的新节点换了 id 也看不到。
+// 还原逻辑统一在 xb_preview_restore.js：跑完记进 properties，configure 时再塞回去。
 
 app.registerExtension({
     name: "XB_ToolBox.SaveVideo",
@@ -204,12 +110,13 @@ app.registerExtension({
             } catch (e) {
                 console.warn("[XB-BOX 保存视频] 预览控制初始化失败", e);
             }
+            installAutoRestore(this);   // 载入工作流 / 复制粘贴 / 撤销重做 都还原预览
             return r;
         };
     },
 
     async loadedGraphNode(node) {
         if (node?.type !== NODE_TYPE) return;
-        setTimeout(() => { restoreLastVideo(node); }, 600);
+        setTimeout(() => { restorePreview(node); }, 600);
     },
 });
