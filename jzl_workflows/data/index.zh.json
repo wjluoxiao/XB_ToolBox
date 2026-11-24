@@ -8,7 +8,7 @@
     "templates": [
       {
         "name": "anima_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -23,7 +23,7 @@
       },
       {
         "name": "anima_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -38,7 +38,7 @@
       },
       {
         "name": "anima_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -62,7 +62,7 @@
     "templates": [
       {
         "name": "boogu_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -77,7 +77,7 @@
       },
       {
         "name": "boogu_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -101,7 +101,7 @@
     "templates": [
       {
         "name": "flux2_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -116,7 +116,7 @@
       },
       {
         "name": "flux2_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -131,7 +131,7 @@
       },
       {
         "name": "flux2_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -146,7 +146,7 @@
       },
       {
         "name": "flux2_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -161,7 +161,7 @@
       },
       {
         "name": "flux2_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -176,7 +176,7 @@
       },
       {
         "name": "flux2_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -191,7 +191,7 @@
       },
       {
         "name": "flux2_07",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -206,7 +206,7 @@
       },
       {
         "name": "flux2_08",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -230,7 +230,7 @@
     "templates": [
       {
         "name": "flux3_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -245,7 +245,7 @@
       },
       {
         "name": "flux3_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -260,7 +260,7 @@
       },
       {
         "name": "flux3_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -275,7 +275,7 @@
       },
       {
         "name": "flux3_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -299,7 +299,7 @@
     "templates": [
       {
         "name": "krea2_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -314,7 +314,7 @@
       },
       {
         "name": "krea2_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -329,7 +329,7 @@
       },
       {
         "name": "krea2_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -344,7 +344,7 @@
       },
       {
         "name": "krea2_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -368,7 +368,7 @@
     "templates": [
       {
         "name": "minimaxh3_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -383,7 +383,7 @@
       },
       {
         "name": "minimaxh3_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -398,7 +398,7 @@
       },
       {
         "name": "minimaxh3_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -413,7 +413,7 @@
       },
       {
         "name": "minimaxh3_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -428,7 +428,7 @@
       },
       {
         "name": "minimaxh3_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -443,7 +443,7 @@
       },
       {
         "name": "minimaxh3_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -458,7 +458,7 @@
       },
       {
         "name": "minimaxh3_07",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -469,6 +469,21 @@
         ],
         "title": "07-MiniMax-H3 ref2va 多参考生视频 SelfLift 二次采样",
         "description": "07-MiniMax-H3 ref2va 多参考生视频 SelfLift 二次采样",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaxh3_08",
+        "date": "2026-11-24",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaxh3_08-1.webp"
+        ],
+        "tags": [
+          "MiniMax-H3"
+        ],
+        "title": "08-MiniMax-H3 人物替换",
+        "description": "08-MiniMax-H3 人物替换",
         "username": "机智罗"
       }
     ]
@@ -482,7 +497,7 @@
     "templates": [
       {
         "name": "minimaxmusic_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -497,7 +512,7 @@
       },
       {
         "name": "minimaxmusic_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -521,7 +536,7 @@
     "templates": [
       {
         "name": "minimaximage_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -536,7 +551,7 @@
       },
       {
         "name": "minimaximage_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -551,7 +566,7 @@
       },
       {
         "name": "minimaximage_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -566,7 +581,7 @@
       },
       {
         "name": "minimaximage_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -581,7 +596,7 @@
       },
       {
         "name": "minimaximage_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -592,6 +607,36 @@
         ],
         "title": "测试-MiniMax-H3-image 单图编辑",
         "description": "测试-MiniMax-H3-image 单图编辑",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaximage_06",
+        "date": "2026-11-24",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_06-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "测试-MiniMax-H3-image 文生图",
+        "description": "测试-MiniMax-H3-image 文生图",
+        "username": "机智罗"
+      },
+      {
+        "name": "minimaximage_07",
+        "date": "2026-11-24",
+        "openSource": true,
+        "minComfyUIVersion": "0.0.0",
+        "thumbnail": [
+          "minimaximage_07-1.webp"
+        ],
+        "tags": [
+          "MiniMax-image"
+        ],
+        "title": "测试-MiniMax-H3-image 文生图2",
+        "description": "测试-MiniMax-H3-image 文生图2",
         "username": "机智罗"
       }
     ]
@@ -605,7 +650,7 @@
     "templates": [
       {
         "name": "mossimage_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -620,7 +665,7 @@
       },
       {
         "name": "mossimage_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -635,7 +680,7 @@
       },
       {
         "name": "mossimage_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -650,7 +695,7 @@
       },
       {
         "name": "mossimage_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -665,7 +710,7 @@
       },
       {
         "name": "mossimage_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -689,7 +734,7 @@
     "templates": [
       {
         "name": "qwen21_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -704,7 +749,7 @@
       },
       {
         "name": "qwen21_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -719,7 +764,7 @@
       },
       {
         "name": "qwen21_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -734,7 +779,7 @@
       },
       {
         "name": "qwen21_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -749,7 +794,7 @@
       },
       {
         "name": "qwen21_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -764,7 +809,7 @@
       },
       {
         "name": "qwen21_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -779,7 +824,7 @@
       },
       {
         "name": "qwen21_07",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -794,7 +839,7 @@
       },
       {
         "name": "qwen21_08",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -809,7 +854,7 @@
       },
       {
         "name": "qwen21_09",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -833,7 +878,7 @@
     "templates": [
       {
         "name": "qwen2511_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -848,7 +893,7 @@
       },
       {
         "name": "qwen2511_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -863,7 +908,7 @@
       },
       {
         "name": "qwen2511_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -878,7 +923,7 @@
       },
       {
         "name": "qwen2511_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -893,7 +938,7 @@
       },
       {
         "name": "qwen2511_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -908,7 +953,7 @@
       },
       {
         "name": "qwen2511_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -923,7 +968,7 @@
       },
       {
         "name": "qwen2511_07",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -938,7 +983,7 @@
       },
       {
         "name": "qwen2511_08",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -953,7 +998,7 @@
       },
       {
         "name": "qwen2511_09",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -968,7 +1013,7 @@
       },
       {
         "name": "qwen2511_10",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -983,7 +1028,7 @@
       },
       {
         "name": "qwen2511_11",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -998,7 +1043,7 @@
       },
       {
         "name": "qwen2511_12",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1022,7 +1067,7 @@
     "templates": [
       {
         "name": "qwen2512_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1037,7 +1082,7 @@
       },
       {
         "name": "qwen2512_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1052,7 +1097,7 @@
       },
       {
         "name": "qwen2512_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1067,7 +1112,7 @@
       },
       {
         "name": "qwen2512_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1082,7 +1127,7 @@
       },
       {
         "name": "qwen2512_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1097,7 +1142,7 @@
       },
       {
         "name": "qwen2512_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1121,7 +1166,7 @@
     "templates": [
       {
         "name": "relayvsr_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1136,7 +1181,7 @@
       },
       {
         "name": "relayvsr_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1160,7 +1205,7 @@
     "templates": [
       {
         "name": "seethrough_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1184,7 +1229,7 @@
     "templates": [
       {
         "name": "yue2_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1199,7 +1244,7 @@
       },
       {
         "name": "yue2_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1223,7 +1268,7 @@
     "templates": [
       {
         "name": "zimage_01",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1238,7 +1283,7 @@
       },
       {
         "name": "zimage_02",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1253,7 +1298,7 @@
       },
       {
         "name": "zimage_03",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1268,7 +1313,7 @@
       },
       {
         "name": "zimage_04",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1283,7 +1328,7 @@
       },
       {
         "name": "zimage_05",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1298,7 +1343,7 @@
       },
       {
         "name": "zimage_06",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [
@@ -1313,7 +1358,7 @@
       },
       {
         "name": "zimage_07",
-        "date": "2026-11-21",
+        "date": "2026-11-24",
         "openSource": true,
         "minComfyUIVersion": "0.0.0",
         "thumbnail": [

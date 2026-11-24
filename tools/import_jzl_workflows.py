@@ -60,6 +60,7 @@ CATEGORY_TYPES = {
 
 # 英文标题用的术语表；长词在前，避免「文生图」先吃掉「文生图基础工作流」
 TERMS = [
+    ("人物替换", "Character Replacement"),
     ("歌曲创作（单人）", "Song Creation (Solo)"),
     ("歌曲创作（双人）", "Song Creation (Duet)"),
     ("歌曲创作", "Song Creation"),
@@ -94,6 +95,7 @@ TERMS = [
     ("文生视频", "Text to Video"),
     ("图生图", "Image to Image"),
     ("文生图工作流", "Text to Image Workflow"),
+    ("文生图2", "Text to Image 2"),
     ("文生图 进阶", "Text to Image Advanced"),
     ("文生图 4步加速", "Text to Image 4-Step Accelerated"),
     ("文生图", "Text to Image"),
