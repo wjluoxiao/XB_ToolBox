@@ -10,8 +10,6 @@ import folder_paths
 
 web = server.web
 
-_PREVIEW_LOCKS = {}    # 同一个「文件+参数」并发请求只跑一次转码
-
 # 查找 ffmpeg
 def _find_ffmpeg():
     path = shutil.which("ffmpeg")
@@ -32,15 +30,12 @@ else:
     print("⚠️ [XB-BOX] ffmpeg 未找到，视频预览转码不可用")
 
 ENCODE_ARGS = ("utf-8", "backslashreplace")
-PREVIEW_MAX = 960      # 预览转码的长边上限（只影响预览，不影响真实输出）
-MIN_DIM = 16           # 宽高低于它就当「没填」（拦截小数/脏值被当成分辨率）
-PREVIEW_CACHE_KEEP = 60    # 预览缓存最多保留多少个文件
+MIN_DIM = 16               # 宽高低于它就当「没填」（拦截小数/脏值被当成分辨率）
+PREVIEW_CACHE_KEEP = 60    # 预览转码缓存最多保留多少个文件
+# 缓存键版本：影响转码结果的规则一变就 +1，避免继续命中旧规则的缓存
+CACHE_VERSION = 3
 
-# 浏览器原生就能播的编码：这些情况下「参数全默认」时可以直接给原片，
-# 既不用转码（秒开），又带完整时长、可拖动。
-WEB_CODECS = {"h264", "vp8", "vp9", "av1"}
-WEB_PIX_FMTS = {"yuv420p", "yuvj420p"}
-WEB_EXTS = {".mp4", ".m4v", ".webm", ".mov"}
+_PREVIEW_LOCKS = {}        # 同一个「文件+参数」并发请求只跑一次转码
 
 
 def _preview_cache_dir():
@@ -66,14 +61,12 @@ def _prune_preview_cache(keep=PREVIEW_CACHE_KEEP):
 
 
 async def _transcode_to_file(args, target):
-    """跑 ffmpeg 写到一个 .part 文件，成功后再改名。
-
-    中途失败 / 被取消都不会留下半截缓存（半截文件会让播放器报错）。
-    """
+    """跑 ffmpeg 写 .part 再改名：失败/取消都不留半截缓存。"""
     os.makedirs(os.path.dirname(target), exist_ok=True)
     part = target + ".part.mp4"
     proc = await asyncio.create_subprocess_exec(
-        *args, part, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
+        *args, part, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        stdin=subprocess.DEVNULL)
     try:
         _, stderr = await proc.communicate()
     except asyncio.CancelledError:
@@ -99,21 +92,17 @@ async def _transcode_to_file(args, target):
     return True
 
 
-def _file_response(path, filename, content_type="video/mp4"):
-    """完整文件响应：带 Content-Length 与 Range 支持 → 播放器一开始就知道总时长、可拖动。"""
-    headers = {
+def _file_response(path, filename):
+    """完整文件响应（带 Content-Length 与 Range）→ 时长完整、可拖动。"""
+    return web.FileResponse(path, headers={
         "Content-Disposition": f'filename="{os.path.basename(filename)}"',
         "Cache-Control": "no-store",
-    }
-    try:
-        return web.FileResponse(path, headers=headers)
-    except Exception:
-        return web.Response(status=500, text="read failed")
+    })
 
 
 def _probe_video(filepath):
-    """用 PyAV 读元数据（比跑一遍 ffmpeg 探测快得多）。"""
-    info = {"fps": 0.0, "w": 0, "h": 0, "codec": "", "pix_fmt": "", "duration": 0.0}
+    """用 PyAV 读元数据（不解码，很快）。"""
+    info = {"fps": 0.0, "w": 0, "h": 0, "duration": 0.0}
     try:
         import av
         with av.open(filepath, mode="r") as container:
@@ -122,8 +111,6 @@ def _probe_video(filepath):
             info["fps"] = float(rate) if rate else 0.0
             info["w"] = int(stream.codec_context.width or 0)
             info["h"] = int(stream.codec_context.height or 0)
-            info["codec"] = (stream.codec_context.name or "").lower()
-            info["pix_fmt"] = (stream.codec_context.pix_fmt or "").lower()
             if stream.metadata.get("rotate") in ("90", "-90", "270", "-270"):
                 info["w"], info["h"] = info["h"], info["w"]
             try:
@@ -137,8 +124,15 @@ def _probe_video(filepath):
     return info
 
 
+def _even(v):
+    return max(2, int(v) - int(v) % 2)
+
+
 def _build_preview_args(filepath, opts):
-    """拼 ffmpeg 参数（与后端 XB_LoadVideo 的取帧规则完全一致）。"""
+    """拼 ffmpeg 参数：取帧规则与后端 XB_LoadVideo 完全一致。
+
+    尺寸按「节点实际输出」给：不缩放、不压长边，保证预览尺寸 == 真实尺寸。
+    """
     base_fps = opts["base_fps"]
     force_rate = opts["force_rate"]
     nth = opts["nth"]
@@ -173,7 +167,7 @@ def _build_preview_args(filepath, opts):
     elif target_h:
         vfilters.append(f"scale=-2:{target_h}")
     else:
-        # 源尺寸是奇数时 yuv420p 会编码失败，兜一层偶数对齐
+        # 源尺寸是奇数时 yuv420p 编不出来，兜一层偶数对齐
         vfilters.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
     args += ["-vf", ",".join(vfilters)]
 
@@ -184,7 +178,7 @@ def _build_preview_args(filepath, opts):
     if cap > 0:
         args += ["-frames:v", str(cap)]
 
-    # +faststart：把 moov（含总时长）放到文件头，播放器一打开就知道完整时长、可任意拖动
+    # +faststart：moov（含总时长）放文件头 → 播放器一打开就知道完整时长，可拖动
     args += ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "96k",
              "-movflags", "+faststart",
@@ -194,11 +188,12 @@ def _build_preview_args(filepath, opts):
 
 @server.PromptServer.instance.routes.get("/xb/videopreview")
 async def xb_video_preview(request):
-    """加载视频节点用的参数预览：按 跳过帧 / 间隔取帧 / 帧率 / 分辨率 / 帧数上限 转码。
+    """加载视频节点的预览。
 
-    这里返回的是**完整文件**（而不是边转边播的流）：流式 fMP4 的 moov 时长是 0，
-    浏览器不知道总长，进度条就会随着分片一截一截地长（长视频表现为「8 秒 8 秒地涨」）。
-    完整文件带真实时长，和官方 Load Video 看不出来区别，而且能拖动。
+    · 参数全默认 → 直接返回**原片文件**，与官方 Load Video 完全一致
+      （尺寸 / 时长 / 进度条都由原片决定，不转码、不缩放）；
+    · 改了 帧率 / 帧数上限 / 宽 / 高 / 跳过帧 / 间隔取帧 → 按当前参数转码，
+      返回同样的**完整文件**（带真实时长、可拖动），预览实时反映调节后的样子。
     """
     if _ffmpeg_path is None:
         return web.Response(status=501, text="ffmpeg not found")
@@ -235,15 +230,13 @@ async def xb_video_preview(request):
     cap = max(0, int(_num("frame_load_cap")))
     width = max(0, int(_num("custom_width")))
     height = max(0, int(_num("custom_height")))
-    # 小于 MIN_DIM 的宽高一律当「没填」：上游若是把小数（如 megapixels 0.9）误连进来，
-    # 会在下面的 _even() 里变成 2px，预览就成了拉伸的畸形长条
+    # 小于 MIN_DIM 的宽高一律当「没填」，避免小数脏值被当成分辨率
     if width < MIN_DIM:
         width = 0
     if height < MIN_DIM:
         height = 0
 
-    # 跳过帧数用「按帧号裁剪」而不是 -ss：-ss 停在帧边界时会丢/多留一帧，
-    # 后端的 images[skip:] 是按帧号精确切的，这里必须一致
+    # 与后端 XB_LoadVideo 一致：按帧号跳过（不是 -ss），避免丢/多留一帧
     start_frame = skip
     if "start_time" in query:
         try:
@@ -251,27 +244,14 @@ async def xb_video_preview(request):
         except (TypeError, ValueError):
             start_frame = skip
 
-    # ── 参数全默认 + 浏览器原生能播 → 直接给原片 ─────────────────────
-    # 这就是官方「Load Video」节点的做法：预览直接用 /view 播原片，
-    # 因此时长一开始就是完整的、进度条可以随便拖。这里原样照搬。
-    neutral = (start_frame == 0 and nth == 1 and force_rate <= 0
-               and cap == 0 and width == 0 and height == 0)
-    ext = os.path.splitext(filepath)[1].lower()
-    web_playable = (
-        info["codec"] in WEB_CODECS
-        and info["pix_fmt"] in WEB_PIX_FMTS
-        and ext in WEB_EXTS
-    )
-    if neutral and web_playable:
+    # 参数全默认 → 原片（与官方一致）
+    if start_frame == 0 and nth == 1 and force_rate <= 0 and cap == 0 and width == 0 and height == 0:
         return _file_response(filepath, filename)
 
-    # ── 否则转码成完整文件并缓存 ──────────────────────────────────────
-    def _even(v):
-        return max(2, int(v) - int(v) % 2)
-
+    # 预览尺寸 = 节点实际输出尺寸（不缩放、不压长边）
     crop_to_box = False
     if width and height:
-        # 与节点实际输出一致：宽高都填 → 居中裁剪到目标比例，再缩放（不是拉伸）
+        # 宽高都填 → 居中裁剪到目标比例再缩放（与节点实际输出一致，不是拉伸）
         target_w, target_h = _even(width), _even(height)
         crop_to_box = True
     elif width and src_w and src_h:
@@ -281,10 +261,9 @@ async def xb_video_preview(request):
     elif width or height:
         target_w, target_h = _even(width) if width else 0, _even(height) if height else 0
     else:
-        target_w, target_h = src_w, src_h
-        if target_w and target_h and max(target_w, target_h) > PREVIEW_MAX:
-            ratio = PREVIEW_MAX / max(target_w, target_h)
-            target_w, target_h = _even(round(target_w * ratio)), _even(round(target_h * ratio))
+        # 没填宽高：保持源分辨率（读不到时交给 ffmpeg 用 iw/ih 对齐）
+        target_w = _even(src_w) if src_w else 0
+        target_h = _even(src_h) if src_h else 0
 
     args = _build_preview_args(filepath, {
         "base_fps": base_fps, "force_rate": force_rate, "nth": nth,
@@ -295,7 +274,7 @@ async def xb_video_preview(request):
     try:
         st = os.stat(filepath)
         key = hashlib.sha1("|".join(map(str, (
-            os.path.abspath(filepath), st.st_mtime_ns, st.st_size,
+            CACHE_VERSION, os.path.abspath(filepath), st.st_mtime_ns, st.st_size,
             start_frame, nth, force_rate, cap, width, height,
         ))).encode("utf-8")).hexdigest()
     except OSError:
@@ -307,14 +286,12 @@ async def xb_video_preview(request):
         try:
             async with lock:
                 if not os.path.isfile(target):
-                    ok = await _transcode_to_file(args, target)
-                    if not ok:
+                    if not await _transcode_to_file(args, target):
                         return web.Response(status=500, text="transcode failed")
                     _prune_preview_cache()
         finally:
             _PREVIEW_LOCKS.pop(key, None)
     return _file_response(target, filename)
-
 
 
 @server.PromptServer.instance.routes.get("/xb/viewvideo")
