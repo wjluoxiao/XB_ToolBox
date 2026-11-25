@@ -45,18 +45,25 @@ _FORMAT_INPUT = copy.deepcopy(_SAVE_INPUTS["format"])
 _localize_dynamic(_FORMAT_INPUT, {"codec": "编解码器", "encoding": "编码模式", "crf": "CRF"})
 
 
-def _resolve_save_settings(fmt):
-    """把 DynamicCombo 的 format 值拆成 (容器, 编解码器, CRF)。"""
+def _resolve_save_settings(fmt, codec_input=None):
+    """与官方 SaveVideo.execute 完全一致的解析：返回 (容器, 编解码器, CRF)。
+
+    逐条照搬官方分支（含 auto 下 prores → mov 的映射、缺省 codec 的兜底），
+    保证「保存逻辑」和官方一模一样，只有显示名做了汉化。
+    """
     if isinstance(fmt, dict):
         format_name = fmt.get("format", "auto")
-        codec = fmt.get("codec") or {}
+        codec = fmt.get("codec") or codec_input
     else:
-        format_name, codec = (fmt or "auto"), {}
+        format_name = fmt or "auto"
+        codec = codec_input
+    if codec is None:
+        codec = {"codec": "prores" if format_name == "mov" else "auto"}
     if not isinstance(codec, dict):
         codec = {"codec": str(codec)}
     codec_name = codec.get("codec") or "auto"
     if format_name == "auto":
-        format_name = "webm" if codec_name == "av1" else "mp4"
+        format_name = {"av1": "webm", "prores": "mov"}.get(codec_name, "mp4")
     encoding = codec.get("encoding") or {}
     return format_name, codec_name, encoding.get("crf")
 
