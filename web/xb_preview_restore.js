@@ -72,6 +72,7 @@ async function existingEntries(list) {
 /** 把历史结果塞回前端的结果仓库，预览就会像刚跑完一样出现 */
 function applyPreview(node, list) {
     if (!app.nodeOutputs || !list.length) return;
+    if (!inActiveWorkflow(node)) return;      // 别把预览写到别的（未激活）工作流里
     app.nodeOutputs[node.id] = {
         images: list.map((e) => ({ filename: e.filename, subfolder: e.subfolder || "", type: e.type || "output" })),
         animated: list.map(() => true),
@@ -87,9 +88,30 @@ function applyPreview(node, list) {
     for (const ms of [120, 500, 1200, 2500]) setTimeout(kick, ms);
 }
 
+/** 当前活动工作流的 id（前端把 workflow.id 用作 rootGraph.id） */
+function currentWorkflowId() {
+    try {
+        return app?.graph?.rootGraph?.id ?? null;
+    } catch (_) {
+        return null;
+    }
+}
+
+/** 节点是否属于「当前活动工作流」——跨工作流绝不互相写预览 */
+function inActiveWorkflow(node) {
+    const gid = node?.graph?.rootGraph?.id;
+    const cur = currentWorkflowId();
+    if (!gid || !cur) return false;
+    return String(gid) === String(cur);
+}
+
 /** 老工作流里没有记录时，去 /history 找这个节点最后一次的输出 */
 async function findInHistory(node) {
     try {
+        // /history 是全局的（所有工作流混在一起），必须严格校验归属，
+        // 否则 A 工作流刚生成的视频会被 B 工作流里「同号同类型」的节点当成自己的输出显示。
+        const wantWf = currentWorkflowId();
+        if (!wantWf) return null;
         const res = await fetch("/history?max_items=64");
         const data = await res.json();
         const startTime = (h) => {
@@ -102,8 +124,13 @@ async function findInHistory(node) {
         for (const h of Object.values(data || {})) {
             const list = toEntries(h?.outputs?.[node.id]?.images);
             if (!list.length) continue;
-            const meta = Array.isArray(h.prompt) ? h.prompt[2]?.[node.id] : null;
-            if (meta && meta.class_type && meta.class_type !== node.type) continue;
+            if (!Array.isArray(h.prompt)) continue;
+            // 1) 必须来自同一个工作流
+            const wfId = h.prompt[3]?.extra_pnginfo?.workflow?.id;
+            if (!wfId || String(wfId) !== String(wantWf)) continue;
+            // 2) 该 prompt 里这个号确实是我们这种节点
+            const meta = h.prompt[2]?.[node.id];
+            if (!meta || (meta.class_type && meta.class_type !== node.type)) continue;
             hits.push({ list, ts: startTime(h) });
         }
         hits.sort((a, b) => b.ts - a.ts);
@@ -123,6 +150,7 @@ const restoring = new Set();
  */
 export async function restorePreview(node, { fromHistory = true } = {}) {
     if (!node?.graph || !app.nodeOutputs) return;
+    if (!inActiveWorkflow(node)) return;      // 只还原当前活动工作流里的节点
     if (restoring.has(node)) return;
     const cur = app.nodeOutputs[node.id];
     if (cur && (cur.images?.length || cur.video?.length)) return;

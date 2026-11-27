@@ -10,6 +10,8 @@
 //        发现被自动改动就拉回；用户正在拖拽时则以新尺寸为基准。这样刷新页面也不会变矮。
 // ============================================================
 
+import { app } from "../../scripts/app.js";
+
 export const MIN_PREVIEW = 80;     // Nodes 2.0：.video-preview 的 CSS 最小高度
 // 经典模式下预览部件不允许向节点「要」任何额外高度：
 // 一旦要了，节点就会被 setSize 撑高（且高度随视频分辨率变化）。
@@ -53,12 +55,27 @@ let pointerDownTarget = null;
 let pointerDownSizes = null;
 const pinWatchers = new Set();
 
+/** 节点是否属于当前活动工作流（前端多个工作流里节点号会重复，按号查 DOM 会串台） */
+export function inActiveWorkflow(node) {
+    try {
+        const gid = node?.graph?.rootGraph?.id;
+        const cur = app?.graph?.rootGraph?.id;
+        if (!gid || !cur) return false;
+        return String(gid) === String(cur);
+    } catch (_) {
+        return false;
+    }
+}
+
 /** 节点的 DOM 根（Nodes 2.0；经典模式可能返回 null） */
 function nodeRootEl(node) {
     try {
         const own = node.domElement?.closest?.(".lg-node") || node.domElement;
         if (own) return own;
     } catch (_) { /* ignore */ }
+    // 只有「当前活动工作流」里的节点才允许按节点号在文档里找，
+    // 否则会命中另一个工作流里同号节点的 DOM，导致预览/尺寸/静音互相串台
+    if (!inActiveWorkflow(node)) return null;
     return document.querySelector(`.lg-node[data-node-id="${node.id}"]`);
 }
 
@@ -136,8 +153,10 @@ export function readToggle(node, name, fallback = true) {
 export function collectVideos(node) {
     const found = new Set();
     try {
-        const root = node.domElement?.closest?.("[data-node-id]") ||
-            document.querySelector(`[data-node-id="${node.id}"]`);
+        const own = node.domElement?.closest?.("[data-node-id]");
+        const root = own || (inActiveWorkflow(node)
+            ? document.querySelector(`[data-node-id="${node.id}"]`)
+            : null);
         if (root) for (const v of root.querySelectorAll("video")) found.add(v);
     } catch (_) { /* ignore */ }
     try {
@@ -219,7 +238,7 @@ function relaxNodes2PreviewMinSize(node) {
     let root = null;
     try {
         root = node.domElement?.closest?.("[data-node-id]") ||
-            document.querySelector(`[data-node-id="${node.id}"]`);
+            (inActiveWorkflow(node) ? document.querySelector(`[data-node-id="${node.id}"]`) : null);
     } catch (_) { return; }
     if (!root) return;
     const minH = `${MIN_PREVIEW}px`;
@@ -283,8 +302,7 @@ export function setupVideoPreview(node, options = {}) {
 
         // Nodes 2.0：拖拽右下角等手柄时标记「用户正在调整」
         const watchDomHandle = () => {
-            const root = node.domElement?.closest?.(".lg-node")
-                || document.querySelector(`.lg-node[data-node-id="${node.id}"]`);
+            const root = nodeRootEl(node);
             if (!root || root.__xbPinWatched) return;
             root.__xbPinWatched = true;
             root.addEventListener("pointerdown", (e) => {
