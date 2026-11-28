@@ -13,44 +13,22 @@ XB_Sage_BlockSwap — Sage + 分块 黄金搭档
   - 内置模式 A~D / 自定模式 A~C:        自定义 sage_config 参数
 """
 
-import gc
-import sys
 import torch
 import traceback
-from typing import Optional
 
-import comfy.model_management as mm
 from comfy.patcher_extension import CallbacksMP
 from comfy.model_patcher import ModelPatcher
-from comfy.ldm.modules.attention import wrap_attn
-
-try:
-    from tqdm import tqdm
-except ImportError:
-    def tqdm(iterable, **kwargs):
-        return iterable
-
 
 # ──────────────────────────────────────────────
-# 复用自 nodes_blockswap.py 的工具函数
+# 复用 nodes_blockswap.py 的工具函数（动态显存判断 / block 收集 / 卸载）
 # ──────────────────────────────────────────────
-
-def _is_dynamic_vram_active() -> bool:
-    """仅当用户显式传参 --enable-dynamic-vram 时视为动态显存激活，分块节点休眠。"""
-    if "--enable-dynamic-vram" in sys.argv:
-        print("\n\033[93m[XB Sage+分块]\033[0m: ⚠️ 检测到 --enable-dynamic-vram，动态显存已启用。分块功能自动休眠。")
-        return True
-    return False
-
-
-def _is_unsupported_model(diffusion_model) -> Optional[str]:
-    """检测已知不支持物理分块的模型架构。"""
-    model_type = type(diffusion_model).__name__
-    blacklist = ["Lumina", "Lumina2", "ZImage", "HunyuanDiT", "ErnieImageModel"]
-    for b in blacklist:
-        if b in model_type:
-            return model_type
-    return None
+from .nodes_blockswap import (
+    _collect_blocks,
+    _fmt_gb,
+    _offload_blocks,
+    is_dynamic_vram_active as _is_dynamic_vram_active,
+    is_unsupported_model as _is_unsupported_model,
+)
 
 
 # ──────────────────────────────────────────────
@@ -141,15 +119,19 @@ class XB_Sage_BlockSwap:
             print("\033[96m[XB Sage+分块]\033[0m: 分块数量 = 0，分块功能已关闭 (仅保留注意力加速)")
             return model
 
-        if _is_dynamic_vram_active():
+        if _is_dynamic_vram_active(model):
+            print("\033[93m[XB Sage+分块]\033[0m: ⚠️ 检测到 DynamicVRAM（comfy-aimdo）已启用，分块功能已休眠（仅保留注意力加速）。\n"
+                  "   动态显存下权重本来就在系统内存里、按块流式加载，再把 block 搬到内存是无操作、省不到显存。\n"
+                  "   需要降显存：降低分辨率/帧数，或使用降低激活峰值的节点。")
             return model
 
         def swap_blocks(model_patcher: ModelPatcher, device_to, lowvram_model_memory,
                         force_patch_weights, full_load):
-            base_model = model_patcher.model
-            main_device = model_patcher.load_device
+            if _is_dynamic_vram_active(model_patcher):
+                print("\033[93m[XB Sage+分块]\033[0m: 加载时检测到动态显存，跳过分块。")
+                return
 
-            diffusion_model = getattr(base_model, 'diffusion_model', None)
+            diffusion_model = getattr(model_patcher.model, 'diffusion_model', None)
             if not diffusion_model:
                 return
 
@@ -159,45 +141,21 @@ class XB_Sage_BlockSwap:
                       f"属于高耦合架构，不支持物理分块。已自动跳过！")
                 return
 
-            all_blocks = []
-            block_paths = [
-                'transformer_blocks', 'blocks', 'down_blocks', 'up_blocks', 'mid_block',
-                'layers', 'attention_blocks', 'input_blocks', 'middle_block', 'output_blocks',
-                'double_blocks', 'single_blocks', 'joint_blocks'
-            ]
-
-            for path in block_paths:
-                if hasattr(diffusion_model, path):
-                    attr = getattr(diffusion_model, path)
-                    if isinstance(attr, (list, torch.nn.ModuleList)):
-                        for item in attr:
-                            all_blocks.append(item)
-                    elif isinstance(attr, torch.nn.Module) and path in ['mid_block', 'middle_block']:
-                        all_blocks.append(attr)
-
+            all_blocks = _collect_blocks(diffusion_model)
             if not all_blocks:
+                print("\033[93m[XB Sage+分块]\033[0m: 未找到可卸载的 block 容器，已跳过。")
                 return
 
             total_blocks = len(all_blocks)
-            if blocks_to_swap > total_blocks:
-                effective = total_blocks
-                tag = "匹配最大可分块参数"
-            else:
-                effective = blocks_to_swap
-                tag = "匹配用户设置的参数"
+            effective = min(blocks_to_swap, total_blocks)
+            tag = "匹配最大可分块参数" if blocks_to_swap > total_blocks else "匹配用户设置的参数"
 
             print(f"\033[96m[XB Sage+分块]\033[0m: 静态物理分块交换已激活！"
                   f"已找到 {total_blocks} 个引擎模块，分割 {effective} 个分块（{tag}）。")
 
-            for b, block in tqdm(enumerate(all_blocks), total=total_blocks,
-                                 desc="[Sage+分块] Slicing pipeline"):
-                if b > effective:
-                    block.to(main_device)
-                else:
-                    block.to(model_patcher.offload_device)
-
-            mm.soft_empty_cache()
-            gc.collect()
+            effective, freed = _offload_blocks(model_patcher, all_blocks, blocks_to_swap,
+                                               lowvram_model_memory, "Sage+分块")
+            print(f"\033[96m[XB Sage+分块]\033[0m: 已卸载 {effective} 个分块，释放显存 {_fmt_gb(freed)}。")
 
         model = model.clone()
         model.add_callback(CallbacksMP.ON_LOAD, swap_blocks)
@@ -268,10 +226,14 @@ class XB_Sage_BlockSwap:
             return sageattn(q, k, v, is_causal=is_causal,
                             attn_mask=attn_mask, tensor_layout=tensor_layout)
 
-        @wrap_attn
         def attention_sage(q, k, v, heads, mask=None, attn_precision=None,
-                            skip_reshape=False, skip_output_reshape=False, **kwargs):
+                            skip_reshape=False, skip_output_reshape=False,
+                            fallback=None, **kwargs):
             if kwargs.get("low_precision_attention", True) is False:
+                if fallback is not None:
+                    return fallback(q, k, v, heads, mask=mask, attn_precision=attn_precision,
+                                    skip_reshape=skip_reshape,
+                                    skip_output_reshape=skip_output_reshape, **kwargs)
                 from comfy.ldm.modules.attention import attention_pytorch
                 return attention_pytorch(q, k, v, heads, mask=mask,
                                          skip_reshape=skip_reshape,
@@ -310,8 +272,9 @@ class XB_Sage_BlockSwap:
         m = model.clone()
         if "transformer_options" not in m.model_options:
             m.model_options["transformer_options"] = {}
+        # 把回退用的原始注意力函数（func）透传进去，避免绕过模型当前选定的后端
         m.model_options["transformer_options"]["optimized_attention_override"] = \
-            lambda func, *args, **kwargs: attention_sage.__wrapped__(*args, **kwargs)
+            lambda func, *args, **kwargs: attention_sage(*args, fallback=func, **kwargs)
 
         print("\033[96m[XB Sage+分块]\033[0m: SageAttention 引擎切换至 \033[92m自动 (KJNodes auto)\033[0m")
         return m

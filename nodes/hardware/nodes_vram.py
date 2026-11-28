@@ -109,13 +109,46 @@ def _loaded_model_names():
         return []
 
 
+def _aimdo_control():
+    """DynamicVRAM（comfy-aimdo）可用时返回 control 模块，否则 None。"""
+    try:
+        import comfy.memory_management
+        if not getattr(comfy.memory_management, "aimdo_enabled", False):
+            return None
+        import comfy_aimdo.control
+        return comfy_aimdo.control
+    except Exception:
+        return None
+
+
+def _aimdo_trim_vram():
+    """让 aimdo 重新评估显存水位（原本被 watermark 卡住的页面可以被回收）。"""
+    try:
+        import comfy_aimdo.model_vbar
+        comfy_aimdo.model_vbar.vbars_reset_watermark_limits()
+        return True
+    except Exception:
+        return False
+
+
+def _aimdo_vram_usage():
+    ctl = _aimdo_control()
+    if ctl is None:
+        return None
+    try:
+        return ctl.get_total_vram_usage()
+    except Exception:
+        return None
+
+
 class XB_VRAM_Cleanup:
     """占用清理节点：清理后把输入原样传出，用于在流程中途/末尾释放内存与显存。
 
     两个开关：
       - clean_ram（内存清理）：gc.collect()，回收被引用环/中间变量占住的 CPU 内存。
       - clean_vram（显存清理）：卸载所有已加载模型 + soft_empty_cache()，
-          真正腾出显存（soft_empty_cache 兼容 CUDA/XPU/NPU/MLU/MPS 并调用 ipc_collect）。
+          真正腾出显存；DynamicVRAM（comfy-aimdo）开启时额外重置 VBAR 水位，
+          否则 aimdo 自己缓存的显存页不会被释放。
           代价是下一次推理需要重新加载模型。
 
     清理顺序为 卸载模型 → gc → 清空缓存：先让张量真正释放，再回收缓存块最有效。
@@ -154,6 +187,8 @@ class XB_VRAM_Cleanup:
         free_before, total, alloc_before, reserved_before = _vram_stats()
         ram_before, _ = _ram_used()
         models_before = _loaded_model_names()
+        aimdo_enabled = _aimdo_control() is not None
+        aimdo_before = _aimdo_vram_usage() if clean_vram else None
 
         unloaded = 0
         if clean_vram and models_before:
@@ -167,6 +202,7 @@ class XB_VRAM_Cleanup:
             gc.collect()
             print("[XB 占用清理] 内存清理完毕。")
 
+        aimdo_trimmed = False
         if clean_vram:
             try:
                 mm.soft_empty_cache()
@@ -174,11 +210,15 @@ class XB_VRAM_Cleanup:
                 print(f"[XB 占用清理] ⚠️ 清空显存缓存失败: {e}")
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
+            # DynamicVRAM：torch 缓存之外还有 aimdo 的 VBAR 缓存，必须单独通知它重算水位
+            if aimdo_enabled:
+                aimdo_trimmed = _aimdo_trim_vram()
             print("[XB 占用清理] 显存清理完毕。")
 
         free_after, _, alloc_after, reserved_after = _vram_stats()
         ram_after, _ = _ram_used()
         models_after = _loaded_model_names()
+        aimdo_after = _aimdo_vram_usage() if clean_vram else None
 
         freed_vram = max(0, free_after - free_before)
         freed_ram = max(0, ram_before - ram_after)
@@ -192,6 +232,11 @@ class XB_VRAM_Cleanup:
                          f"预留 {_gb(reserved_before)} → {_gb(reserved_after)}")
             if unloaded:
                 lines.append(f"已加载模型：{len(models_before)} → {len(models_after)}")
+            if aimdo_enabled:
+                if aimdo_before is not None and aimdo_after is not None:
+                    lines.append(f"    aimdo 占用 {_gb(aimdo_before)} → {_gb(aimdo_after)}")
+                if not aimdo_trimmed:
+                    lines.append("    （aimdo 水位重置不可用，已跳过）")
         report = "\n".join(lines)
 
         return {
