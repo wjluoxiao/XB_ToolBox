@@ -240,6 +240,31 @@
       }
     }
   },
+  "XB_VRAM_Cleanup": {
+    "display_name": "XB-BOX - 🧹 占用清理",
+    "inputs": {
+      "clean_ram": {
+        "name": "内存清理"
+      },
+      "clean_vram": {
+        "name": "显存清理"
+      },
+      "any_input": {
+        "name": "任意输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "任意输出"
+      },
+      "1": {
+        "name": "清理前空闲(MB)"
+      },
+      "2": {
+        "name": "清理后空闲(MB)"
+      }
+    }
+  },
   "XB_VideoParamsMaster": {
     "display_name": "XB-BOX - 🎬 视频参数大全",
     "inputs": {

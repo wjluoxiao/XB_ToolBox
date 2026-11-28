@@ -14,6 +14,31 @@
   "XB_MemoryVisualization": {
     "display_name": "XB 📊 Hardware Monitor (Memory Visualization)"
   },
+  "XB_VRAM_Cleanup": {
+    "display_name": "XB-BOX - 🧹 VRAM / RAM Cleanup",
+    "inputs": {
+      "clean_ram": {
+        "name": "Clean RAM"
+      },
+      "clean_vram": {
+        "name": "Clean VRAM"
+      },
+      "any_input": {
+        "name": "Any Input"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Any Output"
+      },
+      "1": {
+        "name": "Free Before (MB)"
+      },
+      "2": {
+        "name": "Free After (MB)"
+      }
+    }
+  },
   "XB_KSampler": {
     "display_name": "XB-BOX - Sampler (Optimized)"
   },

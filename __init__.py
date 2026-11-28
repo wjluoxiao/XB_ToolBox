@@ -94,7 +94,7 @@ WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 
 try:
     from .nodes.hardware.nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
-    from .nodes.hardware.nodes_vram import XTX_Data_Radar
+    from .nodes.hardware.nodes_vram import XTX_Data_Radar, XB_VRAM_Cleanup
     from .nodes.video.nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_ImageParamsMasterMini, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
     from .nodes.core.nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes.core.nodes_blockswap_sage import XB_Sage_BlockSwap
@@ -271,6 +271,7 @@ try:
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
         "XB_ChunkVisualization": XB_ChunkVisualization,
         "XTX_Data_Radar": XTX_Data_Radar,
+        "XB_VRAM_Cleanup": XB_VRAM_Cleanup,
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
         "XB_ImageParamsMaster": XB_ImageParamsMaster,
         "XB_ImageParamsMasterMini": XB_ImageParamsMasterMini, 
@@ -487,6 +488,7 @@ try:
         "XB_VRAM_Calculator": "XB-BOX - VRAM Calculator",
         "XB_ChunkVisualization": "XB-BOX - Chunk Visualization",
         "XTX_Data_Radar": "XB-BOX - Data Radar",
+        "XB_VRAM_Cleanup": "XB-BOX - 🧹 占用清理",
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
         "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
